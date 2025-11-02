@@ -171,18 +171,20 @@ impl FileDialog {
         self
     }
 
-    pub fn execute(&mut self, terminal: &mut Terminal) -> Option<PathBuf> {
+    pub fn execute(&mut self, app: &mut crate::app::Application) -> Option<PathBuf> {
         loop {
             // Update OK button state based on input field
             self.update_ok_button_state();
 
-            // Draw
-            self.dialog.draw(terminal);
-            self.dialog.update_cursor(terminal);
-            let _ = terminal.flush();
+            // Draw desktop first (background), then dialog on top
+            // This matches Borland's pattern where getEvent() triggers full screen redraw
+            app.desktop.draw(&mut app.terminal);
+            self.dialog.draw(&mut app.terminal);
+            self.dialog.update_cursor(&mut app.terminal);
+            let _ = app.terminal.flush();
 
             // Get event
-            if let Ok(Some(mut event)) = terminal.poll_event(std::time::Duration::from_millis(50)) {
+            if let Some(mut event) = app.terminal.poll_event(std::time::Duration::from_millis(50)).ok().flatten() {
                 // Handle double ESC to close
                 if event.what == EventType::Keyboard && event.key_code == crate::core::event::KB_ESC_ESC {
                     return None;
@@ -211,13 +213,13 @@ impl FileDialog {
                                     // Update wildcard filter and reload list
                                     self.wildcard = file_name.clone();
                                     self.read_directory();
-                                    self.rebuild_and_redraw(terminal);
+                                    self.rebuild_and_redraw(&mut app.terminal);
                                     // Stay open - don't return
                                     continue;
                                 }
 
                                 // Check if it's a directory navigation request or file selection
-                                if let Some(path) = self.handle_selection(&file_name, terminal) {
+                                if let Some(path) = self.handle_selection(&file_name, &mut app.terminal) {
                                     // File selected - return it
                                     return Some(path);
                                 }
@@ -242,7 +244,7 @@ impl FileDialog {
                             if !file_name.is_empty() {
                                 // Handle the selection (navigate dirs or return file)
                                 // Matches Borland: TFileDialog::valid() reads from input field
-                                if let Some(path) = self.handle_selection(&file_name, terminal) {
+                                if let Some(path) = self.handle_selection(&file_name, &mut app.terminal) {
                                     // File selected - return it
                                     return Some(path);
                                 }

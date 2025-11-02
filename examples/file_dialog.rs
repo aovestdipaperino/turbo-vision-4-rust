@@ -27,11 +27,7 @@ fn main() -> std::io::Result<()> {
     let mut app = Application::new()?;
     let (width, height) = app.terminal.size();
 
-    // Draw initial screen
-    app.desktop.draw(&mut app.terminal);
-    let _ = app.terminal.flush();
-
-    // Create and show file dialog
+    // Create file dialog
     let dialog_width = 60;
     let dialog_height = 20;
     let dialog_x = (width as i16 - dialog_width) / 2;
@@ -46,7 +42,8 @@ fn main() -> std::io::Result<()> {
         None,    // Start in current directory
     ).build();
 
-    match file_dialog.execute(&mut app.terminal) {
+    // Execute (now redraws desktop background on each frame - fixes trailing bug!)
+    match file_dialog.execute(&mut app) {
         Some(path) => {
             println!("\nSelected file: {}", path.display());
         }

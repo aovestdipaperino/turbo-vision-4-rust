@@ -1,6 +1,6 @@
 use crate::core::geometry::Rect;
 use crate::core::event::{Event, EventType, KB_F10, KB_ALT_X, KB_ESC_X};
-use crate::core::command::{CommandId, CM_QUIT, CM_COMMAND_SET_CHANGED};
+use crate::core::command::{CommandId, CM_QUIT, CM_COMMAND_SET_CHANGED, CM_CANCEL};
 use crate::core::command_set;
 use crate::terminal::Terminal;
 use crate::views::{View, menu_bar::MenuBar, status_line::StatusLine, desktop::Desktop};
@@ -44,10 +44,52 @@ impl Application {
         self.status_line = Some(status_line);
     }
 
+    /// Get an event (with drawing)
+    /// Matches Borland: TProgram::getEvent() (tprogram.cc:105-174)
+    /// This is called by modal views' execute() methods.
+    /// It handles idle processing, draws the screen, then polls for an event.
+    pub fn get_event(&mut self) -> Option<Event> {
+        // Idle processing - broadcast command set changes
+        self.idle();
+
+        // Update active view bounds
+        self.update_active_view_bounds();
+
+        // Draw everything (this is the key: drawing happens BEFORE getting events)
+        // Matches Borland's CLY_Redraw() in getEvent
+        self.draw();
+        let _ = self.terminal.flush();
+
+        // Poll for event
+        self.terminal.poll_event(Duration::from_millis(50)).ok().flatten()
+    }
+
+    /// Execute a modal dialog
+    /// Matches Borland: TGroup::execView() (tgroup.cc:203-239)
+    pub fn exec_dialog(&mut self, mut dialog: crate::views::dialog::Dialog) -> CommandId {
+        // Add to desktop as a view
+        self.desktop.add(Box::new(dialog));
+
+        // NOTE: We can't call dialog.execute() here because dialog was moved
+        // This needs redesign - for now, return to the simpler pattern
+
+        CM_CANCEL
+    }
+
     pub fn run(&mut self) {
         self.running = true;
 
+        // Initial draw
+        self.update_active_view_bounds();
+        self.draw();
+        let _ = self.terminal.flush();
+
         while self.running {
+            // Handle events first
+            if let Ok(Some(mut event)) = self.terminal.poll_event(Duration::from_millis(50)) {
+                self.handle_event(&mut event);
+            }
+
             // Idle processing - broadcast command set changes
             // Matches Borland: TProgram::idle() called during event loop
             self.idle();
@@ -55,14 +97,10 @@ impl Application {
             // Update active view bounds for F11 dumps
             self.update_active_view_bounds();
 
-            // Draw everything
+            // Draw everything AFTER handling events
+            // This ensures we display the updated state immediately
             self.draw();
             let _ = self.terminal.flush();
-
-            // Handle events
-            if let Ok(Some(mut event)) = self.terminal.poll_event(Duration::from_millis(50)) {
-                self.handle_event(&mut event);
-            }
         }
     }
 

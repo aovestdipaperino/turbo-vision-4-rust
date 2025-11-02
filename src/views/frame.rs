@@ -3,6 +3,7 @@ use crate::core::event::{Event, EventType, MB_LEFT_BUTTON};
 use crate::core::draw::DrawBuffer;
 use crate::core::palette::{colors, Attr, TvColor};
 use crate::core::command::CM_CLOSE;
+use crate::core::state::{StateFlags, SF_ACTIVE, SF_DRAGGING};
 use crate::terminal::Terminal;
 use super::view::{View, write_line_to_terminal};
 
@@ -12,6 +13,8 @@ pub struct Frame {
     /// Palette type for color mapping (Dialog vs Editor vs other window types)
     /// Matches Borland's view hierarchy palette mapping
     palette_type: FramePaletteType,
+    /// State flags (active, dragging, etc.) - matches Borland's TView state
+    state: StateFlags,
 }
 
 /// Frame palette types for different window types
@@ -32,26 +35,45 @@ impl Frame {
             bounds,
             title: title.to_string(),
             palette_type,
+            state: SF_ACTIVE,  // Default to active
         }
     }
 
-    /// Get colors for frame elements based on palette type
-    /// Matches Borland's getColor() with palette mapping
+    /// Get colors for frame elements based on palette type and state
+    /// Matches Borland's getColor() with palette mapping (tframe.cc:43-64)
     fn get_frame_colors(&self) -> (Attr, Attr) {
-        // Borland: cFrame = 0x0503 for active dialogs
-        // Low byte (03) = brackets, high byte (05) = close icon highlight
+        // Borland determines cFrame based on state:
+        // - Inactive: cFrame = 0x0101 (both bytes use palette[1])
+        // - Dragging: cFrame = 0x0505 (both bytes use palette[5])
+        // - Active:   cFrame = 0x0503 (low=palette[3], high=palette[5])
+
+        let is_active = (self.state & SF_ACTIVE) != 0;
+        let is_dragging = (self.state & SF_DRAGGING) != 0;
+
         match self.palette_type {
             FramePaletteType::Dialog => {
-                // cpDialog palette mapping for color scheme:
-                // Palette[3] (0x23: Cyan on Green) -> White on LightGray
-                // Palette[5] (0x25: Magenta on Green) -> LightGreen on LightGray
-                let frame_attr = colors::DIALOG_FRAME_ACTIVE;  // White on LightGray
-                let close_icon_attr = Attr::new(TvColor::LightGreen, TvColor::LightGray);
-                (frame_attr, close_icon_attr)
+                if !is_active {
+                    // Inactive: cFrame = 0x0101
+                    // cpDialog[1] = 0x21 (Blue on Green) -> mapped to DarkGray on LightGray
+                    let inactive_attr = Attr::new(TvColor::DarkGray, TvColor::LightGray);
+                    (inactive_attr, inactive_attr)
+                } else if is_dragging {
+                    // Dragging: cFrame = 0x0505
+                    // cpDialog[5] = 0x25 (Magenta on Green) -> mapped to LightGreen on LightGray
+                    let dragging_attr = Attr::new(TvColor::LightGreen, TvColor::LightGray);
+                    (dragging_attr, dragging_attr)
+                } else {
+                    // Active: cFrame = 0x0503
+                    // cpDialog[3] = 0x23 (Cyan on Green) -> White on LightGray (frame)
+                    // cpDialog[5] = 0x25 (Magenta on Green) -> LightGreen on LightGray (highlight)
+                    let frame_attr = colors::DIALOG_FRAME_ACTIVE;  // White on LightGray
+                    let close_icon_attr = Attr::new(TvColor::LightGreen, TvColor::LightGray);
+                    (frame_attr, close_icon_attr)
+                }
             }
             FramePaletteType::Editor => {
                 // cpBlueWindow/cpCyanWindow palette mapping
-                // TODO: Implement when editor windows are fully supported
+                // TODO: Implement proper state-based colors when editor windows are supported
                 let frame_attr = Attr::new(TvColor::Yellow, TvColor::Blue);
                 let close_icon_attr = Attr::new(TvColor::White, TvColor::Blue);
                 (frame_attr, close_icon_attr)
@@ -124,19 +146,55 @@ impl View for Frame {
     }
 
     fn handle_event(&mut self, event: &mut Event) {
-        // Handle mouse clicks on close button
-        if event.what == EventType::MouseDown {
+        // Only handle events if frame is active (matches Borland tframe.cc:165)
+        if (self.state & SF_ACTIVE) == 0 {
+            return;
+        }
+
+        if event.what == EventType::MouseDown && (event.mouse.buttons & MB_LEFT_BUTTON) != 0 {
             let mouse_pos = event.mouse.pos;
 
-            // Check if click is on the close button [■] at position (2,3,4) on the top line
-            if event.mouse.buttons & MB_LEFT_BUTTON != 0
-                && mouse_pos.y == self.bounds.a.y  // Top line of frame
-                && mouse_pos.x >= self.bounds.a.x + 2  // Close button starts at position 2
-                && mouse_pos.x <= self.bounds.a.x + 4  // Close button ends at position 4
+            // Check if click is on the top frame line (title bar)
+            if mouse_pos.y == self.bounds.a.y {
+                // Check if click is on the close button [■] at position (2,3,4)
+                if mouse_pos.x >= self.bounds.a.x + 2 && mouse_pos.x <= self.bounds.a.x + 4 {
+                    // Close button area - don't start drag, wait for mouse up
+                    return;
+                }
+
+                // Click on title bar (not close button) - prepare for drag
+                // In Borland, this calls dragWindow() which then calls owner->dragView()
+                // For now, we'll mark this event as consumed and set a flag
+                // The Window needs to track drag state and handle MouseMove events
+
+                // Set dragging state
+                self.state |= SF_DRAGGING;
+                event.clear(); // Mark event as handled
+            }
+        } else if event.what == EventType::MouseUp && (self.state & SF_DRAGGING) != 0 {
+            // End dragging
+            self.state &= !SF_DRAGGING;
+            event.clear();
+        }
+
+        // Handle mouse up on close button (after mouse down was already on it)
+        if event.what == EventType::MouseUp {
+            let mouse_pos = event.mouse.pos;
+            if mouse_pos.y == self.bounds.a.y
+                && mouse_pos.x >= self.bounds.a.x + 2
+                && mouse_pos.x <= self.bounds.a.x + 4
             {
                 // Generate close command
                 *event = Event::command(CM_CLOSE);
             }
         }
+    }
+
+    fn state(&self) -> StateFlags {
+        self.state
+    }
+
+    fn set_state(&mut self, state: StateFlags) {
+        self.state = state;
     }
 }

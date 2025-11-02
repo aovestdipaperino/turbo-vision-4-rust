@@ -1,6 +1,6 @@
-use crate::core::geometry::Rect;
-use crate::core::event::Event;
-use crate::core::state::{StateFlags, SF_SHADOW, SHADOW_ATTR};
+use crate::core::geometry::{Rect, Point};
+use crate::core::event::{Event, EventType};
+use crate::core::state::{StateFlags, SF_SHADOW, SF_DRAGGING, SHADOW_ATTR};
 use crate::core::palette::colors;
 use crate::terminal::Terminal;
 use super::view::{View, draw_shadow};
@@ -12,6 +12,8 @@ pub struct Window {
     frame: Frame,
     interior: Group,
     state: StateFlags,
+    /// Drag start position (relative to mouse when drag started)
+    drag_offset: Option<Point>,
 }
 
 impl Window {
@@ -28,6 +30,7 @@ impl Window {
             frame,
             interior,
             state: SF_SHADOW, // Windows have shadows by default
+            drag_offset: None,
         }
     }
 
@@ -95,8 +98,55 @@ impl View for Window {
     }
 
     fn handle_event(&mut self, event: &mut Event) {
-        // First, let the frame handle the event (for close button clicks, etc.)
+        // First, let the frame handle the event (for close button clicks, drag start, etc.)
         self.frame.handle_event(event);
+
+        // Check if frame started dragging
+        let frame_dragging = (self.frame.state() & SF_DRAGGING) != 0;
+
+        if frame_dragging && self.drag_offset.is_none() {
+            // Frame just started dragging - record offset
+            if event.what == EventType::MouseDown || event.what == EventType::MouseMove {
+                let mouse_pos = event.mouse.pos;
+                self.drag_offset = Some(Point::new(
+                    mouse_pos.x - self.bounds.a.x,
+                    mouse_pos.y - self.bounds.a.y,
+                ));
+                self.state |= SF_DRAGGING;
+            }
+        }
+
+        // Handle mouse move during drag
+        if frame_dragging && self.drag_offset.is_some() {
+            if event.what == EventType::MouseMove {
+                let mouse_pos = event.mouse.pos;
+                let offset = self.drag_offset.unwrap();
+
+                // Calculate new position
+                let new_x = mouse_pos.x - offset.x;
+                let new_y = mouse_pos.y - offset.y;
+
+                // Update bounds (maintaining size)
+                let width = self.bounds.width();
+                let height = self.bounds.height();
+                self.bounds = Rect::new(new_x, new_y, new_x + width as i16, new_y + height as i16);
+
+                // Update frame and interior bounds
+                self.frame.set_bounds(self.bounds);
+                let mut interior_bounds = self.bounds;
+                interior_bounds.grow(-1, -1);
+                self.interior.set_bounds(interior_bounds);
+
+                event.clear(); // Mark event as handled
+                return;
+            }
+        }
+
+        // Check if frame ended dragging
+        if !frame_dragging && self.drag_offset.is_some() {
+            self.drag_offset = None;
+            self.state &= !SF_DRAGGING;
+        }
 
         // Then let the interior handle it (if not already handled)
         self.interior.handle_event(event);
