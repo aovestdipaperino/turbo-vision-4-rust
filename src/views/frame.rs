@@ -1,7 +1,7 @@
 use crate::core::geometry::Rect;
 use crate::core::event::{Event, EventType, MB_LEFT_BUTTON};
 use crate::core::draw::DrawBuffer;
-use crate::core::palette::colors;
+use crate::core::palette::{colors, Attr, TvColor};
 use crate::core::command::CM_CLOSE;
 use crate::terminal::Terminal;
 use super::view::{View, write_line_to_terminal};
@@ -47,10 +47,13 @@ impl View for Frame {
         // Add close button at position 2: [■]
         // In the original code, closeIcon = "[~\xFE~]" where ~ marks highlight toggle
         // For active dialog: cFrame = 0x0503, so brackets use cpDialog[3] and ■ uses cpDialog[5]
-        // But we're simplifying to all use frame_attr (White on LightGray)
+        // cpDialog[3] = Cyan on Green (but we map to White on LightGray for color scheme)
+        // cpDialog[5] = Magenta on Green (but we map to LightGreen on LightGray for close button)
+        // See local-only/about.png: close button is bright green (LightGreen) on gray background
         if width > 5 {
+            let close_icon_attr = Attr::new(TvColor::LightGreen, TvColor::LightGray);
             buf.put_char(2, '[', frame_attr);
-            buf.put_char(3, '■', frame_attr);  // Unicode full block (CP437 0xFE)
+            buf.put_char(3, '■', close_icon_attr);  // Close icon in LightGreen on LightGray (matches Borland)
             buf.put_char(4, ']', frame_attr);
         }
 
