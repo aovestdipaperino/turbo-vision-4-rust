@@ -92,6 +92,25 @@ impl Window {
     pub fn clear_move_tracking(&mut self) {
         self.prev_bounds = None;
     }
+
+    /// Execute a modal event loop
+    /// Delegates to the interior Group's execute() method
+    /// Matches Borland: Window and Dialog both inherit TGroup's execute()
+    pub fn execute(&mut self, app: &mut crate::app::Application) -> crate::core::command::CommandId {
+        self.interior.execute(app)
+    }
+
+    /// End the modal event loop
+    /// Delegates to the interior Group's end_modal() method
+    pub fn end_modal(&mut self, command: crate::core::command::CommandId) {
+        self.interior.end_modal(command);
+    }
+
+    /// Get the current end_state from the interior Group
+    /// Used by Dialog to check if the modal loop should end
+    pub fn get_end_state(&self) -> crate::core::command::CommandId {
+        self.interior.get_end_state()
+    }
 }
 
 impl View for Window {

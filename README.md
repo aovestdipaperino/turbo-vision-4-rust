@@ -101,17 +101,29 @@ Currently implements:
 - ✅ ANSI Dump for debugging (dump screen/views to text files with colors)
 - ❌ Full text editor with search/replace (basic editing available)
 
+## Architecture
+
+This implementation closely follows Borland Turbo Vision's architecture, adapted for Rust:
+
+- **Event Loop**: Located in `Group` (matching Borland's `TGroup::execute()`), not in individual views
+- **Modal Dialogs**: Use Borland's `endModal()` pattern to exit event loops
+- **View Hierarchy**: Composition-based design (`Window` contains `Group`, `Dialog` wraps `Window`)
+- **Drawing**: Event-driven redraws with Borland's `drawUnderRect` pattern for efficient updates
+- **Reference Implementation**: Studied original Borland C++ source code in `local-only/borland-tvision/`
+
+See `local-only/ARCHITECTURAL-FINDINGS.md` for detailed analysis of how Borland's C++ architecture maps to Rust.
+
 ## Project Statistics
 
 ```
 ===============================================================================
  Language            Files        Lines         Code     Comments       Blanks
 ===============================================================================
- Rust                   53        10255         7908          879         1468
- Markdown                6         1578            0         1142          436
+ Rust                   53        10362         7966          915         1481
+ Markdown                6         1613            0         1171          442
  TOML                    1           35           32            0            3
 ===============================================================================
- Total                  60        11868         7940         2021         1907
+ Total                  60        12010         7998         2086         1926
 ===============================================================================
 ```
 

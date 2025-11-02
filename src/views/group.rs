@@ -6,11 +6,13 @@ use crate::terminal::Terminal;
 use super::view::{View, write_line_to_terminal};
 
 /// Group - a container for child views
+/// Matches Borland: TGroup (tgroup.h/tgroup.cc)
 pub struct Group {
     bounds: Rect,
     children: Vec<Box<dyn View>>,
     focused: usize,
     background: Option<Attr>,
+    end_state: crate::core::command::CommandId,  // For execute() event loop (Borland: endState)
 }
 
 impl Group {
@@ -20,6 +22,7 @@ impl Group {
             children: Vec::new(),
             focused: 0,
             background: None,
+            end_state: 0,
         }
     }
 
@@ -29,6 +32,7 @@ impl Group {
             children: Vec::new(),
             focused: 0,
             background: Some(background),
+            end_state: 0,
         }
     }
 
@@ -133,6 +137,63 @@ impl Group {
                 self.focused = 0;
             }
         }
+    }
+
+    /// Execute a modal event loop
+    /// Matches Borland: TGroup::execute() (tgroup.cc:182-195)
+    ///
+    /// This is the KEY method that makes modal views work.
+    /// In Borland, TGroup has an execute() method with an event loop that calls
+    /// getEvent() and handleEvent() until endState is set by endModal().
+    ///
+    /// The event loop:
+    /// 1. Calls app.get_event() which handles drawing and returns events
+    /// 2. Calls self.handle_event() to process the event
+    /// 3. Continues until end_state is set (by endModal)
+    ///
+    /// This is used by Dialog, Window, and any other container that needs
+    /// modal execution.
+    pub fn execute(&mut self, app: &mut crate::app::Application) -> crate::core::command::CommandId {
+        self.end_state = 0;
+
+        loop {
+            // Get event from Application (which handles drawing)
+            // Matches Borland: TGroup::execute() calls getEvent(e)
+            if let Some(mut event) = app.get_event() {
+                // Handle the event
+                // Matches Borland: TGroup::execute() calls handleEvent(e)
+                self.handle_event(&mut event);
+            }
+
+            // Check if we should end the modal loop
+            // Matches Borland: while( endState == 0 )
+            // IMPORTANT: This must be OUTSIDE the event check, so we check
+            // end_state even when there are no events (timeout)
+            if self.end_state != 0 {
+                break;
+            }
+        }
+
+        // TODO: Borland also calls valid(endState) here
+        // For now, just return endState
+        self.end_state
+    }
+
+    /// End the modal event loop with a result code
+    /// Matches Borland: TView::endModal(ushort command) (tview.cc:391-395)
+    ///
+    /// In Borland, views call endModal() to set endState and break out of
+    /// the execute() event loop. This is typically called in response to
+    /// button clicks (CM_OK, CM_CANCEL, etc.)
+    pub fn end_modal(&mut self, command: crate::core::command::CommandId) {
+        self.end_state = command;
+    }
+
+    /// Get the current end_state
+    /// Used by containers that implement their own execute() loop
+    /// to check if they should end the modal loop
+    pub fn get_end_state(&self) -> crate::core::command::CommandId {
+        self.end_state
     }
 
     /// Draw views starting from a specific index

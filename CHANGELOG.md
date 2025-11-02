@@ -5,6 +5,57 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.4] - 2025-11-02
+
+### Changed
+- **Refactored Modal Execution Architecture**: Completely redesigned how modal dialogs work to match Borland Turbo Vision's architecture
+  - Moved event loop from `Dialog` to `Group` level (matching Borland's `TGroup::execute()`)
+  - `Group` now has `execute()`, `end_modal()`, and `get_end_state()` methods
+  - `Dialog::execute()` now implements its own event loop that calls `Dialog::handle_event()` for proper polymorphic behavior
+  - Dialog handles its own drawing because it's not on the desktop
+  - Fixed modal dialog hang bugs related to event loop and end state checking
+  - This change eliminates window movement trails and provides correct modal behavior
+
+### Added
+- **Architectural Documentation**: Created `local-only/ARCHITECTURAL-FINDINGS.md` documenting:
+  - How Borland's event loop architecture works (studied original C++ source)
+  - Differences between C++ inheritance and Rust composition patterns
+  - Why the event loop belongs in Group, not Dialog
+  - Bug fixes and design decisions
+  - Comparison of Borland's TGroup::execute() with the Rust implementation
+
+### Fixed
+- **Modal Dialog Trails**: Fixed issue where moving modal dialogs left visual trails on screen
+- **Dialog Hang Bug #1**: Fixed infinite loop where `end_state` check was inside event handling block
+- **Dialog Hang Bug #2**: Fixed polymorphism issue where `Group::handle_event()` was called instead of `Dialog::handle_event()`
+- **Application::get_event()**: Now properly draws desktop before returning events, preventing trails
+
+### Technical Details
+This release implements Borland Turbo Vision's proven architecture for modal execution. The key insight from studying the original Borland C++ source code (in `local-only/borland-tvision/`) is that **the event loop belongs in TGroup**, not in individual dialog types. In Borland:
+
+```cpp
+// TGroup::execute() - the ONE event loop (tgroup.cc:182-195)
+ushort TGroup::execute() {
+    do {
+        endState = 0;
+        do {
+            TEvent e;
+            getEvent(e);        // Get event from owner chain
+            handleEvent(e);     // Virtual dispatch to TDialog::handleEvent
+        } while(endState == 0);
+    } while(!valid(endState));
+    return endState;
+}
+```
+
+Our Rust implementation adapts this pattern:
+- `Group` has `execute()` with event loop and `end_state` field
+- `Dialog::execute()` implements the loop pattern but calls `Dialog::handle_event()` for polymorphism
+- `Dialog::handle_event()` calls `window.end_modal()` when commands occur
+- Drawing happens in the loop because dialogs aren't on the desktop
+
+See `local-only/ARCHITECTURAL-FINDINGS.md` for complete analysis.
+
 ## [0.1.3] - 2025-11-02
 
 ### Added

@@ -1,6 +1,6 @@
 use crate::core::geometry::Rect;
 use crate::core::event::{Event, EventType, KB_ESC_ESC, KB_ENTER};
-use crate::core::command::{CommandId, CM_CANCEL, CM_CLOSE};
+use crate::core::command::{CommandId, CM_CANCEL};
 use crate::terminal::Terminal;
 use super::view::View;
 use super::window::Window;
@@ -53,52 +53,42 @@ impl Dialog {
 
         self.result = CM_CANCEL;
 
-        // Set modal flag - dialogs with their own event loop are modal
-        // Matches Borland: TDialog::execute() is modal (tdialog.cc)
+        // Set modal flag - dialogs are modal by default
+        // Matches Borland: TDialog in modal state (tdialog.cc)
         let old_state = self.state();
         self.set_state(old_state | SF_MODAL);
 
+        // Event loop matching Borland's TGroup::execute() (tgroup.cc:182-195)
+        // IMPORTANT: We can't just delegate to window.execute() because that would
+        // call Group::handle_event(), but we need Dialog::handle_event() to be called
+        // (to handle commands and call end_modal).
+        //
+        // In Borland, TDialog inherits from TGroup, so TGroup::execute() calls
+        // TDialog::handleEvent() via virtual function dispatch.
+        //
+        // In Rust with composition, we must implement the execute loop here
+        // and call self.handle_event() to get proper polymorphic behavior.
         loop {
-            // Set dialog as the active view for F11 dumps
-            app.terminal.set_active_view_bounds(self.shadow_bounds());
-
-            // Draw desktop first (background), then dialog on top
-            // This matches Borland's pattern where TProgram::getEvent() triggers full screen redraw
-            //
-            // **Architecture Note**: In Borland TV, there is ONE event loop in TProgram, and
-            // TGroup::execView() just calls p->execute() which returns immediately. The modal
-            // flag blocks events from reaching views behind the modal view, but drawing happens
-            // at the TProgram level.
-            //
-            // In our Rust implementation, Dialog::execute() has its own event loop for simplicity
-            // (Rust ownership makes it difficult to have TProgram handle modal execution).
-            // Therefore, we must draw the desktop here to match Borland's behavior and prevent
-            // trails when the dialog moves.
+            // Draw desktop first (clears the background), then draw this dialog on top
+            // This is the key: dialogs that aren't on the desktop need to draw themselves
             app.desktop.draw(&mut app.terminal);
             self.draw(&mut app.terminal);
             self.update_cursor(&mut app.terminal);
             let _ = app.terminal.flush();
 
-            // Get event
-            if let Ok(Some(mut event)) = app.terminal.poll_event(Duration::from_millis(50)) {
-                // Double ESC closes the dialog
-                if event.what == EventType::Keyboard && event.key_code == KB_ESC_ESC {
-                    self.result = CM_CANCEL;
-                    break;
-                }
-
+            // Poll for event
+            if let Some(mut event) = app.terminal.poll_event(Duration::from_millis(50)).ok().flatten() {
+                // Handle the event - this calls Dialog::handle_event()
+                // which will call end_modal if needed
                 self.handle_event(&mut event);
+            }
 
-                // Check if dialog should close
-                if event.what == EventType::Command {
-                    // CM_CLOSE from close button should be treated as CM_CANCEL
-                    if event.command == CM_CLOSE {
-                        self.result = CM_CANCEL;
-                    } else {
-                        self.result = event.command;
-                    }
-                    break;
-                }
+            // Check if dialog should close
+            // Dialog::handle_event() calls window.end_modal() which sets the Group's end_state
+            let end_state = self.window.get_end_state();
+            if end_state != 0 {
+                self.result = end_state;
+                break;
             }
         }
 
@@ -127,6 +117,8 @@ impl View for Dialog {
     }
 
     fn handle_event(&mut self, event: &mut Event) {
+        use crate::core::state::SF_MODAL;
+
         // First let the window (and its children) handle the event
         // This is critical: if a focused Memo/Editor handles Enter, it will clear the event
         // Borland's TDialog calls TWindow::handleEvent() FIRST (tdialog.cc line 47)
@@ -149,6 +141,22 @@ impl View for Dialog {
                         if let Some(cmd) = self.find_default_button_command() {
                             *event = Event::command(cmd);
                         } else {
+                            event.clear();
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            EventType::Command => {
+                // Check for commands that should end modal dialogs
+                // Matches Borland: TDialog::handleEvent() (tdialog.cc lines 70-84)
+                use crate::core::command::{CM_OK, CM_YES, CM_NO};
+                match event.command {
+                    CM_OK | CM_CANCEL | CM_YES | CM_NO => {
+                        if (self.state() & SF_MODAL) != 0 {
+                            // End the modal loop
+                            // Borland: endModal(event.message.command); clearEvent(event);
+                            self.window.end_modal(event.command);
                             event.clear();
                         }
                     }
