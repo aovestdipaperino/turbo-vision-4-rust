@@ -1,18 +1,21 @@
 use crate::core::geometry::Rect;
-use crate::core::event::{Event, EventType, KB_UP, KB_DOWN, KB_PGUP, KB_PGDN, KB_HOME, KB_END, KB_ENTER, MB_LEFT_BUTTON};
+use crate::core::event::{Event, EventType, KB_ENTER, MB_LEFT_BUTTON};
 use crate::core::palette::colors;
 use crate::core::draw::DrawBuffer;
 use crate::core::state::StateFlags;
 use crate::terminal::Terminal;
 use crate::core::command::CommandId;
 use super::view::{View, write_line_to_terminal};
+use super::list_viewer::{ListViewer, ListViewerState};
 
 /// ListBox - A scrollable list of selectable items
+///
+/// Now implements ListViewer trait for standard navigation behavior.
+/// Matches Borland: TListBox (extends TListViewer)
 pub struct ListBox {
     bounds: Rect,
     items: Vec<String>,
-    selected: Option<usize>,
-    top_item: usize,
+    list_state: ListViewerState,  // Embedded state from ListViewer
     state: StateFlags,
     on_select_command: CommandId,
 }
@@ -23,8 +26,7 @@ impl ListBox {
         Self {
             bounds,
             items: Vec::new(),
-            selected: None,
-            top_item: 0,
+            list_state: ListViewerState::new(),
             state: 0,
             on_select_command,
         }
@@ -33,42 +35,36 @@ impl ListBox {
     /// Set the items in the list
     pub fn set_items(&mut self, items: Vec<String>) {
         self.items = items;
-        if !self.items.is_empty() && self.selected.is_none() {
-            self.selected = Some(0);
-        }
-        self.ensure_visible();
+        self.list_state.set_range(self.items.len());
     }
 
     /// Add an item to the list
     pub fn add_item(&mut self, item: String) {
         self.items.push(item);
-        if self.items.len() == 1 {
-            self.selected = Some(0);
-        }
+        self.list_state.set_range(self.items.len());
     }
 
     /// Clear all items
     pub fn clear(&mut self) {
         self.items.clear();
-        self.selected = None;
-        self.top_item = 0;
+        self.list_state.set_range(0);
     }
 
     /// Get the currently selected item index
     pub fn get_selection(&self) -> Option<usize> {
-        self.selected
+        self.list_state.focused
     }
 
     /// Get the currently selected item text
     pub fn get_selected_item(&self) -> Option<&str> {
-        self.selected.and_then(|idx| self.items.get(idx).map(|s| s.as_str()))
+        self.list_state.focused.and_then(|idx| self.items.get(idx).map(|s| s.as_str()))
     }
 
     /// Set the selected item by index
     pub fn set_selection(&mut self, index: usize) {
         if index < self.items.len() {
-            self.selected = Some(index);
-            self.ensure_visible();
+            let visible_rows = self.bounds.height() as usize;
+            self.list_state.focus_item(index, visible_rows);
         }
     }
 
@@ -77,96 +73,43 @@ impl ListBox {
         self.items.len()
     }
 
-    /// Ensure the selected item is visible
-    fn ensure_visible(&mut self) {
-        if let Some(selected) = self.selected {
-            let visible_count = self.bounds.height() as usize;
+    // Convenience methods for compatibility with existing code
+    // These delegate to ListViewerState methods
 
-            // If selected is above visible area, scroll up
-            if selected < self.top_item {
-                self.top_item = selected;
-            }
-            // If selected is below visible area, scroll down
-            else if selected >= self.top_item + visible_count {
-                self.top_item = selected - visible_count + 1;
-            }
-        }
+    /// Move selection up (convenience method)
+    pub fn select_prev(&mut self) {
+        let visible_rows = self.bounds.height() as usize;
+        self.list_state.focus_prev(visible_rows);
     }
 
-    /// Move selection up
-    fn select_prev(&mut self) {
-        if self.items.is_empty() {
-            return;
-        }
-
-        if let Some(selected) = self.selected {
-            if selected > 0 {
-                self.selected = Some(selected - 1);
-                self.ensure_visible();
-            }
-        } else {
-            self.selected = Some(0);
-        }
+    /// Move selection down (convenience method)
+    pub fn select_next(&mut self) {
+        let visible_rows = self.bounds.height() as usize;
+        self.list_state.focus_next(visible_rows);
     }
 
-    /// Move selection down
-    fn select_next(&mut self) {
-        if self.items.is_empty() {
-            return;
-        }
-
-        if let Some(selected) = self.selected {
-            if selected + 1 < self.items.len() {
-                self.selected = Some(selected + 1);
-                self.ensure_visible();
-            }
-        } else {
-            self.selected = Some(0);
-        }
+    /// Select first item (convenience method)
+    pub fn select_first(&mut self) {
+        let visible_rows = self.bounds.height() as usize;
+        self.list_state.focus_first(visible_rows);
     }
 
-    /// Select first item
-    fn select_first(&mut self) {
-        if !self.items.is_empty() {
-            self.selected = Some(0);
-            self.top_item = 0;
-        }
+    /// Select last item (convenience method)
+    pub fn select_last(&mut self) {
+        let visible_rows = self.bounds.height() as usize;
+        self.list_state.focus_last(visible_rows);
     }
 
-    /// Select last item
-    fn select_last(&mut self) {
-        if !self.items.is_empty() {
-            self.selected = Some(self.items.len() - 1);
-            self.ensure_visible();
-        }
+    /// Page up (convenience method)
+    pub fn page_up(&mut self) {
+        let visible_rows = self.bounds.height() as usize;
+        self.list_state.focus_page_up(visible_rows);
     }
 
-    /// Page up
-    fn page_up(&mut self) {
-        if self.items.is_empty() {
-            return;
-        }
-
-        let page_size = self.bounds.height() as usize;
-        if let Some(selected) = self.selected {
-            let new_selected = selected.saturating_sub(page_size);
-            self.selected = Some(new_selected);
-            self.ensure_visible();
-        }
-    }
-
-    /// Page down
-    fn page_down(&mut self) {
-        if self.items.is_empty() {
-            return;
-        }
-
-        let page_size = self.bounds.height() as usize;
-        if let Some(selected) = self.selected {
-            let new_selected = (selected + page_size).min(self.items.len() - 1);
-            self.selected = Some(new_selected);
-            self.ensure_visible();
-        }
+    /// Page down (convenience method)
+    pub fn page_down(&mut self) {
+        let visible_rows = self.bounds.height() as usize;
+        self.list_state.focus_page_down(visible_rows);
     }
 }
 
@@ -177,7 +120,6 @@ impl View for ListBox {
 
     fn set_bounds(&mut self, bounds: Rect) {
         self.bounds = bounds;
-        self.ensure_visible();
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
@@ -195,116 +137,68 @@ impl View for ListBox {
             colors::LISTBOX_SELECTED
         };
 
-        // Draw each visible line
-        for y in 0..height {
-            let item_idx = self.top_item + y;
+        // Draw visible items
+        for i in 0..height {
             let mut buf = DrawBuffer::new(width);
+            let item_idx = self.list_state.top_item + i;
 
             if item_idx < self.items.len() {
-                let is_selected = self.selected == Some(item_idx);
+                let is_selected = Some(item_idx) == self.list_state.focused;
                 let color = if is_selected { color_selected } else { color_normal };
 
-                // Fill line with background
-                buf.move_char(0, ' ', color, width);
-
-                // Draw item text, truncating if needed
                 let text = &self.items[item_idx];
-                let display_text = if text.len() > width {
-                    &text[..width]
-                } else {
-                    text
-                };
+                buf.move_str(0, text, color);
 
-                buf.move_str(0, display_text, color);
+                // Fill rest of line with spaces
+                let text_len = text.len();
+                if text_len < width {
+                    buf.move_char(text_len, ' ', color, width - text_len);
+                }
             } else {
                 // Empty line
                 buf.move_char(0, ' ', color_normal, width);
             }
 
-            write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y + y as i16, &buf);
+            write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y + i as i16, &buf);
         }
     }
 
     fn handle_event(&mut self, event: &mut Event) {
+        // First try standard list navigation (from ListViewer trait)
+        if self.handle_list_event(event) {
+            return;
+        }
+
+        // Handle ListBox-specific events
         match event.what {
             EventType::Keyboard => {
-                // Only handle keyboard events if focused
-                if !self.is_focused() {
-                    return;
-                }
-                match event.key_code {
-                    KB_UP => {
-                        self.select_prev();
-                        event.clear();
-                    }
-                    KB_DOWN => {
-                        self.select_next();
-                        event.clear();
-                    }
-                    KB_PGUP => {
-                        self.page_up();
-                        event.clear();
-                    }
-                    KB_PGDN => {
-                        self.page_down();
-                        event.clear();
-                    }
-                    KB_HOME => {
-                        self.select_first();
-                        event.clear();
-                    }
-                    KB_END => {
-                        self.select_last();
-                        event.clear();
-                    }
-                    KB_ENTER => {
-                        if self.selected.is_some() {
-                            *event = Event::command(self.on_select_command);
-                        }
-                    }
-                    _ => {}
+                if event.key_code == KB_ENTER {
+                    // Enter on selected item generates command
+                    *event = Event::command(self.on_select_command);
                 }
             }
             EventType::MouseDown => {
                 let mouse_pos = event.mouse.pos;
 
                 // Check if click is within the listbox bounds
-                if mouse_pos.x >= self.bounds.a.x && mouse_pos.x < self.bounds.b.x &&
-                   mouse_pos.y >= self.bounds.a.y && mouse_pos.y < self.bounds.b.y {
-
-                    if event.mouse.buttons & MB_LEFT_BUTTON != 0 {
-                        // Calculate which item was clicked
-                        let relative_y = (mouse_pos.y - self.bounds.a.y) as usize;
-                        let clicked_item = self.top_item + relative_y;
-
-                        if clicked_item < self.items.len() {
-                            // Select the clicked item
-                            self.selected = Some(clicked_item);
-
-                            // Double-click triggers selection command (matching Borland's TListViewer)
-                            if event.mouse.double_click {
-                                *event = Event::command(self.on_select_command);
-                            } else {
-                                event.clear();
-                            }
-                        }
+                if self.bounds.contains(mouse_pos) && event.mouse.buttons & MB_LEFT_BUTTON != 0 {
+                    // Double-click triggers selection command (matching Borland's TListViewer)
+                    if event.mouse.double_click {
+                        *event = Event::command(self.on_select_command);
                     }
+                    // Single click is handled by handle_list_event above
                 }
             }
             EventType::MouseWheelUp => {
                 let mouse_pos = event.mouse.pos;
-                // Check if mouse is within the listbox bounds
-                if mouse_pos.x >= self.bounds.a.x && mouse_pos.x < self.bounds.b.x &&
-                   mouse_pos.y >= self.bounds.a.y && mouse_pos.y < self.bounds.b.y {
+                if self.bounds.contains(mouse_pos) {
                     self.select_prev();
                     event.clear();
                 }
             }
             EventType::MouseWheelDown => {
                 let mouse_pos = event.mouse.pos;
-                // Check if mouse is within the listbox bounds
-                if mouse_pos.x >= self.bounds.a.x && mouse_pos.x < self.bounds.b.x &&
-                   mouse_pos.y >= self.bounds.a.y && mouse_pos.y < self.bounds.b.y {
+                if self.bounds.contains(mouse_pos) {
                     self.select_next();
                     event.clear();
                 }
@@ -316,9 +210,6 @@ impl View for ListBox {
     fn can_focus(&self) -> bool {
         true
     }
-
-    // set_focus() now uses default implementation from View trait
-    // which sets/clears SF_FOCUSED flag
 
     fn state(&self) -> StateFlags {
         self.state
@@ -333,7 +224,22 @@ impl View for ListBox {
     }
 
     fn get_list_selection(&self) -> usize {
-        self.selected.unwrap_or(0)
+        self.list_state.focused.unwrap_or(0)
+    }
+}
+
+// Implement ListViewer trait
+impl ListViewer for ListBox {
+    fn list_state(&self) -> &ListViewerState {
+        &self.list_state
+    }
+
+    fn list_state_mut(&mut self) -> &mut ListViewerState {
+        &mut self.list_state
+    }
+
+    fn get_text(&self, item: usize, _max_len: usize) -> String {
+        self.items.get(item).cloned().unwrap_or_default()
     }
 }
 
