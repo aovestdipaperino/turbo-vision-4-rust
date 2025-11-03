@@ -1,7 +1,7 @@
 use crate::core::geometry::Rect;
 use crate::core::event::Event;
 use crate::core::draw::DrawBuffer;
-use crate::core::state::{StateFlags, SF_SHADOW, SHADOW_SIZE};
+use crate::core::state::{StateFlags, SF_SHADOW, SF_FOCUSED, SHADOW_SIZE};
 use crate::terminal::Terminal;
 use std::io;
 
@@ -12,7 +12,17 @@ pub trait View {
     fn draw(&mut self, terminal: &mut Terminal);
     fn handle_event(&mut self, event: &mut Event);
     fn can_focus(&self) -> bool { false }
-    fn set_focus(&mut self, _focused: bool) {}
+
+    /// Set focus state - default implementation uses SF_FOCUSED flag
+    /// Views should override only if they need custom focus behavior
+    fn set_focus(&mut self, focused: bool) {
+        self.set_state_flag(SF_FOCUSED, focused);
+    }
+
+    /// Check if view is focused - reads SF_FOCUSED flag
+    fn is_focused(&self) -> bool {
+        self.get_state_flag(SF_FOCUSED)
+    }
 
     /// Get view option flags (OF_SELECTABLE, OF_PRE_PROCESS, OF_POST_PROCESS, etc.)
     fn options(&self) -> u16 { 0 }

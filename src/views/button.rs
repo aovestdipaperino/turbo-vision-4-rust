@@ -12,7 +12,6 @@ pub struct Button {
     title: String,
     command: CommandId,
     is_default: bool,
-    focused: bool,
     state: StateFlags,
     options: u16,
 }
@@ -34,7 +33,6 @@ impl Button {
             title: title.to_string(),
             command,
             is_default,
-            focused: false,
             state,
             options: OF_POST_PROCESS,  // Buttons process in post-process phase
         }
@@ -63,10 +61,11 @@ impl View for Button {
         let height = self.bounds.height() as usize;
 
         let is_disabled = self.is_disabled();
+        let is_focused = self.is_focused();
 
         let button_attr = if is_disabled {
             colors::BUTTON_DISABLED
-        } else if self.focused {
+        } else if is_focused {
             colors::BUTTON_SELECTED
         } else if self.is_default {
             colors::BUTTON_DEFAULT
@@ -80,7 +79,7 @@ impl View for Button {
         // Shortcut attributes - use yellow for button shortcuts
         let shortcut_attr = if is_disabled {
             colors::BUTTON_DISABLED  // DarkGray on Green (disabled)
-        } else if self.focused {
+        } else if is_focused {
             colors::BUTTON_SELECTED  // White on Green (focused)
         } else {
             colors::BUTTON_SHORTCUT  // Yellow on Green (not focused)
@@ -135,7 +134,7 @@ impl View for Button {
         match event.what {
             EventType::Keyboard => {
                 // Only handle keyboard events if focused
-                if !self.focused {
+                if !self.is_focused() {
                     return;
                 }
                 if event.key_code == KB_ENTER || event.key_code == ' ' as u16 {
@@ -186,9 +185,8 @@ impl View for Button {
         !self.is_disabled()
     }
 
-    fn set_focus(&mut self, focused: bool) {
-        self.focused = focused;
-    }
+    // set_focus() now uses default implementation from View trait
+    // which sets/clears SF_FOCUSED flag
 
     fn state(&self) -> StateFlags {
         self.state
