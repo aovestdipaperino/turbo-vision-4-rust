@@ -30,6 +30,7 @@ pub mod background;
 pub mod memo;
 pub mod editor;
 pub mod file_dialog;
+pub mod file_list;
 pub mod msgbox;
 pub mod validator;
 
