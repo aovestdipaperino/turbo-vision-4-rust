@@ -1,15 +1,15 @@
 # Missing Features Inventory
 
 *Generated from Borland Turbo Vision source analysis*
-*Last updated: 2025-11-03 (post-Phase 6: File System Components)*
+*Last updated: 2025-11-03 (post-Phase 8: Application Framework audit)*
 
 This document catalogs missing features compared to the original Borland Turbo Vision framework, providing a roadmap for future development.
 
 ## Summary Statistics
 
-- **Total Missing Components**: 41 (was 43, completed TFileList + TDirListBox)
-- **Estimated Total Effort**: 748 hours (~19 weeks at 40 hrs/week)
-- **HIGH Priority**: 9 items (154 hours) - Core functionality
+- **Total Missing Components**: 35 (was 41, Application Framework was already implemented)
+- **Estimated Total Effort**: 690 hours (~17 weeks at 40 hrs/week)
+- **HIGH Priority**: 3 items (96 hours) - Core functionality
 - **MEDIUM Priority**: 31 items (352 hours) - Extended features
 - **LOW Priority**: 17 items (262 hours) - Nice to have
 
@@ -21,6 +21,7 @@ This document catalogs missing features compared to the original Borland Turbo V
 | Specialized Dialogs | 13 | LOW-MEDIUM | 126h |
 | Editor Components | 1 | LOW | 0h |
 | File System | 0 | - | 0h |
+| Application Framework | 0 | - | 0h |
 | System Utilities | 10 | MEDIUM | 34h |
 | Helper Classes | 0 | - | 0h |
 | Advanced Features | 10 | HIGH-LOW | 162h |
@@ -74,15 +75,17 @@ This document catalogs missing features compared to the original Borland Turbo V
 - ✅ **TFileEditor** - File editor with load/save (IMPLEMENTED - Editor now has load_file/save_file/save_as)
 - ❌ **TEditWindow** - Editor window wrapper (trivial - just Window + Editor)
 
-### Application Framework (58 hours)
-- **TProgram** - Base application (20h)
-- **TApplication** - Extended application (16h)
-- **TScreen** - Screen manager (20h)
-- **TDisplay** - Display abstraction (16h)
-- **TMouse** - Mouse system (12h)
-- **TEventQueue** - Event queue (10h)
+### Application Framework (0 hours remaining)
+- ✅ **TProgram** - Base application (IMPLEMENTED - `src/app/application.rs`, combined with TApplication)
+- ✅ **TApplication** - Extended application (IMPLEMENTED - `src/app/application.rs`, 310 lines)
+- ✅ **TScreen** - Screen manager (IMPLEMENTED - `src/terminal/mod.rs`, integrated)
+- ✅ **TDisplay** - Display abstraction (IMPLEMENTED - `src/terminal/mod.rs`, integrated)
+- ✅ **TMouse** - Mouse system (IMPLEMENTED - `src/terminal/mod.rs`, integrated)
+- ✅ **TEventQueue** - Event queue (IMPLEMENTED - `src/terminal/mod.rs`, integrated)
 
-**Total HIGH Priority: 154 hours** (was 180 hours, completed 26 hours of TFileList + TDirListBox)
+**Note**: Our modern architecture combines these into Application (310 lines) and Terminal (458 lines) modules, providing all the functionality in a more cohesive design.
+
+**Total HIGH Priority: 96 hours** (was 154 hours, Application Framework already implemented as 58 hours)
 
 ## Medium Priority Components (Extended Features)
 
@@ -240,6 +243,31 @@ Architectural improvement for button groups:
 
 **Completed**: 2025-11-03. Complete file system navigation components.
 
+### ✅ Phase 8: Application Framework (58 hours) - ALREADY IMPLEMENTED
+**Goal**: Enhanced core infrastructure for building applications
+
+The Application Framework was already implemented in our modern architecture:
+- ✅ **Application class** (`src/app/application.rs`, 310 lines)
+  - Combines TProgram + TApplication functionality
+  - Event loop with get_event() and exec_view()
+  - Menu bar and status line integration
+  - Desktop management
+  - Modal view execution
+  - Command set management
+
+- ✅ **Terminal class** (`src/terminal/mod.rs`, 458 lines)
+  - Combines TScreen + TDisplay + TMouse + TEventQueue
+  - Screen buffer management
+  - Double-buffering for efficient updates
+  - Mouse event handling (click, drag, scroll, double-click)
+  - Keyboard event processing with ESC sequences
+  - Event polling and queuing
+  - Cursor management
+
+**Total**: 768 lines providing complete application framework functionality.
+
+**Note**: Borland's architecture split these into 6 separate classes due to C++ limitations. Our Rust implementation combines them more cohesively while providing all the same functionality.
+
 ### Phase 7: Editor Enhancements (8 hours) - COMPLETE
 **Goal**: Full-featured text editing with file operations
 - ✅ TFileEditor with load/save (8h)
@@ -286,9 +314,11 @@ Optional enhancements:
 - **After Phase 5** (98 hours): ✅ COMPLETE - History system for professional input fields
 - **After Phase 6** (124 hours): ✅ COMPLETE - File system navigation with tree and list views
 - **After Phase 7** (132 hours): ✅ COMPLETE - Professional text editing with file I/O
-- **After Phase 8** (190 hours): Enhanced application framework
+- **After Phase 8** (190 hours): ✅ COMPLETE - Application framework (already implemented!)
 - **After Phase 9** (246 hours): Context-sensitive help system
 - **After Phase 10** (508+ hours): Complete framework with all utilities
+
+**Current Status**: 190 cumulative hours of implementation complete
 
 ## Quick Win Opportunities
 
@@ -348,16 +378,17 @@ These items provide high architectural value for relatively low effort:
 
 ## Next Steps
 
-**Recommended: Phase 8 - Application Framework (58 hours)**
-- Implement TProgram base application
-- Add TApplication extended features
-- Create TScreen screen manager
-- Build TDisplay display abstraction
-- Add TMouse and TEventQueue
+**Recommended: Phase 9 - Help System (56 hours)**
+- Implement THelpFile for help file management
+- Add THelpBase infrastructure
+- Create THelpWindow display window
+- Build THelpViewer content viewer
+- Context-sensitive help integration
 
 **Alternative Options:**
-- Phase 9: Help System (56 hours) - Context-sensitive help
 - Medium Priority File Dialog enhancements (28 hours) - TFileInputLine, TFileInfoPane, TChDirDialog
+- Low Priority: Color customization suite (66 hours)
+- Low Priority: Calculator component (24 hours)
 
 ---
 
