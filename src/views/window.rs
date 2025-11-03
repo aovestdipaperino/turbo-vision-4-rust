@@ -262,6 +262,17 @@ impl View for Window {
             self.state &= !SF_RESIZING;
         }
 
+        // Handle ESC key for modal windows
+        // Modal windows should close when ESC is pressed
+        if event.what == EventType::Keyboard && event.key_code == crate::core::event::KB_ESC {
+            if (self.state & SF_MODAL) != 0 {
+                // Modal window: ESC ends the modal loop with CM_CANCEL
+                self.end_modal(CM_CANCEL);
+                event.clear();
+                return;
+            }
+        }
+
         // Handle CM_CLOSE command (Borland: twindow.cc lines 124-138)
         // Frame generates CM_CLOSE when close button is clicked
         if event.what == EventType::Command && event.command == CM_CLOSE {

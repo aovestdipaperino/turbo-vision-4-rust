@@ -9,12 +9,15 @@
 
 use turbo_vision::app::Application;
 use turbo_vision::core::geometry::Rect;
+use turbo_vision::core::state::SF_MODAL;
 use turbo_vision::views::{
     dialog::Dialog,
     button::Button,
     static_text::StaticText,
+    window::Window,
     editor::Editor,
     syntax::RustHighlighter,
+    view::View,
 };
 
 fn main() -> std::io::Result<()> {
@@ -111,12 +114,20 @@ Make some changes, then use Ctrl+Z to undo.\n\
 \n\
 Press ESC to exit.";
 
-    let editor_bounds = Rect::new(1, 1, 78, 23);
+    // Create modal window with editor
+    let mut window = Window::new(Rect::new(5, 3, 75, 22), "Basic Editing Demo");
+
+    let editor_bounds = Rect::new(1, 1, 69, 18);
     let mut editor = Editor::new(editor_bounds).with_scrollbars_and_indicator();
     editor.set_text(sample_text);
     editor.set_auto_indent(true);
 
-    app.exec_view(Box::new(editor));
+    window.add(Box::new(editor));
+
+    // Make window modal
+    window.set_state(window.state() | SF_MODAL);
+
+    app.exec_view(Box::new(window));
 }
 
 fn demo_search_replace(app: &mut Application) {
@@ -150,11 +161,19 @@ in the Editor API but UI controls would need to be added.\n\
 \n\
 Press ESC to exit.";
 
-    let editor_bounds = Rect::new(1, 1, 78, 23);
+    // Create modal window with editor
+    let mut window = Window::new(Rect::new(5, 3, 75, 22), "Search and Replace Demo");
+
+    let editor_bounds = Rect::new(1, 1, 69, 18);
     let mut editor = Editor::new(editor_bounds).with_scrollbars_and_indicator();
     editor.set_text(sample_text);
 
-    app.exec_view(Box::new(editor));
+    window.add(Box::new(editor));
+
+    // Make window modal
+    window.set_state(window.state() | SF_MODAL);
+
+    app.exec_view(Box::new(window));
 }
 
 fn demo_syntax_highlighting(app: &mut Application) {
@@ -214,14 +233,22 @@ fn main() {
 
 "#;
 
-    let editor_bounds = Rect::new(1, 1, 78, 23);
+    // Create modal window with editor
+    let mut window = Window::new(Rect::new(5, 3, 75, 22), "Syntax Highlighting Demo");
+
+    let editor_bounds = Rect::new(1, 1, 69, 18);
     let mut editor = Editor::new(editor_bounds).with_scrollbars_and_indicator();
     editor.set_text(sample_code);
 
     // Enable Rust syntax highlighting
     editor.set_highlighter(Box::new(RustHighlighter::new()));
 
-    app.exec_view(Box::new(editor));
+    window.add(Box::new(editor));
+
+    // Make window modal
+    window.set_state(window.state() | SF_MODAL);
+
+    app.exec_view(Box::new(window));
 }
 
 fn demo_file_operations(app: &mut Application) {
@@ -281,9 +308,17 @@ File > Open, File > Save, File > Save As, etc.\n\
 \n\
 Press ESC to exit.";
 
-    let editor_bounds = Rect::new(1, 1, 78, 23);
+    // Create modal window with editor
+    let mut window = Window::new(Rect::new(5, 3, 75, 22), "File Operations Demo");
+
+    let editor_bounds = Rect::new(1, 1, 69, 18);
     let mut editor = Editor::new(editor_bounds).with_scrollbars_and_indicator();
     editor.set_text(sample_text);
 
-    app.exec_view(Box::new(editor));
+    window.add(Box::new(editor));
+
+    // Make window modal
+    window.set_state(window.state() | SF_MODAL);
+
+    app.exec_view(Box::new(window));
 }
