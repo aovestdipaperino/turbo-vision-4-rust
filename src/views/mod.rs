@@ -29,11 +29,13 @@ pub mod paramtext;
 pub mod background;
 pub mod memo;
 pub mod editor;
+pub mod edit_window;
 pub mod file_dialog;
 pub mod file_list;
 pub mod dir_listbox;
 pub mod msgbox;
 pub mod validator;
+pub mod lookup_validator;
 
 pub use view::View;
 pub use list_viewer::{ListViewer, ListViewerState};

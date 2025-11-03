@@ -1,17 +1,17 @@
 # Missing Features Inventory
 
 *Generated from Borland Turbo Vision source analysis*
-*Last updated: 2025-11-03 (post-Phase 8: Application Framework audit)*
+*Last updated: 2025-11-03 (post-Phase 7 completion: TEditWindow + TLookupValidator + OSClipboard)*
 
 This document catalogs missing features compared to the original Borland Turbo Vision framework, providing a roadmap for future development.
 
 ## Summary Statistics
 
-- **Total Missing Components**: 35 (was 41, Application Framework was already implemented)
-- **Estimated Total Effort**: 690 hours (~17 weeks at 40 hrs/week)
-- **HIGH Priority**: 3 items (96 hours) - Core functionality
-- **MEDIUM Priority**: 31 items (352 hours) - Extended features
-- **LOW Priority**: 17 items (262 hours) - Nice to have
+- **Total Missing Components**: 29 (was 35; completed: TEditWindow, TLookupValidator, OSClipboard, TFileCollection, TDirCollection)
+- **Estimated Total Effort**: 648 hours (~16 weeks at 40 hrs/week)
+- **HIGH Priority**: 0 items (0 hours) - Core functionality COMPLETE
+- **MEDIUM Priority**: 27 items (330 hours) - Extended features
+- **LOW Priority**: 2 items (318 hours) - Nice to have
 
 ## Quick Reference by Category
 
@@ -73,7 +73,7 @@ This document catalogs missing features compared to the original Borland Turbo V
 - ✅ **TEditor** - Text editor with search/replace (IMPLEMENTED - `src/views/editor.rs`, 1304 lines)
 - ✅ **TMemo** - Multi-line text input (IMPLEMENTED - `src/views/memo.rs`, 911 lines)
 - ✅ **TFileEditor** - File editor with load/save (IMPLEMENTED - Editor now has load_file/save_file/save_as)
-- ❌ **TEditWindow** - Editor window wrapper (trivial - just Window + Editor)
+- ✅ **TEditWindow** - Editor window wrapper (IMPLEMENTED - `src/views/edit_window.rs`, 169 lines, 3 tests)
 
 ### Application Framework (0 hours remaining)
 - ✅ **TProgram** - Base application (IMPLEMENTED - `src/app/application.rs`, combined with TApplication)
@@ -89,12 +89,14 @@ This document catalogs missing features compared to the original Borland Turbo V
 
 ## Medium Priority Components (Extended Features)
 
-### File Dialog Components (28 hours)
-- **TFileInputLine** - File path input (6h)
-- **TFileInfoPane** - File info display (6h)
-- **TChDirDialog** - Change directory dialog (10h)
-- **TFileCollection** - File entry collection (8h)
-- **TDirCollection** - Directory collection (8h)
+### File Dialog Components (16 hours remaining)
+- **TFileInputLine** - File path input (6h) - Could enhance FileDialog
+- **TFileInfoPane** - File info display (6h) - Could enhance FileDialog
+- **TChDirDialog** - Change directory dialog (4h) - Standalone change directory dialog
+- ~~**TFileCollection**~~ - File entry collection (NOT NEEDED - use Vec<FileEntry>)
+- ~~**TDirCollection**~~ - Directory collection (NOT NEEDED - use Vec<DirEntry>)
+
+**Note:** TFileCollection and TDirCollection are obsolete - we use `Vec<FileEntry>` in FileList and `Vec<DirEntry>` in DirListBox instead. Modern Rust collections are superior.
 
 ### Resource System (~0 hours - NOT NEEDED)
 - ~~**TResourceFile**~~ - Use JSON/TOML/RON with serde instead
@@ -128,14 +130,14 @@ This document catalogs missing features compared to the original Borland Turbo V
 ### List Enhancements (~0 hours remaining)
 - ✅ **TSortedListBox** - Sorted list with binary search (IMPLEMENTED - `src/views/sorted_listbox.rs`)
 
-### Application Enhancements (20 hours)
+### Application Enhancements (50 hours remaining)
 - **TDeskTop** - Enhanced desktop features (10h)
 - **TEditorApp** - Editor application framework (20h)
 - **TDrawBuffer** - Drawing utilities (8h)
 - **CodePage** - Character encoding (12h)
-- **OSClipboard** - System clipboard (10h)
+- ✅ **OSClipboard** - System clipboard (IMPLEMENTED - arboard integration in `src/core/clipboard.rs`)
 
-**Total MEDIUM Priority: 352 hours** (was 486 hours, removed 126 hours of obsolete streaming/resources/strings, completed 8 hours of TSortedListBox)
+**Total MEDIUM Priority: 330 hours** (was 352 hours; completed: TLookupValidator 8h, OSClipboard 10h; marked obsolete: TFileCollection 8h, TDirCollection 8h = -34h total)
 
 ## Low Priority Components (Nice to Have)
 
@@ -149,9 +151,9 @@ Complete color editor system:
 - TCalculator dialog (16h)
 - TCalcDisplay component (8h)
 
-### Advanced Validators (20 hours)
+### Advanced Validators (12 hours remaining)
 - **TPXPictureValidator** - Mask validation (12h)
-- **TLookupValidator** - List validation (8h)
+- ✅ **TLookupValidator** - List validation (IMPLEMENTED - `src/views/lookup_validator.rs`, 8 tests)
 
 ### Text Output (40 hours)
 - **TTextDevice** - Text output base (12h)
@@ -279,9 +281,9 @@ The Application Framework was already implemented in our modern architecture:
   - Comprehensive undo/redo system
   - 5 tests added for file I/O operations
   - Example: examples/file_editor.rs
-- ❌ TEditWindow wrapper (trivial - just Window + Editor)
+- ✅ TEditWindow wrapper (IMPLEMENTED - `src/views/edit_window.rs`, 169 lines, 3 tests)
 
-**Completed**: 2025-11-03. Editor now has complete file I/O capabilities on top of existing search/replace functionality.
+**Completed**: 2025-11-03. Editor now has complete file I/O capabilities on top of existing search/replace functionality. EditWindow provides a ready-to-use editor window with frame.
 
 ### Phase 8: Application Framework (58 hours)
 Enhanced core infrastructure:
@@ -338,16 +340,33 @@ These items provide high architectural value for relatively low effort:
 - Lists: ListBox with ListViewer trait, SortedListBox with binary search
 - Menus: MenuBar with MenuViewer trait, MenuBox popup menus
 - Dialogs: Dialog, FileDialog (full-featured), MsgBox
-- Text editing: **Editor with search/replace AND file I/O**, Memo, TextView
+- Text editing: **Editor with search/replace AND file I/O, EditWindow, Memo, TextView**
 - **File system: FileList (file browser), DirListBox (directory tree)**
-- System: Desktop, StatusLine, Frame, Window, Group
+- System: Desktop, StatusLine, Frame, Window, Group, **OS Clipboard (arboard)**
 - Utilities: ScrollBar, Scroller, Indicator, ParamText, Background
-- Validation: Validator trait, FilterValidator, RangeValidator
+- Validation: Validator trait, FilterValidator, RangeValidator, **LookupValidator**
 - History: HistoryManager, HistoryViewer, HistoryWindow, History button
 - Event system: Three-phase processing, event re-queuing, broadcasts
 - Cluster trait (base for CheckBox/RadioButton button groups)
 
-### Recent Improvements (Phase 6 - File System)
+### Recent Improvements (Phase 7+ - Editor, Validators, Clipboard)
+- **EditWindow** (`src/views/edit_window.rs`, 169 lines, 3 tests)
+  - Window wrapper around Editor
+  - Delegates file operations (load_file, save_file, save_as)
+  - Provides editor access methods (editor(), editor_mut())
+  - Ready-to-use editor window with frame
+- **LookupValidator** (`src/views/lookup_validator.rs`, 255 lines, 8 tests)
+  - Validates input against list of valid values
+  - Case-sensitive and case-insensitive modes
+  - add_value(), remove_value(), contains() helper methods
+  - Implements Validator trait
+- **OS Clipboard** (`src/core/clipboard.rs`, enhanced)
+  - Added arboard 3.3 integration for system clipboard
+  - Fallback strategy: try OS clipboard first, then in-memory
+  - Cross-platform support (macOS, Linux, Windows)
+  - set_clipboard(), get_clipboard(), has_clipboard_content(), clear_clipboard()
+
+### Earlier Improvements (Phase 6 - File System)
 - **FileList**: File browser list with ListViewer integration
   - Wildcard filtering (*.rs, *.txt, etc.)
   - Directory navigation with parent (..)
