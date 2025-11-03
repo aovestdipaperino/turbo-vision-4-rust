@@ -1041,8 +1041,11 @@ impl View for Editor {
                     event.clear();
                 }
                 KB_END => {
-                    let line_char_len = self.lines[self.cursor.y as usize].chars().count() as i16;
-                    self.cursor.x = line_char_len;
+                    let line_idx = self.cursor.y as usize;
+                    if line_idx < self.lines.len() {
+                        let line_char_len = self.lines[line_idx].chars().count() as i16;
+                        self.cursor.x = line_char_len;
+                    }
                     self.selection_start = None;
                     self.ensure_cursor_visible();
                     event.clear();
@@ -1134,9 +1137,11 @@ impl View for Editor {
 
     fn update_cursor(&self, terminal: &mut Terminal) {
         if self.focused {
-            // Calculate cursor position on screen
-            let cursor_x = self.bounds.a.x + (self.cursor.x - self.delta.x) as i16;
-            let cursor_y = self.bounds.a.y + (self.cursor.y - self.delta.y) as i16;
+            // Calculate cursor position on screen using content area (not bounds)
+            // to account for indicator and scrollbars
+            let content_area = self.get_content_area();
+            let cursor_x = content_area.a.x + (self.cursor.x - self.delta.x);
+            let cursor_y = content_area.a.y + (self.cursor.y - self.delta.y);
 
             // Show cursor at the position
             let _ = terminal.show_cursor(cursor_x as u16, cursor_y as u16);
