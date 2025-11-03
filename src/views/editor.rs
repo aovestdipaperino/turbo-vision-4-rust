@@ -95,6 +95,8 @@ pub struct Editor {
     // Search state (matching Borland's TEditor static members)
     last_search: String,
     last_search_options: SearchOptions,
+    // File state (matching Borland's TFileEditor)
+    filename: Option<String>,
 }
 
 impl Editor {
@@ -119,6 +121,7 @@ impl Editor {
             auto_indent: false,
             last_search: String::new(),
             last_search_options: SearchOptions::new(),
+            filename: None,
         }
     }
 
@@ -210,6 +213,48 @@ impl Editor {
     /// Get current line count
     pub fn line_count(&self) -> usize {
         self.lines.len()
+    }
+
+    /// Load file contents into the editor
+    /// Matches Borland's TFileEditor::load()
+    pub fn load_file(&mut self, path: &str) -> std::io::Result<()> {
+        let content = std::fs::read_to_string(path)?;
+        self.set_text(&content);
+        self.filename = Some(path.to_string());
+        self.modified = false;
+        self.undo_stack.clear();
+        self.redo_stack.clear();
+        self.update_indicator();
+        Ok(())
+    }
+
+    /// Save editor contents to the associated filename
+    /// Matches Borland's TFileEditor::save()
+    pub fn save_file(&mut self) -> std::io::Result<()> {
+        if let Some(path) = self.filename.clone() {
+            self.save_as(&path)
+        } else {
+            Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "No filename set - use save_as() first",
+            ))
+        }
+    }
+
+    /// Save editor contents to a specific filename
+    /// Matches Borland's TFileEditor::saveAs()
+    pub fn save_as(&mut self, path: &str) -> std::io::Result<()> {
+        let content = self.get_text();
+        std::fs::write(path, content)?;
+        self.filename = Some(path.to_string());
+        self.modified = false;
+        self.update_indicator();
+        Ok(())
+    }
+
+    /// Get the current filename, if any
+    pub fn get_filename(&self) -> Option<&str> {
+        self.filename.as_deref()
     }
 
     /// Undo the last action
@@ -1154,5 +1199,106 @@ impl View for Editor {
             // Show cursor at the position
             let _ = terminal.show_cursor(cursor_x as u16, cursor_y as u16);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+    use tempfile::NamedTempFile;
+
+    #[test]
+    fn test_editor_load_file() {
+        let mut file = NamedTempFile::new().unwrap();
+        writeln!(file, "Line 1").unwrap();
+        writeln!(file, "Line 2").unwrap();
+        writeln!(file, "Line 3").unwrap();
+        file.flush().unwrap();
+
+        let bounds = Rect::new(0, 0, 80, 25);
+        let mut editor = Editor::new(bounds);
+
+        editor.load_file(file.path().to_str().unwrap()).unwrap();
+
+        assert_eq!(editor.line_count(), 3);
+        assert_eq!(editor.get_text(), "Line 1\nLine 2\nLine 3");
+        assert_eq!(editor.get_filename(), file.path().to_str());
+        assert!(!editor.is_modified());
+    }
+
+    #[test]
+    fn test_editor_save_as() {
+        let bounds = Rect::new(0, 0, 80, 25);
+        let mut editor = Editor::new(bounds);
+
+        editor.set_text("Hello\nWorld");
+
+        let file = NamedTempFile::new().unwrap();
+        let path = file.path().to_str().unwrap();
+
+        editor.save_as(path).unwrap();
+
+        let content = std::fs::read_to_string(path).unwrap();
+        assert_eq!(content, "Hello\nWorld");
+        assert_eq!(editor.get_filename(), Some(path));
+        assert!(!editor.is_modified());
+    }
+
+    #[test]
+    fn test_editor_save_file() {
+        let bounds = Rect::new(0, 0, 80, 25);
+        let mut editor = Editor::new(bounds);
+
+        // Should fail without filename
+        assert!(editor.save_file().is_err());
+
+        // Set filename via save_as
+        let file = NamedTempFile::new().unwrap();
+        let path = file.path().to_str().unwrap();
+        editor.set_text("Test content");
+        editor.save_as(path).unwrap();
+        assert!(!editor.is_modified());
+
+        // Modify by setting new text
+        editor.set_text("Modified content");
+        // Note: set_text() clears modified flag, so we need to save and verify content changed
+
+        editor.save_file().unwrap();
+
+        let content = std::fs::read_to_string(path).unwrap();
+        assert_eq!(content, "Modified content");
+        assert!(!editor.is_modified());
+    }
+
+    #[test]
+    fn test_editor_modified_flag() {
+        let bounds = Rect::new(0, 0, 80, 25);
+        let mut editor = Editor::new(bounds);
+
+        assert!(!editor.is_modified());
+
+        editor.set_text("Some text");
+        assert!(!editor.is_modified()); // set_text clears modified flag
+
+        // Simulate typing (would set modified via push_undo)
+        let file = NamedTempFile::new().unwrap();
+        editor.save_as(file.path().to_str().unwrap()).unwrap();
+        assert!(!editor.is_modified());
+    }
+
+    #[test]
+    fn test_editor_load_empty_file() {
+        let file = NamedTempFile::new().unwrap();
+        // Don't write anything - file is empty
+
+        let bounds = Rect::new(0, 0, 80, 25);
+        let mut editor = Editor::new(bounds);
+
+        editor.load_file(file.path().to_str().unwrap()).unwrap();
+
+        assert_eq!(editor.line_count(), 1); // Editor always has at least one line
+        assert_eq!(editor.get_text(), "");
+        assert!(!editor.is_modified());
     }
 }

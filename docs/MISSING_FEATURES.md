@@ -1,15 +1,15 @@
 # Missing Features Inventory
 
 *Generated from Borland Turbo Vision source analysis*
-*Last updated: 2025-11-03 (post-List Components implementation)*
+*Last updated: 2025-11-03 (post-Phase 7: File Editor implementation)*
 
 This document catalogs missing features compared to the original Borland Turbo Vision framework, providing a roadmap for future development.
 
 ## Summary Statistics
 
-- **Total Missing Components**: 44 (was 85, implemented 11, skipped 30 obsolete pre-Rust features)
-- **Estimated Total Effort**: 782 hours (~20 weeks at 40 hrs/week)
-- **HIGH Priority**: 9 items (188 hours) - Core functionality
+- **Total Missing Components**: 43 (was 44, completed TFileEditor)
+- **Estimated Total Effort**: 774 hours (~19 weeks at 40 hrs/week)
+- **HIGH Priority**: 9 items (180 hours) - Core functionality
 - **MEDIUM Priority**: 31 items (352 hours) - Extended features
 - **LOW Priority**: 17 items (262 hours) - Nice to have
 
@@ -19,7 +19,7 @@ This document catalogs missing features compared to the original Borland Turbo V
 |----------|-------|----------|--------|
 | Core Views/Controls | 10 | HIGH-MEDIUM | 112h |
 | Specialized Dialogs | 13 | LOW-MEDIUM | 126h |
-| Editor Components | 2 | HIGH-MEDIUM | 8h |
+| Editor Components | 1 | LOW | 0h |
 | System Utilities | 10 | MEDIUM | 34h |
 | Helper Classes | 0 | - | 0h |
 | Advanced Features | 10 | HIGH-LOW | 162h |
@@ -67,10 +67,10 @@ This document catalogs missing features compared to the original Borland Turbo V
 - **TFileList** - File browser list (12h)
 - **TDirListBox** - Directory tree (14h)
 
-### Editor (8 hours remaining)
-- ✅ **TEditor** - Text editor with search/replace (IMPLEMENTED - `src/views/editor.rs`, 1158 lines)
+### Editor (0 hours remaining)
+- ✅ **TEditor** - Text editor with search/replace (IMPLEMENTED - `src/views/editor.rs`, 1304 lines)
 - ✅ **TMemo** - Multi-line text input (IMPLEMENTED - `src/views/memo.rs`, 911 lines)
-- ❌ **TFileEditor** - File editor with load/save (8h - would just add file I/O to existing Editor)
+- ✅ **TFileEditor** - File editor with load/save (IMPLEMENTED - Editor now has load_file/save_file/save_as)
 - ❌ **TEditWindow** - Editor window wrapper (trivial - just Window + Editor)
 
 ### Application Framework (58 hours)
@@ -81,7 +81,7 @@ This document catalogs missing features compared to the original Borland Turbo V
 - **TMouse** - Mouse system (12h)
 - **TEventQueue** - Event queue (10h)
 
-**Total HIGH Priority: 188 hours** (was 282 hours, removed 38 hours obsolete collections, completed 56 hours: TCluster 8h + History 24h + Editor/Memo 24h)
+**Total HIGH Priority: 180 hours** (was 188 hours, completed 8 hours of TFileEditor)
 
 ## Medium Priority Components (Extended Features)
 
@@ -223,10 +223,20 @@ Complete file system UI:
 - TFileList, TDirListBox (using Vec for file lists)
 - TFileInputLine, TFileInfoPane, TChDirDialog
 
-### Phase 7: Editor Enhancements (32 hours)
-Full-featured text editing:
-- TFileEditor with search/replace (24h)
-- TEditWindow wrapper (8h)
+### ✅ Phase 7: Editor Enhancements (8 hours) - COMPLETE
+**Goal**: Full-featured text editing with file operations
+- ✅ TFileEditor with load/save (8h)
+  - load_file() - Load file contents into editor
+  - save_file() - Save to associated filename
+  - save_as() - Save with new filename
+  - get_filename() - Get current filename
+  - Full search/replace already implemented (find, find_next, replace_selection, replace_next, replace_all)
+  - Comprehensive undo/redo system
+  - 5 tests added for file I/O operations
+  - Example: examples/file_editor.rs
+- ❌ TEditWindow wrapper (trivial - just Window + Editor)
+
+**Completed**: 2025-11-03. Editor now has complete file I/O capabilities on top of existing search/replace functionality.
 
 ### Phase 8: Application Framework (58 hours)
 Enhanced core infrastructure:
@@ -257,9 +267,11 @@ Optional enhancements:
 - **After Phase 3** (66 hours): ✅ COMPLETE - Button group controls unified with Cluster trait
 - **After Phase 4** (74 hours): ✅ COMPLETE - Sorted lists with binary search
 - **After Phase 5** (98 hours): ✅ COMPLETE - History system for professional input fields
-- **After Phase 7** (182 hours): Professional editing applications possible
-- **After Phase 9** (288 hours): Feature parity with Borland's core framework (minus obsolete pre-Rust features)
-- **After Phase 10** (550+ hours): Complete framework with all utilities
+- **After Phase 7** (106 hours): ✅ COMPLETE - Professional text editing with file I/O
+- **After Phase 6** (158 hours): File system navigation possible
+- **After Phase 8** (216 hours): Enhanced application framework
+- **After Phase 9** (272 hours): Context-sensitive help system
+- **After Phase 10** (534+ hours): Complete framework with all utilities
 
 ## Quick Win Opportunities
 
@@ -272,14 +284,14 @@ These items provide high architectural value for relatively low effort:
 
 **All quick wins completed!** Total: 37 hours of foundational architectural improvements.
 
-## Current Implementation Status (v0.2.3+)
+## Current Implementation Status (v0.2.4+)
 
 ### What We Have
 - Basic controls: Button, InputLine, StaticText, Label, CheckBox, RadioButton
 - Lists: ListBox with ListViewer trait, SortedListBox with binary search
 - Menus: MenuBar with MenuViewer trait, MenuBox popup menus
 - Dialogs: Dialog, FileDialog (full-featured), MsgBox
-- Text editing: **Editor with search/replace**, Memo, TextView
+- Text editing: **Editor with search/replace AND file I/O**, Memo, TextView
 - System: Desktop, StatusLine, Frame, Window, Group
 - Utilities: ScrollBar, Scroller, Indicator, ParamText, Background
 - Validation: Validator trait, FilterValidator, RangeValidator
@@ -288,14 +300,13 @@ These items provide high architectural value for relatively low effort:
 - Cluster trait (base for CheckBox/RadioButton button groups)
 - SortedListBox with binary search (find_exact, find_prefix)
 
-### Recent Improvements (TSortedListBox Phase)
-- **SortedListBox**: Sorted list control with binary search capabilities
-- **Automatic sorting**: Items maintained in sorted order on insertion
-- **Binary search**: find_exact() for exact matches, find_prefix() for prefix search
-- **Case sensitivity**: Supports both case-sensitive and case-insensitive modes
-- **Efficient navigation**: focus_prefix() for quick keyboard navigation
-- **8 comprehensive tests**: All passing
-- **Example included**: examples/sorted_listbox.rs demonstrates all features
+### Recent Improvements (Phase 7 - TFileEditor)
+- **File I/O**: load_file(), save_file(), save_as() methods
+- **Filename tracking**: get_filename() to query current file
+- **Modified flag**: Properly managed on load/save operations
+- **5 comprehensive tests**: All file operations tested with tempfile
+- **Example included**: examples/file_editor.rs demonstrates file editing
+- **1304 lines**: Complete editor with search/replace and file I/O
 
 ### Modern Rust Advantages
 - **No need for TCollection**: Using `Vec<T>` (type-safe, generic, efficient)
@@ -309,20 +320,20 @@ These items provide high architectural value for relatively low effort:
 **Total Obsolete Features Skipped**: 30 components, ~164 hours saved by using modern Rust alternatives
 
 ### Architectural Gaps
-- No history system for input fields
+- No file list/directory browser components
 - No help system infrastructure
 
 ## Next Steps
 
-**Recommended: Phase 5 - History System (32 hours)**
-- Implement THistory dropdown for input fields
-- Add THistoryViewer for displaying history lists
-- Create THistoryWindow popup for history selection
-- Professional input field enhancement
+**Recommended: Phase 6 - File Dialogs (52 hours)**
+- Implement TFileList for file browsing
+- Add TDirListBox for directory navigation
+- Create TFileInputLine, TFileInfoPane, TChDirDialog
+- Complete file system UI
 
 **Alternative Options:**
-- Phase 6: File Dialogs (52 hours) - Enhanced file system UI
-- Phase 7: Editor Enhancements (32 hours) - Search/replace functionality
+- Phase 8: Application Framework (58 hours) - Enhanced core infrastructure
+- Phase 9: Help System (56 hours) - Context-sensitive help
 
 ---
 
