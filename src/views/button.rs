@@ -127,8 +127,15 @@ impl View for Button {
 
     fn handle_event(&mut self, event: &mut Event) {
         // Handle broadcasts FIRST, even if button is disabled
-        // This is critical for CM_COMMAND_SET_CHANGED which updates button enabled state
-        // Matches Borland: TButton::handleEvent() checks cmCommandSetChanged before disabled check
+        //
+        // IMPORTANT: This matches Borland's TButton::handleEvent() behavior:
+        // - tbutton.cc:196 calls TView::handleEvent() first
+        // - TView::handleEvent() (tview.cc:486) only checks sfDisabled for evMouseDown, NOT broadcasts
+        // - tbutton.cc:235-263 processes evBroadcast in switch statement
+        // - tbutton.cc:255-262 handles cmCommandSetChanged regardless of disabled state
+        //
+        // This is critical: disabled buttons MUST receive CM_COMMAND_SET_CHANGED broadcasts
+        // so they can become enabled when their command becomes enabled in the global command set.
         if event.what == EventType::Broadcast {
             use crate::core::command::CM_COMMAND_SET_CHANGED;
             use crate::core::command_set;
@@ -139,6 +146,7 @@ impl View for Button {
                 let is_currently_disabled = self.is_disabled();
 
                 // Update disabled state if it changed
+                // Matches Borland: tbutton.cc:256-260
                 if should_be_enabled && is_currently_disabled {
                     // Command was disabled, now enabled
                     self.set_disabled(false);
@@ -148,11 +156,14 @@ impl View for Button {
                 }
 
                 // Event is not cleared - other views may need it
+                // Matches Borland: broadcasts are not cleared in the button handler
             }
             return; // Broadcasts don't fall through to regular event handling
         }
 
-        // Disabled buttons don't handle any other events
+        // Disabled buttons don't handle any other events (mouse, keyboard)
+        // Matches Borland: TView::handleEvent() checks sfDisabled for evMouseDown (tview.cc:486)
+        // and TButton's switch cases for evMouseDown/evKeyDown won't execute if disabled
         if self.is_disabled() {
             return;
         }
