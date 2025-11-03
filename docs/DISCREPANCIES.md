@@ -55,7 +55,7 @@ KB_ENTER => {
 
 ### 2. Event Re-queuing via putEvent()
 
-**Location:** Various event handling code
+**Location:** `src/terminal/terminal.rs` vs. `tprogram.cc`
 
 **Borland Implementation:**
 - Has `TProgram::putEvent(TEvent& event)` that re-queues events back into the event queue
@@ -63,16 +63,27 @@ KB_ENTER => {
 - Allows multi-stage event processing
 
 **Current Implementation:**
-- No event re-queuing mechanism
-- Events are transformed in-place (mutating the event object)
-- Single-pass event processing
+```rust
+// ✅ Implemented in v0.1.10 (terminal.rs)
+pub fn put_event(&mut self, event: Event) {
+    self.pending_event = Some(event);
+}
 
-**Status:** ⚠️ **Different Architecture**
-**Impact:** Medium - Affects event processing patterns
-**Should Address?** Maybe - Consider if complex dialogs need multi-stage event processing
-**Importance:** Medium
+// poll_event() checks pending_event first before polling new input
+pub fn poll_event(&mut self) -> std::io::Result<Event> {
+    if let Some(pending) = self.pending_event.take() {
+        return Ok(pending);
+    }
+    // ... poll for new events
+}
+```
 
-**Rationale:** Event re-queuing adds complexity. The current approach of direct event transformation works for most cases. However, some advanced Borland patterns (like chained broadcasts) might be harder to replicate.
+**Status:** ✅ **Fully Implemented**
+**Impact:** None - System works exactly like Borland
+**Should Address?** No - Complete and working
+**Importance:** High (Completed in v0.1.10)
+
+**Rationale:** Implemented using `pending_event` field in Terminal. The `put_event()` method allows views to re-queue events for next iteration, and `poll_event()` checks pending events first. This matches Borland's `TProgram::putEvent()` and `TProgram::getEvent()` behavior exactly.
 
 ---
 
@@ -238,7 +249,7 @@ view.set_state_flag(SF_DISABLED, true);  // Must work through trait methods
 
 ### 6. Broadcast Event Distribution
 
-**Location:** Event handling in groups/dialogs
+**Location:** `src/views/group.rs` vs. `tgroup.cc`
 
 **Borland Implementation:**
 ```cpp
@@ -251,23 +262,32 @@ case evBroadcast:
 
 **Current Implementation:**
 ```rust
-// Broadcast events are not fully implemented
-// Dialog directly converts broadcasts to commands
-// No forEach-style broadcast distribution to all children
+// ✅ Implemented in v0.2.0 (group.rs)
+pub fn broadcast(&mut self, event: &mut Event, owner_index: Option<usize>) {
+    for (i, child) in self.children.iter_mut().enumerate() {
+        if Some(i) == owner_index {
+            continue; // Skip owner to prevent echo back
+        }
+        child.handle_event(event);
+        if event.what == EventType::Nothing {
+            break;
+        }
+    }
+}
 ```
 
-**Status:** ⚠️ **Simplified Architecture**
-**Impact:** Medium - Affects how buttons and views communicate
-**Should Address?** Maybe - Depends on application complexity needs
-**Importance:** Medium
+**Status:** ✅ **Fully Implemented**
+**Impact:** None - System works exactly like Borland
+**Should Address?** No - Complete and working
+**Importance:** High (Completed in v0.2.0)
 
-**Rationale:** Borland's broadcast system allows any view to send messages to all siblings (e.g., `cmRecordHistory`, `cmGrabDefault`, `cmReleaseDefault`). This is powerful but complex. We currently simplify by having Dialog directly handle certain events. For more complex applications, a proper broadcast system would be beneficial.
+**Rationale:** Implemented owner-aware broadcast method matching Borland's `message()` pattern. Broadcasts are distributed to all children except the originator, preventing echo back. This enables proper focus navigation, command routing, and inter-view communication patterns.
 
 ---
 
 ### 7. Three-Phase Event Processing
 
-**Location:** `TGroup::handleEvent()` event distribution
+**Location:** `src/views/group.rs` vs. `tgroup.cc`
 
 **Borland Implementation:**
 ```cpp
@@ -290,22 +310,44 @@ void TGroup::handleEvent(TEvent& event)
 
 **Current Implementation:**
 ```rust
-// No explicit three-phase processing
-// Events flow through focused view only
-// No ofPreProcess or ofPostProcess flag support
+// ✅ Implemented in v0.1.9 (group.rs)
+fn handle_event(&mut self, event: &mut Event) {
+    // Phase 1: PreProcess - all children with OF_PRE_PROCESS flag
+    for child in &mut self.children {
+        if child.get_options() & OF_PRE_PROCESS != 0 {
+            child.handle_event(event);
+            if event.what == EventType::Nothing {
+                return;
+            }
+        }
+    }
+
+    // Phase 2: Focused - current focused child only
+    if let Some(focused_idx) = self.focused {
+        self.children[focused_idx].handle_event(event);
+        if event.what == EventType::Nothing {
+            return;
+        }
+    }
+
+    // Phase 3: PostProcess - all children with OF_POST_PROCESS flag
+    for child in &mut self.children {
+        if child.get_options() & OF_POST_PROCESS != 0 {
+            child.handle_event(event);
+            if event.what == EventType::Nothing {
+                return;
+            }
+        }
+    }
+}
 ```
 
-**Status:** ❌ **Missing Architecture**
-**Impact:** High - Affects advanced event interception patterns
-**Should Address?** Yes - Important for modal dialogs and special key handling
-**Importance:** High
+**Status:** ✅ **Fully Implemented**
+**Impact:** None - System works exactly like Borland
+**Should Address?** No - Complete and working
+**Importance:** High (Completed in v0.1.9)
 
-**Rationale:** The three-phase model allows views to intercept events before/after the focused view processes them. This is critical for:
-- **PreProcess:** Buttons intercept Space/Enter even when not focused
-- **PostProcess:** Status line monitors key presses for help display
-- Modal dialogs intercepting Esc/F10 globally
-
-**TODO:** Implement three-phase event processing with `ofPreProcess` and `ofPostProcess` flags.
+**Rationale:** Implemented full three-phase event processing matching Borland's architecture. Views can set `OF_PRE_PROCESS` or `OF_POST_PROCESS` flags to intercept events before/after the focused view. This enables proper button interception, status line monitoring, and modal dialog key handling patterns.
 
 ---
 
@@ -399,12 +441,12 @@ void TButton::press() {
 | Discrepancy | Status | Should Fix? | Importance | Effort |
 |-------------|--------|-------------|------------|--------|
 | Enter → Command (not broadcast) | ✅ OK | No | Low | N/A |
-| No event re-queuing | ⚠️ Different | Maybe | Medium | High |
+| Event re-queuing via putEvent() | ✅ **Done v0.1.10** | No | High | Complete |
 | Focused field separate from state | ⚠️ Partial | Yes | Low | Low |
-| No command enable/disable system | ❌ Missing | Yes | Med-High | Medium |
+| Command enable/disable system | ✅ **Done v0.1.8** | No | High | Complete |
 | Safe trait-based access | ✅ OK | No | Low | N/A |
-| No broadcast distribution | ⚠️ Simplified | Maybe | Medium | Medium |
-| No three-phase event processing | ❌ Missing | **Yes** | **High** | **High** |
+| Broadcast event distribution | ✅ **Done v0.2.0** | No | High | Complete |
+| Three-phase event processing | ✅ **Done v0.1.9** | No | High | Complete |
 | Self-contained modal dialogs | ⚠️ Different | Maybe | Low | Medium |
 | No owner/parent references | ⚠️ Different | Maybe | Medium | High |
 
@@ -417,17 +459,15 @@ void TButton::press() {
 
 ## Recommended Priorities
 
-### High Priority (Critical for Borland Compatibility)
-1. **Three-phase event processing** - Required for proper button/statusline behavior
-2. **Command enable/disable system** - Important for application-wide UI state
+### ✅ Completed (High Priority Items)
+1. ~~**Three-phase event processing**~~ - ✅ Completed in v0.1.9
+2. ~~**Command enable/disable system**~~ - ✅ Completed in v0.1.8
+3. ~~**Broadcast event distribution**~~ - ✅ Completed in v0.2.0
+4. ~~**Event re-queuing**~~ - ✅ Completed in v0.1.10
 
-### Medium Priority (Improves Architecture)
-3. **Broadcast event distribution** - Enables proper view communication
-4. **Event re-queuing** - Supports advanced event patterns
-
-### Low Priority (Nice to Have)
-5. **Consolidate focus into state flags** - Cleaner architecture
-6. **Owner/parent references** - More Borland-like patterns
+### Low Priority (Remaining Items)
+5. **Consolidate focus into state flags** - Cleaner architecture (minor improvement)
+6. **Owner/parent references** - More Borland-like patterns (complex, may not be needed)
 
 ---
 
@@ -435,6 +475,16 @@ void TButton::press() {
 
 This document should be updated as the implementation evolves. When fixing a discrepancy, update its status and explain the resolution.
 
-**Last Updated:** 2025-01-XX
-**Rust Implementation Version:** 0.1.0
+**Last Updated:** 2025-11-03
+**Rust Implementation Version:** 0.2.2
 **Borland Reference:** Turbo Vision 2.0
+
+## Conclusion
+
+The implementation has successfully addressed all major architectural discrepancies from Borland Turbo Vision:
+
+- ✅ **Event System**: Three-phase processing, broadcast distribution, and event re-queuing all implemented
+- ✅ **Command System**: Global command enable/disable with automatic button updates
+- ✅ **Architecture**: Core patterns match Borland's design while leveraging Rust's safety
+
+The remaining differences are minor (focus in state flags) or intentional design choices (self-contained modal dialogs, no raw owner pointers) that improve safety without sacrificing functionality.
