@@ -196,6 +196,12 @@ impl Group {
         self.end_state
     }
 
+    /// Set the current end_state
+    /// Used by modal views to signal they want to close
+    pub fn set_end_state(&mut self, command: crate::core::command::CommandId) {
+        self.end_state = command;
+    }
+
     /// Broadcast an event to all children except the owner
     /// Matches Borland: TGroup::forEach with message() that takes receiver parameter
     ///
@@ -482,6 +488,14 @@ impl View for Group {
         if self.focused < self.children.len() {
             self.children[self.focused].update_cursor(terminal);
         }
+    }
+
+    fn get_end_state(&self) -> crate::core::command::CommandId {
+        self.end_state
+    }
+
+    fn set_end_state(&mut self, command: crate::core::command::CommandId) {
+        self.end_state = command;
     }
 }
 

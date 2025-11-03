@@ -2,6 +2,7 @@ use crate::core::geometry::Rect;
 use crate::core::event::Event;
 use crate::core::draw::DrawBuffer;
 use crate::core::state::{StateFlags, SF_SHADOW, SF_FOCUSED, SHADOW_SIZE};
+use crate::core::command::CommandId;
 use crate::terminal::Terminal;
 use std::io;
 
@@ -148,6 +149,19 @@ pub trait View {
     /// Matches Borland: Called after drawUnderRect completes
     fn clear_move_tracking(&mut self) {
         // Default: do nothing (no movement tracking)
+    }
+
+    /// Get the end state for modal views
+    /// Matches Borland: TGroup::endState field
+    /// Returns the command ID that ended modal execution (0 if still running)
+    fn get_end_state(&self) -> CommandId {
+        0 // Default: not ended
+    }
+
+    /// Set the end state for modal views
+    /// Called by end_modal() to signal the modal loop should exit
+    fn set_end_state(&mut self, _command: CommandId) {
+        // Default: do nothing (only modal views need this)
     }
 }
 

@@ -66,16 +66,62 @@ impl Application {
         self.terminal.poll_event(Duration::from_millis(50)).ok().flatten()
     }
 
-    /// Execute a modal dialog
-    /// Matches Borland: TGroup::execView() (tgroup.cc:203-239)
-    pub fn exec_dialog(&mut self, dialog: crate::views::dialog::Dialog) -> CommandId {
-        // Add to desktop as a view
-        self.desktop.add(Box::new(dialog));
+    /// Execute a view (modal or modeless)
+    /// Matches Borland: TProgram::execView() (tprogram.cc:177-197)
+    ///
+    /// If the view has SF_MODAL flag set, runs a modal event loop.
+    /// Otherwise, adds the view to the desktop and returns immediately.
+    ///
+    /// Returns the view's end_state (the command that closed the modal view)
+    pub fn exec_view(&mut self, view: Box<dyn View>) -> CommandId {
+        use crate::core::state::SF_MODAL;
 
-        // NOTE: We can't call dialog.execute() here because dialog was moved
-        // This needs redesign - for now, return to the simpler pattern
+        // Check if view is modal
+        let is_modal = (view.state() & SF_MODAL) != 0;
 
-        CM_CANCEL
+        // Add view to desktop
+        self.desktop.add(view);
+        let view_index = self.desktop.child_count() - 1;
+
+        if !is_modal {
+            // Modeless view - just add to desktop and return
+            return 0;
+        }
+
+        // Modal view - run event loop
+        // Matches Borland: TProgram::execView() runs modal loop (tprogram.cc:184-194)
+        loop {
+            // Idle processing (broadcasts command changes, etc.)
+            self.idle();
+
+            // Update active view bounds
+            self.update_active_view_bounds();
+
+            // Draw everything
+            self.draw();
+            let _ = self.terminal.flush();
+
+            // Poll for event
+            if let Ok(Some(mut event)) = self.terminal.poll_event(Duration::from_millis(50)) {
+                // Handle event through normal chain
+                self.handle_event(&mut event);
+            }
+
+            // Check if the modal view wants to close
+            // Matches Borland: TGroup::execute() checks endState (tgroup.cc:192)
+            if view_index < self.desktop.child_count() {
+                let end_state = self.desktop.child_at(view_index).get_end_state();
+                if end_state != 0 {
+                    // Modal view wants to close
+                    // Remove it from desktop and return the end state
+                    self.desktop.remove_child(view_index);
+                    return end_state;
+                }
+            } else {
+                // View was removed (closed externally)
+                return CM_CANCEL;
+            }
+        }
     }
 
     pub fn run(&mut self) {

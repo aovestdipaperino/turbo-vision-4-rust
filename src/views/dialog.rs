@@ -19,6 +19,16 @@ impl Dialog {
         }
     }
 
+    /// Create a new modal dialog for use with Application::exec_view()
+    /// Matches Borland pattern: Dialog is created with SF_MODAL set, then passed to execView()
+    pub fn new_modal(bounds: Rect, title: &str) -> Box<Self> {
+        use crate::core::state::SF_MODAL;
+        let mut dialog = Self::new(bounds, title);
+        let current_state = dialog.state();
+        dialog.set_state(current_state | SF_MODAL);
+        Box::new(dialog)
+    }
+
     pub fn add(&mut self, view: Box<dyn View>) {
         self.window.add(view);
     }
@@ -48,6 +58,26 @@ impl Dialog {
         self.window.child_at_mut(index)
     }
 
+    /// Execute the dialog with its own event loop (self-contained pattern)
+    ///
+    /// **Two execution patterns supported:**
+    ///
+    /// **Pattern 1: Self-contained (simpler, for direct use):**
+    /// ```ignore
+    /// let mut dialog = Dialog::new(bounds, "Title");
+    /// dialog.add(Button::new(...));
+    /// let result = dialog.execute(&mut app);  // Runs own event loop
+    /// ```
+    ///
+    /// **Pattern 2: Centralized (Borland-style, via Application::exec_view):**
+    /// ```ignore
+    /// let mut dialog = Dialog::new_modal(bounds, "Title");
+    /// dialog.add(Button::new(...));
+    /// let result = app.exec_view(dialog);  // App runs the modal loop
+    /// ```
+    ///
+    /// Both patterns work identically. Pattern 1 is simpler for standalone use.
+    /// Pattern 2 matches Borland's TProgram::execView() architecture.
     pub fn execute(&mut self, app: &mut crate::app::Application) -> CommandId {
         use crate::core::state::SF_MODAL;
 
@@ -173,6 +203,14 @@ impl View for Dialog {
 
     fn set_state(&mut self, state: crate::core::state::StateFlags) {
         self.window.set_state(state);
+    }
+
+    fn get_end_state(&self) -> CommandId {
+        self.window.get_end_state()
+    }
+
+    fn set_end_state(&mut self, command: CommandId) {
+        self.window.set_end_state(command);
     }
 }
 

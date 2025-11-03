@@ -117,6 +117,12 @@ impl Window {
     pub fn get_end_state(&self) -> crate::core::command::CommandId {
         self.interior.get_end_state()
     }
+
+    /// Set the end_state in the interior Group
+    /// Used by modal dialogs to signal they want to close
+    pub fn set_end_state(&mut self, command: crate::core::command::CommandId) {
+        self.interior.set_end_state(command);
+    }
 }
 
 impl View for Window {
@@ -300,5 +306,13 @@ impl View for Window {
 
     fn set_state(&mut self, state: StateFlags) {
         self.state = state;
+    }
+
+    fn get_end_state(&self) -> crate::core::command::CommandId {
+        self.interior.get_end_state()
+    }
+
+    fn set_end_state(&mut self, command: crate::core::command::CommandId) {
+        self.interior.set_end_state(command);
     }
 }

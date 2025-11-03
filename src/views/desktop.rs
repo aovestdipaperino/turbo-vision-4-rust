@@ -57,6 +57,13 @@ impl Desktop {
         self.children.child_at(index + 1)  // +1 to skip background
     }
 
+    /// Remove a child view by index
+    /// Note: Index 0 refers to the first window (background is at internal index 0)
+    /// Used by Application::exec_view() to remove modal dialogs after they close
+    pub fn remove_child(&mut self, index: usize) {
+        self.children.remove(index + 1);  // +1 to skip background
+    }
+
     /// Draw views in the affected rectangle (Borland's drawUnderRect pattern)
     /// This is called when a window moves to redraw only the affected area
     /// Matches Borland: TView::drawUnderRect() (tview.cc:304-308)
