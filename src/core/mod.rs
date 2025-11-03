@@ -9,3 +9,4 @@ pub mod state;
 pub mod ansi_dump;
 pub mod menu_data;
 pub mod status_data;
+pub mod history;
