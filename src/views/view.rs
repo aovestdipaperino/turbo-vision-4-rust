@@ -6,6 +6,30 @@ use crate::terminal::Terminal;
 use std::io;
 
 /// View trait - all UI components implement this
+///
+/// ## Owner/Parent Communication Pattern
+///
+/// Unlike Borland's TView which stores an `owner` pointer to the parent TGroup,
+/// Rust views communicate with parents through event propagation:
+///
+/// **Borland Pattern:**
+/// ```cpp
+/// void TButton::press() {
+///     message(owner, evBroadcast, command, this);
+/// }
+/// ```
+///
+/// **Rust Pattern:**
+/// ```rust
+/// fn handle_event(&mut self, event: &mut Event) {
+///     // Transform event to send message upward
+///     *event = Event::command(self.command);
+///     // Event bubbles up through Group::handle_event() call stack
+/// }
+/// ```
+///
+/// This achieves the same result (child-to-parent communication) without raw pointers,
+/// using Rust's ownership system and the call stack for context.
 pub trait View {
     fn bounds(&self) -> Rect;
     fn set_bounds(&mut self, bounds: Rect);
