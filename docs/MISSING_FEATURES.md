@@ -1,15 +1,15 @@
 # Missing Features Inventory
 
 *Generated from Borland Turbo Vision source analysis*
-*Last updated: 2025-11-03 (post-Phase 7: File Editor implementation)*
+*Last updated: 2025-11-03 (post-Phase 6: File System Components)*
 
 This document catalogs missing features compared to the original Borland Turbo Vision framework, providing a roadmap for future development.
 
 ## Summary Statistics
 
-- **Total Missing Components**: 43 (was 44, completed TFileEditor)
-- **Estimated Total Effort**: 774 hours (~19 weeks at 40 hrs/week)
-- **HIGH Priority**: 9 items (180 hours) - Core functionality
+- **Total Missing Components**: 41 (was 43, completed TFileList + TDirListBox)
+- **Estimated Total Effort**: 748 hours (~19 weeks at 40 hrs/week)
+- **HIGH Priority**: 9 items (154 hours) - Core functionality
 - **MEDIUM Priority**: 31 items (352 hours) - Extended features
 - **LOW Priority**: 17 items (262 hours) - Nice to have
 
@@ -20,6 +20,7 @@ This document catalogs missing features compared to the original Borland Turbo V
 | Core Views/Controls | 10 | HIGH-MEDIUM | 112h |
 | Specialized Dialogs | 13 | LOW-MEDIUM | 126h |
 | Editor Components | 1 | LOW | 0h |
+| File System | 0 | - | 0h |
 | System Utilities | 10 | MEDIUM | 34h |
 | Helper Classes | 0 | - | 0h |
 | Advanced Features | 10 | HIGH-LOW | 162h |
@@ -63,9 +64,9 @@ This document catalogs missing features compared to the original Borland Turbo V
 - ✅ **THistoryViewer** - History list viewer (IMPLEMENTED - `src/views/history_viewer.rs`)
 - ✅ **THistoryWindow** - History popup (IMPLEMENTED - `src/views/history_window.rs`)
 
-### File System (26 hours)
-- **TFileList** - File browser list (12h)
-- **TDirListBox** - Directory tree (14h)
+### File System (0 hours remaining)
+- ✅ **TFileList** - File browser list (IMPLEMENTED - `src/views/file_list.rs`, 415 lines)
+- ✅ **TDirListBox** - Directory tree (IMPLEMENTED - `src/views/dir_listbox.rs`, 398 lines)
 
 ### Editor (0 hours remaining)
 - ✅ **TEditor** - Text editor with search/replace (IMPLEMENTED - `src/views/editor.rs`, 1304 lines)
@@ -81,7 +82,7 @@ This document catalogs missing features compared to the original Borland Turbo V
 - **TMouse** - Mouse system (12h)
 - **TEventQueue** - Event queue (10h)
 
-**Total HIGH Priority: 180 hours** (was 188 hours, completed 8 hours of TFileEditor)
+**Total HIGH Priority: 154 hours** (was 180 hours, completed 26 hours of TFileList + TDirListBox)
 
 ## Medium Priority Components (Extended Features)
 
@@ -218,12 +219,28 @@ Architectural improvement for button groups:
 
 **Completed**: 2025-11-03. Thread-safe global history management with 14 tests passing.
 
-### Phase 6: File Dialogs (52 hours)
-Complete file system UI:
-- TFileList, TDirListBox (using Vec for file lists)
-- TFileInputLine, TFileInfoPane, TChDirDialog
+### ✅ Phase 6: File System Components (26 hours) - COMPLETE
+**Goal**: File system navigation and browsing
+- ✅ TFileList - File browser list (12h)
+  - Displays files and directories with visual indicators
+  - Wildcard filtering (*.rs, *.txt, etc.)
+  - Parent directory (..) navigation
+  - File size formatting (B, KB, MB, GB)
+  - Directory-first sorting
+  - Uses ListViewer trait for navigation
+  - 415 lines, 4 tests
+- ✅ TDirListBox - Directory tree view (14h)
+  - Hierarchical tree display with box-drawing characters
+  - Shows path from root to current directory
+  - Navigate up/down directory tree
+  - Visual tree structure (├─, └─, │)
+  - Uses ListViewer trait
+  - 398 lines, 4 tests
+- Example: examples/file_browser.rs - Split-screen file browser
 
-### ✅ Phase 7: Editor Enhancements (8 hours) - COMPLETE
+**Completed**: 2025-11-03. Complete file system navigation components.
+
+### Phase 7: Editor Enhancements (8 hours) - COMPLETE
 **Goal**: Full-featured text editing with file operations
 - ✅ TFileEditor with load/save (8h)
   - load_file() - Load file contents into editor
@@ -267,11 +284,11 @@ Optional enhancements:
 - **After Phase 3** (66 hours): ✅ COMPLETE - Button group controls unified with Cluster trait
 - **After Phase 4** (74 hours): ✅ COMPLETE - Sorted lists with binary search
 - **After Phase 5** (98 hours): ✅ COMPLETE - History system for professional input fields
-- **After Phase 7** (106 hours): ✅ COMPLETE - Professional text editing with file I/O
-- **After Phase 6** (158 hours): File system navigation possible
-- **After Phase 8** (216 hours): Enhanced application framework
-- **After Phase 9** (272 hours): Context-sensitive help system
-- **After Phase 10** (534+ hours): Complete framework with all utilities
+- **After Phase 6** (124 hours): ✅ COMPLETE - File system navigation with tree and list views
+- **After Phase 7** (132 hours): ✅ COMPLETE - Professional text editing with file I/O
+- **After Phase 8** (190 hours): Enhanced application framework
+- **After Phase 9** (246 hours): Context-sensitive help system
+- **After Phase 10** (508+ hours): Complete framework with all utilities
 
 ## Quick Win Opportunities
 
@@ -284,7 +301,7 @@ These items provide high architectural value for relatively low effort:
 
 **All quick wins completed!** Total: 37 hours of foundational architectural improvements.
 
-## Current Implementation Status (v0.2.4+)
+## Current Implementation Status (v0.2.5+)
 
 ### What We Have
 - Basic controls: Button, InputLine, StaticText, Label, CheckBox, RadioButton
@@ -292,21 +309,27 @@ These items provide high architectural value for relatively low effort:
 - Menus: MenuBar with MenuViewer trait, MenuBox popup menus
 - Dialogs: Dialog, FileDialog (full-featured), MsgBox
 - Text editing: **Editor with search/replace AND file I/O**, Memo, TextView
+- **File system: FileList (file browser), DirListBox (directory tree)**
 - System: Desktop, StatusLine, Frame, Window, Group
 - Utilities: ScrollBar, Scroller, Indicator, ParamText, Background
 - Validation: Validator trait, FilterValidator, RangeValidator
 - History: HistoryManager, HistoryViewer, HistoryWindow, History button
 - Event system: Three-phase processing, event re-queuing, broadcasts
 - Cluster trait (base for CheckBox/RadioButton button groups)
-- SortedListBox with binary search (find_exact, find_prefix)
 
-### Recent Improvements (Phase 7 - TFileEditor)
-- **File I/O**: load_file(), save_file(), save_as() methods
-- **Filename tracking**: get_filename() to query current file
-- **Modified flag**: Properly managed on load/save operations
-- **5 comprehensive tests**: All file operations tested with tempfile
-- **Example included**: examples/file_editor.rs demonstrates file editing
-- **1304 lines**: Complete editor with search/replace and file I/O
+### Recent Improvements (Phase 6 - File System)
+- **FileList**: File browser list with ListViewer integration
+  - Wildcard filtering (*.rs, *.txt, etc.)
+  - Directory navigation with parent (..)
+  - File size formatting (B, KB, MB, GB)
+  - Directory-first sorting
+  - 415 lines, 4 tests
+- **DirListBox**: Hierarchical directory tree
+  - Visual tree structure with box-drawing characters
+  - Shows path from root to current
+  - Navigate up/down tree
+  - 398 lines, 4 tests
+- **file_browser example**: Split-screen browser with both components
 
 ### Modern Rust Advantages
 - **No need for TCollection**: Using `Vec<T>` (type-safe, generic, efficient)
@@ -320,20 +343,21 @@ These items provide high architectural value for relatively low effort:
 **Total Obsolete Features Skipped**: 30 components, ~164 hours saved by using modern Rust alternatives
 
 ### Architectural Gaps
-- No file list/directory browser components
 - No help system infrastructure
+- Medium Priority file dialog components (TFileInputLine, TFileInfoPane, TChDirDialog) could enhance FileDialog
 
 ## Next Steps
 
-**Recommended: Phase 6 - File Dialogs (52 hours)**
-- Implement TFileList for file browsing
-- Add TDirListBox for directory navigation
-- Create TFileInputLine, TFileInfoPane, TChDirDialog
-- Complete file system UI
+**Recommended: Phase 8 - Application Framework (58 hours)**
+- Implement TProgram base application
+- Add TApplication extended features
+- Create TScreen screen manager
+- Build TDisplay display abstraction
+- Add TMouse and TEventQueue
 
 **Alternative Options:**
-- Phase 8: Application Framework (58 hours) - Enhanced core infrastructure
 - Phase 9: Help System (56 hours) - Context-sensitive help
+- Medium Priority File Dialog enhancements (28 hours) - TFileInputLine, TFileInfoPane, TChDirDialog
 
 ---
 
