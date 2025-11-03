@@ -7,10 +7,10 @@ This document catalogs missing features compared to the original Borland Turbo V
 
 ## Summary Statistics
 
-- **Total Missing Components**: 77 (was 85, implemented 4, skipped 4 obsolete collections)
-- **Estimated Total Effort**: 984 hours (~25 weeks at 40 hrs/week)
+- **Total Missing Components**: 51 (was 85, implemented 4, skipped 30 obsolete pre-Rust features)
+- **Estimated Total Effort**: 858 hours (~21 weeks at 40 hrs/week)
 - **HIGH Priority**: 15 items (236 hours) - Core functionality
-- **MEDIUM Priority**: 45 items (486 hours) - Extended features
+- **MEDIUM Priority**: 32 items (360 hours) - Extended features
 - **LOW Priority**: 17 items (262 hours) - Nice to have
 
 ## Quick Reference by Category
@@ -20,8 +20,8 @@ This document catalogs missing features compared to the original Borland Turbo V
 | Core Views/Controls | 14 | HIGH-MEDIUM | 136h |
 | Specialized Dialogs | 13 | LOW-MEDIUM | 126h |
 | Editor Components | 3 | HIGH-MEDIUM | 52h |
-| System Utilities | 24 | MEDIUM | 168h |
-| Helper Classes | 13 | HIGH-MEDIUM | 140h |
+| System Utilities | 11 | MEDIUM | 42h |
+| Helper Classes | 0 | - | 0h |
 | Advanced Features | 10 | HIGH-LOW | 162h |
 
 ## High Priority Components (Core Functionality)
@@ -89,10 +89,12 @@ This document catalogs missing features compared to the original Borland Turbo V
 - **TFileCollection** - File entry collection (8h)
 - **TDirCollection** - Directory collection (8h)
 
-### Resource System (28 hours)
-- **TResourceFile** - Resource file manager (16h)
-- **TResourceCollection** - Resource container (8h)
-- **TResourceItem** - Resource entry (4h)
+### Resource System (~0 hours - NOT NEEDED)
+- ~~**TResourceFile**~~ - Use JSON/TOML/RON with serde instead
+- ~~**TResourceCollection**~~ - Use HashMap<String, Resource>
+- ~~**TResourceItem**~~ - Use custom structs with derive macros
+
+**Note:** Borland's binary resource files were a 1990s necessity. Modern Rust has excellent serialization libraries (serde) and standard formats (JSON, TOML, RON) that are more maintainable and debuggable.
 
 ### Help System (56 hours)
 - **THelpFile** - Help file manager (20h)
@@ -100,18 +102,21 @@ This document catalogs missing features compared to the original Borland Turbo V
 - **THelpWindow** - Help display window (12h)
 - **THelpViewer** - Help content viewer (12h)
 
-### Streaming System (78 hours)
-Complete persistence infrastructure including:
-- Stream base classes (pstream, ipstream, opstream - 26h)
-- File streams (fpstream, ifpstream, ofpstream, iopstream - 28h)
-- Stream helpers (TWriteObjects, TReadObjects - 12h)
-- Streamable base (TStreamable - 12h)
+### Streaming System (~0 hours - NOT NEEDED)
+- ~~**pstream, ipstream, opstream**~~ - Use serde for serialization
+- ~~**fpstream, ifpstream, ofpstream, iopstream**~~ - Use std::fs + serde_json/bincode
+- ~~**TWriteObjects, TReadObjects**~~ - Use serde Serialize/Deserialize traits
+- ~~**TStreamable**~~ - Use #[derive(Serialize, Deserialize)] macros
 
-### String Utilities (20 hours)
-- **TStringCollection** - String collection (8h)
-- **TStringList** - Indexed string list (10h)
-- **TStrListMaker** - String list builder (6h)
-- **TStrIndexRec** - String index record (4h)
+**Note:** Borland's streaming system predated modern serialization libraries. Rust's serde ecosystem provides superior type-safe serialization to JSON, TOML, MessagePack, bincode, etc. with derive macros and zero-copy deserialization.
+
+### String Utilities (~0 hours - NOT NEEDED)
+- ~~**TStringCollection**~~ - Use Vec<String>
+- ~~**TStringList**~~ - Use Vec<String> or HashMap<usize, String>
+- ~~**TStrListMaker**~~ - Use Vec::push() or collect()
+- ~~**TStrIndexRec**~~ - Not needed with Rust's type system
+
+**Note:** String collections were pre-generic workarounds. Use Vec<String>, HashSet<String>, or HashMap for string management.
 
 ### List Enhancements (8 hours)
 - **TSortedListBox** - Sorted list with search (8h)
@@ -123,7 +128,7 @@ Complete persistence infrastructure including:
 - **CodePage** - Character encoding (12h)
 - **OSClipboard** - System clipboard (10h)
 
-**Total MEDIUM Priority: 486 hours**
+**Total MEDIUM Priority: 360 hours** (was 486 hours, removed 126 hours of obsolete streaming/resources/strings)
 
 ## Low Priority Components (Nice to Have)
 
@@ -215,17 +220,19 @@ Enhanced core infrastructure:
 - TProgram, TApplication
 - TScreen, TDisplay, TMouse, TEventQueue
 
-### Phase 9: Resources & Persistence (90 hours)
-Professional app development:
-- Complete streaming system
-- Resource file support
+### ~~Phase 9: Resources & Persistence (90 hours)~~ - NOT NEEDED
+~~Professional app development:~~
+- ~~Complete streaming system~~ - Use serde instead
+- ~~Resource file support~~ - Use JSON/TOML/RON with serde
 
-### Phase 10: Help System (56 hours)
+**Rationale:** Modern Rust has superior serialization (serde) and standard formats. No need to recreate 1990s binary resource files.
+
+### Phase 9: Help System (56 hours)
 Context-sensitive help:
 - THelpFile, THelpBase
 - THelpWindow, THelpViewer
 
-### Phase 11: Polish (262+ hours)
+### Phase 10: Polish (262+ hours)
 Optional enhancements:
 - Color customization
 - Calculator, validators
@@ -237,8 +244,8 @@ Optional enhancements:
 - **After Phase 3** (66 hours): ✅ COMPLETE - Button group controls unified with Cluster trait
 - **After Phase 5** (98 hours): Most commonly used UI components complete
 - **After Phase 7** (182 hours): Professional editing applications possible
-- **After Phase 10** (386 hours): Feature parity with Borland's core framework (minus obsolete collections)
-- **After Phase 11** (648+ hours): Complete framework with all utilities
+- **After Phase 9** (296 hours): Feature parity with Borland's core framework (minus obsolete pre-Rust features)
+- **After Phase 10** (558+ hours): Complete framework with all utilities
 
 ## Quick Win Opportunities
 
@@ -278,12 +285,16 @@ These items provide high architectural value for relatively low effort:
 ### Modern Rust Advantages
 - **No need for TCollection**: Using `Vec<T>` (type-safe, generic, efficient)
 - **No need for linked lists**: Vec provides better cache locality
+- **No need for streaming system**: serde provides superior serialization
+- **No need for resource files**: JSON/TOML/RON are more maintainable
+- **No need for string collections**: Vec<String>, HashSet<String>, HashMap work perfectly
 - **Trait-based inheritance**: More flexible than C++ class hierarchy
 - **Safe memory management**: No manual memory management needed
 
+**Total Obsolete Features Skipped**: 30 components, ~164 hours saved by using modern Rust alternatives
+
 ### Architectural Gaps
 - No history system for input fields
-- No resource/streaming system
 - No help system infrastructure
 
 ## Next Steps
