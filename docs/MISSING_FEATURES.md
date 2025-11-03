@@ -7,9 +7,9 @@ This document catalogs missing features compared to the original Borland Turbo V
 
 ## Summary Statistics
 
-- **Total Missing Components**: 50 (was 85, implemented 5, skipped 30 obsolete pre-Rust features)
-- **Estimated Total Effort**: 850 hours (~21 weeks at 40 hrs/week)
-- **HIGH Priority**: 15 items (236 hours) - Core functionality
+- **Total Missing Components**: 46 (was 85, implemented 9, skipped 30 obsolete pre-Rust features)
+- **Estimated Total Effort**: 826 hours (~21 weeks at 40 hrs/week)
+- **HIGH Priority**: 11 items (212 hours) - Core functionality
 - **MEDIUM Priority**: 31 items (352 hours) - Extended features
 - **LOW Priority**: 17 items (262 hours) - Nice to have
 
@@ -17,7 +17,7 @@ This document catalogs missing features compared to the original Borland Turbo V
 
 | Category | Count | Priority | Effort |
 |----------|-------|----------|--------|
-| Core Views/Controls | 14 | HIGH-MEDIUM | 136h |
+| Core Views/Controls | 10 | HIGH-MEDIUM | 112h |
 | Specialized Dialogs | 13 | LOW-MEDIUM | 126h |
 | Editor Components | 3 | HIGH-MEDIUM | 52h |
 | System Utilities | 10 | MEDIUM | 34h |
@@ -57,10 +57,11 @@ This document catalogs missing features compared to the original Borland Turbo V
 - All navigation behavior now shared through default trait implementations
 - Borland-compatible while being idiomatic Rust
 
-### Input Controls (18 hours)
+### Input Controls (0 hours remaining)
 - ✅ **TCluster** - Base for radio/checkbox (IMPLEMENTED - `src/views/cluster.rs`)
-- **THistory** - History dropdown (12h)
-- **THistoryViewer** - History list viewer (6h)
+- ✅ **THistory** - History dropdown (IMPLEMENTED - `src/views/history.rs`)
+- ✅ **THistoryViewer** - History list viewer (IMPLEMENTED - `src/views/history_viewer.rs`)
+- ✅ **THistoryWindow** - History popup (IMPLEMENTED - `src/views/history_window.rs`)
 
 ### File System (26 hours)
 - **TFileList** - File browser list (12h)
@@ -78,7 +79,7 @@ This document catalogs missing features compared to the original Borland Turbo V
 - **TMouse** - Mouse system (12h)
 - **TEventQueue** - Event queue (10h)
 
-**Total HIGH Priority: 236 hours** (was 282 hours, removed 38 hours of obsolete collections, completed 8 hours of TCluster)
+**Total HIGH Priority: 212 hours** (was 282 hours, removed 38 hours of obsolete collections, completed 32 hours: TCluster 8h + History System 24h)
 
 ## Medium Priority Components (Extended Features)
 
@@ -205,11 +206,15 @@ Architectural improvement for button groups:
 
 **Completed**: 2025-11-03. Uses Vec::sort and Vec::binary_search_by for efficient sorted list management. Eight tests added.
 
-### Phase 5: History System (32 hours)
-Essential for professional UIs:
-- THistory - History management
-- THistoryViewer - History list display
-- THistoryWindow - Popup history window
+### ✅ Phase 5: History System (24 hours) - COMPLETE
+**Goal**: Professional input field enhancement with history
+- ✅ HistoryManager - Global history management by ID
+- ✅ HistoryList - Stores up to 20 items with deduplication
+- ✅ THistory - History dropdown button
+- ✅ THistoryViewer - List display using ListViewer trait
+- ✅ THistoryWindow - Modal popup for history selection
+
+**Completed**: 2025-11-03. Thread-safe global history management with 14 tests passing.
 
 ### Phase 6: File Dialogs (52 hours)
 Complete file system UI:
@@ -249,10 +254,10 @@ Optional enhancements:
 - **After Phase 2** (58 hours): ✅ COMPLETE - List and menu infrastructure solid
 - **After Phase 3** (66 hours): ✅ COMPLETE - Button group controls unified with Cluster trait
 - **After Phase 4** (74 hours): ✅ COMPLETE - Sorted lists with binary search
-- **After Phase 5** (106 hours): Most commonly used UI components complete
-- **After Phase 7** (190 hours): Professional editing applications possible
-- **After Phase 9** (304 hours): Feature parity with Borland's core framework (minus obsolete pre-Rust features)
-- **After Phase 10** (566+ hours): Complete framework with all utilities
+- **After Phase 5** (98 hours): ✅ COMPLETE - History system for professional input fields
+- **After Phase 7** (182 hours): Professional editing applications possible
+- **After Phase 9** (288 hours): Feature parity with Borland's core framework (minus obsolete pre-Rust features)
+- **After Phase 10** (550+ hours): Complete framework with all utilities
 
 ## Quick Win Opportunities
 
