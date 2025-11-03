@@ -9,13 +9,12 @@ use turbo_vision::views::dialog::Dialog;
 use turbo_vision::views::input_line::InputLine;
 use turbo_vision::views::label::Label;
 use turbo_vision::views::button::Button;
-use turbo_vision::views::View;
 use turbo_vision::core::command::CM_OK;
 use std::rc::Rc;
 use std::cell::RefCell;
 
 fn main() -> std::io::Result<()> {
-    let mut app = Application::new()?;
+    let app = Application::new()?;
     let (width, height) = app.terminal.size();
 
     // Create a dialog

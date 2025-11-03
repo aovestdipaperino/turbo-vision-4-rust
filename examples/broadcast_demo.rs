@@ -156,7 +156,7 @@ fn main() -> std::io::Result<()> {
         let mut title_buf = DrawBuffer::new(group_width as usize);
         let title = "Broadcast Demo - Click any button (ESC to exit)";
         title_buf.move_str(
-            ((group_width as usize - title.len()) / 2),
+            (group_width as usize - title.len()) / 2,
             title,
             colors::MENU_NORMAL
         );
@@ -171,7 +171,7 @@ fn main() -> std::io::Result<()> {
         let mut info_buf = DrawBuffer::new(group_width as usize);
         let info = "Click button → broadcasts to siblings (owner skipped)";
         info_buf.move_str(
-            ((group_width as usize - info.len()) / 2),
+            (group_width as usize - info.len()) / 2,
             info,
             colors::DIALOG_NORMAL
         );

@@ -14,7 +14,10 @@ A Rust implementation of the classic Borland Turbo Vision text user interface fr
 - **Borland-Accurate Styling**: Menu borders and shadows match original Borland Turbo Vision
 - **Scrollable Views**: Built-in scrollbar support with keyboard navigation
 - **Text Viewer**: Ready-to-use scrollable text viewer with line numbers
-- **Event-Driven Architecture**: Keyboard and command-based event routing
+- **Event-Driven Architecture**:
+  - Three-phase event processing (PreProcess → Focused → PostProcess)
+  - Event re-queuing for deferred processing
+  - Owner-aware broadcast system to prevent echo back to sender
 - **Mouse Support**: Full mouse support for buttons, menus, status bar, dialog close buttons, scroll wheel, and double-click detection
 - **Window Dragging and Resizing**: Drag windows by title bar, resize by bottom-right corner
 - **Flexible Layout System**: Geometry primitives with absolute and relative positioning
@@ -110,6 +113,10 @@ This implementation closely follows Borland Turbo Vision's architecture, adapted
 - **Modal Dialogs**: Use Borland's `endModal()` pattern to exit event loops
 - **View Hierarchy**: Composition-based design (`Window` contains `Group`, `Dialog` wraps `Window`)
 - **Drawing**: Event-driven redraws with Borland's `drawUnderRect` pattern for efficient updates
+- **Event System**:
+  - Three-phase processing (PreProcess → Focused → PostProcess) matching Borland's `TGroup::handleEvent()`
+  - Event re-queuing via `Terminal::put_event()` matching Borland's `TProgram::putEvent()`
+  - Owner-aware broadcasts via `Group::broadcast()` matching Borland's `message(owner, ...)` pattern
 - **Reference Implementation**: Studied original Borland C++ source code in `local-only/borland-tvision/`
 
 See `local-only/ARCHITECTURAL-FINDINGS.md` for detailed analysis of how Borland's C++ architecture maps to Rust.
