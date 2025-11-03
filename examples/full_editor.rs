@@ -37,13 +37,13 @@ fn main() -> std::io::Result<()> {
     // Add instructions
     let instructions = StaticText::new(
         Rect::new(2, 1, dialog_width - 4, 3),
-        "Try the search and replace buttons below. Sample text contains\n\
-         multiple patterns to search for (case-sensitive and whole-word)."
+        "Editor with scrollbars, indicator, and sample text for testing.\n\
+         Use arrow keys to scroll. Press Close button or ESC to exit."
     );
     dialog.add(Box::new(instructions));
 
-    // Add editor
-    let editor_bounds = Rect::new(2, 3, dialog_width - 4, dialog_height - 7);
+    // Add editor - leave room at bottom for button (3 rows)
+    let editor_bounds = Rect::new(2, 3, dialog_width - 4, dialog_height - 4);
     let mut editor = Editor::new(editor_bounds).with_scrollbars_and_indicator();
 
     // Set sample text with patterns to search/replace
@@ -76,22 +76,14 @@ Try different search options and see how they work!"#;
 
     dialog.add(Box::new(editor));
 
-    // Add close button
+    // Add close button at the very bottom
     let close_button = Button::new(
-        Rect::new((dialog_width / 2) - 6, dialog_height - 4, (dialog_width / 2) + 6, dialog_height - 2),
+        Rect::new((dialog_width / 2) - 5, dialog_height - 2, (dialog_width / 2) + 5, dialog_height),
         "~C~lose",
         CM_CANCEL,
-        true
+        false  // Editor should get focus first
     );
     dialog.add(Box::new(close_button));
-
-    // Add instructions at bottom
-    let bottom_text = StaticText::new(
-        Rect::new(2, dialog_height - 6, dialog_width - 4, dialog_height - 4),
-        "Note: This demo shows the editor with sample text.\n\
-         In a full application, you would add Find/Replace dialogs."
-    );
-    dialog.add(Box::new(bottom_text));
 
     dialog.set_initial_focus();
 
