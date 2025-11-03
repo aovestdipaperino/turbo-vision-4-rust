@@ -42,6 +42,7 @@ pub const CM_PASTE: CommandId = 114;
 pub const CM_SELECT_ALL: CommandId = 115;
 pub const CM_FIND: CommandId = 116;
 pub const CM_REPLACE: CommandId = 117;
+pub const CM_SEARCH_AGAIN: CommandId = 118;  // Borland: cmSearchAgain (F3) - find next
 
 // Search menu commands
 pub const CM_FIND_IN_FILES: CommandId = 120;

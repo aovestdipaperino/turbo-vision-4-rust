@@ -24,6 +24,30 @@ const KB_CTRL_Z: u16 = 0x001A;  // Ctrl+Z - Undo
 /// Maximum undo history size
 const MAX_UNDO_HISTORY: usize = 100;
 
+/// Search options flags (matching Borland's efXXX constants)
+#[derive(Clone, Copy, Debug)]
+pub struct SearchOptions {
+    pub case_sensitive: bool,
+    pub whole_words_only: bool,
+    pub backwards: bool,
+}
+
+impl SearchOptions {
+    pub fn new() -> Self {
+        Self {
+            case_sensitive: false,
+            whole_words_only: false,
+            backwards: false,
+        }
+    }
+}
+
+impl Default for SearchOptions {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Edit action for undo/redo
 #[derive(Clone, Debug)]
 enum EditAction {
@@ -67,6 +91,9 @@ pub struct Editor {
     redo_stack: Vec<EditAction>,
     insert_mode: bool, // true = insert, false = overwrite
     auto_indent: bool,
+    // Search state (matching Borland's TEditor static members)
+    last_search: String,
+    last_search_options: SearchOptions,
 }
 
 impl Editor {
@@ -89,6 +116,8 @@ impl Editor {
             redo_stack: Vec::new(),
             insert_mode: true,
             auto_indent: false,
+            last_search: String::new(),
+            last_search_options: SearchOptions::new(),
         }
     }
 
@@ -198,61 +227,181 @@ impl Editor {
         }
     }
 
-    /// Find text in the editor
-    pub fn find(&self, text: &str, case_sensitive: bool) -> Option<Point> {
-        let search_text = if case_sensitive {
+    /// Find text in the editor with options
+    /// Matches Borland's TEditor::search() (teditor.cc:917-949)
+    pub fn find(&mut self, text: &str, options: SearchOptions) -> Option<Point> {
+        if text.is_empty() {
+            return None;
+        }
+
+        // Save search parameters for find-next
+        self.last_search = text.to_string();
+        self.last_search_options = options;
+
+        self.find_from_cursor(text, options)
+    }
+
+    /// Find next occurrence of last search
+    /// Matches Borland's cmSearchAgain command
+    pub fn find_next(&mut self) -> Option<Point> {
+        if self.last_search.is_empty() {
+            return None;
+        }
+
+        // Move cursor forward to find next occurrence
+        if self.selection_start.is_some() {
+            // If there's a selection, start after it
+            self.cursor.x += 1;
+            self.selection_start = None;
+        }
+
+        self.find_from_cursor(&self.last_search.clone(), self.last_search_options)
+    }
+
+    /// Find text starting from current cursor position
+    fn find_from_cursor(&mut self, text: &str, options: SearchOptions) -> Option<Point> {
+        let search_text = if options.case_sensitive {
             text.to_string()
         } else {
             text.to_lowercase()
         };
 
+        // Helper to check if a character is a word character
+        let is_word_char = |ch: char| ch.is_alphanumeric() || ch == '_';
+
         // Start searching from current cursor position
-        for (line_idx, line) in self.lines.iter().enumerate().skip(self.cursor.y as usize) {
-            let search_line = if case_sensitive {
+        let start_line = self.cursor.y as usize;
+        let start_col = self.cursor.x as usize;
+
+        // Search from cursor to end of document
+        for (line_idx, line) in self.lines.iter().enumerate().skip(start_line) {
+            let search_line = if options.case_sensitive {
                 line.clone()
             } else {
                 line.to_lowercase()
             };
 
-            let start_col = if line_idx == self.cursor.y as usize {
-                self.cursor.x as usize
+            let col_start = if line_idx == start_line {
+                start_col
             } else {
                 0
             };
 
-            if let Some(col) = search_line[start_col..].find(&search_text) {
-                return Some(Point::new((start_col + col) as i16, line_idx as i16));
+            if col_start < line.len() {
+                if let Some(col) = search_line[col_start..].find(&search_text) {
+                    let found_col = col_start + col;
+
+                    // Check whole-word constraint (Borland: efWholeWordsOnly)
+                    if options.whole_words_only {
+                        let before_ok = found_col == 0 || !is_word_char(line.chars().nth(found_col - 1).unwrap_or(' '));
+                        let after_idx = found_col + text.len();
+                        let after_ok = after_idx >= line.len() || !is_word_char(line.chars().nth(after_idx).unwrap_or(' '));
+
+                        if !before_ok || !after_ok {
+                            continue; // Not a whole word match, keep searching
+                        }
+                    }
+
+                    let pos = Point::new(found_col as i16, line_idx as i16);
+                    // Set selection to highlight the found text
+                    self.selection_start = Some(pos);
+                    self.cursor = Point::new((found_col + text.len()) as i16, line_idx as i16);
+                    self.make_cursor_visible();
+                    return Some(pos);
+                }
             }
         }
 
-        // If not found, search from beginning
-        for (line_idx, line) in self.lines.iter().enumerate().take(self.cursor.y as usize) {
-            let search_line = if case_sensitive {
+        // Wrap around: search from beginning to cursor (Borland wraps by default)
+        for (line_idx, line) in self.lines.iter().enumerate().take(start_line + 1) {
+            let search_line = if options.case_sensitive {
                 line.clone()
             } else {
                 line.to_lowercase()
             };
 
-            if let Some(col) = search_line.find(&search_text) {
-                return Some(Point::new(col as i16, line_idx as i16));
+            let col_end = if line_idx == start_line {
+                start_col
+            } else {
+                line.len()
+            };
+
+            if let Some(col) = search_line[..col_end].find(&search_text) {
+                // Check whole-word constraint
+                if options.whole_words_only {
+                    let before_ok = col == 0 || !is_word_char(line.chars().nth(col - 1).unwrap_or(' '));
+                    let after_idx = col + text.len();
+                    let after_ok = after_idx >= line.len() || !is_word_char(line.chars().nth(after_idx).unwrap_or(' '));
+
+                    if !before_ok || !after_ok {
+                        continue;
+                    }
+                }
+
+                let pos = Point::new(col as i16, line_idx as i16);
+                self.selection_start = Some(pos);
+                self.cursor = Point::new((col + text.len()) as i16, line_idx as i16);
+                self.make_cursor_visible();
+                return Some(pos);
             }
         }
 
         None
     }
 
-    /// Replace text at current cursor position
-    pub fn replace(&mut self, find_text: &str, replace_text: &str, case_sensitive: bool) -> bool {
-        if let Some(pos) = self.find(find_text, case_sensitive) {
-            self.cursor = pos;
-            self.selection_start = Some(pos);
-            self.cursor.x += find_text.len() as i16;
+    /// Replace current selection with new text
+    /// Returns true if replacement was made
+    pub fn replace_selection(&mut self, replace_text: &str) -> bool {
+        if self.selection_start.is_some() {
             self.delete_selection();
             self.insert_text(replace_text);
             true
         } else {
             false
         }
+    }
+
+    /// Replace next occurrence of find_text with replace_text
+    /// Matches Borland's TEditor::doSearchReplace() with efDoReplace
+    pub fn replace_next(&mut self, find_text: &str, replace_text: &str, options: SearchOptions) -> bool {
+        if let Some(_pos) = self.find(find_text, options) {
+            // find() already set selection, now replace it
+            self.delete_selection();
+            self.insert_text(replace_text);
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Replace all occurrences of find_text with replace_text
+    /// Matches Borland's TEditor::doSearchReplace() with efReplaceAll
+    pub fn replace_all(&mut self, find_text: &str, replace_text: &str, options: SearchOptions) -> usize {
+        let mut count = 0;
+
+        // Start from beginning of document
+        self.cursor = Point::zero();
+        self.selection_start = None;
+
+        // Save search parameters
+        self.last_search = find_text.to_string();
+        self.last_search_options = options;
+
+        // Keep replacing until no more matches
+        loop {
+            if let Some(_pos) = self.find_from_cursor(find_text, options) {
+                self.delete_selection();
+                self.insert_text(replace_text);
+                count += 1;
+
+                // Move cursor forward to continue searching
+                // (insert_text already moved cursor, but we need to position for next search)
+            } else {
+                break;
+            }
+        }
+
+        count
     }
 
     // Private helper methods
@@ -312,6 +461,10 @@ impl Editor {
                 self.modified,
             );
         }
+    }
+
+    fn make_cursor_visible(&mut self) {
+        self.ensure_cursor_visible();
     }
 
     fn ensure_cursor_visible(&mut self) {
