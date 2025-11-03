@@ -124,30 +124,49 @@ fn main() -> std::io::Result<()> {
     dialog.add(Box::new(close_button));
 
     // Execute the dialog - use standard Application.run() with custom command handling
+    // Desktop.add() automatically sets focus on the newly added dialog
     app.desktop.add(Box::new(dialog));
 
     // Custom event loop to handle Enable/Disable commands
     loop {
         // Use application's event handling
         if let Ok(Some(mut event)) = app.terminal.poll_event(std::time::Duration::from_millis(50)) {
+            // Debug: Print event before processing
+            match event.what {
+                EventType::MouseDown => eprintln!("DEBUG: MouseDown event at ({}, {})", event.mouse.pos.x, event.mouse.pos.y),
+                EventType::Command => eprintln!("DEBUG: Command event: {}", event.command),
+                _ => {}
+            }
+
             app.handle_event(&mut event);
+
+            // Debug: Print event after processing
+            match event.what {
+                EventType::Nothing => eprintln!("DEBUG: Event cleared (Nothing)"),
+                EventType::Command => eprintln!("DEBUG: Command event after handle_event: {}", event.command),
+                _ => {}
+            }
 
             // Check for our custom commands
             if event.what == EventType::Command {
                 match event.command {
                     CMD_ENABLE_EDITS => {
+                        eprintln!("DEBUG: Enabling edit commands...");
                         command_set::enable_command(CM_COPY);
                         command_set::enable_command(CM_CUT);
                         command_set::enable_command(CM_PASTE);
                         command_set::enable_command(CM_UNDO);
                         command_set::enable_command(CM_REDO);
+                        eprintln!("DEBUG: Edit commands enabled. Changed flag: {}", command_set::command_set_changed());
                     }
                     CMD_DISABLE_EDITS => {
+                        eprintln!("DEBUG: Disabling edit commands...");
                         command_set::disable_command(CM_COPY);
                         command_set::disable_command(CM_CUT);
                         command_set::disable_command(CM_PASTE);
                         command_set::disable_command(CM_UNDO);
                         command_set::disable_command(CM_REDO);
+                        eprintln!("DEBUG: Edit commands disabled. Changed flag: {}", command_set::command_set_changed());
                     }
                     CM_CANCEL => {
                         break;
@@ -158,7 +177,13 @@ fn main() -> std::io::Result<()> {
         }
 
         // CRITICAL: Call idle() to broadcast command set changes, then draw
+        if command_set::command_set_changed() {
+            eprintln!("DEBUG: Before idle() - command set changed!");
+        }
         app.idle();
+        if !command_set::command_set_changed() {
+            eprintln!("DEBUG: After idle() - command set change flag cleared");
+        }
         app.draw();
         let _ = app.terminal.flush();
     }
