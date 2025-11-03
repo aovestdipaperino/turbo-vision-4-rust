@@ -20,6 +20,7 @@ use turbo_vision::views::button::Button;
 use turbo_vision::views::static_text::StaticText;
 use std::fs::OpenOptions;
 use std::io::Write;
+use std::panic;
 
 fn log_to_file(msg: &str) {
     if let Ok(mut file) = OpenOptions::new()
@@ -32,6 +33,30 @@ fn log_to_file(msg: &str) {
 }
 
 fn main() -> std::io::Result<()> {
+    // Set up panic hook to log panics to file
+    panic::set_hook(Box::new(|panic_info| {
+        let msg = if let Some(s) = panic_info.payload().downcast_ref::<&str>() {
+            format!("PANIC: {}", s)
+        } else if let Some(s) = panic_info.payload().downcast_ref::<String>() {
+            format!("PANIC: {}", s)
+        } else {
+            "PANIC: Unknown panic payload".to_string()
+        };
+
+        let location = if let Some(loc) = panic_info.location() {
+            format!(" at {}:{}:{}", loc.file(), loc.line(), loc.column())
+        } else {
+            " at unknown location".to_string()
+        };
+
+        log_to_file(&format!("{}{}", msg, location));
+        log_to_file("=== Stack backtrace follows ===");
+
+        // Try to get backtrace
+        let backtrace = std::backtrace::Backtrace::capture();
+        log_to_file(&format!("{:?}", backtrace));
+    }));
+
     log_to_file("=== Starting full_editor example ===");
 
     log_to_file("Creating Application...");

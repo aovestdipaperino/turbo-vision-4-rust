@@ -74,9 +74,10 @@ impl ScrollBar {
     }
 
     pub fn set_params(&mut self, value: i32, min_val: i32, max_val: i32, pg_step: i32, ar_step: i32) {
-        self.value = value.max(min_val).min(max_val);
+        // Ensure max_val >= min_val to prevent division by zero
         self.min_val = min_val;
-        self.max_val = max_val;
+        self.max_val = max_val.max(min_val);
+        self.value = value.max(self.min_val).min(self.max_val);
         self.pg_step = pg_step;
         self.ar_step = ar_step;
     }
@@ -107,10 +108,12 @@ impl ScrollBar {
     /// Get the position of the indicator
     fn get_pos(&self) -> i32 {
         let s = self.get_size();
-        if self.max_val == self.min_val {
+        let range = self.max_val - self.min_val + 1;
+        if range <= 0 || s <= 0 {
+            // Safety check: invalid range or size
             0
         } else {
-            ((self.value - self.min_val) * s / (self.max_val - self.min_val + 1)).max(0).min(s - 1)
+            ((self.value - self.min_val) * s / range).max(0).min(s - 1)
         }
     }
 
