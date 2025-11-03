@@ -36,6 +36,10 @@ pub mod dir_listbox;
 pub mod msgbox;
 pub mod validator;
 pub mod lookup_validator;
+pub mod help_file;
+pub mod help_viewer;
+pub mod help_window;
+pub mod help_context;
 
 pub use view::View;
 pub use list_viewer::{ListViewer, ListViewerState};

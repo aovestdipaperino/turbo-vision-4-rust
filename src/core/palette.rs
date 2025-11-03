@@ -143,4 +143,8 @@ pub mod colors {
     pub const SCROLLER_SELECTED: Attr = Attr::new(TvColor::White, TvColor::Blue);
 
     pub const DESKTOP: Attr = Attr::new(TvColor::LightGray, TvColor::DarkGray);
+
+    // Help system colors
+    pub const HELP_NORMAL: Attr = Attr::new(TvColor::Black, TvColor::LightGray);
+    pub const HELP_FOCUSED: Attr = Attr::new(TvColor::Black, TvColor::White);
 }
