@@ -5,6 +5,57 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.2] - 2025-11-03
+
+### Fixed
+- **Editor UTF-8 Support**: Critical bug fixes for proper UTF-8 character handling
+  - Fixed crash when pressing DELETE/BACKSPACE on multi-byte UTF-8 characters
+  - Added `char_to_byte_idx()` helper to convert character positions to byte indices
+  - Fixed `delete_char()`, `backspace()`, `insert_char()` to use byte indices for string operations
+  - Fixed `apply_action()` undo/redo to handle UTF-8 correctly
+  - Fixed `clamp_cursor()` to use character count instead of byte length
+  - Fixed `get_selection_text()` to convert character positions to byte indices
+  - Fixed `delete_selection_internal()` string slicing for UTF-8
+  - Fixed `insert_text_internal()` to use byte indices for `insert_str()`
+  - Fixed `insert_newline()` string slicing to use byte indices
+  - Fixed `select_all()` to count characters not bytes
+  - Fixed `max_line_length()` to count characters for scrollbar calculations
+  - Fixed find operations to count characters for cursor positioning
+  - Fixed KB_END key handler to use character count
+  - Added safety checks to delete operations
+
+- **Editor Cursor Rendering**: Fixed two-cursor display bug
+  - Fixed `update_cursor()` to use `get_content_area()` instead of `bounds`
+  - Cursor now correctly positioned when editor has scrollbars and indicator
+  - Previously showed two cursors: one at correct position, one offset by indicator height
+
+- **ScrollBar**: Fixed division by zero crash
+  - Added validation in `set_params()` to ensure `max_val >= min_val`
+  - Added safety check in `get_pos()` to handle `range <= 0` or `size <= 0`
+  - Prevents crash when content becomes smaller than viewport
+  - Prevents crash from invalid scrollbar parameters
+
+### Added
+- **full_editor example**: Comprehensive editor demonstration with search/replace
+  - Shows editor with scrollbars, indicator, and sample text for testing
+  - Sample text includes patterns for testing case-sensitive/whole-word search
+  - Added panic logging to capture crashes with full backtrace to debug log
+
+- **editor_test example**: Minimal editor test for debugging
+
+### Technical Details
+The Editor was incorrectly mixing character indices (used for cursor position tracking) with byte indices (required by Rust's `String::remove()` and `String::insert()` methods). In UTF-8 encoding:
+- ASCII characters are 1 byte each
+- Many Unicode characters (accented letters, emojis, CJK) are 2-4 bytes each
+
+When the editor tried to delete or insert at position `cursor.x` (a character index) using `String::remove(cursor.x)` (which expects a byte index), it would panic with "byte index is not a char boundary" on any multi-byte character.
+
+The fix adds proper character-to-byte index conversion throughout the editor, ensuring all string manipulation uses byte indices while cursor tracking continues to use character positions.
+
+The two-cursor bug occurred because `update_cursor()` used `self.bounds` while `draw()` used `get_content_area()`. When an indicator is added (via `with_scrollbars_and_indicator()`), the content area starts 1 row below the bounds, causing the terminal cursor to be positioned incorrectly.
+
+The scrollbar division by zero occurred when `max_val < min_val`, making `(max_val - min_val + 1) <= 0`. This could happen when content shrinks below viewport size or parameters are set incorrectly.
+
 ## [0.2.1] - 2025-11-03
 
 ### Added
