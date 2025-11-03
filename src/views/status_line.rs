@@ -28,16 +28,20 @@ pub struct StatusLine {
     item_positions: Vec<(i16, i16)>, // (start_x, end_x) for each item
     selected_item: Option<usize>,    // Currently hovered/selected item
     hint_text: Option<String>,       // Context-sensitive help text
+    options: u16,
 }
 
 impl StatusLine {
     pub fn new(bounds: Rect, items: Vec<StatusItem>) -> Self {
+        use crate::core::state::OF_POST_PROCESS;
+
         Self {
             bounds,
             items,
             item_positions: Vec::new(),
             selected_item: None,
             hint_text: None,
+            options: OF_POST_PROCESS,  // Status line processes in post-process phase
         }
     }
 
@@ -204,5 +208,13 @@ impl View for StatusLine {
                 }
             }
         }
+    }
+
+    fn options(&self) -> u16 {
+        self.options
+    }
+
+    fn set_options(&mut self, options: u16) {
+        self.options = options;
     }
 }

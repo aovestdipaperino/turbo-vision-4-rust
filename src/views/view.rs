@@ -14,6 +14,12 @@ pub trait View {
     fn can_focus(&self) -> bool { false }
     fn set_focus(&mut self, _focused: bool) {}
 
+    /// Get view option flags (OF_SELECTABLE, OF_PRE_PROCESS, OF_POST_PROCESS, etc.)
+    fn options(&self) -> u16 { 0 }
+
+    /// Set view option flags
+    fn set_options(&mut self, _options: u16) {}
+
     /// Get view state flags
     fn state(&self) -> StateFlags { 0 }
 

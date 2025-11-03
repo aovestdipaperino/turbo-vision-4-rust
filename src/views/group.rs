@@ -340,7 +340,9 @@ impl View for Group {
     }
 
     fn handle_event(&mut self, event: &mut Event) {
-        // Handle Tab key for focus navigation
+        use crate::core::state::{OF_PRE_PROCESS, OF_POST_PROCESS};
+
+        // Handle Tab key for focus navigation (before three-phase)
         if event.what == EventType::Keyboard {
             if event.key_code == KB_TAB {
                 self.select_next();
@@ -353,7 +355,7 @@ impl View for Group {
             }
         }
 
-        // Mouse events: send to the child under the mouse
+        // Mouse events: positional events (no three-phase processing)
         // Search in REVERSE order (top-most child first) - matches Borland's z-order
         // Matches Borland: TGroup::handleEvent() processes mouse events from front to back
         if event.what == EventType::MouseDown || event.what == EventType::MouseMove || event.what == EventType::MouseUp {
@@ -394,9 +396,46 @@ impl View for Group {
             }
         }
 
-        // Keyboard and other events: only send to focused child
-        if self.focused < self.children.len() {
-            self.children[self.focused].handle_event(event);
+        // Keyboard and Command events: use three-phase processing (matches Borland)
+        // Phase 1: PreProcess - views with OF_PRE_PROCESS flag (e.g., buttons for Space/Enter)
+        // Phase 2: Focused - currently focused view gets first chance
+        // Phase 3: PostProcess - views with OF_POST_PROCESS flag (e.g., status line for help keys)
+
+        if event.what == EventType::Keyboard || event.what == EventType::Command {
+            // Phase 1: PreProcess
+            // Views with OF_PRE_PROCESS get first chance at the event
+            for child in &mut self.children {
+                if event.what == EventType::Nothing {
+                    break; // Event was handled
+                }
+                if (child.options() & OF_PRE_PROCESS) != 0 {
+                    child.handle_event(event);
+                }
+            }
+
+            // Phase 2: Focused
+            // Give focused view a chance if event wasn't handled
+            if event.what != EventType::Nothing && self.focused < self.children.len() {
+                self.children[self.focused].handle_event(event);
+            }
+
+            // Phase 3: PostProcess
+            // Views with OF_POST_PROCESS get last chance (e.g., status line, buttons)
+            if event.what != EventType::Nothing {
+                for child in &mut self.children {
+                    if event.what == EventType::Nothing {
+                        break; // Event was handled
+                    }
+                    if (child.options() & OF_POST_PROCESS) != 0 {
+                        child.handle_event(event);
+                    }
+                }
+            }
+        } else {
+            // Other event types: send to focused child only
+            if self.focused < self.children.len() {
+                self.children[self.focused].handle_event(event);
+            }
         }
     }
 

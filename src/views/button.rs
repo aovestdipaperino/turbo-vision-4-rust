@@ -14,11 +14,13 @@ pub struct Button {
     is_default: bool,
     focused: bool,
     state: StateFlags,
+    options: u16,
 }
 
 impl Button {
     pub fn new(bounds: Rect, title: &str, command: CommandId, is_default: bool) -> Self {
         use crate::core::command_set;
+        use crate::core::state::OF_POST_PROCESS;
 
         // Check if command is initially enabled
         // Matches Borland: TButton constructor checks commandEnabled() (tbutton.cc:55-56)
@@ -34,6 +36,7 @@ impl Button {
             is_default,
             focused: false,
             state,
+            options: OF_POST_PROCESS,  // Buttons process in post-process phase
         }
     }
 
@@ -193,6 +196,14 @@ impl View for Button {
 
     fn set_state(&mut self, state: StateFlags) {
         self.state = state;
+    }
+
+    fn options(&self) -> u16 {
+        self.options
+    }
+
+    fn set_options(&mut self, options: u16) {
+        self.options = options;
     }
 
     fn is_default_button(&self) -> bool {

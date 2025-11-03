@@ -5,6 +5,47 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.9] - 2025-11-03
+
+### Added
+- **Three-Phase Event Processing**: Implemented Borland's three-phase event handling architecture
+  - Phase 1 (PreProcess): Views with `OF_PRE_PROCESS` flag get first chance at events
+  - Phase 2 (Focused): Currently focused view processes event
+  - Phase 3 (PostProcess): Views with `OF_POST_PROCESS` flag get last chance
+  - Enables proper event interception patterns matching Borland's TGroup::handleEvent()
+  - `Button` now uses `OF_POST_PROCESS` to intercept Space/Enter when not focused
+  - `StatusLine` now uses `OF_POST_PROCESS` to monitor all key presses
+  - Added `options()` and `set_options()` methods to View trait
+
+### Changed
+- **Group**: Enhanced `handle_event()` with three-phase processing for keyboard/command events
+  - Mouse events continue to use positional routing (no three-phase)
+  - Keyboard and Command events now flow through PreProcess → Focused → PostProcess
+  - Matches Borland's `focusedEvents` vs `positionalEvents` distinction
+  - Each phase checks if event was handled (EventType::Nothing) before continuing
+
+- **Button**: Now implements `options()` with `OF_POST_PROCESS` flag
+  - Buttons can intercept their hotkeys even when not focused
+  - Matches Borland's button behavior from tbutton.cc
+
+- **StatusLine**: Now implements `options()` with `OF_POST_PROCESS` flag
+  - Status line monitors all key presses in post-process phase
+  - Enables status line to handle function keys globally
+  - Matches Borland's TStatusLine architecture from tstatusl.cc
+
+- **View trait**: Added `options()` and `set_options()` methods
+  - Default implementation returns 0 (no special processing)
+  - Views can set `OF_PRE_PROCESS` or `OF_POST_PROCESS` flags
+  - Foundation for advanced event routing patterns
+
+### Technical Details
+This implements the critical architectural pattern from Borland's TGroup::handleEvent() (tgroup.cc:342-369). The three-phase system allows views to intercept events before or after the focused view processes them. This is essential for:
+- Buttons responding to Space/Enter even when another control is focused
+- Status line handling function keys globally
+- Modal dialogs intercepting Esc/F10 regardless of focus
+
+The implementation distinguishes between `focusedEvents` (keyboard/command) which use three-phase processing, and `positionalEvents` (mouse) which route directly to the view under the cursor.
+
 ## [0.1.8] - 2025-11-03
 
 ### Added
