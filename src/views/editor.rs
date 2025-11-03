@@ -305,7 +305,7 @@ impl Editor {
                     let pos = Point::new(found_col as i16, line_idx as i16);
                     // Set selection to highlight the found text
                     self.selection_start = Some(pos);
-                    self.cursor = Point::new((found_col + text.len()) as i16, line_idx as i16);
+                    self.cursor = Point::new((found_col + text.chars().count()) as i16, line_idx as i16);
                     self.make_cursor_visible();
                     return Some(pos);
                 }
@@ -340,7 +340,7 @@ impl Editor {
 
                 let pos = Point::new(col as i16, line_idx as i16);
                 self.selection_start = Some(pos);
-                self.cursor = Point::new((col + text.len()) as i16, line_idx as i16);
+                self.cursor = Point::new((col + text.chars().count()) as i16, line_idx as i16);
                 self.make_cursor_visible();
                 return Some(pos);
             }
@@ -423,7 +423,7 @@ impl Editor {
     fn max_line_length(&self) -> i16 {
         self.lines
             .iter()
-            .map(|line| line.len() as i16)
+            .map(|line| line.chars().count() as i16)
             .max()
             .unwrap_or(0)
     }
@@ -496,13 +496,23 @@ impl Editor {
             self.cursor.y = (self.lines.len() - 1) as i16;
         }
 
-        let line_len = self.lines[self.cursor.y as usize].len() as i16;
-        if self.cursor.x > line_len {
-            self.cursor.x = line_len;
+        let line_char_len = self.lines[self.cursor.y as usize].chars().count() as i16;
+        if self.cursor.x > line_char_len {
+            self.cursor.x = line_char_len;
         }
         if self.cursor.x < 0 {
             self.cursor.x = 0;
         }
+    }
+
+    /// Convert character index to byte index for a given line
+    /// This is necessary because Rust strings are UTF-8 and String::remove/insert expect byte indices
+    fn char_to_byte_idx(&self, line_idx: usize, char_idx: usize) -> usize {
+        self.lines[line_idx]
+            .char_indices()
+            .nth(char_idx)
+            .map(|(byte_idx, _)| byte_idx)
+            .unwrap_or_else(|| self.lines[line_idx].len())
     }
 
     fn push_undo(&mut self, action: EditAction) {
@@ -521,15 +531,18 @@ impl Editor {
                 self.cursor = *pos;
                 let line_idx = pos.y as usize;
                 let col = pos.x as usize;
-                self.lines[line_idx].insert(col, *ch);
+                let byte_idx = self.char_to_byte_idx(line_idx, col);
+                self.lines[line_idx].insert(byte_idx, *ch);
                 self.cursor.x += 1;
             }
             EditAction::DeleteChar { pos, .. } => {
                 self.cursor = *pos;
                 let line_idx = pos.y as usize;
                 let col = pos.x as usize;
-                if col < self.lines[line_idx].len() {
-                    self.lines[line_idx].remove(col);
+                let line_char_len = self.lines[line_idx].chars().count();
+                if col < line_char_len {
+                    let byte_idx = self.char_to_byte_idx(line_idx, col);
+                    self.lines[line_idx].remove(byte_idx);
                 }
             }
             EditAction::InsertText { pos, text } => {
@@ -539,7 +552,7 @@ impl Editor {
             EditAction::DeleteText { pos, text } => {
                 self.cursor = *pos;
                 self.selection_start = Some(*pos);
-                self.cursor.x += text.len() as i16;
+                self.cursor.x += text.chars().count() as i16;
                 self.delete_selection_internal();
             }
             _ => {}
@@ -562,19 +575,23 @@ impl Editor {
 
         if self.insert_mode {
             let action = EditAction::InsertChar { pos: self.cursor, ch };
-            self.lines[line_idx].insert(col, ch);
+            let byte_idx = self.char_to_byte_idx(line_idx, col);
+            self.lines[line_idx].insert(byte_idx, ch);
             self.cursor.x += 1;
             self.push_undo(action);
         } else {
             // Overwrite mode
-            if col < self.lines[line_idx].len() {
+            let line_char_len = self.lines[line_idx].chars().count();
+            if col < line_char_len {
                 let old_ch = self.lines[line_idx].chars().nth(col).unwrap();
                 let action = EditAction::DeleteChar { pos: self.cursor, ch: old_ch };
                 self.push_undo(action);
-                self.lines[line_idx].remove(col);
+                let byte_idx = self.char_to_byte_idx(line_idx, col);
+                self.lines[line_idx].remove(byte_idx);
             }
             let action = EditAction::InsertChar { pos: self.cursor, ch };
-            self.lines[line_idx].insert(col, ch);
+            let byte_idx = self.char_to_byte_idx(line_idx, col);
+            self.lines[line_idx].insert(byte_idx, ch);
             self.cursor.x += 1;
             self.push_undo(action);
         }
@@ -589,11 +606,12 @@ impl Editor {
         }
 
         let line_idx = self.cursor.y as usize;
-        let col = self.cursor.x as usize;
+        let col_char = self.cursor.x as usize;
+        let col_byte = self.char_to_byte_idx(line_idx, col_char);
 
         let current_line = &self.lines[line_idx];
-        let before = current_line[..col].to_string();
-        let after = current_line[col..].to_string();
+        let before = current_line[..col_byte].to_string();
+        let after = current_line[col_byte..].to_string();
 
         // Auto-indent: calculate leading whitespace
         let indent = if self.auto_indent {
@@ -606,7 +624,7 @@ impl Editor {
         self.lines.insert(line_idx + 1, indent.clone() + &after);
 
         self.cursor.y += 1;
-        self.cursor.x = indent.len() as i16;
+        self.cursor.x = indent.chars().count() as i16;
         self.modified = true;
         self.selection_start = None;
         self.ensure_cursor_visible();
@@ -619,12 +637,18 @@ impl Editor {
         }
 
         let line_idx = self.cursor.y as usize;
-        let col = self.cursor.x as usize;
+        if line_idx >= self.lines.len() {
+            return; // Safety check
+        }
 
-        if col < self.lines[line_idx].len() {
+        let col = self.cursor.x as usize;
+        let line_char_len = self.lines[line_idx].chars().count();
+
+        if col < line_char_len {
             let ch = self.lines[line_idx].chars().nth(col).unwrap();
             let action = EditAction::DeleteChar { pos: self.cursor, ch };
-            self.lines[line_idx].remove(col);
+            let byte_idx = self.char_to_byte_idx(line_idx, col);
+            self.lines[line_idx].remove(byte_idx);
             self.push_undo(action);
         } else if line_idx + 1 < self.lines.len() {
             let next_line = self.lines.remove(line_idx + 1);
@@ -642,20 +666,25 @@ impl Editor {
         }
 
         let line_idx = self.cursor.y as usize;
+        if line_idx >= self.lines.len() {
+            return; // Safety check
+        }
+
         let col = self.cursor.x as usize;
 
         if col > 0 {
             let ch = self.lines[line_idx].chars().nth(col - 1).unwrap();
             self.cursor.x -= 1;
             let action = EditAction::DeleteChar { pos: self.cursor, ch };
-            self.lines[line_idx].remove(col - 1);
+            let byte_idx = self.char_to_byte_idx(line_idx, col - 1);
+            self.lines[line_idx].remove(byte_idx);
             self.push_undo(action);
         } else if line_idx > 0 {
             let current_line = self.lines.remove(line_idx);
             self.cursor.y -= 1;
-            let prev_line_len = self.lines[line_idx - 1].len();
+            let prev_line_char_len = self.lines[line_idx - 1].chars().count();
             self.lines[line_idx - 1].push_str(&current_line);
-            self.cursor.x = prev_line_len as i16;
+            self.cursor.x = prev_line_char_len as i16;
             self.modified = true;
         }
 
@@ -710,20 +739,27 @@ impl Editor {
                 continue;
             }
 
-            let line = &self.lines[y as usize];
+            let line_idx = y as usize;
+            let line = &self.lines[line_idx];
+            let line_char_len = line.chars().count();
+
             if y == start.y && y == end.y {
-                let s = start.x.max(0) as usize;
-                let e = end.x.min(line.len() as i16) as usize;
-                if s < e {
-                    result.push_str(&line[s..e]);
+                let s_char = start.x.max(0) as usize;
+                let e_char = (end.x as usize).min(line_char_len);
+                if s_char < e_char {
+                    let s_byte = self.char_to_byte_idx(line_idx, s_char);
+                    let e_byte = self.char_to_byte_idx(line_idx, e_char);
+                    result.push_str(&line[s_byte..e_byte]);
                 }
             } else if y == start.y {
-                let s = start.x.max(0) as usize;
-                result.push_str(&line[s..]);
+                let s_char = start.x.max(0) as usize;
+                let s_byte = self.char_to_byte_idx(line_idx, s_char);
+                result.push_str(&line[s_byte..]);
                 result.push('\n');
             } else if y == end.y {
-                let e = end.x.min(line.len() as i16) as usize;
-                result.push_str(&line[..e]);
+                let e_char = (end.x as usize).min(line_char_len);
+                let e_byte = self.char_to_byte_idx(line_idx, e_char);
+                result.push_str(&line[..e_byte]);
             } else {
                 result.push_str(line);
                 result.push('\n');
@@ -736,7 +772,7 @@ impl Editor {
     fn select_all(&mut self) {
         self.selection_start = Some(Point::zero());
         self.cursor = Point::new(
-            self.lines.last().map(|l| l.len()).unwrap_or(0) as i16,
+            self.lines.last().map(|l| l.chars().count()).unwrap_or(0) as i16,
             (self.lines.len() - 1) as i16,
         );
         self.ensure_cursor_visible();
@@ -760,17 +796,22 @@ impl Editor {
         let end_line = end.y.min((self.lines.len() - 1) as i16) as usize;
 
         if start_line == end_line {
-            let start_col = start.x.max(0) as usize;
-            let end_col = end.x.min(self.lines[start_line].len() as i16) as usize;
-            if start_col < end_col {
-                self.lines[start_line].drain(start_col..end_col);
+            let start_col_char = start.x.max(0) as usize;
+            let end_col_char = (end.x as usize).min(self.lines[start_line].chars().count());
+            if start_col_char < end_col_char {
+                let start_col_byte = self.char_to_byte_idx(start_line, start_col_char);
+                let end_col_byte = self.char_to_byte_idx(start_line, end_col_char);
+                self.lines[start_line].drain(start_col_byte..end_col_byte);
             }
         } else {
-            let start_col = start.x.max(0) as usize;
-            let end_col = end.x.min(self.lines[end_line].len() as i16) as usize;
+            let start_col_char = start.x.max(0) as usize;
+            let end_col_char = (end.x as usize).min(self.lines[end_line].chars().count());
 
-            let before = self.lines[start_line][..start_col].to_string();
-            let after = self.lines[end_line][end_col..].to_string();
+            let start_col_byte = self.char_to_byte_idx(start_line, start_col_char);
+            let end_col_byte = self.char_to_byte_idx(end_line, end_col_char);
+
+            let before = self.lines[start_line][..start_col_byte].to_string();
+            let after = self.lines[end_line][end_col_byte..].to_string();
 
             self.lines.drain(start_line..=end_line);
             self.lines.insert(start_line, before + &after);
@@ -805,15 +846,16 @@ impl Editor {
         }
 
         let line_idx = self.cursor.y as usize;
-        let col = self.cursor.x as usize;
+        let col_char = self.cursor.x as usize;
+        let col_byte = self.char_to_byte_idx(line_idx, col_char);
 
         if lines_to_insert.len() == 1 {
-            self.lines[line_idx].insert_str(col, lines_to_insert[0]);
-            self.cursor.x += lines_to_insert[0].len() as i16;
+            self.lines[line_idx].insert_str(col_byte, lines_to_insert[0]);
+            self.cursor.x += lines_to_insert[0].chars().count() as i16;
         } else {
             let current_line = &self.lines[line_idx];
-            let before = current_line[..col].to_string();
-            let after = current_line[col..].to_string();
+            let before = current_line[..col_byte].to_string();
+            let after = current_line[col_byte..].to_string();
 
             self.lines[line_idx] = before + lines_to_insert[0];
 
@@ -826,7 +868,7 @@ impl Editor {
             self.lines[last_line_idx].push_str(&after);
 
             self.cursor.y = last_line_idx as i16;
-            self.cursor.x = last_inserted.len() as i16;
+            self.cursor.x = last_inserted.chars().count() as i16;
         }
 
         self.modified = true;
@@ -999,8 +1041,8 @@ impl View for Editor {
                     event.clear();
                 }
                 KB_END => {
-                    let line_len = self.lines[self.cursor.y as usize].len() as i16;
-                    self.cursor.x = line_len;
+                    let line_char_len = self.lines[self.cursor.y as usize].chars().count() as i16;
+                    self.cursor.x = line_char_len;
                     self.selection_start = None;
                     self.ensure_cursor_visible();
                     event.clear();
