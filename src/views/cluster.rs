@@ -15,7 +15,6 @@
 //   View trait + Cluster trait → CheckBox, RadioButton (embed ClusterState)
 
 use crate::core::event::{Event, EventType};
-use crate::core::geometry::Rect;
 use crate::core::palette::{Attr, TvColor};
 use super::view::View;
 

@@ -51,7 +51,7 @@ impl FileEditor {
     ///
     /// Matches Borland: TFileEditor::save()
     pub fn save(&mut self) -> std::io::Result<bool> {
-        if let Some(ref path) = self.filename {
+        if self.filename.is_some() {
             self.editor.save_file()?;
             Ok(true)
         } else {

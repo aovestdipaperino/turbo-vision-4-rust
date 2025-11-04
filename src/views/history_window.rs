@@ -12,7 +12,7 @@
 //   }
 
 use crate::core::geometry::{Point, Rect};
-use crate::core::event::{Event, EventType, KB_ENTER, KB_ESC};
+use crate::core::event::{EventType, KB_ENTER, KB_ESC};
 use crate::terminal::Terminal;
 use super::history_viewer::HistoryViewer;
 use super::view::View;
@@ -44,7 +44,7 @@ impl HistoryWindow {
         let window_bounds = Rect::new(pos.x, pos.y, pos.x + width, pos.y + window_height);
         let viewer_bounds = Rect::new(1, 1, width - 2, viewer_height + 1);
 
-        let mut window = Window::new(window_bounds, "History");
+        let window = Window::new(window_bounds, "History");
         let mut viewer = HistoryViewer::new(viewer_bounds, history_id);
 
         // Focus the viewer

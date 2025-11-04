@@ -10,7 +10,6 @@
 
 use std::collections::HashMap;
 use std::fs;
-use std::path::Path;
 
 /// Help topic containing title and content
 #[derive(Debug, Clone)]

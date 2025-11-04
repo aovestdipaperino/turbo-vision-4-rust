@@ -8,7 +8,7 @@ use crate::terminal::Terminal;
 use super::view::{View, write_line_to_terminal};
 use super::scrollbar::ScrollBar;
 use super::indicator::Indicator;
-use super::syntax::{SyntaxHighlighter, PlainTextHighlighter};
+use super::syntax::SyntaxHighlighter;
 use std::cmp::min;
 
 // Control key codes
@@ -1079,7 +1079,7 @@ impl View for Editor {
                             // Fill gap before this token with default color
                             if current_col < token_start {
                                 // Already filled with spaces above
-                                current_col = token_start;
+                                // (no action needed, spaces already written)
                             }
 
                             // Get text for this token

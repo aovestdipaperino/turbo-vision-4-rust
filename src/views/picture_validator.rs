@@ -204,13 +204,13 @@ impl Validator for PictureValidator {
         let input_chars: Vec<char> = input.chars().collect();
         let mut mask_idx = 0;
         let mut input_idx = 0;
-        let mut optional = false;
+        let mut _optional = false;
 
         while input_idx < input_chars.len() && mask_idx < mask_chars.len() {
             let mask_ch = mask_chars[mask_idx];
 
             if mask_ch == '*' {
-                optional = true;
+                _optional = true;
                 mask_idx += 1;
                 continue;
             }
