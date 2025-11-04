@@ -31,6 +31,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `confirmation_box()` - Yes/No/Cancel confirmation dialog
   - `confirmation_box_yes_no()` - Yes/No confirmation dialog
   - `confirmation_box_ok_cancel()` - OK/Cancel confirmation dialog
+  - `search_box()` - Search dialog returning Option<String>
+  - `search_replace_box()` - Find/replace dialog returning Option<(String, String)>
+  - `goto_line_box()` - Go to line dialog returning Option<usize> with validation
   - Convenience wrappers around existing `message_box()` function
   - Eliminates need for manual dialog construction in common cases
   - Example: `examples/dialogs_demo.rs` demonstrating all dialog types
@@ -45,7 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Smart dirty flag tracking - only prompts when actually modified
   - Save prompts before destructive operations (Close, New, Quit)
   - Actual save on "Yes" in confirmation dialog
-  - Search and Replace dialogs (placeholders for future implementation)
+  - Search and Replace dialogs using standard library functions (search_box, search_replace_box, goto_line_box)
   - Rust analyzer integration (placeholder for future LSP integration)
   - About dialog showing "Lonbard Turbo Rust" on startup
   - Empty desktop on startup - user must choose File → New or File → Open
@@ -53,6 +56,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Documentation: demo/README.md with features, shortcuts, and usage guide
 
 ### Changed
+- **Rust Editor Cleanup**
+  - Replaced local dialog implementations with standard library functions
+  - Removed 120+ lines of duplicate dialog code (show_search_dialog, show_replace_dialog, show_goto_line_dialog)
+  - Simplified show_about_dialog() to use message_box_ok()
+  - Removed unused imports (Button, Dialog, InputLine, Label, Rc, RefCell)
+
 - **msgbox.rs Dialog Layout**
   - Moved dialog text and buttons one row higher for better appearance
   - Improved visual spacing in confirmation dialogs
@@ -77,6 +86,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - CMD_SAVE_AS only recreates window on success (to update title)
 
 ### Fixed
+- **StatusLine Event Handling** - Critical bug where StatusLine was completely non-functional
+  - Changed from OF_POST_PROCESS to OF_PRE_PROCESS to match Borland behavior (tstatusl.cc:33)
+  - Added status_line.handle_event() call in rust_editor event loop
+  - StatusLine now properly handles mouse clicks and keyboard shortcuts
+  - Items now generate commands when clicked or shortcuts pressed
 - **Editor Content Not Saved** - Critical bug where saves would write initial content instead of current edits
 - **Close Button Not Prompting** - Frame's close button now properly triggers save confirmation
 - **Always Prompting on Close** - Now only prompts when editor is actually modified
@@ -84,6 +98,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Technical Details
 The FileEditor component provides the proper Borland TFileEditor pattern with encapsulated file management and validation. The Window/Desktop helpers enable pragmatic downcasting for the editor demo while maintaining type safety. The rust_editor now properly synchronizes editor content with file operations.
+
+**StatusLine Event Processing**: The StatusLine bug was caused by using OF_POST_PROCESS instead of OF_PRE_PROCESS. In Borland's TStatusLine (tstatusl.cc:33), the status line sets `options |= ofPreProcess` to ensure it gets first chance at events. This allows it to intercept function keys and mouse clicks before they reach the focused view. The fix also required adding the status_line.handle_event() call in the event loop's pre-process phase, matching Borland's TGroup::handleEvent() three-phase architecture.
 
 The standard library dialog functions provide a cleaner API for common dialog patterns. Instead of manually constructing Dialog with StaticText and Button components, applications can now use simple function calls:
 
@@ -101,6 +117,24 @@ let result = dialog.execute(app);
 **After** (1 line):
 ```rust
 let result = confirmation_box(app, "Save changes?");
+```
+
+The new input dialog functions follow the same simple pattern:
+```rust
+// Search dialog
+if let Some(search_text) = search_box(&mut app, "Search") {
+    // User entered search text
+}
+
+// Find and replace dialog
+if let Some((find, replace)) = search_replace_box(&mut app, "Replace") {
+    // User entered both find and replace text
+}
+
+// Go to line dialog with validation
+if let Some(line_num) = goto_line_box(&mut app, "Go to Line") {
+    // User entered valid line number
+}
 ```
 
 The rust_editor demo showcases a complete application built with Turbo Vision for Rust, demonstrating best practices for:
