@@ -58,6 +58,7 @@ cargo build --bin rust_editor
 - `Ctrl+N` - New file
 - `Ctrl+O` - Open file
 - `Ctrl+S` - Save file
+- `Ctrl+W` - Close current window
 - `Alt+X` - Exit editor
 
 #### Editing
@@ -88,6 +89,8 @@ cargo build --bin rust_editor
 - ─────
 - Save
 - Save As...
+- ─────
+- Close
 - ─────
 - Exit
 

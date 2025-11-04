@@ -57,8 +57,8 @@ pub fn message_box_rect(app: &mut Application, bounds: Rect, message: &str, opti
 
     let mut dialog = Dialog::new(bounds, title);
 
-    // Add static text with message
-    let text_bounds = Rect::new(3, 2, bounds.width() - 2, bounds.height() - 3);
+    // Add static text with message (one row higher)
+    let text_bounds = Rect::new(3, 1, bounds.width() - 2, bounds.height() - 4);
     dialog.add(Box::new(StaticText::new_centered(text_bounds, message)));
 
     // Determine which buttons to show
@@ -76,8 +76,8 @@ pub fn message_box_rect(app: &mut Application, bounds: Rect, message: &str, opti
         }
     }
 
-    // Calculate button positions
-    let button_y = bounds.height() - 3;
+    // Calculate button positions (one row higher)
+    let button_y = bounds.height() - 4;
     let total_width: usize = buttons.iter().map(|(label, _)| label.len() + 2).sum();
     let mut x = (bounds.width() as usize - total_width) / 2;
 

@@ -8,6 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.2.10] - 2025-11-04
 
 ### Added
+- **FileEditor Component** (src/views/file_editor.rs)
+  - Proper implementation of Borland's TFileEditor pattern
+  - File name tracking and modified flag management
+  - `valid(app, command)` method for save prompts on close
+  - Load/Save/SaveAs operations with proper file management
+  - Wraps Editor component with file-specific functionality
+  - Ready for future proper architecture implementation
+
+- **Window and Desktop Helper Methods**
+  - `Window::get_editor_text_if_present()` - Extract current editor text
+  - `Window::is_editor_modified()` - Check if editor has unsaved changes
+  - `Window::clear_editor_modified()` - Clear modified flag after save
+  - `Desktop::get_first_window_as_window()` - Get immutable window reference
+  - `Desktop::get_first_window_as_window_mut()` - Get mutable window reference
+  - Pragmatic unsafe downcasting helpers for editor demo use case
+
 - **Standard Library Dialog Functions** (src/views/msgbox.rs)
   - `message_box_ok()` - Simple information message with OK button
   - `message_box_error()` - Error message with OK button
@@ -19,27 +35,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Eliminates need for manual dialog construction in common cases
   - Example: `examples/dialogs_demo.rs` demonstrating all dialog types
 
-- **Rust Text Editor Demo** (demo/rust_editor.rs - 546 lines)
+- **Rust Text Editor Demo** (demo/rust_editor.rs)
   - Full-featured text editor application with Rust syntax highlighting
   - File operations: New, Open, Save, Save As (using FileDialog)
   - Menu bar: File, Edit, Tools menus with keyboard shortcuts
   - Status line: F10 Menu, Ctrl+S Save, Ctrl+F Find
-  - Dirty flag tracking with save prompts before destructive operations
+  - Close menu item (Ctrl+W) for closing editor window
+  - Close button (■) in window frame
+  - Smart dirty flag tracking - only prompts when actually modified
+  - Save prompts before destructive operations (Close, New, Quit)
+  - Actual save on "Yes" in confirmation dialog
   - Search and Replace dialogs (placeholders for future implementation)
   - Rust analyzer integration (placeholder for future LSP integration)
   - About dialog showing "Lonbard Turbo Rust" on startup
-  - Window close button support with dirty check prompts
   - Empty desktop on startup - user must choose File → New or File → Open
   - Comprehensive demonstration of Editor, FileDialog, and standard dialogs
   - Documentation: demo/README.md with features, shortcuts, and usage guide
 
 ### Changed
+- **msgbox.rs Dialog Layout**
+  - Moved dialog text and buttons one row higher for better appearance
+  - Improved visual spacing in confirmation dialogs
+
 - **msgbox.rs Command Constants**
   - Removed duplicate CM_YES and CM_NO definitions
   - Now imports CM_YES and CM_NO from core::command module
   - Maintains consistency across entire framework
 
+- **Window CM_CLOSE Event Handling**
+  - Non-modal windows no longer auto-close on CM_CLOSE
+  - CM_CLOSE event propagates to application level for validation
+  - Matches Borland's TWindow::close() → valid(cmClose) pattern
+  - Applications can intercept and validate before allowing close
+
+- **Rust Editor Save Operations**
+  - Fixed critical bug: now saves actual editor content, not stale state
+  - Simplified EditorState to only track filename
+  - Save operations retrieve current text from editor window
+  - Clear modified flag after successful save
+  - CM_SAVE no longer recreates window (performance optimization)
+  - CMD_SAVE_AS only recreates window on success (to update title)
+
+### Fixed
+- **Editor Content Not Saved** - Critical bug where saves would write initial content instead of current edits
+- **Close Button Not Prompting** - Frame's close button now properly triggers save confirmation
+- **Always Prompting on Close** - Now only prompts when editor is actually modified
+- **Save on Confirmation** - "Yes" button in save dialog now actually saves the file
+
 ### Technical Details
+The FileEditor component provides the proper Borland TFileEditor pattern with encapsulated file management and validation. The Window/Desktop helpers enable pragmatic downcasting for the editor demo while maintaining type safety. The rust_editor now properly synchronizes editor content with file operations.
+
 The standard library dialog functions provide a cleaner API for common dialog patterns. Instead of manually constructing Dialog with StaticText and Button components, applications can now use simple function calls:
 
 **Before** (47 lines):

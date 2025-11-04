@@ -144,6 +144,50 @@ impl Desktop {
 
         had_removals
     }
+
+    /// Get the first window as a Window type (for editor demo use case)
+    /// This is a pragmatic helper that uses unsafe downcasting
+    /// Returns None if there are no windows
+    pub fn get_first_window_as_window(&self) -> Option<&crate::views::window::Window> {
+        if self.child_count() == 0 {
+            return None;
+        }
+
+        let view_ref = self.child_at(0);
+        let view_ptr = view_ref as *const dyn View;
+
+        // SAFETY: In the editor demo, we know the first child is always a Window
+        unsafe {
+            let window_ptr = view_ptr as *const crate::views::window::Window;
+            if !window_ptr.is_null() {
+                Some(&*window_ptr)
+            } else {
+                None
+            }
+        }
+    }
+
+    /// Get the first window as a mutable Window type (for editor demo use case)
+    /// This is a pragmatic helper that uses unsafe downcasting
+    /// Returns None if there are no windows
+    pub fn get_first_window_as_window_mut(&mut self) -> Option<&mut crate::views::window::Window> {
+        if self.child_count() == 0 {
+            return None;
+        }
+
+        let view_ref = self.window_at_mut(0).unwrap();
+        let view_ptr = view_ref as *mut dyn View;
+
+        // SAFETY: In the editor demo, we know the first child is always a Window
+        unsafe {
+            let window_ptr = view_ptr as *mut crate::views::window::Window;
+            if !window_ptr.is_null() {
+                Some(&mut *window_ptr)
+            } else {
+                None
+            }
+        }
+    }
 }
 
 impl View for Desktop {

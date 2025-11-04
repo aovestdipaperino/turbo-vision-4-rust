@@ -9,8 +9,6 @@
 // - Status line with file info
 
 use std::path::PathBuf;
-use std::rc::Rc;
-use std::cell::RefCell;
 use std::fs;
 use turbo_vision::app::Application;
 use turbo_vision::core::command::{CM_QUIT, CM_NEW, CM_OPEN, CM_SAVE, CM_OK, CM_CANCEL, CM_YES, CM_NO, CM_CLOSE};
@@ -19,8 +17,8 @@ use turbo_vision::core::geometry::Rect;
 use turbo_vision::core::menu_data::{Menu, MenuItem};
 use turbo_vision::views::button::Button;
 use turbo_vision::views::dialog::Dialog;
-use turbo_vision::views::editor::Editor;
 use turbo_vision::views::file_dialog::FileDialog;
+use turbo_vision::views::editor::Editor;
 use turbo_vision::views::input_line::InputLine;
 use turbo_vision::views::label::Label;
 use turbo_vision::views::menu_bar::{MenuBar, SubMenu};
@@ -30,6 +28,8 @@ use turbo_vision::views::window::Window;
 use turbo_vision::views::View;
 use turbo_vision::views::syntax::RustHighlighter;
 use turbo_vision::views::msgbox::{confirmation_box, message_box_ok, message_box_error};
+use std::rc::Rc;
+use std::cell::RefCell;
 
 // Custom command IDs
 const CMD_SAVE_AS: u16 = 105;
@@ -41,41 +41,22 @@ const CMD_SHOW_ERRORS: u16 = 401;
 
 struct EditorState {
     filename: Option<PathBuf>,
-    dirty: bool,
-    content: Rc<RefCell<String>>,
 }
 
 impl EditorState {
     fn new() -> Self {
         Self {
             filename: None,
-            dirty: false,
-            content: Rc::new(RefCell::new(String::new())),
         }
-    }
-
-    fn set_content(&mut self, content: String) {
-        *self.content.borrow_mut() = content;
-        self.dirty = false;
-    }
-
-    #[allow(dead_code)]
-    fn mark_dirty(&mut self) {
-        self.dirty = true;
     }
 
     fn get_title(&self) -> String {
-        let filename = self.filename
+        self.filename
             .as_ref()
             .and_then(|p| p.file_name())
             .and_then(|n| n.to_str())
-            .unwrap_or("Untitled");
-
-        if self.dirty {
-            format!("{} *", filename)
-        } else {
-            filename.to_string()
-        }
+            .unwrap_or("Untitled")
+            .to_string()
     }
 }
 
@@ -138,34 +119,47 @@ fn main() -> std::io::Result<()> {
             // Desktop (including editor window) handles events
             app.desktop.handle_event(&mut event);
 
+            // AFTER desktop handles events, check if CM_CLOSE was generated
+            // Frame converts MouseUp on close button to CM_CLOSE during handle_event
+            // Matches Borland: TWindow::close() calls valid(cmClose) before destroying
+            // In Borland, applications override valid() to prompt. Since we're not
+            // subclassing Window, we intercept CM_CLOSE here instead.
+            if event.what == EventType::Command && event.command == CM_CLOSE {
+                if app.desktop.child_count() > 0 {
+                    // Prompt user before allowing close (like TFileEditor::valid)
+                    if prompt_save_if_dirty(&mut app, &mut editor_state, true) {
+                        // User chose Yes or No - allow the close
+                        // Manually remove the window (Window no longer auto-closes)
+                        app.desktop.remove_child(0);
+                        // Reset editor state
+                        editor_state = EditorState::new();
+                    }
+                    // Clear event whether cancelled or completed
+                    event.clear();
+                }
+            }
+
+            // Remove any closed windows
+            app.desktop.remove_closed_windows();
+
             // Handle commands
             if event.what == EventType::Command {
                 match event.command {
                     CM_QUIT => {
-                        if prompt_save_if_dirty(&mut app, &editor_state) {
+                        let has_window = app.desktop.child_count() > 0;
+                        if prompt_save_if_dirty(&mut app, &mut editor_state, has_window) {
                             app.running = false;
                         }
                     }
-                    CM_CLOSE => {
-                        // Close the editor window if it exists
-                        if app.desktop.child_count() > 0 {
-                            // Check if dirty and prompt to save
-                            if !editor_state.dirty || prompt_save_if_dirty(&mut app, &editor_state) {
-                                // Remove the editor window
-                                app.desktop.remove_child(0);
-                                // Reset to empty state
-                                editor_state = EditorState::new();
-                            }
-                        }
-                    }
                     CM_NEW => {
-                        if prompt_save_if_dirty(&mut app, &editor_state) {
+                        let has_window = app.desktop.child_count() > 0;
+                        if prompt_save_if_dirty(&mut app, &mut editor_state, has_window) {
                             editor_state = EditorState::new();
                             // Remove old window and add new one
                             if app.desktop.child_count() > 0 {
                                 app.desktop.remove_child(0);
                             }
-                            let editor_window = create_editor_window(editor_bounds, &editor_state);
+                            let editor_window = create_editor_window(editor_bounds, &editor_state, None);
                             app.desktop.add(Box::new(editor_window));
                         }
                     }
@@ -173,12 +167,11 @@ fn main() -> std::io::Result<()> {
                         if let Some(path) = show_file_open_dialog(&mut app) {
                             if let Ok(content) = fs::read_to_string(&path) {
                                 editor_state.filename = Some(path);
-                                editor_state.set_content(content);
-                                // Remove old window and add new one
+                                // Remove old window and add new one with loaded content
                                 if app.desktop.child_count() > 0 {
                                     app.desktop.remove_child(0);
                                 }
-                                let editor_window = create_editor_window(editor_bounds, &editor_state);
+                                let editor_window = create_editor_window(editor_bounds, &editor_state, Some(&content));
                                 app.desktop.add(Box::new(editor_window));
                             } else {
                                 show_error(&mut app, "Error", "Failed to open file");
@@ -187,21 +180,24 @@ fn main() -> std::io::Result<()> {
                     }
                     CM_SAVE => {
                         save_file(&mut app, &mut editor_state);
-                        // Update window title
-                        if app.desktop.child_count() > 0 {
-                            app.desktop.remove_child(0);
-                        }
-                        let editor_window = create_editor_window(editor_bounds, &editor_state);
-                        app.desktop.add(Box::new(editor_window));
+                        // No need to recreate window - filename doesn't change
                     }
                     CMD_SAVE_AS => {
-                        save_file_as(&mut app, &mut editor_state);
-                        // Update window title
-                        if app.desktop.child_count() > 0 {
-                            app.desktop.remove_child(0);
+                        // Save file and get current content for potential window recreation
+                        let content = if let Some(window) = app.desktop.get_first_window_as_window() {
+                            window.get_editor_text_if_present()
+                        } else {
+                            None
+                        };
+
+                        if save_file_as(&mut app, &mut editor_state) {
+                            // Recreate window with new filename in title
+                            if app.desktop.child_count() > 0 {
+                                app.desktop.remove_child(0);
+                            }
+                            let editor_window = create_editor_window(editor_bounds, &editor_state, content.as_deref());
+                            app.desktop.add(Box::new(editor_window));
                         }
-                        let editor_window = create_editor_window(editor_bounds, &editor_state);
-                        app.desktop.add(Box::new(editor_window));
                     }
                     CMD_SEARCH => {
                         show_search_dialog(&mut app);
@@ -239,6 +235,8 @@ fn create_menu_bar(width: u16) -> MenuBar {
         MenuItem::with_shortcut("~S~ave", CM_SAVE, 0, "Ctrl+S", 0),
         MenuItem::with_shortcut("Save ~A~s...", CMD_SAVE_AS, 0, "", 0),
         MenuItem::separator(),
+        MenuItem::with_shortcut("~C~lose", CM_CLOSE, 0, "Ctrl+W", 0),
+        MenuItem::separator(),
         MenuItem::with_shortcut("E~x~it", CM_QUIT, 0, "Alt+X", 0),
     ];
     let file_menu = SubMenu::new("~F~ile", Menu::from_items(file_menu_items));
@@ -266,7 +264,7 @@ fn create_menu_bar(width: u16) -> MenuBar {
     menu_bar
 }
 
-fn create_editor_window(bounds: Rect, state: &EditorState) -> Window {
+fn create_editor_window(bounds: Rect, state: &EditorState, initial_content: Option<&str>) -> Window {
     let mut window = Window::new(bounds, &state.get_title());
 
     // Create editor with scrollbars
@@ -276,18 +274,28 @@ fn create_editor_window(bounds: Rect, state: &EditorState) -> Window {
     // Set Rust syntax highlighting
     editor.set_highlighter(Box::new(RustHighlighter::new()));
 
-    // Set content if available
-    let content = state.content.borrow().clone();
-    if !content.is_empty() {
-        editor.set_text(&content);
+    // Set content if provided
+    if let Some(content) = initial_content {
+        editor.set_text(content);
     }
 
     window.add(Box::new(editor));
     window
 }
 
-fn prompt_save_if_dirty(app: &mut Application, state: &EditorState) -> bool {
-    if !state.dirty {
+fn prompt_save_if_dirty(app: &mut Application, state: &mut EditorState, has_window: bool) -> bool {
+    // If no window is open, allow the operation
+    if !has_window {
+        return true;
+    }
+
+    // Check if editor is modified using the window helper
+    let is_modified = app.desktop.get_first_window_as_window()
+        .and_then(|w| w.is_editor_modified())
+        .unwrap_or(false);
+
+    // Only prompt if actually modified
+    if !is_modified {
         return true;
     }
 
@@ -296,8 +304,12 @@ fn prompt_save_if_dirty(app: &mut Application, state: &EditorState) -> bool {
 
     match result {
         CM_YES => {
-            // TODO: Save and continue
-            true
+            // Save and continue
+            if state.filename.is_some() {
+                save_file(app, state)
+            } else {
+                save_file_as(app, state)
+            }
         }
         CM_NO => {
             // Don't save but continue
@@ -327,33 +339,58 @@ fn show_file_open_dialog(app: &mut Application) -> Option<PathBuf> {
     file_dialog.execute(app)
 }
 
-fn save_file(app: &mut Application, state: &mut EditorState) {
+fn save_file(app: &mut Application, state: &mut EditorState) -> bool {
     if state.filename.is_none() {
-        save_file_as(app, state);
-        return;
+        return save_file_as(app, state);
     }
 
-    let content = state.content.borrow().clone();
+    // Get current text from the editor in the window
+    let content = if let Some(window) = app.desktop.get_first_window_as_window() {
+        window.get_editor_text_if_present().unwrap_or_default()
+    } else {
+        return false;
+    };
+
     if let Some(ref path) = state.filename {
         if fs::write(path, content).is_ok() {
-            state.dirty = false;
+            // Clear the modified flag after successful save
+            if let Some(window) = app.desktop.get_first_window_as_window_mut() {
+                window.clear_editor_modified();
+            }
             show_message(app, "Save", "File saved successfully");
+            true
         } else {
             show_error(app, "Error", "Failed to save file");
+            false
         }
+    } else {
+        false
     }
 }
 
-fn save_file_as(app: &mut Application, state: &mut EditorState) {
+fn save_file_as(app: &mut Application, state: &mut EditorState) -> bool {
     if let Some(path) = show_file_save_dialog(app) {
-        let content = state.content.borrow().clone();
-        if fs::write(&path, content).is_ok() {
+        // Get current text from the editor in the window
+        let content = if let Some(window) = app.desktop.get_first_window_as_window() {
+            window.get_editor_text_if_present().unwrap_or_default()
+        } else {
+            return false;
+        };
+
+        if fs::write(&path, content.clone()).is_ok() {
             state.filename = Some(path);
-            state.dirty = false;
+            // Clear the modified flag after successful save
+            if let Some(window) = app.desktop.get_first_window_as_window_mut() {
+                window.clear_editor_modified();
+            }
             show_message(app, "Save", "File saved successfully");
+            true
         } else {
             show_error(app, "Error", "Failed to save file");
+            false
         }
+    } else {
+        false
     }
 }
 

@@ -1,7 +1,7 @@
 use crate::core::geometry::{Rect, Point};
 use crate::core::event::{Event, EventType};
 use crate::core::command::{CM_CLOSE, CM_CANCEL};
-use crate::core::state::{StateFlags, SF_SHADOW, SF_DRAGGING, SF_RESIZING, SF_MODAL, SF_CLOSED, SHADOW_ATTR};
+use crate::core::state::{StateFlags, SF_SHADOW, SF_DRAGGING, SF_RESIZING, SF_MODAL, SHADOW_ATTR};
 use crate::core::palette::colors;
 use crate::terminal::Terminal;
 use super::view::{View, draw_shadow};
@@ -122,6 +122,77 @@ impl Window {
     /// Used by modal dialogs to signal they want to close
     pub fn set_end_state(&mut self, command: crate::core::command::CommandId) {
         self.interior.set_end_state(command);
+    }
+
+    /// Helper method to get editor text from the first child (if it's an Editor)
+    /// This is a pragmatic workaround for the editor demo where we know
+    /// the window contains an Editor at index 0
+    ///
+    /// Returns None if there are no children
+    pub fn get_editor_text_if_present(&self) -> Option<String> {
+        if self.child_count() == 0 {
+            return None;
+        }
+
+        // We know the child is an Editor, but we can't downcast without Any trait
+        // So we use a workaround: Store the editor pointer and call get_text()
+        // This requires unsafe, but it's contained and we know the types
+        let view_ref = self.child_at(0);
+        let view_ptr = view_ref as *const dyn crate::views::View;
+
+        // SAFETY: We know from create_editor_window() that child 0 is always an Editor
+        // This is a controlled demo scenario where we manage the window construction
+        unsafe {
+            let editor_ptr = view_ptr as *const crate::views::editor::Editor;
+            if !editor_ptr.is_null() {
+                Some((*editor_ptr).get_text())
+            } else {
+                None
+            }
+        }
+    }
+
+    /// Check if the editor (first child) is modified
+    /// Returns None if there are no children
+    pub fn is_editor_modified(&self) -> Option<bool> {
+        if self.child_count() == 0 {
+            return None;
+        }
+
+        let view_ref = self.child_at(0);
+        let view_ptr = view_ref as *const dyn crate::views::View;
+
+        // SAFETY: We know from create_editor_window() that child 0 is always an Editor
+        unsafe {
+            let editor_ptr = view_ptr as *const crate::views::editor::Editor;
+            if !editor_ptr.is_null() {
+                Some((*editor_ptr).is_modified())
+            } else {
+                None
+            }
+        }
+    }
+
+    /// Clear the modified flag on the editor (first child)
+    /// Returns true if successful, false if there are no children
+    pub fn clear_editor_modified(&mut self) -> bool {
+        if self.child_count() == 0 {
+            return false;
+        }
+
+        let view_ref = self.child_at_mut(0);
+        let view_ptr = view_ref as *mut dyn crate::views::View;
+
+        // SAFETY: We know from create_editor_window() that child 0 is always an Editor
+        unsafe {
+            let editor_ptr = view_ptr as *mut crate::views::editor::Editor;
+            if !editor_ptr.is_null() {
+                (*editor_ptr).clear_modified();
+                true
+            } else {
+                false
+            }
+        }
     }
 }
 
@@ -278,6 +349,8 @@ impl View for Window {
 
         // Handle CM_CLOSE command (Borland: twindow.cc lines 124-138)
         // Frame generates CM_CLOSE when close button is clicked
+        // In Borland: TWindow::handleEvent calls close(), which calls valid(cmClose)
+        // to allow subclasses to validate (e.g., prompt to save)
         if event.what == EventType::Command && event.command == CM_CLOSE {
             // Check if this window is modal
             if (self.state & SF_MODAL) != 0 {
@@ -286,12 +359,12 @@ impl View for Window {
                 *event = Event::command(CM_CANCEL);
                 // Don't clear event - let it propagate to dialog's execute loop
             } else {
-                // Non-modal window: mark for removal
-                // In Borland, this calls close() which calls CLY_destroy(this)
-                // In Rust, we can't remove ourselves, so set SF_CLOSED flag
-                // The parent (Desktop) will remove us on next update
-                self.state |= SF_CLOSED;
-                event.clear();
+                // Non-modal window: DON'T close immediately
+                // In Borland, close() calls valid(cmClose) first
+                // Since we don't have subclassing/valid(), let CM_CLOSE propagate
+                // to the application level where it can be validated
+                // The application will set SF_CLOSED if the close is allowed
+                // DON'T clear event - let it bubble to application
             }
             return;
         }
