@@ -1,6 +1,6 @@
 [package]
 name = "turbo-vision"
-version = "0.2.9"
+version = "0.2.10"
 edition = "2021"
 authors = ["enzinol@gmail.com"]
 license = "MIT"
@@ -29,6 +29,10 @@ path = "src/lib.rs"
 [[bin]]
 name = "key_debug"
 path = "debug/key_debug.rs"
+
+[[bin]]
+name = "rust_editor"
+path = "demo/rust_editor.rs"
 
 [dependencies]
 crossterm = "0.27"

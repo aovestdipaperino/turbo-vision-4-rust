@@ -5,6 +5,70 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.10] - 2025-11-04
+
+### Added
+- **Standard Library Dialog Functions** (src/views/msgbox.rs)
+  - `message_box_ok()` - Simple information message with OK button
+  - `message_box_error()` - Error message with OK button
+  - `message_box_warning()` - Warning message with OK button
+  - `confirmation_box()` - Yes/No/Cancel confirmation dialog
+  - `confirmation_box_yes_no()` - Yes/No confirmation dialog
+  - `confirmation_box_ok_cancel()` - OK/Cancel confirmation dialog
+  - Convenience wrappers around existing `message_box()` function
+  - Eliminates need for manual dialog construction in common cases
+  - Example: `examples/dialogs_demo.rs` demonstrating all dialog types
+
+- **Rust Text Editor Demo** (demo/rust_editor.rs - 546 lines)
+  - Full-featured text editor application with Rust syntax highlighting
+  - File operations: New, Open, Save, Save As (using FileDialog)
+  - Menu bar: File, Edit, Tools menus with keyboard shortcuts
+  - Status line: F10 Menu, Ctrl+S Save, Ctrl+F Find
+  - Dirty flag tracking with save prompts before destructive operations
+  - Search and Replace dialogs (placeholders for future implementation)
+  - Rust analyzer integration (placeholder for future LSP integration)
+  - About dialog showing "Lonbard Turbo Rust" on startup
+  - Window close button support with dirty check prompts
+  - Empty desktop on startup - user must choose File → New or File → Open
+  - Comprehensive demonstration of Editor, FileDialog, and standard dialogs
+  - Documentation: demo/README.md with features, shortcuts, and usage guide
+
+### Changed
+- **msgbox.rs Command Constants**
+  - Removed duplicate CM_YES and CM_NO definitions
+  - Now imports CM_YES and CM_NO from core::command module
+  - Maintains consistency across entire framework
+
+### Technical Details
+The standard library dialog functions provide a cleaner API for common dialog patterns. Instead of manually constructing Dialog with StaticText and Button components, applications can now use simple function calls:
+
+**Before** (47 lines):
+```rust
+let mut dialog = Dialog::new(bounds, "Save Changes?");
+let text = StaticText::new_centered(...);
+dialog.add(Box::new(text));
+let yes_button = Button::new(..., CM_YES, true);
+dialog.add(Box::new(yes_button));
+// ... more buttons ...
+let result = dialog.execute(app);
+```
+
+**After** (1 line):
+```rust
+let result = confirmation_box(app, "Save changes?");
+```
+
+The rust_editor demo showcases a complete application built with Turbo Vision for Rust, demonstrating best practices for:
+- Application structure with event loops
+- Desktop/Window management
+- Menu systems with cascading submenus
+- File I/O with FileDialog integration
+- Modal dialog patterns
+- Syntax highlighting with Editor component
+- Status line with keyboard shortcuts
+
+This editor serves as a reference implementation for building complete TUI applications.
+
 ## [0.2.9] - 2025-11-04
 
 ### Fixed

@@ -1,4 +1,4 @@
-use crate::core::command::{CommandId, CM_OK, CM_CANCEL};
+use crate::core::command::{CommandId, CM_OK, CM_CANCEL, CM_YES, CM_NO};
 use crate::core::geometry::Rect;
 use crate::app::Application;
 use super::dialog::Dialog;
@@ -24,10 +24,6 @@ pub const MF_CANCEL_BUTTON: u16 = 0x0800;
 // Combined flags
 pub const MF_YES_NO_CANCEL: u16 = MF_YES_BUTTON | MF_NO_BUTTON | MF_CANCEL_BUTTON;
 pub const MF_OK_CANCEL: u16 = MF_OK_BUTTON | MF_CANCEL_BUTTON;
-
-// Command IDs for message box buttons
-pub const CM_YES: CommandId = 100;
-pub const CM_NO: CommandId = 101;
 
 /// Display a message box with the given message and options
 pub fn message_box(app: &mut Application, message: &str, options: u16) -> CommandId {
@@ -97,6 +93,73 @@ pub fn message_box_rect(app: &mut Application, bounds: Rect, message: &str, opti
 
     dialog.set_initial_focus();
     dialog.execute(app)
+}
+
+/// Display a simple message box with OK button
+///
+/// Returns CM_OK when dismissed.
+///
+/// # Example
+/// ```
+/// use turbo_vision::views::msgbox::message_box_ok;
+///
+/// message_box_ok(&mut app, "File saved successfully!");
+/// ```
+pub fn message_box_ok(app: &mut Application, message: &str) -> CommandId {
+    message_box(app, message, MF_INFORMATION | MF_OK_BUTTON)
+}
+
+/// Display an error message box with OK button
+///
+/// Returns CM_OK when dismissed.
+///
+/// # Example
+/// ```
+/// use turbo_vision::views::msgbox::message_box_error;
+///
+/// message_box_error(&mut app, "Failed to open file");
+/// ```
+pub fn message_box_error(app: &mut Application, message: &str) -> CommandId {
+    message_box(app, message, MF_ERROR | MF_OK_BUTTON)
+}
+
+/// Display a warning message box with OK button
+///
+/// Returns CM_OK when dismissed.
+pub fn message_box_warning(app: &mut Application, message: &str) -> CommandId {
+    message_box(app, message, MF_WARNING | MF_OK_BUTTON)
+}
+
+/// Display a confirmation dialog with Yes/No/Cancel buttons
+///
+/// Returns CM_YES, CM_NO, or CM_CANCEL based on user choice.
+///
+/// # Example
+/// ```
+/// use turbo_vision::views::msgbox::{confirmation_box, CM_YES, CM_NO};
+///
+/// match confirmation_box(&mut app, "Save changes?") {
+///     result if result == CM_YES => { /* save */ },
+///     result if result == CM_NO => { /* don't save */ },
+///     _ => { /* cancel */ },
+/// }
+/// ```
+pub fn confirmation_box(app: &mut Application, message: &str) -> CommandId {
+    message_box(app, message, MF_CONFIRMATION | MF_YES_NO_CANCEL)
+}
+
+/// Display a confirmation dialog with Yes/No buttons
+///
+/// Returns CM_YES or CM_NO based on user choice.
+pub fn confirmation_box_yes_no(app: &mut Application, message: &str) -> CommandId {
+    message_box(app, message, MF_CONFIRMATION | MF_YES_BUTTON | MF_NO_BUTTON)
+}
+
+/// Display a confirmation dialog with OK/Cancel buttons
+///
+/// Returns CM_OK or CM_CANCEL based on user choice.
+pub fn confirmation_box_ok_cancel(app: &mut Application, message: &str) -> CommandId {
+    message_box(app, message, MF_CONFIRMATION | MF_OK_CANCEL)
 }
 
 /// Display an input box that prompts the user for a string
