@@ -109,6 +109,7 @@ pub struct MouseEvent {
 pub struct Event {
     pub what: EventType,
     pub key_code: KeyCode,
+    pub key_modifiers: KeyModifiers,
     pub mouse: MouseEvent,
     pub command: CommandId,
 }
@@ -118,6 +119,7 @@ impl Event {
         Self {
             what: EventType::Nothing,
             key_code: 0,
+            key_modifiers: KeyModifiers::empty(),
             mouse: MouseEvent {
                 pos: Point::zero(),
                 buttons: 0,
@@ -131,6 +133,7 @@ impl Event {
         Self {
             what: EventType::Keyboard,
             key_code,
+            key_modifiers: KeyModifiers::empty(),
             ..Self::nothing()
         }
     }
@@ -165,7 +168,12 @@ impl Event {
 
     pub fn from_crossterm_key(key_event: KeyEvent) -> Self {
         let key_code = crossterm_to_keycode(key_event);
-        Self::keyboard(key_code)
+        Self {
+            what: EventType::Keyboard,
+            key_code,
+            key_modifiers: key_event.modifiers,
+            ..Self::nothing()
+        }
     }
 
     /// Mark this event as handled (clear it)

@@ -1127,7 +1127,9 @@ impl View for Editor {
                 return;
             }
 
-            let shift_pressed = false; // TODO: Track shift state
+            // Check if Shift key is pressed for text selection
+            use crossterm::event::KeyModifiers;
+            let shift_pressed = event.key_modifiers.contains(KeyModifiers::SHIFT);
 
             match event.key_code {
                 KB_UP => {
@@ -1147,18 +1149,30 @@ impl View for Editor {
                     event.clear();
                 }
                 KB_HOME => {
+                    // Save old position if starting selection
+                    if shift_pressed && self.selection_start.is_none() {
+                        self.selection_start = Some(self.cursor);
+                    } else if !shift_pressed {
+                        self.selection_start = None;
+                    }
+
                     self.cursor.x = 0;
-                    self.selection_start = None;
                     self.ensure_cursor_visible();
                     event.clear();
                 }
                 KB_END => {
+                    // Save old position if starting selection
+                    if shift_pressed && self.selection_start.is_none() {
+                        self.selection_start = Some(self.cursor);
+                    } else if !shift_pressed {
+                        self.selection_start = None;
+                    }
+
                     let line_idx = self.cursor.y as usize;
                     if line_idx < self.lines.len() {
                         let line_char_len = self.lines[line_idx].chars().count() as i16;
                         self.cursor.x = line_char_len;
                     }
-                    self.selection_start = None;
                     self.ensure_cursor_visible();
                     event.clear();
                 }
