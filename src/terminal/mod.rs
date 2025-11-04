@@ -280,7 +280,13 @@ impl Terminal {
                         return Ok(None);  // Don't propagate event, it's been handled
                     }
 
-                    Ok(Some(Event::keyboard(key_code)))
+                    // Create event preserving modifiers from original crossterm event
+                    Ok(Some(Event {
+                        what: EventType::Keyboard,
+                        key_code,
+                        key_modifiers: key.modifiers,
+                        ..Event::nothing()
+                    }))
                 }
                 CTEvent::Mouse(mouse) => {
                     Ok(self.convert_mouse_event(mouse))
