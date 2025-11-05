@@ -6,6 +6,7 @@ use turbo_vision::views::{
     dialog::Dialog,
     button::Button,
     static_text::StaticText,
+    input_line::InputLine,
     menu_bar::{MenuBar, SubMenu},
     status_line::{StatusLine, StatusItem},
     window::Window,
@@ -22,6 +23,8 @@ use turbo_vision::terminal::Terminal;
 use turbo_vision::views::view::write_line_to_terminal;
 use std::f64::consts::PI;
 use std::sync::{Arc, Mutex};
+use std::rc::Rc;
+use std::cell::RefCell;
 
 // Custom commands
 const CM_BIORHYTHM: u16 = 100;
@@ -31,6 +34,96 @@ const CM_ABOUT: u16 = 101;
 const PHYSICAL_CYCLE: f64 = 23.0;
 const EMOTIONAL_CYCLE: f64 = 28.0;
 const INTELLECTUAL_CYCLE: f64 = 33.0;
+
+// Simple date calculation functions (no external dependencies)
+fn is_leap_year(year: i32) -> bool {
+    (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0)
+}
+
+fn days_in_month(month: u32, year: i32) -> u32 {
+    match month {
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+        4 | 6 | 9 | 11 => 30,
+        2 => if is_leap_year(year) { 29 } else { 28 },
+        _ => 0,
+    }
+}
+
+fn days_since_epoch(year: i32, month: u32, day: u32) -> i32 {
+    // Calculate days since Jan 1, 1970 (Unix epoch)
+    let mut days = 0;
+
+    // Add days for complete years
+    for y in 1970..year {
+        days += if is_leap_year(y) { 366 } else { 365 };
+    }
+
+    // Add days for complete months in the current year
+    for m in 1..month {
+        days += days_in_month(m, year) as i32;
+    }
+
+    // Add remaining days
+    days += day as i32;
+
+    days
+}
+
+fn get_current_date() -> (i32, u32, u32) {
+    // Get current date from system time
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let duration = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
+    let total_days = duration.as_secs() / 86400;
+
+    // Simple algorithm to convert days since epoch to Y/M/D
+    let mut days_left = total_days as i32;
+    let mut year = 1970;
+
+    loop {
+        let days_in_year = if is_leap_year(year) { 366 } else { 365 };
+        if days_left >= days_in_year {
+            days_left -= days_in_year;
+            year += 1;
+        } else {
+            break;
+        }
+    }
+
+    let mut month = 1;
+    while month <= 12 {
+        let days_in_current_month = days_in_month(month, year) as i32;
+        if days_left >= days_in_current_month {
+            days_left -= days_in_current_month;
+            month += 1;
+        } else {
+            break;
+        }
+    }
+
+    let day = days_left + 1;
+    (year, month, day as u32)
+}
+
+fn calculate_days_alive(birth_year: i32, birth_month: u32, birth_day: u32) -> Option<i32> {
+    // Validate date
+    if birth_month < 1 || birth_month > 12 || birth_day < 1 {
+        return None;
+    }
+    if birth_day > days_in_month(birth_month, birth_year) {
+        return None;
+    }
+
+    let (today_year, today_month, today_day) = get_current_date();
+    let birth_days = days_since_epoch(birth_year, birth_month, birth_day);
+    let today_days = days_since_epoch(today_year, today_month, today_day);
+
+    let days_alive = today_days - birth_days;
+    if days_alive < 0 {
+        None  // Birth date is in the future
+    } else {
+        Some(days_alive)
+    }
+}
 
 #[derive(Clone)]
 struct Biorhythm {
@@ -208,25 +301,38 @@ impl View for BiorhythmChart {
     fn update_cursor(&self, _terminal: &mut Terminal) {}
 }
 
-fn create_biorhythm_dialog() -> Dialog {
-    let mut dialog = Dialog::new(Rect::new(15, 7, 65, 17), "Calculate Biorhythm");
+fn create_biorhythm_dialog() -> (Dialog, Rc<RefCell<String>>, Rc<RefCell<String>>, Rc<RefCell<String>>) {
+    let mut dialog = Dialog::new(Rect::new(15, 5, 65, 17), "Enter Birth Date");
+
+    // Get today's date for display
+    let (today_year, today_month, today_day) = get_current_date();
 
     dialog.add(Box::new(StaticText::new(
-        Rect::new(2, 2, 46, 6),
-        "Choose age (simplified demo):\n\
-         \n\
-         • Born 5,000 days ago (~14 years)\n\
-         • Born 10,000 days ago (~27 years)\n\
-         • Born 15,000 days ago (~41 years)",
+        Rect::new(2, 2, 46, 4),
+        &format!("Enter your birth date (Today: {}/{}/{})", today_month, today_day, today_year),
     )));
 
-    dialog.add(Box::new(Button::new(Rect::new(5, 7, 20, 9), " 5,000 days", 100, true)));
-    dialog.add(Box::new(Button::new(Rect::new(22, 7, 37, 9), "10,000 days", 101, false)));
-    dialog.add(Box::new(Button::new(Rect::new(5, 10, 20, 12), "15,000 days", 102, false)));
-    dialog.add(Box::new(Button::new(Rect::new(22, 10, 37, 12), "  Cancel  ", CM_CANCEL, false)));
+    // Labels
+    dialog.add(Box::new(StaticText::new(Rect::new(2, 4, 12, 5), "Month:")));
+    dialog.add(Box::new(StaticText::new(Rect::new(2, 5, 12, 6), "Day:")));
+    dialog.add(Box::new(StaticText::new(Rect::new(2, 6, 12, 7), "Year:")));
+
+    // Create shared data for input fields
+    let month_data = Rc::new(RefCell::new(String::new()));
+    let day_data = Rc::new(RefCell::new(String::new()));
+    let year_data = Rc::new(RefCell::new(String::new()));
+
+    // Input fields
+    dialog.add(Box::new(InputLine::new(Rect::new(12, 4, 18, 5), 2, Rc::clone(&month_data))));
+    dialog.add(Box::new(InputLine::new(Rect::new(12, 5, 18, 6), 2, Rc::clone(&day_data))));
+    dialog.add(Box::new(InputLine::new(Rect::new(12, 6, 20, 7), 4, Rc::clone(&year_data))));
+
+    // Buttons
+    dialog.add(Box::new(Button::new(Rect::new(15, 8, 25, 10), "  OK  ", CM_OK, true)));
+    dialog.add(Box::new(Button::new(Rect::new(27, 8, 37, 10), "Cancel", CM_CANCEL, false)));
 
     dialog.set_initial_focus();
-    dialog
+    (dialog, month_data, day_data, year_data)
 }
 
 fn create_about_dialog() -> Dialog {
@@ -321,16 +427,24 @@ fn main() -> std::io::Result<()> {
             if event.what == EventType::Command {
                 match event.command {
                     CM_BIORHYTHM => {
-                        let mut dialog = create_biorhythm_dialog();
+                        let (mut dialog, month_data, day_data, year_data) = create_biorhythm_dialog();
                         let result = dialog.execute(&mut app);
-                        let days = match result {
-                            100 => Some(5000),
-                            101 => Some(10000),
-                            102 => Some(15000),
-                            _ => None,
-                        };
-                        if let Some(days_alive) = days {
-                            *biorhythm_data.lock().unwrap() = Some(Biorhythm::new(days_alive));
+
+                        if result == CM_OK {
+                            // Parse the input fields
+                            let month_str = month_data.borrow().clone();
+                            let day_str = day_data.borrow().clone();
+                            let year_str = year_data.borrow().clone();
+
+                            if let (Ok(month), Ok(day), Ok(year)) = (
+                                month_str.parse::<u32>(),
+                                day_str.parse::<u32>(),
+                                year_str.parse::<i32>(),
+                            ) {
+                                if let Some(days_alive) = calculate_days_alive(year, month, day) {
+                                    *biorhythm_data.lock().unwrap() = Some(Biorhythm::new(days_alive));
+                                }
+                            }
                         }
                         continue;
                     }
