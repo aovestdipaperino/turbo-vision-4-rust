@@ -1,3 +1,4 @@
+// (C) 2025 - Enzo Lombardi
 // Event Debug Tool
 // Prints all events to help diagnose mouse/keyboard issues
 

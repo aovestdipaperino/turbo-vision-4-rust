@@ -1,3 +1,4 @@
+// (C) 2025 - Enzo Lombardi
 // FileEditor - Editor with file management and save prompts
 //
 // Matches Borland: TFileEditor (tfileedi.h, tfileedi.cc)

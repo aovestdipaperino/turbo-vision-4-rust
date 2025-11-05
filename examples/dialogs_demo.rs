@@ -1,3 +1,4 @@
+// (C) 2025 - Enzo Lombardi
 // Standard Library Dialogs Demo
 //
 // Demonstrates the three standard library dialogs:

@@ -1,3 +1,4 @@
+// (C) 2025 - Enzo Lombardi
 // Syntax Highlighting System
 //
 // Provides extensible syntax highlighting for the Editor component.

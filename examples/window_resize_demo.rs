@@ -1,3 +1,4 @@
+// (C) 2025 - Enzo Lombardi
 // Window Resize and Menu Shortcuts Demo
 //
 // This example demonstrates:

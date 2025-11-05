@@ -1,3 +1,4 @@
+// (C) 2025 - Enzo Lombardi
 // Example demonstrating the new Borland-compatible menu and status data structures
 //
 // This example shows how to use the declarative menu and status line builders

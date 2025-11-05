@@ -1,3 +1,4 @@
+// (C) 2025 - Enzo Lombardi
 // HelpFile - Markdown-based help file manager
 //
 // Modern alternative to Borland's THelpFile (binary format)

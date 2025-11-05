@@ -1,3 +1,4 @@
+// (C) 2025 - Enzo Lombardi
 // Example demonstrating Group::broadcast() with owner parameter
 //
 // This example creates a standalone Group (not boxed in a Dialog) to directly

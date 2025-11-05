@@ -1,3 +1,4 @@
+// (C) 2025 - Enzo Lombardi
 /// View state flags
 pub type StateFlags = u16;
 

@@ -1,3 +1,4 @@
+// (C) 2025 - Enzo Lombardi
 /// Command identifiers
 pub type CommandId = u16;
 

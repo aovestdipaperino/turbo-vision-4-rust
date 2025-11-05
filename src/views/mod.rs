@@ -1,3 +1,4 @@
+// (C) 2025 - Enzo Lombardi
 pub mod view;
 pub mod group;
 pub mod window;

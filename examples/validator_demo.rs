@@ -1,3 +1,4 @@
+// (C) 2025 - Enzo Lombardi
 // Comprehensive Validator Demo
 //
 // Demonstrates all Validator types in one example:

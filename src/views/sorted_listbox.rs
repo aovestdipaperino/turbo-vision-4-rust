@@ -1,3 +1,4 @@
+// (C) 2025 - Enzo Lombardi
 // SortedListBox - A sorted list with binary search capability
 //
 // Matches Borland: TSortedListBox (extends TListBox)

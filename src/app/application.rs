@@ -1,3 +1,4 @@
+// (C) 2025 - Enzo Lombardi
 use crate::core::geometry::Rect;
 use crate::core::event::{Event, EventType, KB_F10, KB_ALT_X, KB_ESC_X};
 use crate::core::command::{CommandId, CM_QUIT, CM_COMMAND_SET_CHANGED, CM_CANCEL};

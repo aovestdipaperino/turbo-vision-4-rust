@@ -1,3 +1,4 @@
+// (C) 2025 - Enzo Lombardi
 //! File Dialog - A file selection dialog for opening files
 //!
 //! ## Current Implementation

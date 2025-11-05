@@ -1,3 +1,4 @@
+// (C) 2025 - Enzo Lombardi
 // HelpWindow - Help display window
 //
 // Matches Borland: THelpWindow (help.h)

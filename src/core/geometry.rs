@@ -1,3 +1,4 @@
+// (C) 2025 - Enzo Lombardi
 /// A point in 2D space
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct Point {

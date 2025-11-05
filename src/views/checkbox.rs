@@ -1,3 +1,4 @@
+// (C) 2025 - Enzo Lombardi
 // CheckBox - Boolean selection control
 //
 // Matches Borland: TCheckBoxes (extends TCluster)

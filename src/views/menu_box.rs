@@ -1,3 +1,4 @@
+// (C) 2025 - Enzo Lombardi
 // MenuBox - Popup menu container
 //
 // Matches Borland: TMenuBox (menubox.h, tmenubox.cc)

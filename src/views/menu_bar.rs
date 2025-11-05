@@ -1,3 +1,4 @@
+// (C) 2025 - Enzo Lombardi
 // MenuBar - Horizontal menu bar
 //
 // Matches Borland: TMenuBar (menubar.h, tmenubar.cc)

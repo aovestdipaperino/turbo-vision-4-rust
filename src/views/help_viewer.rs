@@ -1,3 +1,4 @@
+// (C) 2025 - Enzo Lombardi
 // HelpViewer - Help content viewer based on TextView
 //
 // Matches Borland: THelpViewer (help.h)

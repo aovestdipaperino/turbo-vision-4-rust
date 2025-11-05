@@ -1,3 +1,4 @@
+// (C) 2025 - Enzo Lombardi
 // Minimal Application Example
 // Demonstrates a stripped-down application similar to deriving from TProgram
 // instead of TApplication in Borland Turbo Vision.

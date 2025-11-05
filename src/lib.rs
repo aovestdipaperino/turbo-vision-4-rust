@@ -1,3 +1,4 @@
+// (C) 2025 - Enzo Lombardi
 // Turbo Vision - Rust TUI Library
 // Core modules
 pub mod core;

@@ -1,3 +1,4 @@
+// (C) 2025 - Enzo Lombardi
 use std::sync::Mutex;
 
 /// Global clipboard for copy/cut/paste operations

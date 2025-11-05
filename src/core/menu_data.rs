@@ -1,3 +1,4 @@
+// (C) 2025 - Enzo Lombardi
 // Borland-compatible menu data structures
 // Matches the original Turbo Vision TMenuItem, TSubMenu, TMenu architecture
 //

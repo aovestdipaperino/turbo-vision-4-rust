@@ -1,3 +1,4 @@
+// (C) 2025 - Enzo Lombardi
 // Simple mouse test - prints mouse events to verify mouse capture works
 
 use turbo_vision::app::Application;

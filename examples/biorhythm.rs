@@ -1,3 +1,4 @@
+// (C) 2025 - Enzo Lombardi
 // Biorhythm Calculator - Working Demo
 // Displays biorhythm charts with semi-graphical ASCII visualization
 

@@ -1,3 +1,4 @@
+// (C) 2025 - Enzo Lombardi
 // Demonstration of SortedListBox with binary search
 //
 // This example shows:

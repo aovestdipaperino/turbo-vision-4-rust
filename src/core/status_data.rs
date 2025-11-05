@@ -1,3 +1,4 @@
+// (C) 2025 - Enzo Lombardi
 // Borland-compatible status line data structures
 // Matches the original Turbo Vision TStatusItem, TStatusDef architecture
 //

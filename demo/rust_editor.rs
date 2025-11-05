@@ -1,3 +1,4 @@
+// (C) 2025 - Enzo Lombardi
 // Rust Text Editor Demo
 //
 // A comprehensive text editor with:

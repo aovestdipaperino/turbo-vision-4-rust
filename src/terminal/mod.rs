@@ -1,3 +1,4 @@
+// (C) 2025 - Enzo Lombardi
 use crate::core::draw::Cell;
 use crate::core::event::{Event, EventType, EscSequenceTracker, MB_LEFT_BUTTON, MB_MIDDLE_BUTTON, MB_RIGHT_BUTTON, KB_F12, KB_SHIFT_F12};
 use crate::core::geometry::Point;

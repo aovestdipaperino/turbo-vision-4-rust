@@ -1,3 +1,4 @@
+// (C) 2025 - Enzo Lombardi
 // Status Line Hot Spots Demo
 //
 // This example demonstrates:

@@ -1,3 +1,4 @@
+// (C) 2025 - Enzo Lombardi
 // Comprehensive Editor Demo
 //
 // Demonstrates all Editor features in one example:

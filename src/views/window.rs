@@ -1,3 +1,4 @@
+// (C) 2025 - Enzo Lombardi
 use crate::core::geometry::{Rect, Point};
 use crate::core::event::{Event, EventType};
 use crate::core::command::{CM_CLOSE, CM_CANCEL};

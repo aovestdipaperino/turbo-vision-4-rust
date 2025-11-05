@@ -1,3 +1,4 @@
+// (C) 2025 - Enzo Lombardi
 // Extended menu example demonstrating:
 // - Menu bar with submenus
 // - Popup/context menu on right-click

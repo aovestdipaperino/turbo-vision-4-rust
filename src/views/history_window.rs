@@ -1,3 +1,4 @@
+// (C) 2025 - Enzo Lombardi
 // HistoryWindow - Popup window displaying history items
 //
 // Matches Borland: THistoryWindow (modal window with THistoryViewer)

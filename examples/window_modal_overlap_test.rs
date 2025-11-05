@@ -1,3 +1,4 @@
+// (C) 2025 - Enzo Lombardi
 // Example to test modal vs non-modal window behavior
 //
 // This example demonstrates:

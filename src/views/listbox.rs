@@ -1,3 +1,4 @@
+// (C) 2025 - Enzo Lombardi
 use crate::core::geometry::Rect;
 use crate::core::event::{Event, EventType, KB_ENTER, MB_LEFT_BUTTON};
 use crate::core::palette::colors;

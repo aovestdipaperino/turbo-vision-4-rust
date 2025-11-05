@@ -1,3 +1,4 @@
+// (C) 2025 - Enzo Lombardi
 // HistoryViewer - Displays history items in a list
 //
 // Matches Borland: THistoryViewer (extends TListViewer)

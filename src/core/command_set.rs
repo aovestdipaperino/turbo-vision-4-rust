@@ -1,3 +1,4 @@
+// (C) 2025 - Enzo Lombardi
 //! Command Set System
 //!
 //! Implements Borland Turbo Vision's command enable/disable system.

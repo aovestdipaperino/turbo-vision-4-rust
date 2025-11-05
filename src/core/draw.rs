@@ -1,3 +1,4 @@
+// (C) 2025 - Enzo Lombardi
 use super::palette::Attr;
 
 /// A single character cell with attributes

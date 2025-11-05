@@ -1,3 +1,4 @@
+// (C) 2025 - Enzo Lombardi
 // Menu Viewer - Base trait and state for menu views
 //
 // Matches Borland: TMenuView (menuview.h, tmenuvie.cc)

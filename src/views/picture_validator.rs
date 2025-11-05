@@ -1,3 +1,4 @@
+// (C) 2025 - Enzo Lombardi
 // Picture Mask Validator (TPXPictureValidator)
 //
 // Validates and formats input according to a picture mask.

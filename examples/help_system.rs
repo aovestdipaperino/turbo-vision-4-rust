@@ -1,3 +1,4 @@
+// (C) 2025 - Enzo Lombardi
 // Help System Example
 //
 // Demonstrates the markdown-based help system with:

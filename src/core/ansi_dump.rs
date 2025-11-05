@@ -1,3 +1,4 @@
+// (C) 2025 - Enzo Lombardi
 //! ANSI dump utilities for debugging terminal output
 //!
 //! This module provides functionality to dump terminal buffers to ANSI text files,

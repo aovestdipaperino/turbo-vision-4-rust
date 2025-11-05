@@ -1,3 +1,4 @@
+// (C) 2025 - Enzo Lombardi
 pub mod geometry;
 pub mod draw;
 pub mod event;

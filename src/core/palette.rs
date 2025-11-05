@@ -1,3 +1,4 @@
+// (C) 2025 - Enzo Lombardi
 use crossterm::style::Color;
 
 /// 16-color palette matching Turbo Vision

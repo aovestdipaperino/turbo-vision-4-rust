@@ -1,3 +1,4 @@
+// (C) 2025 - Enzo Lombardi
 //! Command Set System Demo
 //!
 //! Demonstrates automatic button enable/disable based on application state.

@@ -1,3 +1,4 @@
+// (C) 2025 - Enzo Lombardi
 // EditWindow - Window wrapper for Editor
 //
 // Matches Borland: TEditWindow (teditor.h)

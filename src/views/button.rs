@@ -1,3 +1,4 @@
+// (C) 2025 - Enzo Lombardi
 use super::view::{write_line_to_terminal, View};
 use crate::core::command::CommandId;
 use crate::core::draw::DrawBuffer;

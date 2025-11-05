@@ -1,3 +1,4 @@
+// (C) 2025 - Enzo Lombardi
 // help_context - Context-sensitive help support
 //
 // Maps help context IDs to help topics.

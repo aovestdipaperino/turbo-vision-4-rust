@@ -1,3 +1,4 @@
+// (C) 2025 - Enzo Lombardi
 // Test program to debug file filtering
 
 use std::fs;

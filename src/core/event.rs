@@ -1,3 +1,4 @@
+// (C) 2025 - Enzo Lombardi
 use super::command::CommandId;
 use super::geometry::Point;
 use crossterm::event::{KeyCode as CKC, KeyEvent, KeyModifiers};

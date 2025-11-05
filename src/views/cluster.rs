@@ -1,3 +1,4 @@
+// (C) 2025 - Enzo Lombardi
 // Cluster - Base trait and state for button group controls
 //
 // Matches Borland: TCluster (cluster.h, tcluster.cc)

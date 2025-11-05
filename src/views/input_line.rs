@@ -1,3 +1,4 @@
+// (C) 2025 - Enzo Lombardi
 use crate::core::geometry::Rect;
 use crate::core::event::{Event, EventType, KB_ENTER, KB_BACKSPACE, KB_LEFT, KB_RIGHT, KB_HOME, KB_END, KB_DEL};
 use crate::core::draw::DrawBuffer;

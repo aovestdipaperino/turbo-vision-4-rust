@@ -1,3 +1,4 @@
+// (C) 2025 - Enzo Lombardi
 // Non-interactive test for clipping
 use turbo_vision::prelude::*;
 use turbo_vision::terminal::Terminal;

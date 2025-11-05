@@ -1,3 +1,4 @@
+// (C) 2025 - Enzo Lombardi
 use crate::core::geometry::Rect;
 use crate::core::event::Event;
 use crate::core::palette::colors;

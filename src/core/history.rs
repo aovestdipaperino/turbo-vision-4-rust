@@ -1,3 +1,4 @@
+// (C) 2025 - Enzo Lombardi
 // History Management System
 //
 // Matches Borland: THistory system (histlist.h, histlist.cc)

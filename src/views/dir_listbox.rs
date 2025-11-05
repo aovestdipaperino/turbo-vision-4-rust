@@ -1,3 +1,4 @@
+// (C) 2025 - Enzo Lombardi
 // DirListBox - Directory tree viewer
 //
 // Matches Borland: TDirListBox (views/tdirlist.cc)

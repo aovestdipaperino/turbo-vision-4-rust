@@ -1,3 +1,4 @@
+// (C) 2025 - Enzo Lombardi
 // Example demonstrating the file dialog
 //
 // This example shows how to use the FileDialog to let users select files.
