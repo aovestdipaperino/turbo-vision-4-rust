@@ -5,7 +5,6 @@ use crate::core::state::{StateFlags, SF_SHADOW, SF_FOCUSED, SHADOW_SIZE};
 use crate::core::command::CommandId;
 use crate::terminal::Terminal;
 use std::io;
-use std::any::Any;
 
 /// View trait - all UI components implement this
 ///
@@ -163,12 +162,6 @@ pub trait View {
     /// Called by end_modal() to signal the modal loop should exit
     fn set_end_state(&mut self, _command: CommandId) {
         // Default: do nothing (only modal views need this)
-    }
-
-    /// Downcast to concrete type for type-specific operations
-    /// Used when parent needs to call methods specific to a concrete view type
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        panic!("as_any_mut() not implemented for this view type")
     }
 }
 
