@@ -492,7 +492,7 @@ fn main() -> std::io::Result<()> {
     dialog.handle_event(&mut broadcast_event);
     command_set::clear_command_set_changed();
 
-    let mut result = CM_CANCEL;
+    let result;
 
     loop {
         // Draw desktop and dialog
@@ -646,7 +646,7 @@ fn main() -> std::io::Result<()> {
                         dialog.handle_event(&mut broadcast_event);
                         command_set::clear_command_set_changed();
 
-                        let mut result = CM_CANCEL;
+                        let result;
 
                         loop {
                             // Draw desktop and dialog
