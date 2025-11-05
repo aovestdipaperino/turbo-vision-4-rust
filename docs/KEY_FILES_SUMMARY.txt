@@ -1,0 +1,251 @@
+TURBO VISION FOR RUST - KEY SOURCE FILES & LOCATIONS
+=====================================================
+
+FILE ORGANIZATION BY FEATURE
+
+1. EVENTS AND COMMANDS
+======================
+src/core/event.rs (339 lines)
+  - EventType enum (Nothing, Keyboard, MouseDown, Command, Broadcast, etc.)
+  - Event struct with what, key_code, key_modifiers, mouse, command
+  - Key code constants (KB_ESC, KB_F10, KB_ALT_X, etc.)
+  - Event creation helpers: Event::keyboard(), Event::command(), Event::broadcast()
+  - ESC sequence tracker for macOS Alt emulation
+
+src/core/command.rs (65 lines)
+  - CommandId type (u16)
+  - Standard commands: CM_OK, CM_CANCEL, CM_YES, CM_NO, CM_QUIT
+  - Broadcast commands: CM_COMMAND_SET_CHANGED, CM_RECEIVED_FOCUS, CM_RELEASED_FOCUS
+  - Standard menu commands: CM_NEW, CM_OPEN, CM_SAVE, CM_CUT, CM_COPY, CM_PASTE
+  - Custom commands start at 100+
+
+
+2. HANDLE EVENT IMPLEMENTATION
+==============================
+src/views/view.rs (200 lines)
+  - View trait definition
+  - KEY METHOD: fn handle_event(&mut self, event: &mut Event)
+  - State flag methods: set_state_flag(), get_state_flag()
+  - Focus methods: set_focus(), is_focused(), can_focus()
+
+src/views/button.rs (200+ lines)
+  - Button::handle_event() implementation
+  - How buttons consume keyboard/mouse events and transform to commands
+  - Button enable/disable based on command_set
+  - Broadcast handling for CM_COMMAND_SET_CHANGED
+
+src/views/group.rs (400+ lines)
+  - Group::handle_event() - distributes events to children
+  - Reverse order distribution (top window first)
+  - Group::execute() - modal loop implementation (matches Borland's TGroup::execute())
+  - Focus management with Tab/Shift+Tab
+  - Child management: add(), remove(), bring_to_front()
+
+src/views/dialog.rs (200+ lines)
+  - Dialog::execute() - modal event loop
+  - Dialog::handle_event() - handles CM_CANCEL on ESC
+  - Two patterns: self-contained vs centralized (via Application::exec_view())
+
+
+3. MENU BAR IMPLEMENTATION
+===========================
+src/views/menu_bar.rs (500+ lines)
+  - MenuBar struct with submenus and dropdown drawing
+  - SubMenu: text and menu pair
+  - Menu bar event handling (keyboard navigation, mouse clicks)
+  - Cascading submenu support
+  - Menu rendering with colors and formatting
+
+src/core/menu_data.rs
+  - Menu struct: collection of MenuItem
+  - MenuItem enum: Regular, SubMenu, Separator
+  - Tilde (~) formatting for keyboard shortcuts
+
+examples/menu.rs (334 lines)
+  - Complete menu bar example
+  - Shows submenu creation
+  - Cascading submenu handling
+  - Right-click popup menus
+
+
+4. STATUS LINE IMPLEMENTATION
+=============================
+src/views/status_line.rs (232 lines)
+  - StatusLine struct with items and positions
+  - StatusItem: text, key_code, command
+  - Mouse hover highlighting
+  - Keyboard shortcut handling
+  - Hint text support (right side)
+  - Visual feedback when items are clicked/hovered
+
+examples/status_line_demo.rs
+  - Shows status line creation and usage
+
+
+5. MESSAGE BOXES
+================
+src/views/msgbox.rs (411 lines)
+  - message_box() - generic message box with flags
+  - message_box_ok() - simple OK button
+  - message_box_warning() - warning icon + OK
+  - message_box_error() - error icon + OK
+  - confirmation_box() - Yes/No/Cancel
+  - confirmation_box_yes_no() - Yes/No only
+  - confirmation_box_ok_cancel() - OK/Cancel
+  - input_box() - text input dialog
+  - search_box() - find text dialog
+  - search_replace_box() - find and replace dialog
+  - goto_line_box() - goto line dialog
+
+Message box flags:
+  - MF_WARNING, MF_ERROR, MF_INFORMATION, MF_CONFIRMATION
+  - MF_YES_BUTTON, MF_NO_BUTTON, MF_OK_BUTTON, MF_CANCEL_BUTTON
+
+examples/dialogs_demo.rs (69 lines)
+  - Shows all message box types
+
+
+6. COMMAND ENABLE/DISABLE
+==========================
+src/core/command_set.rs (352 lines)
+  - Global command set (thread-local)
+  - command_enabled(cmd) - check if enabled
+  - enable_command(cmd) - enable single command
+  - disable_command(cmd) - disable single command
+  - enable_range(start, end) - enable range
+  - disable_range(start, end) - disable range
+  - command_set_changed() - check if broadcast needed
+  - CommandSet struct - 2048-word bitfield for 65,536 commands
+
+examples/command_set_demo.rs (171 lines)
+  - Shows automatic button enable/disable
+  - Demonstrates command broadcast system
+
+
+7. APPLICATION STRUCTURE
+=========================
+src/app/application.rs (311 lines)
+  - Application struct: terminal, menu_bar, status_line, desktop
+  - new() - initialization
+  - set_menu_bar() - attach menu bar
+  - set_status_line() - attach status line
+  - handle_event() - application event routing
+  - draw() - draw all components
+  - get_event() - get event with drawing (for modal dialogs)
+  - execute() - main event loop
+  - idle() - broadcasts command set changes
+  - execute_view() - modal view execution
+
+src/views/desktop.rs
+  - Desktop: container for windows/dialogs
+  - Z-order management
+  - Event distribution to windows
+
+
+8. KEY STRUCTS & MODULES
+==========================
+src/core/state.rs
+  - State flags: SF_FOCUSED, SF_DISABLED, SF_SHADOW, SF_MODAL, SF_HIDDEN
+  - Options: OF_PRE_PROCESS, OF_POST_PROCESS
+
+src/core/geometry.rs
+  - Rect, Point structures for positioning
+
+src/core/palette.rs
+  - Color attributes for UI elements
+  - colors namespace: COLOR_NORMAL, BUTTON_SELECTED, STATUS_SHORTCUT, etc.
+
+src/core/draw.rs
+  - DrawBuffer - character/attribute pairs
+  - Drawing primitives
+
+
+EXAMPLE PROGRAMS TO STUDY
+==========================
+
+examples/menu.rs (334 lines)
+  - Best example for menus, status line, message boxes
+  - Shows all three together
+  - Cascading submenu handling
+  - Popup menu (right-click)
+
+examples/command_set_demo.rs (171 lines)
+  - Shows automatic button enable/disable
+  - Command broadcast mechanism
+
+examples/dialogs_demo.rs (69 lines)
+  - Shows all message box types
+  - Simple, clean examples
+
+examples/event_debug.rs (79 lines)
+  - Shows how to inspect events
+  - Event type identification
+
+examples/file_dialog.rs
+  - File selection dialog example
+
+examples/dialog_example.rs
+  - Custom dialog with controls
+
+
+ARCHITECTURE PATTERNS
+=====================
+
+Modal Loop (Group::execute):
+1. Get event from Application::get_event()
+2. Call self.handle_event(&mut event)
+3. Check self.end_state
+4. If end_state != 0, break loop and return it
+
+Event Flow:
+Application::handle_event()
+  -> MenuBar::handle_event()
+  -> Desktop::handle_event()
+       -> Window::handle_event()
+            -> Group::handle_event()
+                 -> Children (in reverse order)
+  -> StatusLine::handle_event()
+
+Event Transformation (key pattern):
+  Child receives keyboard event
+  Child transforms: *event = Event::command(cmd)
+  Parent receives command event from its handle_event() call
+  Bubbles up the call stack (no pointers needed!)
+
+Command Enable/Disable (key pattern):
+  1. disable_command(CM_X) sets bit in global CommandSet
+  2. Button constructor checks command_set::command_enabled()
+  3. In idle(), Application broadcasts CM_COMMAND_SET_CHANGED
+  4. Buttons' handle_event() receives broadcast and updates disabled state
+  5. No polling needed - automatic via broadcast pattern
+
+
+KEY DIFFERENCES FROM PASCAL
+============================
+
+Parent Pointers:
+  Borland: void TButton::press() { message(owner, evBroadcast, cmd, this); }
+  Rust:    fn handle_event(&mut self, event: &mut Event) { *event = Event::command(cmd); }
+  
+  Rust uses event transformation instead of owner pointers - achieves same result
+  via call stack and borrowing instead of raw pointers.
+
+Init Methods:
+  Borland: void TApp::initMenuBar() {...}
+  Rust:    app.set_menu_bar(MenuBar::new(...))
+
+Menu Bar Initialization:
+  Borland: Separate initMenuBar() method in TApplication
+  Rust:    Create MenuBar, add SubMenus, call app.set_menu_bar()
+
+Status Line Initialization:
+  Borland: Separate initStatusLine() method in TApplication
+  Rust:    Create StatusLine with items, call app.set_status_line()
+
+Modal Loop:
+  Borland: TGroup::execute() - part of base class
+  Rust:    Group::execute() - same implementation, matches behavior
+
+State Management:
+  Borland: Global TView::curCommandSet static
+  Rust:    Thread-local GLOBAL_COMMAND_SET in command_set module

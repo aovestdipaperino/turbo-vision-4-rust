@@ -1,0 +1,391 @@
+TURBO VISION RUST - QUICK CODE REFERENCE
+==========================================
+
+CREATING A BASIC APPLICATION
+=============================
+
+use turbo_vision::app::Application;
+use turbo_vision::core::command::CM_QUIT;
+use turbo_vision::core::event::EventType;
+
+fn main() -> std::io::Result<()> {
+    let mut app = Application::new()?;
+    
+    app.running = true;
+    while app.running {
+        if let Ok(Some(mut event)) = app.terminal.poll_event(Duration::from_millis(50)) {
+            app.handle_event(&mut event);
+            
+            if event.what == EventType::Command {
+                match event.command {
+                    CM_QUIT => { app.running = false; }
+                    _ => {}
+                }
+            }
+        }
+        
+        app.draw();
+        let _ = app.terminal.flush();
+    }
+    
+    Ok(())
+}
+
+
+CREATING A MENU BAR
+===================
+
+use turbo_vision::views::menu_bar::{MenuBar, SubMenu};
+use turbo_vision::core::menu_data::{Menu, MenuItem};
+
+let mut menu_bar = MenuBar::new(Rect::new(0, 0, width as i16, 1));
+
+let items = vec![
+    MenuItem::with_shortcut("~N~ew", CM_NEW, 0, "Ctrl+N", 0),
+    MenuItem::separator(),
+    MenuItem::with_shortcut("~Q~uit", CM_QUIT, 0, "Alt+X", 0),
+];
+menu_bar.add_submenu(SubMenu::new("~F~ile", Menu::from_items(items)));
+
+app.set_menu_bar(menu_bar);
+
+
+CREATING A STATUS LINE
+======================
+
+use turbo_vision::views::status_line::{StatusLine, StatusItem};
+
+let status_line = StatusLine::new(
+    Rect::new(0, height as i16 - 1, width as i16, height as i16),
+    vec![
+        StatusItem::new("~F1~ Help", KB_F1, CM_HELP),
+        StatusItem::new("~F10~ Menu", KB_F10, CM_QUIT),
+    ],
+);
+
+app.set_status_line(status_line);
+
+
+SHOWING MESSAGE BOXES
+=====================
+
+use turbo_vision::views::msgbox::*;
+use turbo_vision::core::command::{CM_YES, CM_NO};
+
+// Simple message
+message_box_ok(&mut app, "File saved!");
+
+// With result
+match confirmation_box(&mut app, "Save changes?") {
+    r if r == CM_YES => { /* save */ }
+    r if r == CM_NO => { /* don't save */ }
+    _ => { /* cancel */ }
+}
+
+// Input
+if let Some(name) = input_box(&mut app, "Name", "Enter name:", "", 50) {
+    println!("You entered: {}", name);
+}
+
+
+CREATING A BUTTON
+=================
+
+use turbo_vision::views::button::Button;
+use turbo_vision::core::command::{CM_OK, CM_CANCEL};
+
+let ok_button = Button::new(
+    Rect::new(10, 5, 20, 7),  // bounds
+    "  ~O~K  ",                // title with ~ marking shortcut
+    CM_OK,                      // command to send when clicked
+    true                        // is default button
+);
+
+dialog.add(Box::new(ok_button));
+
+
+ENABLING/DISABLING COMMANDS
+=============================
+
+use turbo_vision::core::command_set;
+use turbo_vision::core::command::{CM_CUT, CM_COPY, CM_PASTE};
+
+// Disable when no selection
+command_set::disable_command(CM_CUT);
+command_set::disable_command(CM_COPY);
+
+// Enable when selection exists
+command_set::enable_command(CM_CUT);
+command_set::enable_command(CM_COPY);
+
+// Check if enabled
+if command_set::command_enabled(CM_PASTE) {
+    // paste enabled
+}
+
+// This automatically broadcasts CM_COMMAND_SET_CHANGED
+// Buttons receive it and update their disabled state automatically
+
+
+CREATING A CUSTOM DIALOG
+=========================
+
+use turbo_vision::views::dialog::Dialog;
+use turbo_vision::views::button::Button;
+use turbo_vision::views::static_text::StaticText;
+
+let mut dialog = Dialog::new(bounds, "My Dialog");
+
+// Add text
+let text = StaticText::new(
+    Rect::new(2, 1, bounds.width() - 4, 3),
+    "Enter your data"
+);
+dialog.add(Box::new(text));
+
+// Add button
+let button = Button::new(
+    Rect::new(10, 5, 20, 7),
+    "  ~O~K  ",
+    CM_OK,
+    true
+);
+dialog.add(Box::new(button));
+
+// Set initial focus
+dialog.set_initial_focus();
+
+// Execute (runs its own event loop)
+let result = dialog.execute(&mut app);
+
+// Check result
+if result == CM_OK {
+    // Handle OK
+}
+
+
+CUSTOM EVENT HANDLING
+=====================
+
+impl View for MyControl {
+    fn handle_event(&mut self, event: &mut Event) {
+        match event.what {
+            // Consume an event (parent won't see it)
+            EventType::Keyboard => {
+                if event.key_code == KB_ENTER && self.is_focused() {
+                    self.do_something();
+                    event.clear();  // Mark as handled
+                    return;
+                }
+            }
+            
+            // Transform keyboard to command (child-to-parent)
+            EventType::Keyboard => {
+                if event.key_code == KB_SPACE && self.is_focused() {
+                    *event = Event::command(self.command);
+                    return;
+                }
+            }
+            
+            // Handle broadcast messages
+            EventType::Broadcast => {
+                if event.command == CM_COMMAND_SET_CHANGED {
+                    self.update_from_command_set();
+                    return;
+                }
+            }
+            
+            // Let parent handle it (don't modify event)
+            _ => {}
+        }
+    }
+}
+
+
+EVENT TYPES AND CREATION
+=========================
+
+// Create keyboard event
+Event::keyboard(KB_F1)
+
+// Create command event
+Event::command(CM_OK)
+
+// Create broadcast event
+Event::broadcast(CM_COMMAND_SET_CHANGED)
+
+// Create mouse event
+Event::mouse(
+    EventType::MouseDown,
+    Point::new(x, y),
+    MB_LEFT_BUTTON,
+    false  // double_click
+)
+
+// Check event type
+match event.what {
+    EventType::Keyboard => { /* key pressed */ }
+    EventType::Command => { /* command */ }
+    EventType::Broadcast => { /* broadcast */ }
+    EventType::MouseDown => { /* mouse down */ }
+    EventType::MouseUp => { /* mouse up */ }
+    EventType::MouseMove => { /* mouse moved */ }
+    _ => { /* other */ }
+}
+
+// Check keyboard
+if event.what == EventType::Keyboard {
+    match event.key_code {
+        KB_ENTER => { /* Enter */ }
+        KB_ESCAPE => { /* Escape */ }
+        KB_TAB => { /* Tab */ }
+        KB_UP => { /* Up arrow */ }
+        _ => { /* other */ }
+    }
+}
+
+// Check command
+if event.what == EventType::Command {
+    match event.command {
+        CM_OK => { /* OK */ }
+        CM_CANCEL => { /* Cancel */ }
+        CM_QUIT => { /* Quit */ }
+        _ => { /* other */ }
+    }
+}
+
+// Check mouse
+if event.what == EventType::MouseDown {
+    let pos = event.mouse.pos;  // Point { x, y }
+    let buttons = event.mouse.buttons;
+    
+    if buttons & MB_LEFT_BUTTON != 0 {
+        // Left button pressed
+    }
+    
+    if event.mouse.double_click {
+        // Double click
+    }
+}
+
+
+STANDARD COMMAND CONSTANTS
+===========================
+
+Dialog/Button:
+  CM_OK = 10
+  CM_CANCEL = 11
+  CM_YES = 12
+  CM_NO = 13
+
+Application:
+  CM_QUIT = 24
+  CM_CLOSE = 25
+
+Broadcast:
+  CM_COMMAND_SET_CHANGED = 52
+  CM_RECEIVED_FOCUS = 50
+  CM_RELEASED_FOCUS = 51
+
+File Menu:
+  CM_NEW = 102
+  CM_OPEN = 103
+  CM_SAVE = 104
+  CM_SAVE_AS = 105
+  CM_CLOSE_FILE = 107
+
+Edit Menu:
+  CM_UNDO = 110
+  CM_REDO = 111
+  CM_CUT = 112
+  CM_COPY = 113
+  CM_PASTE = 114
+  CM_SELECT_ALL = 115
+  CM_FIND = 116
+  CM_REPLACE = 117
+
+Custom (Application specific):
+  100-199: Custom application commands
+
+
+KEY CODE CONSTANTS
+==================
+
+Special Keys:
+  KB_ESC = 0x011B
+  KB_ENTER = 0x1C0D
+  KB_BACKSPACE = 0x0E08
+  KB_TAB = 0x0F09
+  KB_SHIFT_TAB = 0x0F00
+
+Function Keys:
+  KB_F1 = 0x3B00
+  KB_F2 = 0x3C00
+  ...
+  KB_F10 = 0x4400
+  ...
+  KB_F12 = 0x8600
+
+Arrow Keys:
+  KB_UP = 0x4800
+  KB_DOWN = 0x5000
+  KB_LEFT = 0x4B00
+  KB_RIGHT = 0x4D00
+
+Alt Combinations:
+  KB_ALT_X = 0x2D00
+  KB_ALT_F = 0x2100
+  KB_ALT_A = 0x1E00
+
+
+RECT AND POINT
+==============
+
+// Create point
+let p = Point::new(x, y);
+
+// Create rectangle (top-left, bottom-right)
+let r = Rect::new(x1, y1, x2, y2);
+
+// Rectangle properties
+let width = rect.width();     // x2 - x1
+let height = rect.height();  // y2 - y1
+
+// Rectangle operations
+let union = rect1.union(&rect2);
+rect.grow(-1, -1);  // Shrink by 1 on all sides
+rect.grow(1, 1);    // Expand by 1 on all sides
+
+
+TILDE FORMATTING IN UI
+======================
+
+The tilde (~) marks keyboard shortcuts in menu items and buttons:
+
+"~N~ew"         -> First letter after tilde is highlighted, Alt+N triggers
+"~S~ave"        -> Alt+S triggers
+"Cu~t~"         -> Alt+T triggers (second letter after opening ~)
+"~C~opy"        -> Alt+C triggers
+"~P~aste"       -> Alt+P triggers
+
+In status line:
+"~F10~ Menu"    -> F10 triggers (text between tildes is highlighted)
+
+In buttons:
+"  ~O~K  "      -> Alt+O triggers (or button click, or Enter if default)
+
+
+MODAL VS MODELESS DIALOGS
+===========================
+
+// Pattern 1: Self-contained (simpler)
+let mut dialog = Dialog::new(bounds, "Title");
+dialog.add(Box::new(Button::new(...)));
+let result = dialog.execute(&mut app);  // Blocking, returns result
+
+// Pattern 2: Centralized (Borland-style)
+let dialog = Dialog::new_modal(bounds, "Title");
+dialog.add(Box::new(Button::new(...)));
+let result = app.exec_view(dialog);  // App manages event loop
+
+// Both achieve same result - Pattern 1 is simpler for direct use
