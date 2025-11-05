@@ -146,18 +146,21 @@ impl View for BiorhythmChart {
                     // Initialize with today marker
                     line.move_char(today_x, '|', colors::MENU_SHORTCUT, 1);
 
-                    // Draw cycles with colored blocks
-                    let cycles: [(char, Attr, fn(&Biorhythm, i32) -> f64); 3] = [
-                        ('■', Attr::new(TvColor::Red, TvColor::LightGray), |b, d| b.physical(d)),
-                        ('■', Attr::new(TvColor::Green, TvColor::LightGray), |b, d| b.emotional(d)),
-                        ('■', Attr::new(TvColor::Blue, TvColor::LightGray), |b, d| b.intellectual(d)),
+                    // Draw cycles with colored blocks and different scaling factors
+                    let cycles: [(char, Attr, f64, fn(&Biorhythm, i32) -> f64); 3] = [
+                        // Physical: scale by 1.1 to extend range (taller peaks/troughs)
+                        ('■', Attr::new(TvColor::Red, TvColor::LightGray), 0.9, |b, d| b.physical(d)),
+                        // Emotional: scale by 0.9 to compress range (shorter peaks/troughs)
+                        ('■', Attr::new(TvColor::Green, TvColor::LightGray), 1.0, |b, d| b.emotional(d)),
+                        // Intellectual: normal scaling
+                        ('■', Attr::new(TvColor::Blue, TvColor::LightGray), 0.8, |b, d| b.intellectual(d)),
                     ];
 
-                    for (symbol, color, calc_fn) in &cycles {
+                    for (symbol, color, scale_factor, calc_fn) in &cycles {
                         for i in 0..days_range {
                             let day_offset = start_offset + i as i32;
                             let value = calc_fn(bio, day_offset);
-                            let y_offset = (-value * (chart_height as f64 / 2.0)) as i32;
+                            let y_offset = (-value * (chart_height as f64 / 2.0) * scale_factor) as i32;
                             let target_y = (center_y as i32 + y_offset) as usize;
 
                             if target_y == y {
