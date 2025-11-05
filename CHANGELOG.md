@@ -5,6 +5,134 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2025-11-06
+
+### Added
+- **Real-Time Input Validation System**
+  - Complete birthdate validation in biorhythm example with three validation layers
+  - RangeValidator for field-level input filtering
+  - Cross-field date validation (leap years, month lengths, future dates)
+  - Command set integration for dynamic button enable/disable
+  - Custom event loop pattern for real-time validation feedback
+  - Validation runs after every keystroke with immediate UI updates
+
+- **Command Set Broadcasting Pattern**
+  - `CM_COMMAND_SET_CHANGED` broadcast system for global command state changes
+  - Buttons automatically update disabled state via command set queries
+  - Declarative command management instead of direct widget manipulation
+  - Matches Borland Turbo Vision's command enable/disable architecture
+
+- **Enhanced Biorhythm Calculator**
+  - Startup dialog for birthdate input (no default random chart)
+  - Clean exit on cancel (no orphaned windows)
+  - Date prefill across dialog invocations
+  - Centered windows and dialogs accounting for shadow size
+  - Three-layer validation: RangeValidator, complete date check, command updates
+  - Enter key support via event reprocessing
+
+- **Dialog Event Reprocessing**
+  - Fixed Enter key handling in dialogs with default buttons
+  - Event conversion (KB_ENTER → CM_OK) now properly reprocessed
+  - Matches Borland's `putEvent()` pattern for converted events
+  - Ensures modal dialogs close correctly when Enter pressed in InputLine
+
+- **Window Centering with Shadow Calculations**
+  - Proper centering accounting for shadow size (2 cols width, 1 row height)
+  - Menu bar and status line offset calculations for main windows
+  - Dialog centering for full-screen placement
+  - Visual balance maintained across different terminal sizes
+
+- **Comprehensive Documentation**
+  - `docs/BIORHYTHM-TUTORIAL.md` - Narrative blog-style tutorial (822 lines)
+  - Real-world examples and personal discovery stories
+  - Common patterns and gotchas with DO/DON'T comparisons
+  - Manual test cases for validation scenarios
+  - Quick reference section for key patterns
+
+### Changed
+- **Biorhythm Example Architecture**
+  - Moved from random initial chart to dialog-first startup flow
+  - Window creation deferred until after successful date validation
+  - Custom event loop replaces standard `dialog.execute()` for validation needs
+  - Command set pattern used instead of direct button manipulation
+
+### Fixed
+- **Enter Key in Modal Dialogs**
+  - Dialog event loop now reprocesses converted command events
+  - KB_ENTER → CM_OK conversion properly triggers `end_modal()`
+  - Matches Borland's event re-queuing behavior
+
+### Removed
+- **Unused Downcasting Infrastructure**
+  - Removed `as_any_mut()` from View trait (not needed with command set pattern)
+  - Removed Button's `as_any_mut()` implementation
+  - Removed `std::any::Any` imports
+  - Cleaner API without unnecessary complexity
+
+### Technical Details
+
+**Real-Time Validation Architecture:**
+
+The validation system uses three coordinated layers:
+1. **RangeValidator** - Character-level filtering during typing (1-31 for day, 1-12 for month)
+2. **Complete Date Validation** - Cross-field checks (Feb 31, leap years, future dates)
+3. **Command Set Updates** - Global command enable/disable with broadcast propagation
+
+The custom event loop pattern enables validation after every event:
+```rust
+loop {
+    draw_and_flush();
+    if let Some(event) = poll_event() {
+        dialog.handle_event(&mut event);
+        if event.what == EventType::Command {
+            dialog.handle_event(&mut event);  // Reprocess converted events
+        }
+        validate_and_update_command_state();  // After every event
+        broadcast_if_changed();
+    }
+    if dialog.get_end_state() != 0 { break; }
+}
+```
+
+**Command Set Pattern vs Direct Manipulation:**
+
+Instead of fragile child index access:
+```rust
+// OLD: Direct manipulation (removed)
+dialog.child_at_mut(8).downcast_mut::<Button>().set_disabled(true);
+```
+
+Use declarative command state:
+```rust
+// NEW: Command set pattern
+command_set::disable_command(CM_OK);
+broadcast(CM_COMMAND_SET_CHANGED);
+```
+
+Benefits: Scales to multiple buttons, no fragile indices, separates validation from UI structure.
+
+**Shadow-Aware Centering:**
+
+Windows have shadows (2 cols right, 1 row bottom) that must be included in centering:
+```rust
+let x = (screen_width - (window_width + 2)) / 2;  // +2 for shadow
+let y = 1 + ((screen_height - 2) - (window_height + 1)) / 2;  // +1 for shadow, 1+ for menu
+```
+
+This ensures visual balance - ignoring shadows makes windows appear off-center.
+
+**Event Reprocessing Pattern:**
+
+When dialogs convert keyboard events to commands, the converted event must be reprocessed:
+```rust
+dialog.handle_event(&mut event);  // First pass: KB_ENTER → CM_OK
+if event.what == EventType::Command {
+    dialog.handle_event(&mut event);  // Second pass: Process CM_OK
+}
+```
+
+Without this, Enter key appears to do nothing in modal dialogs.
+
 ## [0.2.11] - 2025-11-04
 
 ### Fixed
