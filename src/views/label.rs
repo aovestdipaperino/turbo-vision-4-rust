@@ -12,9 +12,7 @@ use crate::terminal::Terminal;
 pub struct Label {
     bounds: Rect,
     text: String,
-    link: Option<usize>, // Index of linked control in parent group
-    owner: Option<*const dyn View>,
-    owner_type: super::view::OwnerType,
+    link: Option<usize>,  // Index of linked control in parent group
 }
 
 impl Label {
@@ -23,8 +21,6 @@ impl Label {
             bounds,
             text: text.to_string(),
             link: None,
-            owner: None,
-            owner_type: super::view::OwnerType::Dialog, // Labels default to Dialog context
         }
     }
 
@@ -69,77 +65,5 @@ impl View for Label {
     /// Matches Borland: TLabel::link field
     fn label_link(&self) -> Option<usize> {
         self.link
-    }
-
-    fn set_owner(&mut self, owner: *const dyn View) {
-        self.owner = Some(owner);
-    }
-
-    fn get_owner(&self) -> Option<*const dyn View> {
-        self.owner
-    }
-
-    fn get_owner_type(&self) -> super::view::OwnerType {
-        self.owner_type
-    }
-
-    fn set_owner_type(&mut self, owner_type: super::view::OwnerType) {
-        self.owner_type = owner_type;
-    }
-
-    fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        use crate::core::palette::{palettes, Palette};
-        Some(Palette::from_slice(palettes::CP_LABEL))
-    }
-}
-
-/// Builder for creating labels with a fluent API.
-pub struct LabelBuilder {
-    bounds: Option<Rect>,
-    text: Option<String>,
-    link: Option<usize>,
-}
-
-impl LabelBuilder {
-    pub fn new() -> Self {
-        Self { bounds: None, text: None, link: None }
-    }
-
-    #[must_use]
-    pub fn bounds(mut self, bounds: Rect) -> Self {
-        self.bounds = Some(bounds);
-        self
-    }
-
-    #[must_use]
-    pub fn text(mut self, text: impl Into<String>) -> Self {
-        self.text = Some(text.into());
-        self
-    }
-
-    #[must_use]
-    pub fn link(mut self, link: usize) -> Self {
-        self.link = Some(link);
-        self
-    }
-
-    pub fn build(self) -> Label {
-        let bounds = self.bounds.expect("Label bounds must be set");
-        let text = self.text.expect("Label text must be set");
-        let mut label = Label::new(bounds, &text);
-        if let Some(link) = self.link {
-            label.link = Some(link);
-        }
-        label
-    }
-
-    pub fn build_boxed(self) -> Box<Label> {
-        Box::new(self.build())
-    }
-}
-
-impl Default for LabelBuilder {
-    fn default() -> Self {
-        Self::new()
     }
 }

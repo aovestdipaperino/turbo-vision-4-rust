@@ -240,6 +240,14 @@ pub trait View {
         let bounds = self.bounds();
         (global_x - bounds.a.x, global_y - bounds.a.y)
     }
+
+    /// Get the linked control index for labels
+    /// Matches Borland: TLabel::link field
+    /// Returns Some(index) if this is a label with a linked control, None otherwise
+    /// Used by Group to implement focus transfer when clicking labels
+    fn label_link(&self) -> Option<usize> {
+        None  // Default: not a label or no link
+    }
 }
 
 /// Helper to draw a line to the terminal
