@@ -63,6 +63,8 @@ impl Window {
     }
 
     fn new_with_palette(bounds: Rect, title: &str, frame_palette: super::frame::FramePaletteType, interior_color: crate::core::palette::Attr) -> Self {
+        use crate::core::state::{OF_SELECTABLE, OF_TOP_SELECT};
+
         let frame = Frame::with_palette(bounds, title, frame_palette);
 
         // Interior bounds are ABSOLUTE (inset by 1 from window bounds for frame)
@@ -76,7 +78,7 @@ impl Window {
             interior,
             frame_children: Vec::new(),
             state: SF_SHADOW, // Windows have shadows by default
-            options: 0,
+            options: OF_SELECTABLE | OF_TOP_SELECT, // Matches Borland: TWindow constructor sets these
             drag_offset: None,
             resize_start_size: None,
             min_size: Point::new(16, 6), // Minimum size: 16 wide, 6 tall (matches Borland's minWinSize)
