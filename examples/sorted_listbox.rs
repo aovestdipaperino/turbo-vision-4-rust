@@ -20,7 +20,7 @@ const CMD_SEARCH_B: u16 = 101;
 const CMD_SEARCH_C: u16 = 102;
 const CMD_TOGGLE_CASE: u16 = 103;
 
-fn main() -> std::io::Result<()> {
+fn main() -> turbo_vision::core::error::Result<()> {
     let mut app = Application::new()?;
     let (width, height) = app.terminal.size();
 

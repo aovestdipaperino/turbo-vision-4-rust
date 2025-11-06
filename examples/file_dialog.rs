@@ -23,7 +23,7 @@ use turbo_vision::app::Application;
 use turbo_vision::core::geometry::Rect;
 use turbo_vision::views::file_dialog::FileDialog;
 
-fn main() -> std::io::Result<()> {
+fn main() -> turbo_vision::core::error::Result<()> {
     let mut app = Application::new()?;
     let (width, height) = app.terminal.size();
 

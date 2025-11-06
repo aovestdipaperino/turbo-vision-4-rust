@@ -16,7 +16,7 @@ use turbo_vision::views::view::View;
 use std::time::Duration;
 use std::env;
 
-fn main() -> std::io::Result<()> {
+fn main() -> turbo_vision::core::error::Result<()> {
     let mut app = Application::new()?;
     let terminal_size = app.terminal.size();
     let current_dir = env::current_dir()?;

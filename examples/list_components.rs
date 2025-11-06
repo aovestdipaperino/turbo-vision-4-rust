@@ -22,7 +22,7 @@ use turbo_vision::views::View;
 const CMD_SHOW_MENU: u16 = 100;
 const CMD_LIST_SELECT: u16 = 101;
 
-fn main() -> std::io::Result<()> {
+fn main() -> turbo_vision::core::error::Result<()> {
     let mut app = Application::new()?;
     let (width, height) = app.terminal.size();
 
@@ -115,7 +115,7 @@ fn main() -> std::io::Result<()> {
 
             let mut buf = DrawBuffer::new(line.len());
             for (j, ch) in line.chars().enumerate() {
-                buf.put_char(j, ch, colors::WINDOW_NORMAL);
+                buf.put_char(j, ch, colors::DIALOG_NORMAL);
             }
             write_line_to_terminal(&mut app.terminal, 40, 3 + i as i16, &buf);
         }
@@ -220,27 +220,27 @@ fn show_message(app: &mut Application, message: &str, width: i16, height: i16) {
 
     // Draw border
     let mut top = DrawBuffer::new(width as usize);
-    top.put_char(0, '┌', colors::WINDOW_NORMAL);
+    top.put_char(0, '┌', colors::DIALOG_NORMAL);
     for i in 1..width as usize - 1 {
-        top.put_char(i, '─', colors::WINDOW_NORMAL);
+        top.put_char(i, '─', colors::DIALOG_NORMAL);
     }
-    top.put_char(width as usize - 1, '┐', colors::WINDOW_NORMAL);
+    top.put_char(width as usize - 1, '┐', colors::DIALOG_NORMAL);
     write_line_to_terminal(&mut app.terminal, x, y, &top);
 
     // Draw message
     for i in 1..height - 1 {
         let mut line = DrawBuffer::new(width as usize);
-        line.put_char(0, '│', colors::WINDOW_NORMAL);
+        line.put_char(0, '│', colors::DIALOG_NORMAL);
         for j in 1..width as usize - 1 {
-            line.put_char(j, ' ', colors::WINDOW_NORMAL);
+            line.put_char(j, ' ', colors::DIALOG_NORMAL);
         }
-        line.put_char(width as usize - 1, '│', colors::WINDOW_NORMAL);
+        line.put_char(width as usize - 1, '│', colors::DIALOG_NORMAL);
 
         if i == height / 2 {
             // Center the message
             let msg_x = (width as usize - message.len()) / 2;
             for (j, ch) in message.chars().enumerate() {
-                line.put_char(msg_x + j, ch, colors::WINDOW_NORMAL);
+                line.put_char(msg_x + j, ch, colors::DIALOG_NORMAL);
             }
         }
 
@@ -249,11 +249,11 @@ fn show_message(app: &mut Application, message: &str, width: i16, height: i16) {
 
     // Draw bottom border
     let mut bottom = DrawBuffer::new(width as usize);
-    bottom.put_char(0, '└', colors::WINDOW_NORMAL);
+    bottom.put_char(0, '└', colors::DIALOG_NORMAL);
     for i in 1..width as usize - 1 {
-        bottom.put_char(i, '─', colors::WINDOW_NORMAL);
+        bottom.put_char(i, '─', colors::DIALOG_NORMAL);
     }
-    bottom.put_char(width as usize - 1, '┘', colors::WINDOW_NORMAL);
+    bottom.put_char(width as usize - 1, '┘', colors::DIALOG_NORMAL);
     write_line_to_terminal(&mut app.terminal, x, y + height - 1, &bottom);
 
     let _ = app.terminal.flush();

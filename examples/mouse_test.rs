@@ -5,7 +5,7 @@ use turbo_vision::app::Application;
 use turbo_vision::core::event::EventType;
 use std::time::Duration;
 
-fn main() -> std::io::Result<()> {
+fn main() -> turbo_vision::core::error::Result<()> {
     let mut app = Application::new()?;
 
     eprintln!("Mouse test started. Click anywhere or press Ctrl+C to exit.");

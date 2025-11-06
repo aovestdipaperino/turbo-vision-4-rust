@@ -34,7 +34,7 @@ use turbo_vision::views::View;
 const CMD_ABOUT: u16 = 100;
 const CMD_HELP: u16 = 101;
 
-fn main() -> std::io::Result<()> {
+fn main() -> turbo_vision::core::error::Result<()> {
     let mut app = Application::new()?;
     let (width, height) = app.terminal.size();
 

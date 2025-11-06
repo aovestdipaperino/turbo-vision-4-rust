@@ -34,7 +34,7 @@ const CMD_HELP: u16 = 200;
 const CMD_ABOUT: u16 = 201;
 const CMD_DOCS: u16 = 202;
 
-fn main() -> std::io::Result<()> {
+fn main() -> turbo_vision::core::error::Result<()> {
     let mut app = Application::new()?;
     let (width, height) = app.terminal.size();
 

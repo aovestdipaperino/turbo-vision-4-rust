@@ -29,7 +29,7 @@ use turbo_vision::terminal::Terminal;
 const CMD_ENABLE_EDITS: CommandId = 200;
 const CMD_DISABLE_EDITS: CommandId = 201;
 
-fn main() -> std::io::Result<()> {
+fn main() -> turbo_vision::core::error::Result<()> {
     let mut app = Application::new()?;
 
     // Initially disable clipboard and undo commands

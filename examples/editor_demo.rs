@@ -21,7 +21,7 @@ use turbo_vision::views::{
     view::View,
 };
 
-fn main() -> std::io::Result<()> {
+fn main() -> turbo_vision::core::error::Result<()> {
     let mut app = Application::new()?;
 
     // Show menu to choose demo type

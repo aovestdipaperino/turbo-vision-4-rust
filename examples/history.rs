@@ -14,7 +14,7 @@ use turbo_vision::app::Application;
 const HISTORY_ID_SEARCH: u16 = 1;
 const HISTORY_ID_FILENAME: u16 = 2;
 
-fn main() -> std::io::Result<()> {
+fn main() -> turbo_vision::core::error::Result<()> {
     // Populate some test history
     HistoryManager::add(HISTORY_ID_SEARCH, "rustlang".to_string());
     HistoryManager::add(HISTORY_ID_SEARCH, "turbo vision".to_string());

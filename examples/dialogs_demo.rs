@@ -18,7 +18,7 @@ use turbo_vision::views::msgbox::{
     input_box,
 };
 
-fn main() -> std::io::Result<()> {
+fn main() -> turbo_vision::core::error::Result<()> {
     let mut app = Application::new()?;
 
     // 1. Simple message box

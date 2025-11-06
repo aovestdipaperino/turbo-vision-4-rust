@@ -11,7 +11,7 @@ use turbo_vision::core::geometry::Rect;
 use turbo_vision::core::event::{KB_ESC, KB_ALT_X};
 use turbo_vision::core::command::CM_QUIT;
 
-fn main() -> std::io::Result<()> {
+fn main() -> turbo_vision::core::error::Result<()> {
     // Create a minimal application
     // In Borland TV, this would be: class MinimalApp : public TProgram
     let mut app = Application::new()?;

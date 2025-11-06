@@ -33,7 +33,7 @@ const CMD_POPUP_NEW: u16 = 220;
 const CMD_POPUP_OPEN: u16 = 221;
 const CMD_POPUP_PROPERTIES: u16 = 222;
 
-fn main() -> std::io::Result<()> {
+fn main() -> turbo_vision::core::error::Result<()> {
     let mut app = Application::new()?;
     let (width, height) = app.terminal.size();
 

@@ -21,7 +21,7 @@ use turbo_vision::views::{
 use std::rc::Rc;
 use std::cell::RefCell;
 
-fn main() -> std::io::Result<()> {
+fn main() -> turbo_vision::core::error::Result<()> {
     let mut app = Application::new()?;
 
     // Show all validators in a single comprehensive dialog

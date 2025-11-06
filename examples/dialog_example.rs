@@ -7,7 +7,7 @@ use turbo_vision::views::{
     static_text::StaticText,
 };
 
-fn main() -> std::io::Result<()> {
+fn main() -> turbo_vision::core::error::Result<()> {
     let mut app = Application::new()?;
 
     // Create a dialog with OK and Cancel buttons
