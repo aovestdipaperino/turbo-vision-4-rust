@@ -26,6 +26,10 @@ pub struct HelpWindow {
     window: Window,
     viewer: HelpViewer,
     help_file: Rc<RefCell<HelpFile>>,
+    /// Topic history for back/forward navigation
+    history: Vec<String>,
+    /// Current position in history
+    history_pos: usize,
 }
 
 impl HelpWindow {
@@ -41,10 +45,13 @@ impl HelpWindow {
             window,
             viewer,
             help_file,
+            history: Vec::new(),
+            history_pos: 0,
         }
     }
 
     /// Show a topic by ID
+    /// Does not add to history (use switchToTopic for navigation with history)
     pub fn show_topic(&mut self, topic_id: &str) -> bool {
         let help = self.help_file.borrow();
         if let Some(topic) = help.get_topic(topic_id) {
@@ -81,6 +88,89 @@ impl HelpWindow {
     /// Get reference to the help file
     pub fn help_file(&self) -> &Rc<RefCell<HelpFile>> {
         &self.help_file
+    }
+
+    /// Switch to a topic (with history tracking)
+    /// Matches Borland: THelpViewer::switchToTopic()
+    /// This is the method to use for hyperlink navigation
+    pub fn switch_to_topic(&mut self, topic_id: &str) -> bool {
+        // Only proceed if topic exists
+        let help = self.help_file.borrow();
+        if help.get_topic(topic_id).is_none() {
+            return false;
+        }
+        drop(help);
+
+        // If we're not at the end of history, truncate future history
+        if self.history_pos < self.history.len() {
+            self.history.truncate(self.history_pos);
+        }
+
+        // Add current topic to history before switching
+        if let Some(current) = self.viewer.current_topic() {
+            self.history.push(current.to_string());
+        }
+
+        // Show the new topic
+        let success = self.show_topic(topic_id);
+        if success {
+            self.history_pos = self.history.len();
+        }
+        success
+    }
+
+    /// Navigate back in history
+    /// Returns true if navigation occurred
+    pub fn go_back(&mut self) -> bool {
+        if self.history_pos > 0 {
+            self.history_pos -= 1;
+            let topic_id = self.history[self.history_pos].clone();
+            self.show_topic(&topic_id);
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Navigate forward in history
+    /// Returns true if navigation occurred
+    pub fn go_forward(&mut self) -> bool {
+        if self.history_pos < self.history.len() {
+            let topic_id = self.history[self.history_pos].clone();
+            self.history_pos += 1;
+            self.show_topic(&topic_id);
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Check if we can go back
+    pub fn can_go_back(&self) -> bool {
+        self.history_pos > 0
+    }
+
+    /// Check if we can go forward
+    pub fn can_go_forward(&self) -> bool {
+        self.history_pos < self.history.len()
+    }
+
+    /// Create and show a topic selection dialog
+    /// Matches Borland: THelpViewer::makeSelectTopic()
+    /// Returns the selected topic ID, or None if cancelled
+    pub fn make_select_topic(&self) -> Option<String> {
+        // Get all available topics from help file
+        let help = self.help_file.borrow();
+        let topics = help.get_topic_ids();
+
+        if topics.is_empty() {
+            return None;
+        }
+
+        // For now, return the first topic as a placeholder
+        // TODO: Show a proper selection dialog (ListBox in a Dialog)
+        // This would require access to Application to show modal dialog
+        Some(topics[0].clone())
     }
 
     /// Execute the help window modally
