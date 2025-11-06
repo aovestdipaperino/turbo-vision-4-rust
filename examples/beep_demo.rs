@@ -2,29 +2,29 @@
 // Terminal Beep Demo - demonstrates audio feedback
 
 use turbo_vision::app::Application;
-use turbo_vision::core::command::CM_OK;
+use turbo_vision::views::dialog::Dialog;
+use turbo_vision::views::button::Button;
+use turbo_vision::views::static_text::StaticText;
+use turbo_vision::core::command::{CM_OK, CM_CANCEL};
 use turbo_vision::core::geometry::Rect;
-use turbo_vision::views::button::ButtonBuilder;
-use turbo_vision::views::dialog::DialogBuilder;
-use turbo_vision::views::static_text::StaticTextBuilder;
 
-// Custom command IDs for this example
 const CM_BEEP: u16 = 100;
 
 fn main() -> turbo_vision::core::error::Result<()> {
     let mut app = Application::new()?;
 
-    let mut dialog = DialogBuilder::new().bounds(Rect::new(20, 8, 60, 16)).title("Beep Demo").build();
+    let mut dialog = Dialog::new(
+        Rect::new(20, 8, 60, 16),
+        "Beep Demo"
+    );
 
-    dialog.add(Box::new(
-        StaticTextBuilder::new()
-            .bounds(Rect::new(2, 2, 36, 4))
-            .text("Click the Beep button to hear\nthe terminal bell sound")
-            .build(),
-    ));
+    dialog.add(Box::new(StaticText::new(
+        Rect::new(2, 2, 36, 4),
+        "Click the Beep button to hear\nthe terminal bell sound"
+    )));
 
-    dialog.add(Box::new(ButtonBuilder::new().bounds(Rect::new(8, 5, 18, 7)).title("Beep!").command(CM_BEEP).default(false).build()));
-    dialog.add(Box::new(ButtonBuilder::new().bounds(Rect::new(20, 5, 30, 7)).title("Close").command(CM_OK).default(true).build()));
+    dialog.add(Box::new(Button::new(Rect::new(8, 5, 18, 7), "Beep!", CM_BEEP, false)));
+    dialog.add(Box::new(Button::new(Rect::new(20, 5, 30, 7), "Close", CM_OK, true)));
 
     loop {
         let result = dialog.execute(&mut app);
