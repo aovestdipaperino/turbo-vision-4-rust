@@ -13,7 +13,7 @@ use turbo_vision::views::{
     View,
     validator::RangeValidator,
 };
-use turbo_vision::core::command::{CM_QUIT, CM_OK, CM_CANCEL, CM_CLOSE};
+use turbo_vision::core::command::{CM_QUIT, CM_OK, CM_CANCEL, CM_CLOSE, CommandId};
 use turbo_vision::core::event::{Event, EventType, KB_F1, KB_F10};
 use turbo_vision::core::geometry::Rect;
 use turbo_vision::core::menu_data::{Menu, MenuItem};
@@ -302,65 +302,6 @@ impl View for BiorhythmChart {
     fn update_cursor(&self, _terminal: &mut Terminal) {}
 }
 
-fn create_biorhythm_dialog(prev_day: &str, prev_month: &str, prev_year: &str, _screen_width: u16, _screen_height: u16) -> (Dialog, Rc<RefCell<String>>, Rc<RefCell<String>>, Rc<RefCell<String>>) {
-    // Dialog dimensions: 50 wide, 12 tall
-    let dialog_width = 50i16;
-    let dialog_height = 12i16;
-
-    // Create dialog with dummy position - OF_CENTERED will auto-center it
-    let mut dialog = Dialog::new(
-        Rect::new(0, 0, dialog_width, dialog_height),
-        "Enter Birth Date"
-    );
-
-    // Enable automatic centering (matches Borland's ofCentered option)
-    dialog.set_options(OF_CENTERED);
-
-    // Get today's date for display
-    let (today_year, today_month, today_day) = get_current_date();
-
-    dialog.add(Box::new(StaticText::new(
-        Rect::new(2, 2, 46, 4),
-        &format!("Enter your birth date (Today: {}/{}/{})", today_day, today_month, today_year),
-    )));
-
-    // Labels
-    dialog.add(Box::new(StaticText::new(Rect::new(2, 4, 12, 5), "Day:")));
-    dialog.add(Box::new(StaticText::new(Rect::new(2, 5, 12, 6), "Month:")));
-    dialog.add(Box::new(StaticText::new(Rect::new(2, 6, 12, 7), "Year:")));
-
-    // Create shared data for input fields with initial values
-    let day_data = Rc::new(RefCell::new(prev_day.to_string()));
-    let month_data = Rc::new(RefCell::new(prev_month.to_string()));
-    let year_data = Rc::new(RefCell::new(prev_year.to_string()));
-
-    // Input fields with validators
-    // Day: 1-31
-    let day_validator = Rc::new(RefCell::new(RangeValidator::new(1, 31)));
-    let mut day_input = InputLine::new(Rect::new(12, 4, 18, 5), 2, Rc::clone(&day_data));
-    day_input.set_validator(day_validator);
-    dialog.add(Box::new(day_input));
-
-    // Month: 1-12
-    let month_validator = Rc::new(RefCell::new(RangeValidator::new(1, 12)));
-    let mut month_input = InputLine::new(Rect::new(12, 5, 18, 6), 2, Rc::clone(&month_data));
-    month_input.set_validator(month_validator);
-    dialog.add(Box::new(month_input));
-
-    // Year: 1900-2100
-    let year_validator = Rc::new(RefCell::new(RangeValidator::new(1900, 2100)));
-    let mut year_input = InputLine::new(Rect::new(12, 6, 20, 7), 4, Rc::clone(&year_data));
-    year_input.set_validator(year_validator);
-    dialog.add(Box::new(year_input));
-
-    // Buttons (child indices 8 and 9)
-    dialog.add(Box::new(Button::new(Rect::new(15, 8, 25, 10), "  OK  ", CM_OK, true)));
-    dialog.add(Box::new(Button::new(Rect::new(27, 8, 37, 10), "Cancel", CM_CANCEL, false)));
-
-    dialog.set_initial_focus();
-    (dialog, day_data, month_data, year_data)
-}
-
 /// Validate the complete birth date
 fn validate_birth_date(day_str: &str, month_str: &str, year_str: &str) -> bool {
     // Check for empty fields
@@ -390,6 +331,161 @@ fn validate_birth_date(day_str: &str, month_str: &str, year_str: &str) -> bool {
 
     // Check if date is not in the future
     calculate_days_alive(year, month, day).is_some()
+}
+
+/// Custom dialog that validates birthdate fields using the View::valid() method
+/// Demonstrates Borland TV's validation pattern where Dialog::valid() checks
+/// all input fields before allowing the dialog to close
+struct BirthdateDialog {
+    dialog: Dialog,
+    day_data: Rc<RefCell<String>>,
+    month_data: Rc<RefCell<String>>,
+    year_data: Rc<RefCell<String>>,
+}
+
+impl BirthdateDialog {
+    fn new(prev_day: &str, prev_month: &str, prev_year: &str) -> Self {
+        // Dialog dimensions: 50 wide, 12 tall
+        let dialog_width = 50i16;
+        let dialog_height = 12i16;
+
+        // Create dialog with dummy position - OF_CENTERED will auto-center it
+        let mut dialog = Dialog::new(
+            Rect::new(0, 0, dialog_width, dialog_height),
+            "Enter Birth Date"
+        );
+
+        // Enable automatic centering (matches Borland's ofCentered option)
+        dialog.set_options(OF_CENTERED);
+
+        // Get today's date for display
+        let (today_year, today_month, today_day) = get_current_date();
+
+        dialog.add(Box::new(StaticText::new(
+            Rect::new(2, 2, 46, 4),
+            &format!("Enter your birth date (Today: {}/{}/{})", today_day, today_month, today_year),
+        )));
+
+        // Labels
+        dialog.add(Box::new(StaticText::new(Rect::new(2, 4, 12, 5), "Day:")));
+        dialog.add(Box::new(StaticText::new(Rect::new(2, 5, 12, 6), "Month:")));
+        dialog.add(Box::new(StaticText::new(Rect::new(2, 6, 12, 7), "Year:")));
+
+        // Create shared data for input fields with initial values
+        let day_data = Rc::new(RefCell::new(prev_day.to_string()));
+        let month_data = Rc::new(RefCell::new(prev_month.to_string()));
+        let year_data = Rc::new(RefCell::new(prev_year.to_string()));
+
+        // Input fields with validators and OF_VALIDATE flag
+        // Day: 1-31
+        let day_validator = Rc::new(RefCell::new(RangeValidator::new(1, 31)));
+        let mut day_input = InputLine::new(Rect::new(12, 4, 18, 5), 2, Rc::clone(&day_data));
+        day_input.set_validator(day_validator);
+        day_input.set_options(OF_VALIDATE);  // Mark for validation on focus release
+        dialog.add(Box::new(day_input));
+
+        // Month: 1-12
+        let month_validator = Rc::new(RefCell::new(RangeValidator::new(1, 12)));
+        let mut month_input = InputLine::new(Rect::new(12, 5, 18, 6), 2, Rc::clone(&month_data));
+        month_input.set_validator(month_validator);
+        month_input.set_options(OF_VALIDATE);  // Mark for validation on focus release
+        dialog.add(Box::new(month_input));
+
+        // Year: 1900-2100
+        let year_validator = Rc::new(RefCell::new(RangeValidator::new(1900, 2100)));
+        let mut year_input = InputLine::new(Rect::new(12, 6, 20, 7), 4, Rc::clone(&year_data));
+        year_input.set_validator(year_validator);
+        year_input.set_options(OF_VALIDATE);  // Mark for validation on focus release
+        dialog.add(Box::new(year_input));
+
+        // Buttons
+        dialog.add(Box::new(Button::new(Rect::new(15, 8, 25, 10), "  OK  ", CM_OK, true)));
+        dialog.add(Box::new(Button::new(Rect::new(27, 8, 37, 10), "Cancel", CM_CANCEL, false)));
+
+        dialog.set_initial_focus();
+
+        Self {
+            dialog,
+            day_data,
+            month_data,
+            year_data,
+        }
+    }
+
+    fn get_values(&self) -> (String, String, String) {
+        (
+            self.day_data.borrow().clone(),
+            self.month_data.borrow().clone(),
+            self.year_data.borrow().clone(),
+        )
+    }
+
+    fn execute(&mut self, app: &mut Application) -> CommandId {
+        self.dialog.execute(app)
+    }
+}
+
+impl View for BirthdateDialog {
+    fn bounds(&self) -> Rect {
+        self.dialog.bounds()
+    }
+
+    fn set_bounds(&mut self, bounds: Rect) {
+        self.dialog.set_bounds(bounds);
+    }
+
+    fn draw(&mut self, terminal: &mut Terminal) {
+        self.dialog.draw(terminal);
+    }
+
+    fn update_cursor(&self, terminal: &mut Terminal) {
+        self.dialog.update_cursor(terminal);
+    }
+
+    fn handle_event(&mut self, event: &mut Event) {
+        self.dialog.handle_event(event);
+    }
+
+    fn state(&self) -> StateFlags {
+        self.dialog.state()
+    }
+
+    fn set_state(&mut self, state: StateFlags) {
+        self.dialog.set_state(state);
+    }
+
+    fn options(&self) -> u16 {
+        self.dialog.options()
+    }
+
+    fn set_options(&mut self, options: u16) {
+        self.dialog.set_options(options);
+    }
+
+    fn get_end_state(&self) -> CommandId {
+        self.dialog.get_end_state()
+    }
+
+    fn set_end_state(&mut self, command: CommandId) {
+        self.dialog.set_end_state(command);
+    }
+
+    /// Validate the complete birthdate before allowing dialog to close
+    /// Matches Borland: TDialog::valid() - validates all input fields
+    /// This is called automatically by Dialog::handle_event() when closing
+    fn valid(&mut self, command: CommandId) -> bool {
+        // Always allow cancel
+        if command == CM_CANCEL {
+            return true;
+        }
+
+        // For other commands (like CM_OK), validate the complete birthdate
+        validate_birth_date(
+            &self.day_data.borrow(),
+            &self.month_data.borrow(),
+            &self.year_data.borrow(),
+        )
+    }
 }
 
 fn create_about_dialog() -> Dialog {
@@ -462,105 +558,9 @@ fn main() -> turbo_vision::core::error::Result<()> {
     let window_x = (available_width - (window_width + 2)) / 2;
     let window_y = 1 + margin_vertical;  // 1 for menu bar + vertical margin
 
-    // Show birthdate dialog at startup
-    // Custom event loop with validation
-    use turbo_vision::core::command_set;
-    use turbo_vision::core::command::CM_COMMAND_SET_CHANGED;
-    use std::time::Duration;
-
-    let (mut dialog, day_data, month_data, year_data) = create_biorhythm_dialog(&prev_day, &prev_month, &prev_year, width, height);
-
-    // Set modal flag
-    let old_state = dialog.state();
-    dialog.set_state(old_state | SF_MODAL);
-
-    // Initial validation and command state
-    let is_valid = validate_birth_date(
-        &day_data.borrow(),
-        &month_data.borrow(),
-        &year_data.borrow()
-    );
-
-    // Enable/disable CM_OK command based on validation
-    if is_valid {
-        command_set::enable_command(CM_OK);
-    } else {
-        command_set::disable_command(CM_OK);
-    }
-
-    // Broadcast the change to update button state
-    let mut broadcast_event = Event::broadcast(CM_COMMAND_SET_CHANGED);
-    dialog.handle_event(&mut broadcast_event);
-    command_set::clear_command_set_changed();
-
-    // Add dialog to desktop - this will center it automatically via OF_CENTERED
-    app.desktop.add(Box::new(dialog));
-    let dialog_index = app.desktop.child_count() - 1;
-
-    let result;
-
-    loop {
-        // Draw desktop (which includes the dialog as a child)
-        app.desktop.draw(&mut app.terminal);
-        // Get cursor position from the dialog through desktop
-        if let Some(dialog_view) = app.desktop.window_at_mut(dialog_index) {
-            dialog_view.update_cursor(&mut app.terminal);
-        }
-        let _ = app.terminal.flush();
-
-        // Poll for event
-        if let Some(mut event) = app.terminal.poll_event(Duration::from_millis(50)).ok().flatten() {
-            // Handle the event through the desktop child
-            if let Some(dialog_view) = app.desktop.window_at_mut(dialog_index) {
-                dialog_view.handle_event(&mut event);
-
-                // If event was converted to command, process it again
-                if event.what == EventType::Command {
-                    dialog_view.handle_event(&mut event);
-                }
-            }
-
-            // After every event, revalidate and update command state
-            let is_valid = validate_birth_date(
-                &day_data.borrow(),
-                &month_data.borrow(),
-                &year_data.borrow()
-            );
-
-            // Enable/disable CM_OK command and broadcast change
-            if is_valid {
-                command_set::enable_command(CM_OK);
-            } else {
-                command_set::disable_command(CM_OK);
-            }
-
-            // Broadcast to update button state if command set changed
-            if command_set::command_set_changed() {
-                let mut broadcast_event = Event::broadcast(CM_COMMAND_SET_CHANGED);
-                if let Some(dialog_view) = app.desktop.window_at_mut(dialog_index) {
-                    dialog_view.handle_event(&mut broadcast_event);
-                }
-                command_set::clear_command_set_changed();
-            }
-        }
-
-        // Check if dialog should close
-        let end_state = if let Some(dialog_view) = app.desktop.window_at_mut(dialog_index) {
-            dialog_view.get_end_state()
-        } else {
-            0
-        };
-        if end_state != 0 {
-            result = end_state;
-            break;
-        }
-    }
-
-    // Remove dialog from desktop
-    app.desktop.remove_child(dialog_index);
-
-    // Re-enable CM_OK command
-    command_set::enable_command(CM_OK);
+    // Show birthdate dialog at startup using the new validation pattern
+    let mut dialog = BirthdateDialog::new(&prev_day, &prev_month, &prev_year);
+    let result = dialog.execute(&mut app);
 
     // If user canceled, quit the app
     if result == CM_CANCEL {
@@ -569,9 +569,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
 
     // User clicked OK - parse and set the birthdate
     if result == CM_OK {
-        let day_str = day_data.borrow().clone();
-        let month_str = month_data.borrow().clone();
-        let year_str = year_data.borrow().clone();
+        let (day_str, month_str, year_str) = dialog.get_values();
 
         if let (Ok(day), Ok(month), Ok(year)) = (
             day_str.parse::<u32>(),
@@ -639,106 +637,12 @@ fn main() -> turbo_vision::core::error::Result<()> {
             if event.what == EventType::Command {
                 match event.command {
                     CM_BIORHYTHM => {
-                        let (mut dialog, day_data, month_data, year_data) = create_biorhythm_dialog(&prev_day, &prev_month, &prev_year, width, height);
-
-                        // Custom event loop with validation
-                        // Set modal flag
-                        let old_state = dialog.state();
-                        dialog.set_state(old_state | SF_MODAL);
-
-                        // Initial validation and command state
-                        let is_valid = validate_birth_date(
-                            &day_data.borrow(),
-                            &month_data.borrow(),
-                            &year_data.borrow()
-                        );
-
-                        // Enable/disable CM_OK command based on validation
-                        if is_valid {
-                            command_set::enable_command(CM_OK);
-                        } else {
-                            command_set::disable_command(CM_OK);
-                        }
-
-                        // Broadcast the change to update button state
-                        let mut broadcast_event = Event::broadcast(CM_COMMAND_SET_CHANGED);
-                        dialog.handle_event(&mut broadcast_event);
-                        command_set::clear_command_set_changed();
-
-                        // Add dialog to desktop - this will center it automatically via OF_CENTERED
-                        app.desktop.add(Box::new(dialog));
-                        let dialog_index = app.desktop.child_count() - 1;
-
-                        let result;
-
-                        loop {
-                            // Draw desktop (which includes the dialog as a child)
-                            app.desktop.draw(&mut app.terminal);
-                            // Get cursor position from the dialog through desktop
-                            if let Some(dialog_view) = app.desktop.window_at_mut(dialog_index) {
-                                dialog_view.update_cursor(&mut app.terminal);
-                            }
-                            let _ = app.terminal.flush();
-
-                            // Poll for event
-                            if let Some(mut event) = app.terminal.poll_event(Duration::from_millis(50)).ok().flatten() {
-                                // Handle the event through the desktop child
-                                if let Some(dialog_view) = app.desktop.window_at_mut(dialog_index) {
-                                    dialog_view.handle_event(&mut event);
-
-                                    // If event was converted to command, process it again
-                                    if event.what == EventType::Command {
-                                        dialog_view.handle_event(&mut event);
-                                    }
-                                }
-
-                                // After every event, revalidate and update command state
-                                let is_valid = validate_birth_date(
-                                    &day_data.borrow(),
-                                    &month_data.borrow(),
-                                    &year_data.borrow()
-                                );
-
-                                // Enable/disable CM_OK command and broadcast change
-                                if is_valid {
-                                    command_set::enable_command(CM_OK);
-                                } else {
-                                    command_set::disable_command(CM_OK);
-                                }
-
-                                // Broadcast to update button state if command set changed
-                                if command_set::command_set_changed() {
-                                    let mut broadcast_event = Event::broadcast(CM_COMMAND_SET_CHANGED);
-                                    if let Some(dialog_view) = app.desktop.window_at_mut(dialog_index) {
-                                        dialog_view.handle_event(&mut broadcast_event);
-                                    }
-                                    command_set::clear_command_set_changed();
-                                }
-                            }
-
-                            // Check if dialog should close
-                            let end_state = if let Some(dialog_view) = app.desktop.window_at_mut(dialog_index) {
-                                dialog_view.get_end_state()
-                            } else {
-                                0
-                            };
-                            if end_state != 0 {
-                                result = end_state;
-                                break;
-                            }
-                        }
-
-                        // Remove dialog from desktop
-                        app.desktop.remove_child(dialog_index);
-
-                        // Re-enable CM_OK command
-                        command_set::enable_command(CM_OK);
+                        // Show birthdate dialog using the new validation pattern
+                        let mut dialog = BirthdateDialog::new(&prev_day, &prev_month, &prev_year);
+                        let result = dialog.execute(&mut app);
 
                         if result == CM_OK {
-                            // Parse the input fields
-                            let day_str = day_data.borrow().clone();
-                            let month_str = month_data.borrow().clone();
-                            let year_str = year_data.borrow().clone();
+                            let (day_str, month_str, year_str) = dialog.get_values();
 
                             if let (Ok(day), Ok(month), Ok(year)) = (
                                 day_str.parse::<u32>(),
