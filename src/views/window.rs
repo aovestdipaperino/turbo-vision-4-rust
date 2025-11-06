@@ -4,7 +4,7 @@
 
 use crate::core::geometry::{Rect, Point};
 use crate::core::event::{Event, EventType};
-use crate::core::command::{CM_CLOSE, CM_CANCEL};
+use crate::core::command::{CM_CLOSE, CM_CANCEL, CM_ZOOM};
 use crate::core::state::{StateFlags, SF_SHADOW, SF_DRAGGING, SF_RESIZING, SF_MODAL, SHADOW_ATTR};
 use crate::core::palette::colors;
 use crate::terminal::Terminal;
@@ -24,6 +24,8 @@ pub struct Window {
     resize_start_size: Option<Point>,
     /// Minimum window size (matches Borland's minWinSize)
     min_size: Point,
+    /// Saved bounds for zoom/restore (matches Borland's zoomRect)
+    zoom_rect: Rect,
     /// Previous bounds (for calculating union rect for redrawing)
     /// Matches Borland: TView::locate() calculates union of old and new bounds
     prev_bounds: Option<Rect>,
@@ -62,6 +64,7 @@ impl Window {
             drag_offset: None,
             resize_start_size: None,
             min_size: Point::new(16, 6), // Minimum size: 16 wide, 6 tall (matches Borland's minWinSize)
+            zoom_rect: bounds, // Initialize to current bounds
             prev_bounds: None,
         }
     }
@@ -88,6 +91,43 @@ impl Window {
         // For now, return a large max (similar to Borland's INT_MAX approach)
         let max = Point::new(999, 999);
         (self.min_size, max)
+    }
+
+    /// Set the maximum size for zoom operations
+    /// Typically set to desktop size when added to desktop
+    pub fn set_max_size(&mut self, max_size: Point) {
+        // Store max size as zoom_rect if we want to zoom to it
+        // For now, we'll calculate it dynamically in zoom()
+    }
+
+    /// Zoom (maximize) or restore window
+    /// Matches Borland: TWindow::zoom()
+    /// Toggles between current size and maximum size
+    pub fn zoom(&mut self, max_bounds: Rect) {
+        let (_min, max_size) = self.size_limits();
+        let current_size = Point::new(self.bounds.width() as i16, self.bounds.height() as i16);
+
+        // If not at max size, zoom to max
+        if current_size.x != max_bounds.width() as i16 || current_size.y != max_bounds.height() as i16 {
+            // Save current bounds for restore
+            self.zoom_rect = self.bounds;
+
+            // Save previous bounds for redraw union
+            self.prev_bounds = Some(self.bounds);
+
+            // Zoom to max size (typically desktop bounds)
+            self.bounds = max_bounds;
+        } else {
+            // Restore to saved bounds
+            self.prev_bounds = Some(self.bounds);
+            self.bounds = self.zoom_rect;
+        }
+
+        // Update frame and interior
+        self.frame.set_bounds(self.bounds);
+        let mut interior_bounds = self.bounds;
+        interior_bounds.grow(-1, -1);
+        self.interior.set_bounds(interior_bounds);
     }
 
     /// Set focus to a specific child by index

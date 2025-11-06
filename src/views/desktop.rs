@@ -153,6 +153,12 @@ impl Desktop {
 }
 
 impl Desktop {
+    /// Get desktop bounds for window operations
+    /// Used by windows to determine maximum zoom size
+    pub fn get_bounds(&self) -> Rect {
+        self.bounds
+    }
+
     /// Cycle to the next window (Borland: selectNext)
     /// Moves the current top window to the back, bringing the next window forward
     /// Matches Borland: cmNext command calls selectNext(False)
