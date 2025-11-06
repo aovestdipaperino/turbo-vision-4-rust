@@ -453,12 +453,25 @@ impl View for Group {
                 }
             }
 
-            // If a focusable child was clicked, give it focus
+            // If a child was clicked, handle focus and events
             if let Some(i) = clicked_child_index {
-                if event.what == EventType::MouseDown && self.children[i].can_focus() {
-                    self.clear_all_focus();
-                    self.focused = i;
-                    self.children[i].set_focus(true);
+                if event.what == EventType::MouseDown {
+                    // Check if this is a label with a link (Borland: TLabel::focusLink)
+                    // If so, focus the linked control instead of the label
+                    if let Some(link_index) = self.children[i].label_link() {
+                        if link_index < self.children.len() && self.children[link_index].can_focus() {
+                            self.clear_all_focus();
+                            self.focused = link_index;
+                            self.children[link_index].set_focus(true);
+                            event.clear();  // Event consumed by focus transfer
+                            return;
+                        }
+                    } else if self.children[i].can_focus() {
+                        // Regular focusable view - give it focus
+                        self.clear_all_focus();
+                        self.focused = i;
+                        self.children[i].set_focus(true);
+                    }
                 }
 
                 // Second pass: handle the event
