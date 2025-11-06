@@ -104,6 +104,13 @@ pub trait View {
         // Default: do nothing (cursor stays hidden)
     }
 
+    /// Zoom (maximize/restore) the view with given maximum bounds
+    /// Matches Borland: TWindow::zoom() toggles between current and max size
+    /// Default implementation does nothing (only windows support zoom)
+    fn zoom(&mut self, _max_bounds: Rect) {
+        // Default: do nothing (only Window implements zoom)
+    }
+
     /// Dump this view's region of the terminal buffer to an ANSI file for debugging
     fn dump_to_file(&self, terminal: &Terminal, path: &str) -> io::Result<()> {
         let bounds = self.shadow_bounds();

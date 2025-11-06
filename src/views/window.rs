@@ -4,7 +4,7 @@
 
 use crate::core::geometry::{Rect, Point};
 use crate::core::event::{Event, EventType};
-use crate::core::command::{CM_CLOSE, CM_CANCEL, CM_ZOOM};
+use crate::core::command::{CM_CLOSE, CM_CANCEL};
 use crate::core::state::{StateFlags, SF_SHADOW, SF_DRAGGING, SF_RESIZING, SF_MODAL, SHADOW_ATTR};
 use crate::core::palette::colors;
 use crate::terminal::Terminal;
@@ -102,39 +102,9 @@ impl Window {
 
     /// Set the maximum size for zoom operations
     /// Typically set to desktop size when added to desktop
-    pub fn set_max_size(&mut self, max_size: Point) {
+    pub fn set_max_size(&mut self, _max_size: Point) {
         // Store max size as zoom_rect if we want to zoom to it
         // For now, we'll calculate it dynamically in zoom()
-    }
-
-    /// Zoom (maximize) or restore window
-    /// Matches Borland: TWindow::zoom()
-    /// Toggles between current size and maximum size
-    pub fn zoom(&mut self, max_bounds: Rect) {
-        let (_min, max_size) = self.size_limits();
-        let current_size = Point::new(self.bounds.width() as i16, self.bounds.height() as i16);
-
-        // If not at max size, zoom to max
-        if current_size.x != max_bounds.width() as i16 || current_size.y != max_bounds.height() as i16 {
-            // Save current bounds for restore
-            self.zoom_rect = self.bounds;
-
-            // Save previous bounds for redraw union
-            self.prev_bounds = Some(self.bounds);
-
-            // Zoom to max size (typically desktop bounds)
-            self.bounds = max_bounds;
-        } else {
-            // Restore to saved bounds
-            self.prev_bounds = Some(self.bounds);
-            self.bounds = self.zoom_rect;
-        }
-
-        // Update frame and interior
-        self.frame.set_bounds(self.bounds);
-        let mut interior_bounds = self.bounds;
-        interior_bounds.grow(-1, -1);
-        self.interior.set_bounds(interior_bounds);
     }
 
     /// Set focus to a specific child by index
@@ -423,6 +393,36 @@ impl View for Window {
 
     fn set_end_state(&mut self, command: crate::core::command::CommandId) {
         self.interior.set_end_state(command);
+    }
+
+    /// Zoom (maximize) or restore window
+    /// Matches Borland: TWindow::zoom() toggles between current size and maximum size
+    /// In Borland, this is called by owner in response to cmZoom command
+    fn zoom(&mut self, max_bounds: Rect) {
+        let (_min, _max_size) = self.size_limits();
+        let current_size = Point::new(self.bounds.width(), self.bounds.height());
+
+        // If not at max size, zoom to max
+        if current_size.x != max_bounds.width() || current_size.y != max_bounds.height() {
+            // Save current bounds for restore
+            self.zoom_rect = self.bounds;
+
+            // Save previous bounds for redraw union
+            self.prev_bounds = Some(self.bounds);
+
+            // Zoom to max size (typically desktop bounds)
+            self.bounds = max_bounds;
+        } else {
+            // Restore to saved bounds
+            self.prev_bounds = Some(self.bounds);
+            self.bounds = self.zoom_rect;
+        }
+
+        // Update frame and interior
+        self.frame.set_bounds(self.bounds);
+        let mut interior_bounds = self.bounds;
+        interior_bounds.grow(-1, -1);
+        self.interior.set_bounds(interior_bounds);
     }
 }
 
