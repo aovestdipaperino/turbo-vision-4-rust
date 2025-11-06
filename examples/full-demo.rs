@@ -10,6 +10,7 @@ use turbo_vision::views::{
     static_text::StaticText,
     menu_bar::{MenuBar, SubMenu},
     status_line::{StatusLine, StatusItem},
+    file_dialog::FileDialog,
     View,
 };
 use turbo_vision::core::command::{CM_QUIT, CM_OK, CM_CLOSE, CM_NEXT, CM_PREV, CM_ZOOM, CM_TILE, CM_CASCADE};
@@ -236,6 +237,61 @@ fn show_puzzle_placeholder(app: &mut Application) {
     dialog.execute(app);
 }
 
+fn show_open_file_dialog(app: &mut Application) {
+    let (width, height) = app.terminal.size();
+
+    // Create centered file dialog
+    let dialog_width = 60i16;
+    let dialog_height = 18i16;
+    let dialog_x = (width as i16 - dialog_width) / 2;
+    let dialog_y = (height as i16 - dialog_height - 2) / 2;
+
+    let mut file_dialog = FileDialog::new(
+        Rect::new(dialog_x, dialog_y, dialog_x + dialog_width, dialog_y + dialog_height),
+        "Open File",
+        "*.*",
+        None,
+    );
+
+    if let Some(path) = file_dialog.execute(app) {
+        // Show selected file in a message (in a real app, would open the file)
+        let msg = format!("Selected: {}", path.display());
+        use turbo_vision::helpers::msgbox::{message_box, MF_INFORMATION, MF_OK_BUTTON};
+        message_box(app, &msg, MF_INFORMATION | MF_OK_BUTTON);
+    }
+}
+
+fn show_chdir_dialog(app: &mut Application) {
+    let (width, height) = app.terminal.size();
+
+    // Create centered file dialog for directory selection
+    let dialog_width = 60i16;
+    let dialog_height = 18i16;
+    let dialog_x = (width as i16 - dialog_width) / 2;
+    let dialog_y = (height as i16 - dialog_height - 2) / 2;
+
+    let mut file_dialog = FileDialog::new(
+        Rect::new(dialog_x, dialog_y, dialog_x + dialog_width, dialog_y + dialog_height),
+        "Change Directory",
+        "*",  // Show all files/directories
+        None,
+    );
+
+    if let Some(path) = file_dialog.execute(app) {
+        // Get the directory of the selected file
+        let dir = if path.is_dir() {
+            path
+        } else {
+            path.parent().map(|p| p.to_path_buf()).unwrap_or_else(|| path.clone())
+        };
+
+        // Show selected directory (in a real app, would change current directory)
+        let msg = format!("Directory: {}", dir.display());
+        use turbo_vision::helpers::msgbox::{message_box, MF_INFORMATION, MF_OK_BUTTON};
+        message_box(app, &msg, MF_INFORMATION | MF_OK_BUTTON);
+    }
+}
+
 fn main() -> turbo_vision::core::error::Result<()> {
     let mut app = Application::new()?;
     let (width, height) = app.terminal.size();
@@ -289,6 +345,8 @@ fn main() -> turbo_vision::core::error::Result<()> {
                     CM_CALCULATOR => show_calculator_placeholder(&mut app),
                     CM_CALENDAR => show_calendar_placeholder(&mut app),
                     CM_PUZZLE => show_puzzle_placeholder(&mut app),
+                    CM_OPEN => show_open_file_dialog(&mut app),
+                    CM_CHDIR => show_chdir_dialog(&mut app),
                     CM_NEXT => {
                         // Cycle to next window (bring next window to front)
                         app.desktop.select_next();
