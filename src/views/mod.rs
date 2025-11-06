@@ -102,6 +102,8 @@ pub mod terminal_widget;
 pub mod chdir_dialog;
 pub mod help_index;
 pub mod help_toc;
+pub mod color_selector;
+pub mod color_dialog;
 
 #[doc(inline)]
 pub use view::View;

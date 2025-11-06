@@ -9,7 +9,7 @@
 use crate::core::geometry::Rect;
 use crate::core::event::{Event, EventType, KB_UP, KB_DOWN, KB_LEFT, KB_RIGHT, KB_ENTER, MB_LEFT_BUTTON};
 use crate::core::state::StateFlags;
-use crate::core::palette::Attr;
+use crate::core::palette::{TvColor, Attr};
 use crate::core::draw::DrawBuffer;
 use crate::terminal::Terminal;
 use super::view::{View, write_line_to_terminal};
@@ -24,9 +24,7 @@ pub struct ColorSelector {
     /// Currently selected color (0-15)
     selected_color: u8,
     /// Whether selecting foreground (true) or background (false)
-    _selecting_foreground: bool,
-    owner: Option<*const dyn View>,
-    owner_type: super::view::OwnerType,
+    selecting_foreground: bool,
 }
 
 impl ColorSelector {
@@ -36,9 +34,7 @@ impl ColorSelector {
             bounds,
             state: 0,
             selected_color: 7, // White
-            _selecting_foreground: true,
-            owner: None,
-            owner_type: super::view::OwnerType::None,
+            selecting_foreground: true,
         }
     }
 
@@ -176,68 +172,5 @@ impl View for ColorSelector {
 
     fn set_state(&mut self, state: StateFlags) {
         self.state = state;
-    }
-
-    fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        // TColorSelector has no palette (returns empty palette in Borland)
-        // Returning None achieves the same effect - skip to parent's palette
-        None
-    }
-
-    fn set_owner(&mut self, owner: *const dyn View) {
-        self.owner = Some(owner);
-    }
-
-    fn get_owner(&self) -> Option<*const dyn View> {
-        self.owner
-    }
-
-    fn get_owner_type(&self) -> super::view::OwnerType {
-        self.owner_type
-    }
-
-    fn set_owner_type(&mut self, owner_type: super::view::OwnerType) {
-        self.owner_type = owner_type;
-    }
-}
-
-/// Builder for creating color selectors with a fluent API.
-pub struct ColorSelectorBuilder {
-    bounds: Option<Rect>,
-    selected_color: u8,
-}
-
-impl ColorSelectorBuilder {
-    pub fn new() -> Self {
-        Self { bounds: None, selected_color: 7 }
-    }
-
-    #[must_use]
-    pub fn bounds(mut self, bounds: Rect) -> Self {
-        self.bounds = Some(bounds);
-        self
-    }
-
-    #[must_use]
-    pub fn selected_color(mut self, color: u8) -> Self {
-        self.selected_color = color.min(15);
-        self
-    }
-
-    pub fn build(self) -> ColorSelector {
-        let bounds = self.bounds.expect("ColorSelector bounds must be set");
-        let mut selector = ColorSelector::new(bounds);
-        selector.set_selected_color(self.selected_color);
-        selector
-    }
-
-    pub fn build_boxed(self) -> Box<ColorSelector> {
-        Box::new(self.build())
-    }
-}
-
-impl Default for ColorSelectorBuilder {
-    fn default() -> Self {
-        Self::new()
     }
 }

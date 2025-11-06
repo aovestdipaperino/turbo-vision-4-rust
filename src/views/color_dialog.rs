@@ -8,7 +8,7 @@
 
 use crate::core::geometry::Rect;
 use crate::core::event::Event;
-use crate::core::command::{CM_OK, CM_CANCEL};
+use crate::core::command::{CM_OK, CM_CANCEL, CommandId};
 use crate::core::palette::Attr;
 use crate::terminal::Terminal;
 use super::dialog::Dialog;
@@ -21,8 +21,8 @@ use super::View;
 /// Matches Borland: TColorDialog (simplified implementation)
 pub struct ColorDialog {
     dialog: Dialog,
-    _fg_selector_idx: usize,
-    _bg_selector_idx: usize,
+    fg_selector_idx: usize,
+    bg_selector_idx: usize,
     initial_attr: Attr,
     selected_attr: Option<Attr>,
 }
@@ -88,8 +88,8 @@ impl ColorDialog {
 
         Self {
             dialog,
-            _fg_selector_idx: fg_selector_idx,
-            _bg_selector_idx: bg_selector_idx,
+            fg_selector_idx,
+            bg_selector_idx,
             initial_attr,
             selected_attr: None,
         }
@@ -143,94 +143,5 @@ impl View for ColorDialog {
 
     fn set_state(&mut self, state: crate::core::state::StateFlags) {
         self.dialog.set_state(state);
-    }
-
-    fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        self.dialog.get_palette()
-    }
-}
-
-/// Builder for creating color dialogs with a fluent API.
-///
-/// # Examples
-///
-/// ```ignore
-/// use turbo_vision::views::color_dialog::ColorDialogBuilder;
-/// use turbo_vision::core::geometry::Rect;
-/// use turbo_vision::core::palette::Attr;
-/// use turbo_vision::core::palette::TvColor;
-///
-/// // Create a color dialog with default colors
-/// let dialog = ColorDialogBuilder::new()
-///     .bounds(Rect::new(10, 5, 60, 20))
-///     .title("Select Colors")
-///     .build();
-///
-/// // Create a color dialog with initial attribute
-/// let initial = Attr::new(TvColor::White, TvColor::Blue);
-/// let dialog = ColorDialogBuilder::new()
-///     .bounds(Rect::new(10, 5, 60, 20))
-///     .title("Choose Colors")
-///     .initial_attr(initial)
-///     .build();
-/// ```
-pub struct ColorDialogBuilder {
-    bounds: Option<Rect>,
-    title: Option<String>,
-    initial_attr: Attr,
-}
-
-impl ColorDialogBuilder {
-    /// Creates a new ColorDialogBuilder with default values.
-    pub fn new() -> Self {
-        use crate::core::palette::TvColor;
-        Self {
-            bounds: None,
-            title: None,
-            initial_attr: Attr::new(TvColor::White, TvColor::Black),
-        }
-    }
-
-    /// Sets the color dialog bounds (required).
-    #[must_use]
-    pub fn bounds(mut self, bounds: Rect) -> Self {
-        self.bounds = Some(bounds);
-        self
-    }
-
-    /// Sets the dialog title (required).
-    #[must_use]
-    pub fn title(mut self, title: impl Into<String>) -> Self {
-        self.title = Some(title.into());
-        self
-    }
-
-    /// Sets the initial color attribute (default: White on Black).
-    #[must_use]
-    pub fn initial_attr(mut self, attr: Attr) -> Self {
-        self.initial_attr = attr;
-        self
-    }
-
-    /// Builds the ColorDialog.
-    ///
-    /// # Panics
-    ///
-    /// Panics if required fields (bounds, title) are not set.
-    pub fn build(self) -> ColorDialog {
-        let bounds = self.bounds.expect("ColorDialog bounds must be set");
-        let title = self.title.expect("ColorDialog title must be set");
-        ColorDialog::new(bounds, &title, self.initial_attr)
-    }
-
-    /// Builds the ColorDialog as a Box.
-    pub fn build_boxed(self) -> Box<ColorDialog> {
-        Box::new(self.build())
-    }
-}
-
-impl Default for ColorDialogBuilder {
-    fn default() -> Self {
-        Self::new()
     }
 }
