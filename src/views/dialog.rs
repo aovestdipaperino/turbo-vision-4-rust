@@ -270,6 +270,22 @@ impl View for Dialog {
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
     }
+
+    /// Validate dialog before closing with given command
+    /// Matches Borland: TDialog::valid(ushort command)
+    /// - cmCancel always allowed (user can always cancel)
+    /// - Other commands validated through window (which validates children)
+    fn valid(&mut self, command: CommandId) -> bool {
+        use crate::core::command::CM_CANCEL;
+
+        if command == CM_CANCEL {
+            // Can always cancel
+            true
+        } else {
+            // Validate through window (which will validate all children)
+            self.window.valid(command)
+        }
+    }
 }
 
 impl Dialog {
