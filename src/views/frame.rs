@@ -43,6 +43,12 @@ impl Frame {
         }
     }
 
+    /// Set the frame title
+    /// Matches Borland: TFrame::setTitle() allows changing window title dynamically
+    pub fn set_title(&mut self, title: &str) {
+        self.title = title.to_string();
+    }
+
     /// Get colors for frame elements based on palette type and state
     /// Matches Borland's getColor() with palette mapping (tframe.cc:43-64)
     /// Returns (frame_attr, close_icon_attr, title_attr)
