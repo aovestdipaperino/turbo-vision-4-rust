@@ -53,43 +53,22 @@ impl Window {
     /// Matches Borland: TWindow constructor sets palette(wpBlueWindow)
     /// For TDialog (gray palette), use new_for_dialog() instead
     pub fn new(bounds: Rect, title: &str) -> Self {
-        Self::new_with_palette(
-            bounds,
-            title,
-            super::frame::FramePaletteType::Editor,
-            WindowPaletteType::Blue,
-            true, // resizable
-        )
+        Self::new_with_palette(bounds, title, super::frame::FramePaletteType::Editor, colors::EDITOR_NORMAL)
     }
 
     /// Create a window for TDialog with gray palette
     /// Matches Borland: TDialog overrides TWindow palette to use cpGrayDialog
     pub(crate) fn new_for_dialog(bounds: Rect, title: &str) -> Self {
-        Self::new_with_palette(
-            bounds,
-            title,
-            super::frame::FramePaletteType::Dialog,
-            WindowPaletteType::Dialog,
-            false, // not resizable (TDialog doesn't have wfGrow)
-        )
+        Self::new_with_palette(bounds, title, super::frame::FramePaletteType::Dialog, colors::DIALOG_NORMAL)
     }
 
-    fn new_with_palette(
-        bounds: Rect,
-        title: &str,
-        frame_palette: super::frame::FramePaletteType,
-        window_palette: WindowPaletteType,
-        resizable: bool,
-    ) -> Self {
-        use crate::core::state::{OF_SELECTABLE, OF_TILEABLE, OF_TOP_SELECT};
-
-        let frame = Frame::with_palette(bounds, title, frame_palette, resizable);
+    fn new_with_palette(bounds: Rect, title: &str, frame_palette: super::frame::FramePaletteType, interior_color: crate::core::palette::Attr) -> Self {
+        let frame = Frame::with_palette(bounds, title, frame_palette);
 
         // Interior bounds are ABSOLUTE (inset by 1 from window bounds for frame)
         let mut interior_bounds = bounds;
         interior_bounds.grow(-1, -1);
-        // Don't use background - the Frame fills the interior space (matching Borland)
-        let interior = Group::new(interior_bounds);
+        let interior = Group::with_background(interior_bounds, interior_color);
 
         let mut window = Self {
             bounds,

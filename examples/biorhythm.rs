@@ -607,21 +607,21 @@ fn main() -> turbo_vision::core::error::Result<()> {
         }
     }
 
-    // Now create and show the main window with chart - sized to available space
-    let mut main_window = Window::new(
+    // Now create and show the main dialog with chart - sized to available space
+    let mut main_dialog = Dialog::new(
         Rect::new(window_x, window_y, window_x + window_width, window_y + window_height),
         "Biorhythm Calculator"
     );
 
-    // Chart uses interior space (window minus frame), with 1-column margins
+    // Chart uses interior space (dialog minus frame), with 1-column margins
     let chart_width = window_width - 2;   // Subtract frame (2 chars total)
     let chart_height = window_height - 2; // Subtract frame (2 chars total)
     let chart = BiorhythmChart::new(
         Rect::new(1, 1, chart_width, chart_height),
         Arc::clone(&biorhythm_data)
     );
-    main_window.add(Box::new(chart));
-    app.desktop.add(Box::new(main_window));
+    main_dialog.add(Box::new(chart));
+    app.desktop.add(Box::new(main_dialog));
 
     // Custom event handler loop
     app.running = true;

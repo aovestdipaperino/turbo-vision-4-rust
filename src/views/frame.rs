@@ -59,8 +59,6 @@ impl Frame {
     /// Matches Borland's getColor() with palette mapping (tframe.cc:43-64)
     /// Returns (frame_attr, close_icon_attr, title_attr)
     fn get_frame_colors(&self) -> (Attr, Attr, Attr) {
-        use crate::core::palette::{FRAME_INACTIVE, FRAME_ACTIVE_BORDER, FRAME_TITLE, FRAME_ICON};
-
         // Borland determines cFrame based on state:
         // - Inactive: cFrame = 0x0101 (both bytes use palette[1])
         // - Dragging: cFrame = 0x0505 (both bytes use palette[5])
@@ -69,25 +67,50 @@ impl Frame {
         let is_active = (self.state & SF_ACTIVE) != 0;
         let is_dragging = (self.state & SF_DRAGGING) != 0;
 
-        if !is_active {
-            // Inactive: cFrame = 0x0101, cTitle = 0x0002
-            // Uses palette[1] for all elements
-            let inactive_attr = self.map_color(FRAME_INACTIVE);
-            (inactive_attr, inactive_attr, inactive_attr)
-        } else if is_dragging {
-            // Dragging: cFrame = 0x0505, cTitle = 0x0005
-            // Uses palette[5] for all elements
-            let dragging_attr = self.map_color(FRAME_ICON);
-            (dragging_attr, dragging_attr, dragging_attr)
-        } else {
-            // Active: cFrame = 0x0503, cTitle = 0x0004
-            // palette[3] = frame border
-            // palette[5] = close icon (highlight)
-            // palette[4] = title
-            let frame_attr = self.map_color(FRAME_ACTIVE_BORDER);
-            let close_icon_attr = self.map_color(FRAME_ICON);
-            let title_attr = self.map_color(FRAME_TITLE);
-            (frame_attr, close_icon_attr, title_attr)
+        match self.palette_type {
+            FramePaletteType::Dialog => {
+                if !is_active {
+                    // Inactive: cFrame = 0x0101, cTitle = 0x0002
+                    // cpDialog[1] = 0x21 (Blue on Green) -> mapped to DarkGray on LightGray
+                    let inactive_attr = Attr::new(TvColor::DarkGray, TvColor::LightGray);
+                    (inactive_attr, inactive_attr, inactive_attr)
+                } else if is_dragging {
+                    // Dragging: cFrame = 0x0505, cTitle = 0x0005
+                    // cpDialog[5] = 0x25 (Magenta on Green) -> mapped to LightGreen on LightGray
+                    let dragging_attr = Attr::new(TvColor::LightGreen, TvColor::LightGray);
+                    (dragging_attr, dragging_attr, dragging_attr)
+                } else {
+                    // Active: cFrame = 0x0503, cTitle = 0x0004
+                    // cpDialog[3] = 0x23 (Cyan on Green) -> White on LightGray (frame)
+                    // cpDialog[5] = 0x25 (Magenta on Green) -> LightGreen on LightGray (highlight)
+                    // cpDialog[4] = 0x24 (Red on Green) -> White on LightGray (title)
+                    let frame_attr = colors::DIALOG_FRAME_ACTIVE;  // White on LightGray
+                    let close_icon_attr = Attr::new(TvColor::LightGreen, TvColor::LightGray);
+                    let title_attr = colors::DIALOG_TITLE;  // White on LightGray
+                    (frame_attr, close_icon_attr, title_attr)
+                }
+            }
+            FramePaletteType::Editor => {
+                // cpBlueWindow palette mapping (Borland TWindow with wpBlueWindow)
+                // See TWindow.cc line 38: palette(wpBlueWindow)
+                // TWindow frame is White on Blue background
+
+                if !is_active {
+                    // Inactive: LightGreen on Blue (all elements)
+                    let inactive_attr = Attr::new(TvColor::LightGreen, TvColor::Blue);
+                    (inactive_attr, inactive_attr, inactive_attr)
+                } else if is_dragging {
+                    // Dragging: White on Blue (maintains blue background while dragging)
+                    let dragging_attr = Attr::new(TvColor::White, TvColor::Blue);
+                    (dragging_attr, dragging_attr, dragging_attr)
+                } else {
+                    // Active: White on Blue for frame and close icon, Yellow on Blue for title
+                    let frame_attr = Attr::new(TvColor::White, TvColor::Blue);  // Border
+                    let close_icon_attr = Attr::new(TvColor::White, TvColor::Blue);  // Close icon
+                    let title_attr = Attr::new(TvColor::Yellow, TvColor::Blue);  // Title
+                    (frame_attr, close_icon_attr, title_attr)
+                }
+            }
         }
     }
 }
