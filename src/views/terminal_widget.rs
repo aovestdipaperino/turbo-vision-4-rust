@@ -63,8 +63,6 @@ pub struct TerminalWidget {
     auto_scroll: bool,
     /// Vertical scrollbar
     v_scrollbar: Option<Box<ScrollBar>>,
-    owner: Option<*const dyn View>,
-    owner_type: super::view::OwnerType,
 }
 
 impl TerminalWidget {
@@ -78,8 +76,6 @@ impl TerminalWidget {
             top_line: 0,
             auto_scroll: true,
             v_scrollbar: None,
-            owner: None,
-            owner_type: super::view::OwnerType::None,
         }
     }
 
@@ -427,90 +423,5 @@ impl View for TerminalWidget {
 
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
-    }
-
-    fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        use crate::core::palette::{palettes, Palette};
-        Some(Palette::from_slice(palettes::CP_SCROLLER))
-    }
-
-    fn set_owner(&mut self, owner: *const dyn View) {
-        self.owner = Some(owner);
-    }
-
-    fn get_owner(&self) -> Option<*const dyn View> {
-        self.owner
-    }
-
-    fn get_owner_type(&self) -> super::view::OwnerType {
-        self.owner_type
-    }
-
-    fn set_owner_type(&mut self, owner_type: super::view::OwnerType) {
-        self.owner_type = owner_type;
-    }
-}
-
-/// Builder for creating terminal widgets with a fluent API.
-pub struct TerminalWidgetBuilder {
-    bounds: Option<Rect>,
-    with_scrollbar: bool,
-    max_lines: usize,
-    auto_scroll: bool,
-}
-
-impl TerminalWidgetBuilder {
-    pub fn new() -> Self {
-        Self {
-            bounds: None,
-            with_scrollbar: false,
-            max_lines: 10000,
-            auto_scroll: true,
-        }
-    }
-
-    #[must_use]
-    pub fn bounds(mut self, bounds: Rect) -> Self {
-        self.bounds = Some(bounds);
-        self
-    }
-
-    #[must_use]
-    pub fn with_scrollbar(mut self, with_scrollbar: bool) -> Self {
-        self.with_scrollbar = with_scrollbar;
-        self
-    }
-
-    #[must_use]
-    pub fn max_lines(mut self, max_lines: usize) -> Self {
-        self.max_lines = max_lines;
-        self
-    }
-
-    #[must_use]
-    pub fn auto_scroll(mut self, auto_scroll: bool) -> Self {
-        self.auto_scroll = auto_scroll;
-        self
-    }
-
-    pub fn build(self) -> TerminalWidget {
-        let bounds = self.bounds.expect("TerminalWidget bounds must be set");
-        let mut widget = TerminalWidget::new(bounds);
-        if self.with_scrollbar {
-            widget = widget.with_scrollbar();
-        }
-        widget.set_max_lines(self.max_lines);
-        widget.set_auto_scroll(self.auto_scroll);
-        widget
-    }
-
-    pub fn build_boxed(self) -> Box<TerminalWidget> {
-        Box::new(self.build())
-    }
-}
-
-impl Default for TerminalWidgetBuilder {
-    fn default() -> Self {
-        Self::new()
     }
 }

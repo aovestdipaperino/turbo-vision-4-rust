@@ -98,6 +98,7 @@ pub mod help_viewer;
 pub mod help_window;
 pub mod help_context;
 pub mod outline;
+pub mod terminal_widget;
 
 #[doc(inline)]
 pub use view::View;
