@@ -8,7 +8,7 @@
 
 use crate::core::geometry::Rect;
 use crate::core::event::Event;
-use crate::core::command::{CM_OK, CM_CANCEL, CommandId};
+use crate::core::command::{CM_OK, CM_CANCEL};
 use crate::terminal::Terminal;
 use super::dialog::Dialog;
 use super::outline::{OutlineViewer, Node};
@@ -23,8 +23,8 @@ use std::cell::RefCell;
 /// Matches Borland: THelpToc
 pub struct HelpToc {
     dialog: Dialog,
-    outline_viewer_idx: usize,
-    help_file: Rc<RefCell<HelpFile>>,
+    _outline_viewer_idx: usize,
+    _help_file: Rc<RefCell<HelpFile>>,
     selected_topic: Option<String>,
 }
 
@@ -78,8 +78,8 @@ impl HelpToc {
 
         Self {
             dialog,
-            outline_viewer_idx,
-            help_file,
+            _outline_viewer_idx: outline_viewer_idx,
+            _help_file: help_file,
             selected_topic: None,
         }
     }

@@ -8,7 +8,7 @@
 
 use crate::core::geometry::Rect;
 use crate::core::event::Event;
-use crate::core::command::{CM_OK, CM_CANCEL, CommandId};
+use crate::core::command::{CM_OK, CM_CANCEL};
 use crate::core::palette::Attr;
 use crate::terminal::Terminal;
 use super::dialog::Dialog;
@@ -21,8 +21,8 @@ use super::View;
 /// Matches Borland: TColorDialog (simplified implementation)
 pub struct ColorDialog {
     dialog: Dialog,
-    fg_selector_idx: usize,
-    bg_selector_idx: usize,
+    _fg_selector_idx: usize,
+    _bg_selector_idx: usize,
     initial_attr: Attr,
     selected_attr: Option<Attr>,
 }
@@ -88,8 +88,8 @@ impl ColorDialog {
 
         Self {
             dialog,
-            fg_selector_idx,
-            bg_selector_idx,
+            _fg_selector_idx: fg_selector_idx,
+            _bg_selector_idx: bg_selector_idx,
             initial_attr,
             selected_attr: None,
         }
