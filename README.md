@@ -2,7 +2,11 @@
 
 ![Turbo Vision Logo](https://raw.githubusercontent.com/aovestdipaperino/turbo-vision-4-rust/main/logo.png)
 
-A Rust implementation of the classic Borland Turbo Vision text user interface framework. Relatively complete but still under (small) bug fixing.
+A Rust implementation of the classic Borland Turbo Vision text user interface framework.
+
+**Version 0.9.0 - CODE COMPLETE** ✅
+
+This port achieves **100% API parity** with Borland Turbo Vision C++. All features from the original framework have been implemented. While the codebase is complete and production-ready, it may contain bugs. Please report any issues you encounter!
 
 ## Features
 
