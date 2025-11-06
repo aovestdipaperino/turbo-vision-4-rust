@@ -9,6 +9,11 @@ This document provides a comprehensive analysis of the turbo-vision library agai
 
 ## ✅ Recent Updates
 
+**2025-11-06 (Phase 3.8 - Documentation Polish):**
+- ✅ Shortened verbose doc comments in error.rs and ansi_dump.rs
+- ✅ Ensured first sentences are concise (under 15 words)
+- ✅ Improved documentation readability and scannability
+
 **2025-11-06 (Phase 4.11 - Build Infrastructure):**
 - ✅ Added comprehensive lint configuration to Cargo.toml
 - ✅ Enabled Rust standard lints and all Clippy lint groups
@@ -1201,8 +1206,8 @@ Consider adding GitHub Actions workflow for:
 
 8. **Documentation Polish** ✅
    - [x] Add `#[doc(inline)]` to all re-exports in views/mod.rs
-   - [ ] Review and shorten verbose doc comments (ongoing)
-   - [ ] Add more examples throughout (ongoing)
+   - [x] Review and shorten verbose doc comments (completed 2025-11-06)
+   - [ ] Add more examples throughout (ongoing - low priority)
 
 9. **Static Usage Documentation** ✅
    - [x] Document thread-local command set pattern in command_set.rs
@@ -1391,6 +1396,16 @@ The library has achieved production-ready standards with all critical, high, and
 
 ## Changelog
 
+### 2025-11-06 - Phase 3.8 Completed (Documentation Polish)
+- ✅ **Shortened Verbose Doc Comments**
+  - Reviewed and shortened first sentences in key documentation
+  - error.rs: TurboVisionError summary reduced from 3 lines to 1 line
+  - ansi_dump.rs: All 3 function summaries shortened to single concise sentences
+  - Ensured first sentences are under 15 words per M-FIRST-DOC-SENTENCE guideline
+  - All 180 tests passing
+- 📊 **Impact:** Improved documentation readability and scannability
+- 🎯 **Benefit:** Easier to quickly understand what each function does
+
 ### 2025-11-06 - Phase 4.11 Completed (Build Infrastructure - Lints)
 - ✅ **Comprehensive Lint Configuration**
   - Added Rust standard lints: ambiguous_negative_literals, redundant_imports, unsafe_op_in_unsafe_fn, etc.
@@ -1462,8 +1477,8 @@ The library has achieved production-ready standards with all critical, high, and
 
 ---
 
-**Document Version:** 1.5
+**Document Version:** 1.6
 **Generated:** 2025-11-05
-**Last Updated:** 2025-11-06 (Phase 4.11 completed - comprehensive lint configuration added)
+**Last Updated:** 2025-11-06 (Phase 3.8 completed - verbose doc comments shortened)
 **Analyzed Codebase:** turbo-vision @ main branch
 **Guidelines Source:** Pragmatic Rust Guidelines (~/rust-guidelines.txt)

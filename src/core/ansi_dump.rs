@@ -61,11 +61,9 @@ fn color_to_rgb(color: TvColor) -> (u8, u8, u8) {
     }
 }
 
-/// Dump a buffer to an ANSI text file
+/// Dump a buffer to an ANSI text file.
 ///
-/// Creates a new file at the specified path and writes the buffer contents
-/// with ANSI color codes. The resulting file can be viewed with `cat` or
-/// any text editor that supports ANSI escape sequences.
+/// Creates a file with ANSI color codes viewable with `cat`.
 ///
 /// # Arguments
 /// * `buffer` - The 2D cell buffer to dump
@@ -83,11 +81,9 @@ pub fn dump_buffer_to_file(
     Ok(())
 }
 
-/// Dump a buffer to any writer (file, stdout, etc.)
+/// Dump a buffer to any writer with ANSI color codes.
 ///
-/// Writes the buffer contents with ANSI color codes to the provided writer.
-/// Color codes are only emitted when colors change between cells to minimize
-/// output size.
+/// Optimizes output by only emitting color codes when colors change.
 ///
 /// # Arguments
 /// * `writer` - Output writer (file, stdout, or any `Write` implementor)
@@ -141,10 +137,9 @@ pub fn dump_buffer<W: Write>(
     Ok(())
 }
 
-/// Dump a rectangular region of a buffer
+/// Dump a rectangular region of a buffer.
 ///
-/// Similar to `dump_buffer`, but only dumps a specific rectangular region
-/// of the buffer. Useful for dumping individual views or UI components.
+/// Useful for dumping individual views or UI components.
 ///
 /// # Arguments
 /// * `writer` - Output writer (file, stdout, or any `Write` implementor)

@@ -11,8 +11,7 @@ use std::path::PathBuf;
 
 /// Error type for Turbo Vision operations.
 ///
-/// This type wraps various error kinds and provides backtrace support
-/// for debugging. All library operations that can fail return this type.
+/// Wraps error kinds with backtrace support for debugging.
 ///
 /// # Examples
 ///
