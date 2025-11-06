@@ -316,6 +316,13 @@ impl Application {
         command_set::disable_command(command);
     }
 
+    /// Emit a beep sound
+    /// Matches Borland: TScreen::makeBeep() - provides audio feedback for errors/alerts
+    /// Commonly used in dialog validation failures and error messages
+    pub fn beep(&mut self) {
+        let _ = self.terminal.beep();
+    }
+
     /// Idle processing - broadcasts command set changes
     /// Matches Borland: TProgram::idle() (tprogram.cc:248-257)
     pub fn idle(&mut self) {

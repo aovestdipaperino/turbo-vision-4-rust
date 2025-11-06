@@ -549,6 +549,16 @@ impl Terminal {
 
         Ok(())
     }
+
+    /// Emit a terminal beep (bell) sound
+    /// Matches Borland: TScreen::makeBeep() which calls beep() + refresh()
+    /// Outputs the terminal bell character and flushes immediately
+    pub fn beep(&mut self) -> io::Result<()> {
+        let mut stdout = stdout();
+        write!(stdout, "\x07")?;  // Terminal bell character
+        stdout.flush()?;
+        Ok(())
+    }
 }
 
 impl Drop for Terminal {
