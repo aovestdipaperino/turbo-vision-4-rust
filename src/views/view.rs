@@ -128,6 +128,18 @@ pub trait View {
         true
     }
 
+    /// Downcast to concrete type (immutable)
+    /// Allows accessing specific view type methods from trait object
+    fn as_any(&self) -> &dyn std::any::Any {
+        panic!("as_any() not implemented for this view type")
+    }
+
+    /// Downcast to concrete type (mutable)
+    /// Allows accessing specific view type methods from trait object
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        panic!("as_any_mut() not implemented for this view type")
+    }
+
     /// Dump this view's region of the terminal buffer to an ANSI file for debugging
     fn dump_to_file(&self, terminal: &Terminal, path: &str) -> io::Result<()> {
         let bounds = self.shadow_bounds();

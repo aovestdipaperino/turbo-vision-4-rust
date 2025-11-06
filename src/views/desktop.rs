@@ -102,6 +102,12 @@ impl Desktop {
         self.children.child_at(index + 1)  // +1 to skip background
     }
 
+    /// Get a mutable reference to a child view by index
+    /// Note: Index 0 refers to the first window (background is at internal index 0)
+    pub fn child_at_mut(&mut self, index: usize) -> &mut dyn View {
+        self.children.child_at_mut(index + 1)  // +1 to skip background
+    }
+
     /// Remove a child view by index
     /// Note: Index 0 refers to the first window (background is at internal index 0)
     /// Used by Application::exec_view() to remove modal dialogs after they close
