@@ -212,6 +212,14 @@ impl View for Dialog {
         self.window.set_state(state);
     }
 
+    fn options(&self) -> u16 {
+        self.window.options()
+    }
+
+    fn set_options(&mut self, options: u16) {
+        self.window.set_options(options);
+    }
+
     fn get_end_state(&self) -> CommandId {
         self.window.get_end_state()
     }
