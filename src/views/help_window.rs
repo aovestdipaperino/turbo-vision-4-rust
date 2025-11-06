@@ -154,7 +154,7 @@ impl HelpWindow {
         }
 
         // Add current topic to history before switching
-        if let Some(current) = self.viewer.borrow().current_topic() {
+        if let Some(current) = self.viewer.current_topic() {
             self.history.push(current.to_string());
         }
 
