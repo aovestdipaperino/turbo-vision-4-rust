@@ -74,6 +74,22 @@ impl Window {
         self.interior.set_initial_focus();
     }
 
+    /// Set minimum window size (matches Borland: minWinSize)
+    /// Prevents window from being resized smaller than these dimensions
+    pub fn set_min_size(&mut self, min_size: Point) {
+        self.min_size = min_size;
+    }
+
+    /// Get size limits for this window
+    /// Matches Borland: TWindow::sizeLimits(TPoint &min, TPoint &max)
+    /// Returns (min, max) where max is typically the desktop size
+    pub fn size_limits(&self) -> (Point, Point) {
+        // Max size would typically be the desktop/owner size
+        // For now, return a large max (similar to Borland's INT_MAX approach)
+        let max = Point::new(999, 999);
+        (self.min_size, max)
+    }
+
     /// Set focus to a specific child by index
     /// Matches Borland: owner->setCurrent(this, normalSelect)
     pub fn set_focus_to_child(&mut self, index: usize) {
@@ -249,9 +265,10 @@ impl View for Window {
                 let new_width = (mouse_pos.x + offset.x - self.bounds.a.x) as u16;
                 let new_height = (mouse_pos.y + offset.y - self.bounds.a.y) as u16;
 
-                // Apply minimum size constraints (Borland: sizeLimits)
-                let final_width = new_width.max(self.min_size.x as u16);
-                let final_height = new_height.max(self.min_size.y as u16);
+                // Apply size constraints (Borland: sizeLimits)
+                let (min, max) = self.size_limits();
+                let final_width = new_width.max(min.x as u16).min(max.x as u16);
+                let final_height = new_height.max(min.y as u16).min(max.y as u16);
 
                 // Save previous bounds for union rect calculation
                 self.prev_bounds = Some(self.bounds);
