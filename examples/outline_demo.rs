@@ -2,9 +2,9 @@
 // Outline Demo - demonstrates hierarchical tree view
 
 use turbo_vision::app::Application;
-use turbo_vision::views::window::WindowBuilder;
+use turbo_vision::views::window::Window;
 use turbo_vision::views::outline::{OutlineViewer, Node};
-use turbo_vision::views::static_text::StaticTextBuilder;
+use turbo_vision::views::static_text::StaticText;
 use turbo_vision::views::View;
 use turbo_vision::core::geometry::Rect;
 use std::rc::Rc;
@@ -14,16 +14,16 @@ use std::time::Duration;
 fn main() -> turbo_vision::core::error::Result<()> {
     let mut app = Application::new()?;
 
-    let mut window = WindowBuilder::new()
-        .bounds(Rect::new(10, 2, 70, 22))
-        .title("File System Tree Demo")
-        .build();
+    let mut window = Window::new(
+        Rect::new(10, 2, 70, 22),
+        "File System Tree Demo"
+    );
 
     // Add instructions
-    window.add(Box::new(StaticTextBuilder::new()
-        .bounds(Rect::new(2, 2, 56, 4))
-        .text("Use arrows to navigate, Enter to toggle, → expand, ← collapse")
-        .build()));
+    window.add(Box::new(StaticText::new(
+        Rect::new(2, 2, 56, 4),
+        "Use arrows to navigate, Enter to toggle, → expand, ← collapse"
+    )));
 
     // Create a sample file system tree
     let root = create_file_tree();

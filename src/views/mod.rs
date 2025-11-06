@@ -98,12 +98,6 @@ pub mod help_viewer;
 pub mod help_window;
 pub mod help_context;
 pub mod outline;
-pub mod terminal_widget;
-pub mod chdir_dialog;
-pub mod help_index;
-pub mod help_toc;
-pub mod color_selector;
-pub mod color_dialog;
 
 #[doc(inline)]
 pub use view::View;
