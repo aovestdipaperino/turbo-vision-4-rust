@@ -46,7 +46,7 @@ impl Window {
     }
 
     fn new_with_palette(bounds: Rect, title: &str, frame_palette: super::frame::FramePaletteType, interior_color: crate::core::palette::Attr) -> Self {
-        use crate::core::state::{OF_SELECTABLE, OF_TOP_SELECT};
+        use crate::core::state::{OF_SELECTABLE, OF_TOP_SELECT, OF_TILEABLE};
 
         let frame = Frame::with_palette(bounds, title, frame_palette);
 
@@ -60,7 +60,7 @@ impl Window {
             frame,
             interior,
             state: SF_SHADOW, // Windows have shadows by default
-            options: OF_SELECTABLE | OF_TOP_SELECT, // Matches Borland: TWindow constructor sets these
+            options: OF_SELECTABLE | OF_TOP_SELECT | OF_TILEABLE, // Matches Borland: TWindow/TEditWindow flags
             drag_offset: None,
             resize_start_size: None,
             min_size: Point::new(16, 6), // Minimum size: 16 wide, 6 tall (matches Borland's minWinSize)

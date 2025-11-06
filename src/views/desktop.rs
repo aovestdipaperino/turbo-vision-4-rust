@@ -159,6 +159,127 @@ impl Desktop {
         self.bounds
     }
 
+    /// Cascade windows in a staircase pattern
+    /// Matches Borland: TDesktop::cascade(const TRect &r)
+    pub fn cascade(&mut self) {
+        use crate::core::state::OF_TILEABLE;
+
+        // Count tileable windows (skip background at index 0)
+        let mut count = 0;
+        for i in 1..self.children.len() {
+            let child = self.children.child_at(i);
+            let options = child.options();
+            if (options & OF_TILEABLE) != 0 {
+                count += 1;
+            }
+        }
+
+        if count == 0 {
+            return;
+        }
+
+        // Calculate cascade bounds (leave room for offset)
+        let cascade_bounds = self.bounds;
+
+        // Position windows in cascade (staircase) pattern
+        // Each window is offset by its index from the base position
+        let mut cascade_index: usize = count - 1;
+        for i in 1..self.children.len() {
+            let child = self.children.child_at(i);
+            let options = child.options();
+            if (options & OF_TILEABLE) != 0 {
+                // Calculate new bounds with cascade offset
+                let mut new_bounds = cascade_bounds;
+                new_bounds.a.x += cascade_index as i16;
+                new_bounds.a.y += cascade_index as i16;
+
+                // Adjust size to account for offset (so window fits in desktop)
+                new_bounds.b.x -= (count - 1 - cascade_index) as i16;
+                new_bounds.b.y -= (count - 1 - cascade_index) as i16;
+
+                self.children.child_at_mut(i).set_bounds(new_bounds);
+                cascade_index = cascade_index.saturating_sub(1);
+            }
+        }
+    }
+
+    /// Tile windows in a grid pattern
+    /// Matches Borland: TDesktop::tile(const TRect &r)
+    pub fn tile(&mut self) {
+        use crate::core::state::OF_TILEABLE;
+
+        // Count tileable windows (skip background at index 0)
+        let mut count = 0;
+        for i in 1..self.children.len() {
+            let child = self.children.child_at(i);
+            let options = child.options();
+            if (options & OF_TILEABLE) != 0 {
+                count += 1;
+            }
+        }
+
+        if count == 0 {
+            return;
+        }
+
+        // Calculate grid dimensions (most square layout)
+        let (cols, rows) = Self::calculate_grid_layout(count);
+
+        let tile_bounds = self.bounds;
+        let cell_width = tile_bounds.width() / cols as i16;
+        let cell_height = tile_bounds.height() / rows as i16;
+
+        // Position windows in grid
+        let mut tile_index = 0;
+        for i in 1..self.children.len() {
+            let child = self.children.child_at(i);
+            let options = child.options();
+            if (options & OF_TILEABLE) != 0 {
+                let col = tile_index % cols;
+                let row = tile_index / cols;
+
+                let new_bounds = Rect::new(
+                    tile_bounds.a.x + (col as i16 * cell_width),
+                    tile_bounds.a.y + (row as i16 * cell_height),
+                    tile_bounds.a.x + ((col + 1) as i16 * cell_width),
+                    tile_bounds.a.y + ((row + 1) as i16 * cell_height),
+                );
+
+                self.children.child_at_mut(i).set_bounds(new_bounds);
+                tile_index += 1;
+            }
+        }
+    }
+
+    /// Calculate grid layout (rows x cols) that's most square
+    /// Matches Borland: mostEqualDivisors()
+    fn calculate_grid_layout(count: usize) -> (usize, usize) {
+        if count == 0 {
+            return (1, 1);
+        }
+
+        // Find the square root (approximately)
+        let sqrt = (count as f64).sqrt() as usize;
+
+        // Find divisors closest to square root
+        let mut cols = sqrt;
+        while count % cols != 0 && cols > 1 {
+            cols -= 1;
+        }
+
+        if cols == 1 {
+            // Prime number or couldn't find good divisor
+            cols = sqrt;
+            if cols * cols < count {
+                cols += 1;
+            }
+        }
+
+        let rows = (count + cols - 1) / cols; // Ceiling division
+
+        (cols, rows)
+    }
+
     /// Cycle to the next window (Borland: selectNext)
     /// Moves the current top window to the back, bringing the next window forward
     /// Matches Borland: cmNext command calls selectNext(False)

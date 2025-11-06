@@ -12,7 +12,7 @@ use turbo_vision::views::{
     status_line::{StatusLine, StatusItem},
     View,
 };
-use turbo_vision::core::command::{CM_QUIT, CM_OK, CM_CLOSE, CM_NEXT, CM_PREV, CM_ZOOM};
+use turbo_vision::core::command::{CM_QUIT, CM_OK, CM_CLOSE, CM_NEXT, CM_PREV, CM_ZOOM, CM_TILE, CM_CASCADE};
 use turbo_vision::core::event::{Event, EventType, KB_F1, KB_F3, KB_F10};
 use turbo_vision::core::geometry::Rect;
 use turbo_vision::core::menu_data::{Menu, MenuItem};
@@ -30,8 +30,6 @@ const CM_CALENDAR: u16 = 103;
 const CM_PUZZLE: u16 = 104;
 const CM_OPEN: u16 = 105;
 const CM_CHDIR: u16 = 106;
-const CM_TILE: u16 = 107;
-const CM_CASCADE: u16 = 108;
 
 fn create_menu_bar(width: u16) -> MenuBar {
     let mut menu_bar = MenuBar::new(Rect::new(0, 0, width as i16, 1));
@@ -300,10 +298,10 @@ fn main() -> turbo_vision::core::error::Result<()> {
                         app.desktop.select_prev();
                     }
                     CM_TILE => {
-                        // TODO: Implement tile windows
+                        app.desktop.tile();
                     }
                     CM_CASCADE => {
-                        // TODO: Implement cascade windows
+                        app.desktop.cascade();
                     }
                     _ => {}
                 }
