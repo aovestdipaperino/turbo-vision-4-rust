@@ -44,10 +44,6 @@ impl Group {
     }
 
     pub fn add(&mut self, mut view: Box<dyn View>) -> usize {
-        // Set owner pointer for palette chain resolution
-        // Child views need to know their parent to traverse the palette chain
-        view.set_owner(self as *const _ as *const dyn View);
-
         // Convert child's bounds from relative to absolute coordinates
         // Child bounds are specified relative to this Group's interior
         let child_bounds = view.bounds();

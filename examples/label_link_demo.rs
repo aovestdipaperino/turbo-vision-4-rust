@@ -27,28 +27,30 @@ fn main() -> turbo_vision::core::error::Result<()> {
     )));
 
     // First Name field with linked label
+    // Add the input first and capture its index
+    let first_name_data = Rc::new(RefCell::new(String::new()));
+    let first_name_idx = dialog.add(Box::new(InputLine::new(Rect::new(15, 4, 35, 5), 20, Rc::clone(&first_name_data))));
+
+    // Create label and link it to the input using the returned index
     let mut first_name_label = Label::new(Rect::new(2, 4, 15, 5), "~F~irst Name:");
-    first_name_label.set_link(2);  // Links to child index 2 (the first input)
+    first_name_label.set_link(first_name_idx);
     dialog.add(Box::new(first_name_label));
 
-    let first_name_data = Rc::new(RefCell::new(String::new()));
-    dialog.add(Box::new(InputLine::new(Rect::new(15, 4, 35, 5), 20, Rc::clone(&first_name_data))));
-
     // Last Name field with linked label
+    let last_name_data = Rc::new(RefCell::new(String::new()));
+    let last_name_idx = dialog.add(Box::new(InputLine::new(Rect::new(15, 6, 35, 7), 20, Rc::clone(&last_name_data))));
+
     let mut last_name_label = Label::new(Rect::new(2, 6, 15, 7), "~L~ast Name:");
-    last_name_label.set_link(4);  // Links to child index 4 (the second input)
+    last_name_label.set_link(last_name_idx);
     dialog.add(Box::new(last_name_label));
 
-    let last_name_data = Rc::new(RefCell::new(String::new()));
-    dialog.add(Box::new(InputLine::new(Rect::new(15, 6, 35, 7), 20, Rc::clone(&last_name_data))));
-
     // Email field with linked label
-    let mut email_label = Label::new(Rect::new(2, 8, 15, 9), "~E~mail:");
-    email_label.set_link(6);  // Links to child index 6 (the third input)
-    dialog.add(Box::new(email_label));
-
     let email_data = Rc::new(RefCell::new(String::new()));
-    dialog.add(Box::new(InputLine::new(Rect::new(15, 8, 35, 9), 20, Rc::clone(&email_data))));
+    let email_idx = dialog.add(Box::new(InputLine::new(Rect::new(15, 8, 35, 9), 20, Rc::clone(&email_data))));
+
+    let mut email_label = Label::new(Rect::new(2, 8, 15, 9), "~E~mail:");
+    email_label.set_link(email_idx);
+    dialog.add(Box::new(email_label));
 
     // Buttons
     dialog.add(Box::new(Button::new(Rect::new(15, 10, 25, 12), "  OK  ", CM_OK, true)));

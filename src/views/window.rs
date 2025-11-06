@@ -149,19 +149,8 @@ impl Window {
         }
     }
 
-    /// Get mutable access to a frame child by index (for conditional drawing)
-    pub fn get_frame_child_mut(&mut self, index: usize) -> Option<&mut Box<dyn View>> {
-        self.frame_children.get_mut(index)
-    }
-
-    /// Get access to the frame (for subclasses to draw manually)
-    pub(crate) fn frame_mut(&mut self) -> &mut Frame {
-        &mut self.frame
-    }
-
-    /// Get access to the interior (for subclasses to draw manually)
-    pub(crate) fn interior_mut(&mut self) -> &mut Group {
-        &mut self.interior
+    pub fn add(&mut self, view: Box<dyn View>) -> usize {
+        self.interior.add(view)
     }
 
     pub fn set_initial_focus(&mut self) {
