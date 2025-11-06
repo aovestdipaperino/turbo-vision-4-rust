@@ -28,7 +28,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
 
     // First Name field with linked label
     let mut first_name_label = Label::new(Rect::new(2, 4, 15, 5), "~F~irst Name:");
-    first_name_label.set_link(4);  // Will link to child index 4 (the first input)
+    first_name_label.set_link(2);  // Links to child index 2 (the first input)
     dialog.add(Box::new(first_name_label));
 
     let first_name_data = Rc::new(RefCell::new(String::new()));
@@ -36,7 +36,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
 
     // Last Name field with linked label
     let mut last_name_label = Label::new(Rect::new(2, 6, 15, 7), "~L~ast Name:");
-    last_name_label.set_link(6);  // Will link to child index 6 (the second input)
+    last_name_label.set_link(4);  // Links to child index 4 (the second input)
     dialog.add(Box::new(last_name_label));
 
     let last_name_data = Rc::new(RefCell::new(String::new()));
@@ -44,7 +44,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
 
     // Email field with linked label
     let mut email_label = Label::new(Rect::new(2, 8, 15, 9), "~E~mail:");
-    email_label.set_link(8);  // Will link to child index 8 (the third input)
+    email_label.set_link(6);  // Links to child index 6 (the third input)
     dialog.add(Box::new(email_label));
 
     let email_data = Rc::new(RefCell::new(String::new()));
