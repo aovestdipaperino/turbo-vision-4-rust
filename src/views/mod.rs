@@ -97,6 +97,7 @@ pub mod help_file;
 pub mod help_viewer;
 pub mod help_window;
 pub mod help_context;
+pub mod outline;
 
 #[doc(inline)]
 pub use view::View;
