@@ -4,7 +4,7 @@
 
 use crate::core::geometry::{Rect, Point};
 use crate::core::event::{Event, EventType};
-use crate::core::command::{CM_CLOSE, CM_CANCEL, CM_ZOOM};
+use crate::core::command::{CM_CLOSE, CM_CANCEL};
 use crate::core::state::{StateFlags, SF_SHADOW, SF_DRAGGING, SF_RESIZING, SF_MODAL, SHADOW_ATTR};
 use crate::core::palette::colors;
 use crate::terminal::Terminal;
@@ -193,39 +193,9 @@ impl Window {
 
     /// Set the maximum size for zoom operations
     /// Typically set to desktop size when added to desktop
-    pub fn set_max_size(&mut self, max_size: Point) {
+    pub fn set_max_size(&mut self, _max_size: Point) {
         // Store max size as zoom_rect if we want to zoom to it
         // For now, we'll calculate it dynamically in zoom()
-    }
-
-    /// Zoom (maximize) or restore window
-    /// Matches Borland: TWindow::zoom()
-    /// Toggles between current size and maximum size
-    pub fn zoom(&mut self, max_bounds: Rect) {
-        let (_min, max_size) = self.size_limits();
-        let current_size = Point::new(self.bounds.width() as i16, self.bounds.height() as i16);
-
-        // If not at max size, zoom to max
-        if current_size.x != max_bounds.width() as i16 || current_size.y != max_bounds.height() as i16 {
-            // Save current bounds for restore
-            self.zoom_rect = self.bounds;
-
-            // Save previous bounds for redraw union
-            self.prev_bounds = Some(self.bounds);
-
-            // Zoom to max size (typically desktop bounds)
-            self.bounds = max_bounds;
-        } else {
-            // Restore to saved bounds
-            self.prev_bounds = Some(self.bounds);
-            self.bounds = self.zoom_rect;
-        }
-
-        // Update frame and interior
-        self.frame.set_bounds(self.bounds);
-        let mut interior_bounds = self.bounds;
-        interior_bounds.grow(-1, -1);
-        self.interior.set_bounds(interior_bounds);
     }
 
     /// Set focus to a specific child by index
@@ -600,50 +570,6 @@ impl View for Window {
         let mut interior_bounds = self.bounds;
         interior_bounds.grow(-1, -1);
         self.interior.set_bounds(interior_bounds);
-    }
-
-    /// Validate window before closing with given command
-    /// Matches Borland: TWindow inherits TGroup::valid() which validates all children
-    /// Delegates to interior group to validate all children
-    fn valid(&mut self, command: crate::core::command::CommandId) -> bool {
-        self.interior.valid(command)
-    }
-
-    fn set_owner(&mut self, owner: *const dyn View) {
-        self.owner = Some(owner);
-        // Do NOT set interior.owner here - Window might still move!
-        // Instead, init_interior_owner() must be called after Window is in final position
-    }
-
-    fn get_owner(&self) -> Option<*const dyn View> {
-        self.owner
-    }
-
-    fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        use crate::core::palette::{palettes, Palette};
-        match self.palette_type {
-            WindowPaletteType::Blue => Some(Palette::from_slice(palettes::CP_BLUE_WINDOW)),
-            WindowPaletteType::Cyan => Some(Palette::from_slice(palettes::CP_CYAN_WINDOW)),
-            WindowPaletteType::Gray => Some(Palette::from_slice(palettes::CP_GRAY_WINDOW)),
-            WindowPaletteType::Dialog => Some(Palette::from_slice(palettes::CP_GRAY_DIALOG)),
-        }
-    }
-
-    fn init_after_add(&mut self) {
-        // Initialize interior owner pointer now that Window is in final position
-        self.init_interior_owner();
-    }
-
-    fn constrain_to_parent_bounds(&mut self) {
-        self.constrain_to_limits();
-    }
-
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-        self
     }
 }
 
