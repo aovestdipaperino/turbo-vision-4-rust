@@ -361,10 +361,10 @@ pub mod colors {
     // InputLine colors - matching actual C++ rendering (see colors.png)
     // Focused state uses Yellow on Blue (clearly visible in screenshot)
     // Both states use same color per C++ cpInputLine behavior
-    pub const INPUT_NORMAL: Attr = Attr::new(TvColor::Yellow, TvColor::Blue); // Same as focused
-    pub const INPUT_FOCUSED: Attr = Attr::new(TvColor::Yellow, TvColor::Blue); // SAME as unfocused!
-    pub const INPUT_SELECTED: Attr = Attr::new(TvColor::Cyan, TvColor::Cyan); // cpDialog[20] = 0x33
-    pub const INPUT_ARROWS: Attr = Attr::new(TvColor::Red, TvColor::Cyan); // cpDialog[21] = 0x34
+    pub const INPUT_NORMAL: Attr = Attr::new(TvColor::Yellow, TvColor::Blue);     // Same as focused
+    pub const INPUT_FOCUSED: Attr = Attr::new(TvColor::Yellow, TvColor::Blue);    // SAME as unfocused!
+    pub const INPUT_SELECTED: Attr = Attr::new(TvColor::Cyan, TvColor::Cyan);     // cpDialog[20] = 0x33
+    pub const INPUT_ARROWS: Attr = Attr::new(TvColor::Red, TvColor::Cyan);        // cpDialog[21] = 0x34
 
     // Editor colors (matching original Turbo Vision)
     pub const EDITOR_NORMAL: Attr = Attr::new(TvColor::White, TvColor::Blue);
