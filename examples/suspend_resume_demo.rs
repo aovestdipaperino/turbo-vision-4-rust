@@ -2,9 +2,9 @@
 // Suspend/Resume Demo - demonstrates terminal suspend/resume functionality
 
 use turbo_vision::app::Application;
-use turbo_vision::views::window::WindowBuilder;
-use turbo_vision::views::button::ButtonBuilder;
-use turbo_vision::views::static_text::StaticTextBuilder;
+use turbo_vision::views::window::Window;
+use turbo_vision::views::button::Button;
+use turbo_vision::views::static_text::StaticText;
 use turbo_vision::views::View;
 use turbo_vision::helpers::msgbox::{message_box, MF_INFORMATION, MF_OK_BUTTON};
 use turbo_vision::core::command::CM_QUIT;
@@ -17,32 +17,32 @@ const CM_SUSPEND: u16 = 100;
 fn main() -> turbo_vision::core::error::Result<()> {
     let mut app = Application::new()?;
 
-    let mut window = WindowBuilder::new()
-        .bounds(Rect::new(10, 3, 70, 18))
-        .title("Suspend/Resume Demo")
-        .build();
+    let mut window = Window::new(
+        Rect::new(10, 3, 70, 18),
+        "Suspend/Resume Demo"
+    );
 
-    window.add(Box::new(StaticTextBuilder::new()
-        .bounds(Rect::new(2, 2, 56, 8))
-        .text("This demo shows suspend/resume functionality.\n\n\
+    window.add(Box::new(StaticText::new(
+        Rect::new(2, 2, 56, 8),
+        "This demo shows suspend/resume functionality.\n\n\
          Click 'Suspend' to temporarily return to shell.\n\
          The application will exit raw mode and show your\n\
-         shell prompt. Type 'fg' to resume.")
-        .build()));
+         shell prompt. Type 'fg' to resume."
+    )));
 
-    window.add(Box::new(ButtonBuilder::new()
-        .bounds(Rect::new(15, 9, 35, 11))
-        .title("Suspend")
-        .command(CM_SUSPEND)
-        .default(false)
-        .build()));
+    window.add(Box::new(Button::new(
+        Rect::new(15, 9, 35, 11),
+        "Suspend",
+        CM_SUSPEND,
+        false
+    )));
 
-    window.add(Box::new(ButtonBuilder::new()
-        .bounds(Rect::new(15, 12, 35, 14))
-        .title("Quit")
-        .command(CM_QUIT)
-        .default(true)
-        .build()));
+    window.add(Box::new(Button::new(
+        Rect::new(15, 12, 35, 14),
+        "Quit",
+        CM_QUIT,
+        true
+    )));
 
     app.desktop.add(Box::new(window));
 
