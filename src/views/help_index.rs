@@ -7,9 +7,8 @@
 //! Provides a searchable list of all help topics with filtering capability.
 
 use crate::core::geometry::Rect;
-use crate::core::event::{Event, EventType, KB_ENTER, KB_ESC};
-use crate::core::command::{CM_OK, CM_CANCEL, CommandId};
-use crate::core::state::SF_MODAL;
+use crate::core::event::{Event, EventType};
+use crate::core::command::{CM_OK, CM_CANCEL};
 use crate::terminal::Terminal;
 use super::dialog::Dialog;
 use super::input_line::InputLine;
@@ -28,11 +27,12 @@ const CMD_TOPIC_SELECTED: u16 = 1002;
 /// Matches Borland: THelpIndex
 pub struct HelpIndex {
     dialog: Dialog,
-    help_file: Rc<RefCell<HelpFile>>,
+    _help_file: Rc<RefCell<HelpFile>>,
+    #[allow(dead_code)]
     all_topics: Vec<(String, String)>, // (id, title)
     filtered_topics: Vec<(String, String)>,
-    search_input_idx: usize,
-    topic_list_idx: usize,
+    _search_input_idx: usize,
+    _topic_list_idx: usize,
     selected_topic: Option<String>,
 }
 
@@ -99,11 +99,11 @@ impl HelpIndex {
 
         let mut index = Self {
             dialog,
-            help_file,
+            _help_file: help_file,
             all_topics,
             filtered_topics,
-            search_input_idx,
-            topic_list_idx,
+            _search_input_idx: search_input_idx,
+            _topic_list_idx: topic_list_idx,
             selected_topic: None,
         };
 
@@ -115,7 +115,7 @@ impl HelpIndex {
     fn update_topic_list(&mut self) {
         // For now, show all topics (filtering not yet implemented)
         // TODO: Add actual search filtering based on search_input text
-        let topic_titles: Vec<String> = self.filtered_topics
+        let _topic_titles: Vec<String> = self.filtered_topics
             .iter()
             .map(|(_, title)| title.clone())
             .collect();
@@ -125,6 +125,7 @@ impl HelpIndex {
     }
 
     /// Filter topics based on search text
+    #[allow(dead_code)]
     fn filter_topics(&mut self, search_text: &str) {
         if search_text.is_empty() {
             self.filtered_topics = self.all_topics.clone();

@@ -51,6 +51,7 @@ impl History {
     }
 
     /// Show the history window and let user select an item
+    #[allow(dead_code)]
     fn show_history(&mut self, terminal: &mut Terminal) {
         if !self.has_items() {
             return;

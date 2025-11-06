@@ -360,8 +360,6 @@ impl Application {
         self.terminal.resume()?;
 
         // Force complete redraw of the entire UI
-        use crate::views::View;
-
         // Draw desktop (which includes all windows)
         self.desktop.draw(&mut self.terminal);
 

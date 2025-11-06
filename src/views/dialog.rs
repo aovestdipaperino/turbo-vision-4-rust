@@ -233,8 +233,6 @@ impl View for Dialog {
     /// - cmCancel always allowed (user can always cancel)
     /// - Other commands validated through window (which validates children)
     fn valid(&mut self, command: CommandId) -> bool {
-        use crate::core::command::CM_CANCEL;
-
         if command == CM_CANCEL {
             // Can always cancel
             true

@@ -9,7 +9,7 @@
 use crate::core::geometry::Rect;
 use crate::core::event::{Event, EventType, KB_UP, KB_DOWN, KB_LEFT, KB_RIGHT, KB_ENTER, MB_LEFT_BUTTON};
 use crate::core::state::StateFlags;
-use crate::core::palette::{TvColor, Attr};
+use crate::core::palette::Attr;
 use crate::core::draw::DrawBuffer;
 use crate::terminal::Terminal;
 use super::view::{View, write_line_to_terminal};
@@ -24,7 +24,7 @@ pub struct ColorSelector {
     /// Currently selected color (0-15)
     selected_color: u8,
     /// Whether selecting foreground (true) or background (false)
-    selecting_foreground: bool,
+    _selecting_foreground: bool,
 }
 
 impl ColorSelector {
@@ -34,7 +34,7 @@ impl ColorSelector {
             bounds,
             state: 0,
             selected_color: 7, // White
-            selecting_foreground: true,
+            _selecting_foreground: true,
         }
     }
 

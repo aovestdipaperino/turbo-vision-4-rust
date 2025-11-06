@@ -34,15 +34,15 @@ use std::fs;
 
 /// Directory entry in the tree
 #[derive(Clone, Debug)]
-struct DirEntry {
+pub struct DirEntry {
     /// Directory name
-    name: String,
+    pub name: String,
     /// Full path
-    path: PathBuf,
+    pub path: PathBuf,
     /// Nesting level (0 = root)
-    level: usize,
+    pub level: usize,
     /// Whether this is the last child at its level
-    is_last: bool,
+    pub is_last: bool,
 }
 
 impl DirEntry {

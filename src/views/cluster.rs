@@ -137,7 +137,7 @@ pub trait Cluster: View {
     ///
     /// Returns (normal_color, hotkey_color)
     fn get_colors(&self) -> (Attr, Attr) {
-        use crate::core::palette::{Attr, TvColor};
+        use crate::core::palette::TvColor;
 
         if self.is_focused() {
             (

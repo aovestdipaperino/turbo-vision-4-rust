@@ -31,6 +31,7 @@ pub struct TurboVisionError {
 
 /// The specific kind of error that occurred.
 #[derive(Debug)]
+#[allow(dead_code)]
 pub(crate) enum ErrorKind {
     /// I/O operation failed
     Io(std::io::Error),
@@ -60,21 +61,25 @@ impl TurboVisionError {
     }
 
     /// Creates a terminal initialization error.
+    #[allow(dead_code)]
     pub(crate) fn terminal_init(msg: impl Into<String>) -> Self {
         Self::new(ErrorKind::TerminalInit(msg.into()))
     }
 
     /// Creates an invalid input error.
+    #[allow(dead_code)]
     pub(crate) fn invalid_input(msg: impl Into<String>) -> Self {
         Self::new(ErrorKind::InvalidInput(msg.into()))
     }
 
     /// Creates a parse error.
+    #[allow(dead_code)]
     pub(crate) fn parse(msg: impl Into<String>) -> Self {
         Self::new(ErrorKind::Parse(msg.into()))
     }
 
     /// Creates a file operation error.
+    #[allow(dead_code)]
     pub(crate) fn file_operation(path: impl Into<PathBuf>, source: std::io::Error) -> Self {
         Self::new(ErrorKind::FileOperation {
             path: path.into(),

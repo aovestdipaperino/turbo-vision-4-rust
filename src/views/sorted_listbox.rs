@@ -39,7 +39,7 @@ pub struct SortedListBox {
     items: Vec<String>,
     list_state: ListViewerState,
     state: StateFlags,
-    on_select_command: CommandId,
+    _on_select_command: CommandId,
     case_sensitive: bool,
 }
 
@@ -51,7 +51,7 @@ impl SortedListBox {
             items: Vec::new(),
             list_state: ListViewerState::new(),
             state: 0,
-            on_select_command,
+            _on_select_command: on_select_command,
             case_sensitive: false,
         }
     }
