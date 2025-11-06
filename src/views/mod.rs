@@ -100,6 +100,8 @@ pub mod help_context;
 pub mod outline;
 pub mod terminal_widget;
 pub mod chdir_dialog;
+pub mod help_index;
+pub mod help_toc;
 
 #[doc(inline)]
 pub use view::View;

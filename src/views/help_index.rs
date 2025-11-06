@@ -7,8 +7,9 @@
 //! Provides a searchable list of all help topics with filtering capability.
 
 use crate::core::geometry::Rect;
-use crate::core::event::{Event, EventType};
-use crate::core::command::{CM_OK, CM_CANCEL};
+use crate::core::event::{Event, EventType, KB_ENTER, KB_ESC};
+use crate::core::command::{CM_OK, CM_CANCEL, CommandId};
+use crate::core::state::SF_MODAL;
 use crate::terminal::Terminal;
 use super::dialog::Dialog;
 use super::input_line::InputLine;
@@ -27,12 +28,11 @@ const CMD_TOPIC_SELECTED: u16 = 1002;
 /// Matches Borland: THelpIndex
 pub struct HelpIndex {
     dialog: Dialog,
-    _help_file: Rc<RefCell<HelpFile>>,
-    #[allow(dead_code)]
+    help_file: Rc<RefCell<HelpFile>>,
     all_topics: Vec<(String, String)>, // (id, title)
     filtered_topics: Vec<(String, String)>,
-    _search_input_idx: usize,
-    _topic_list_idx: usize,
+    search_input_idx: usize,
+    topic_list_idx: usize,
     selected_topic: Option<String>,
 }
 
@@ -99,11 +99,11 @@ impl HelpIndex {
 
         let mut index = Self {
             dialog,
-            _help_file: help_file,
+            help_file,
             all_topics,
             filtered_topics,
-            _search_input_idx: search_input_idx,
-            _topic_list_idx: topic_list_idx,
+            search_input_idx,
+            topic_list_idx,
             selected_topic: None,
         };
 
@@ -115,7 +115,7 @@ impl HelpIndex {
     fn update_topic_list(&mut self) {
         // For now, show all topics (filtering not yet implemented)
         // TODO: Add actual search filtering based on search_input text
-        let _topic_titles: Vec<String> = self.filtered_topics
+        let topic_titles: Vec<String> = self.filtered_topics
             .iter()
             .map(|(_, title)| title.clone())
             .collect();
@@ -125,7 +125,6 @@ impl HelpIndex {
     }
 
     /// Filter topics based on search text
-    #[allow(dead_code)]
     fn filter_topics(&mut self, search_text: &str) {
         if search_text.is_empty() {
             self.filtered_topics = self.all_topics.clone();
@@ -198,57 +197,5 @@ impl View for HelpIndex {
 
     fn set_state(&mut self, state: crate::core::state::StateFlags) {
         self.dialog.set_state(state);
-    }
-
-    fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        self.dialog.get_palette()
-    }
-}
-
-/// Builder for creating help index dialogs with a fluent API.
-pub struct HelpIndexBuilder {
-    bounds: Option<Rect>,
-    title: Option<String>,
-    help_file: Option<Rc<RefCell<HelpFile>>>,
-}
-
-impl HelpIndexBuilder {
-    pub fn new() -> Self {
-        Self { bounds: None, title: None, help_file: None }
-    }
-
-    #[must_use]
-    pub fn bounds(mut self, bounds: Rect) -> Self {
-        self.bounds = Some(bounds);
-        self
-    }
-
-    #[must_use]
-    pub fn title(mut self, title: impl Into<String>) -> Self {
-        self.title = Some(title.into());
-        self
-    }
-
-    #[must_use]
-    pub fn help_file(mut self, help_file: Rc<RefCell<HelpFile>>) -> Self {
-        self.help_file = Some(help_file);
-        self
-    }
-
-    pub fn build(self) -> HelpIndex {
-        let bounds = self.bounds.expect("HelpIndex bounds must be set");
-        let title = self.title.expect("HelpIndex title must be set");
-        let help_file = self.help_file.expect("HelpIndex help_file must be set");
-        HelpIndex::new(bounds, &title, help_file)
-    }
-
-    pub fn build_boxed(self) -> Box<HelpIndex> {
-        Box::new(self.build())
-    }
-}
-
-impl Default for HelpIndexBuilder {
-    fn default() -> Self {
-        Self::new()
     }
 }
