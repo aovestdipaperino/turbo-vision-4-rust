@@ -12,7 +12,7 @@ use turbo_vision::views::{
     status_line::{StatusLine, StatusItem},
     View,
 };
-use turbo_vision::core::command::{CM_QUIT, CM_OK, CM_CLOSE, CM_NEXT, CM_PREV};
+use turbo_vision::core::command::{CM_QUIT, CM_OK, CM_CLOSE, CM_NEXT, CM_PREV, CM_ZOOM};
 use turbo_vision::core::event::{Event, EventType, KB_F1, KB_F3, KB_F10};
 use turbo_vision::core::geometry::Rect;
 use turbo_vision::core::menu_data::{Menu, MenuItem};
