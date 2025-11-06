@@ -231,6 +231,91 @@ impl View for Button {
     }
 }
 
+/// Builder for creating buttons with a fluent API.
+///
+/// # Examples
+///
+/// ```
+/// use turbo_vision::views::button::ButtonBuilder;
+/// use turbo_vision::core::geometry::Rect;
+/// use turbo_vision::core::command::CM_OK;
+///
+/// let button = ButtonBuilder::new()
+///     .bounds(Rect::new(10, 5, 20, 7))
+///     .title("OK")
+///     .command(CM_OK)
+///     .default(true)
+///     .build();
+/// ```
+pub struct ButtonBuilder {
+    bounds: Option<Rect>,
+    title: Option<String>,
+    command: Option<CommandId>,
+    is_default: bool,
+}
+
+impl ButtonBuilder {
+    /// Creates a new ButtonBuilder with default values.
+    pub fn new() -> Self {
+        Self {
+            bounds: None,
+            title: None,
+            command: None,
+            is_default: false,
+        }
+    }
+
+    /// Sets the button bounds (required).
+    #[must_use]
+    pub fn bounds(mut self, bounds: Rect) -> Self {
+        self.bounds = Some(bounds);
+        self
+    }
+
+    /// Sets the button title text (required).
+    #[must_use]
+    pub fn title(mut self, title: impl Into<String>) -> Self {
+        self.title = Some(title.into());
+        self
+    }
+
+    /// Sets the command ID to dispatch when clicked (required).
+    #[must_use]
+    pub fn command(mut self, command: CommandId) -> Self {
+        self.command = Some(command);
+        self
+    }
+
+    /// Sets whether this is the default button (optional, defaults to false).
+    ///
+    /// The default button is highlighted differently and can be activated
+    /// by pressing Enter even when not focused.
+    #[must_use]
+    pub fn default(mut self, is_default: bool) -> Self {
+        self.is_default = is_default;
+        self
+    }
+
+    /// Builds the Button.
+    ///
+    /// # Panics
+    ///
+    /// Panics if required fields (bounds, title, command) are not set.
+    pub fn build(self) -> Button {
+        let bounds = self.bounds.expect("Button bounds must be set");
+        let title = self.title.expect("Button title must be set");
+        let command = self.command.expect("Button command must be set");
+
+        Button::new(bounds, &title, command, self.is_default)
+    }
+}
+
+impl Default for ButtonBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -407,5 +492,65 @@ mod tests {
         // Event should still be a broadcast (not cleared)
         assert_eq!(event.what, EventType::Broadcast, "Broadcast should not be cleared");
         assert_eq!(event.command, CM_COMMAND_SET_CHANGED, "Broadcast command should remain");
+    }
+
+    #[test]
+    fn test_button_builder() {
+        const TEST_CMD: u16 = 507;
+        command_set::enable_command(TEST_CMD);
+
+        let button = ButtonBuilder::new()
+            .bounds(Rect::new(5, 10, 15, 12))
+            .title("Test")
+            .command(TEST_CMD)
+            .default(true)
+            .build();
+
+        assert_eq!(button.bounds(), Rect::new(5, 10, 15, 12));
+        assert_eq!(button.is_default_button(), true);
+        assert_eq!(button.button_command(), Some(TEST_CMD));
+    }
+
+    #[test]
+    fn test_button_builder_default_is_false() {
+        const TEST_CMD: u16 = 508;
+        command_set::enable_command(TEST_CMD);
+
+        let button = ButtonBuilder::new()
+            .bounds(Rect::new(0, 0, 10, 2))
+            .title("Test")
+            .command(TEST_CMD)
+            .build();
+
+        assert_eq!(button.is_default_button(), false);
+    }
+
+    #[test]
+    #[should_panic(expected = "Button bounds must be set")]
+    fn test_button_builder_panics_without_bounds() {
+        const TEST_CMD: u16 = 509;
+        ButtonBuilder::new()
+            .title("Test")
+            .command(TEST_CMD)
+            .build();
+    }
+
+    #[test]
+    #[should_panic(expected = "Button title must be set")]
+    fn test_button_builder_panics_without_title() {
+        const TEST_CMD: u16 = 510;
+        ButtonBuilder::new()
+            .bounds(Rect::new(0, 0, 10, 2))
+            .command(TEST_CMD)
+            .build();
+    }
+
+    #[test]
+    #[should_panic(expected = "Button command must be set")]
+    fn test_button_builder_panics_without_command() {
+        ButtonBuilder::new()
+            .bounds(Rect::new(0, 0, 10, 2))
+            .title("Test")
+            .build();
     }
 }

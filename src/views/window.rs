@@ -336,3 +336,73 @@ impl View for Window {
         self.interior.set_end_state(command);
     }
 }
+
+/// Builder for creating windows with a fluent API.
+///
+/// # Examples
+///
+/// ```
+/// use turbo_vision::views::window::WindowBuilder;
+/// use turbo_vision::views::button::ButtonBuilder;
+/// use turbo_vision::core::geometry::Rect;
+/// use turbo_vision::core::command::CM_OK;
+///
+/// let mut window = WindowBuilder::new()
+///     .bounds(Rect::new(10, 5, 60, 20))
+///     .title("My Window")
+///     .build();
+///
+/// // Add a button to the window
+/// let ok_button = ButtonBuilder::new()
+///     .bounds(Rect::new(10, 10, 20, 12))
+///     .title("OK")
+///     .command(CM_OK)
+///     .build();
+/// window.add(Box::new(ok_button));
+/// ```
+pub struct WindowBuilder {
+    bounds: Option<Rect>,
+    title: Option<String>,
+}
+
+impl WindowBuilder {
+    /// Creates a new WindowBuilder with default values.
+    pub fn new() -> Self {
+        Self {
+            bounds: None,
+            title: None,
+        }
+    }
+
+    /// Sets the window bounds (required).
+    #[must_use]
+    pub fn bounds(mut self, bounds: Rect) -> Self {
+        self.bounds = Some(bounds);
+        self
+    }
+
+    /// Sets the window title (required).
+    #[must_use]
+    pub fn title(mut self, title: impl Into<String>) -> Self {
+        self.title = Some(title.into());
+        self
+    }
+
+    /// Builds the Window.
+    ///
+    /// # Panics
+    ///
+    /// Panics if required fields (bounds, title) are not set.
+    pub fn build(self) -> Window {
+        let bounds = self.bounds.expect("Window bounds must be set");
+        let title = self.title.expect("Window title must be set");
+
+        Window::new(bounds, &title)
+    }
+}
+
+impl Default for WindowBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}

@@ -2,13 +2,21 @@
 
 **Generated:** 2025-11-05
 **Last Updated:** 2025-11-06
-**Version:** 1.7
+**Version:** 1.8
 **Source Guidelines:** ~/rust-guidelines.txt (Pragmatic Rust Guidelines)
 **Analyzed Directory:** src/
 
 This document provides a comprehensive analysis of the turbo-vision library against pragmatic Rust guidelines, identifying areas for improvement and providing actionable recommendations.
 
 ## ✅ Recent Updates
+
+**2025-11-06 (Phase 4.13 - API Enhancements) ✅ COMPLETED:**
+- ✅ Added ButtonBuilder with fluent API for ergonomic button creation
+- ✅ Added WindowBuilder with fluent API for ergonomic window creation
+- ✅ Both builders use #[must_use] on methods for correct builder pattern usage
+- ✅ Comprehensive examples in doc comments
+- ✅ 5 unit tests for ButtonBuilder (all passing)
+- ✅ All 185 library tests passing
 
 **2025-11-06 (Phase 4.12 - Testing Infrastructure) ✅ COMPLETED:**
 - ✅ Added `test-util` feature to Cargo.toml
@@ -1244,11 +1252,11 @@ Consider adding GitHub Actions workflow for:
     - [x] Create MockTerminal for testing (completed 2025-11-06)
     - [x] Add compile-time Send assertions (completed 2025-11-06)
 
-13. **API Enhancements**
-    - [ ] Add builder patterns for complex types:
-      - [ ] ButtonBuilder
-      - [ ] WindowBuilder
-    - [ ] Consider refactoring statics to dependency injection
+13. **API Enhancements** ✅ **COMPLETED**
+    - [x] Add builder patterns for complex types:
+      - [x] ButtonBuilder (completed 2025-11-06)
+      - [x] WindowBuilder (completed 2025-11-06)
+    - [ ] Consider refactoring statics to dependency injection (deferred - low priority)
 
 ---
 
@@ -1485,6 +1493,21 @@ The library has achieved production-ready standards with all critical, high, and
 - 📊 **Impact:** Library now uses 100% safe Rust, production-ready error handling, clear documentation
 - 🎯 **Benefit:** Eliminates undefined behavior, better error messages, easier to learn
 
+### 2025-11-06 - Phase 4.13 Completed (API Enhancements)
+- ✅ **ButtonBuilder**
+  - Fluent API with methods: bounds(), title(), command(), default()
+  - Uses #[must_use] on builder methods for correct usage
+  - Panics with clear messages if required fields missing
+  - Comprehensive doctest example showing usage
+  - 5 unit tests covering all scenarios (normal usage, defaults, panic conditions)
+- ✅ **WindowBuilder**
+  - Fluent API with methods: bounds(), title()
+  - Uses #[must_use] on builder methods
+  - Panics with clear messages if required fields missing
+  - Doctest example showing window creation with button
+- 📊 **Impact:** More ergonomic and discoverable API for creating UI components
+- 🎯 **Benefit:** Easier to construct complex views, better discoverability through examples
+
 ### 2025-11-06 - Phase 3.8 and 4.12 Completed
 - ✅ **Phase 3.8 - Documentation Polish**
   - Added code examples to Point, Rect, Attr, and Event types
@@ -1505,8 +1528,8 @@ The library has achieved production-ready standards with all critical, high, and
 
 ---
 
-**Document Version:** 1.7
+**Document Version:** 1.8
 **Generated:** 2025-11-05
-**Last Updated:** 2025-11-06 (Phase 3.8 and 4.12 completed)
+**Last Updated:** 2025-11-06 (Phase 4.13 completed - Builder patterns added)
 **Analyzed Codebase:** turbo-vision @ main branch
 **Guidelines Source:** Pragmatic Rust Guidelines (~/rust-guidelines.txt)
