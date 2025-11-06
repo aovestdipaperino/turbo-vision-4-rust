@@ -108,3 +108,5 @@ pub use menu_viewer::{MenuViewer, MenuViewerState};
 pub use menu_box::MenuBox;
 #[doc(inline)]
 pub use cluster::{Cluster, ClusterState};
+#[doc(inline)]
+pub use label::Label;

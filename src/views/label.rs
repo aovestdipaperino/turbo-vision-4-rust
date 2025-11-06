@@ -12,6 +12,7 @@ use super::view::{View, write_line_to_terminal};
 pub struct Label {
     bounds: Rect,
     text: String,
+    link: Option<usize>,  // Index of linked control in parent group
 }
 
 impl Label {
@@ -19,7 +20,15 @@ impl Label {
         Self {
             bounds,
             text: text.to_string(),
+            link: None,
         }
+    }
+
+    /// Set the linked control index
+    /// Matches Borland: TLabel constructor takes TView* aLink parameter
+    /// When label is clicked, focus transfers to the linked control
+    pub fn set_link(&mut self, link_index: usize) {
+        self.link = Some(link_index);
     }
 }
 
@@ -43,6 +52,13 @@ impl View for Label {
     }
 
     fn handle_event(&mut self, _event: &mut Event) {
-        // Labels don't handle events
+        // Labels don't handle events directly
+        // Focus linking is handled by Group
+    }
+
+    /// Return the linked control index for this label
+    /// Matches Borland: TLabel::link field
+    fn label_link(&self) -> Option<usize> {
+        self.link
     }
 }
