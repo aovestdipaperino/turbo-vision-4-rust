@@ -168,6 +168,13 @@ impl Window {
         self.interior.set_initial_focus();
     }
 
+    /// Set the window title
+    /// Matches Borland: TWindow allows title mutation via setTitle()
+    /// The frame will be redrawn on the next draw() call
+    pub fn set_title(&mut self, title: &str) {
+        self.frame.set_title(title);
+    }
+
     /// Set minimum window size (matches Borland: minWinSize)
     /// Prevents window from being resized smaller than these dimensions
     pub fn set_min_size(&mut self, min_size: Point) {
