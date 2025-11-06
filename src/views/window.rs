@@ -161,13 +161,6 @@ impl Window {
         self.interior.set_initial_focus();
     }
 
-    /// Set the window title
-    /// Matches Borland: TWindow allows title mutation via setTitle()
-    /// The frame will be redrawn on the next draw() call
-    pub fn set_title(&mut self, title: &str) {
-        self.frame.set_title(title);
-    }
-
     /// Set minimum window size (matches Borland: minWinSize)
     /// Prevents window from being resized smaller than these dimensions
     pub fn set_min_size(&mut self, min_size: Point) {
@@ -182,77 +175,6 @@ impl Window {
         // For now, return a large max (similar to Borland's INT_MAX approach)
         let max = Point::new(999, 999);
         (self.min_size, max)
-    }
-
-    /// Get drag limits from owner (parent bounds) or explicit limits
-    /// Matches Borland: TFrame::dragWindow() gets limits = owner->owner->getExtent()
-    /// Returns parent bounds if owner exists, explicit limits if set, otherwise unrestricted
-    fn get_drag_limits(&self) -> Rect {
-        // First check explicit drag limits (for modal dialogs)
-        if let Some(limits) = self.explicit_drag_limits {
-            return limits;
-        }
-
-        // Then check owner pointer
-        if let Some(owner_ptr) = self.owner {
-            // Safety: owner pointer is valid during the window's lifetime
-            unsafe { (*owner_ptr).bounds() }
-        } else {
-            // No owner - unrestricted movement
-            Rect::new(-999, -999, 9999, 9999)
-        }
-    }
-
-    /// Set explicit drag limits (for modal dialogs not added to desktop)
-    /// This is used when a dialog runs its own event loop without being added to desktop
-    pub fn set_drag_limits(&mut self, limits: Rect) {
-        self.explicit_drag_limits = Some(limits);
-    }
-
-    /// Constrain window bounds to drag limits
-    /// Ensures window is positioned within parent bounds (including shadow)
-    /// Matches Borland: TView position is constrained during locate()
-    pub fn constrain_to_limits(&mut self) {
-        let limits = self.get_drag_limits();
-        let width = self.bounds.width();
-        let height = self.bounds.height();
-
-        // Account for shadow when constraining bottom edge
-        let shadow_offset = if (self.state & SF_SHADOW) != 0 { 1 } else { 0 };
-
-        let mut new_x = self.bounds.a.x;
-        let mut new_y = self.bounds.a.y;
-
-        // Apply all drag mode constraints
-        // dmLimitLoX: keep left edge within bounds
-        new_x = new_x.max(limits.a.x);
-
-        // dmLimitLoY: keep top edge within bounds
-        new_y = new_y.max(limits.a.y);
-
-        // dmLimitHiX: keep right edge within bounds
-        new_x = new_x.min(limits.b.x - width);
-
-        // dmLimitHiY: keep bottom edge (including shadow) within bounds
-        new_y = new_y.min(limits.b.y - height - shadow_offset);
-
-        // Update bounds if position changed
-        if new_x != self.bounds.a.x || new_y != self.bounds.a.y {
-            self.bounds = Rect::new(new_x, new_y, new_x + width, new_y + height);
-
-            // Update frame and interior bounds
-            self.frame.set_bounds(self.bounds);
-            let mut interior_bounds = self.bounds;
-            interior_bounds.grow(-1, -1);
-            self.interior.set_bounds(interior_bounds);
-        }
-    }
-
-    /// Set the maximum size for zoom operations
-    /// Typically set to desktop size when added to desktop
-    pub fn set_max_size(&mut self, _max_size: Point) {
-        // Store max size as zoom_rect if we want to zoom to it
-        // For now, we'll calculate it dynamically in zoom()
     }
 
     /// Set focus to a specific child by index
@@ -488,16 +410,8 @@ impl View for Window {
 
                 // Apply size constraints (Borland: sizeLimits)
                 let (min, max) = self.size_limits();
-                let mut final_width = new_width.max(min.x as u16).min(max.x as u16);
-                let mut final_height = new_height.max(min.y as u16).min(max.y as u16);
-
-                // Constrain size to not exceed parent bounds
-                // Borland: TView::moveGrow() constrains both position and size to limits
-                let limits = self.get_drag_limits();
-                let max_width = (limits.b.x - self.bounds.a.x).max(0) as u16;
-                let max_height = (limits.b.y - self.bounds.a.y).max(0) as u16;
-                final_width = final_width.min(max_width);
-                final_height = final_height.min(max_height);
+                let final_width = new_width.max(min.x as u16).min(max.x as u16);
+                let final_height = new_height.max(min.y as u16).min(max.y as u16);
 
                 // Save previous bounds for union rect calculation
                 self.prev_bounds = Some(self.bounds);
