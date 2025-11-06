@@ -216,6 +216,7 @@ pub mod core;
 pub mod terminal;
 pub mod views;
 pub mod app;
+pub mod helpers;
 
 // Test utilities (only available with test-util feature)
 #[cfg(feature = "test-util")]
