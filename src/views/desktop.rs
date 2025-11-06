@@ -345,6 +345,25 @@ impl Desktop {
         }
     }
 
+    /// Zoom the topmost window
+    /// Matches Borland: Desktop handles cmZoom and calls window->zoom()
+    /// In Borland, TWindow::zoom() calls sizeLimits() which gets owner->size
+    pub fn zoom_top_window(&mut self) {
+        // Get the topmost window (last in children list, excluding background)
+        if self.children.len() <= 1 {
+            return; // No windows to zoom
+        }
+
+        let top_window_idx = self.children.len() - 1;
+
+        // Call zoom on the topmost view (typically a Window)
+        // This matches Borland: owner handles cmZoom, calls window->zoom()
+        // window->zoom() uses sizeLimits() which returns owner->size as max
+        // We pass desktop bounds (equivalent to owner->size in Borland)
+        let desktop_bounds = self.bounds;
+        self.children.child_at_mut(top_window_idx).zoom(desktop_bounds);
+    }
+
     /// Remove closed windows (those with SF_CLOSED flag)
     /// In Borland, views call CLY_destroy() which removes them from the owner
     /// In Rust, views set SF_CLOSED flag and the parent removes them

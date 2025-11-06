@@ -56,7 +56,7 @@ fn create_menu_bar(width: u16) -> MenuBar {
 
     // Windows menu
     let windows_menu_items = vec![
-        MenuItem::with_shortcut("~Z~oom", 0, 0, "F5", 0),
+        MenuItem::with_shortcut("~Z~oom", CM_ZOOM, 0, "F5", 0),
         MenuItem::with_shortcut("~N~ext", CM_NEXT, 0, "F6", 0),
         MenuItem::with_shortcut("~C~lose", CM_CLOSE, 0, "Alt+F3", 0),
         MenuItem::separator(),
@@ -302,6 +302,11 @@ fn main() -> turbo_vision::core::error::Result<()> {
                     }
                     CM_CASCADE => {
                         app.desktop.cascade();
+                    }
+                    CM_ZOOM => {
+                        // Zoom/restore the topmost window
+                        // Matches Borland: Desktop handles cmZoom command
+                        app.desktop.zoom_top_window();
                     }
                     _ => {}
                 }
