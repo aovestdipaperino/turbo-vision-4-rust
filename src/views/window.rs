@@ -97,7 +97,7 @@ impl Window {
             interior,
             frame_children: Vec::new(),
             state: SF_SHADOW, // Windows have shadows by default
-            options: OF_SELECTABLE | OF_TOP_SELECT | OF_TILEABLE, // Matches Borland: TWindow/TEditWindow flags
+            options: 0,
             drag_offset: None,
             resize_start_size: None,
             min_size: Point::new(16, 6), // Minimum size: 16 wide, 6 tall (matches Borland's minWinSize)

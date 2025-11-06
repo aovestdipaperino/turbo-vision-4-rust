@@ -35,22 +35,8 @@ impl Desktop {
         }
     }
 
-    /// Initialize the palette chain after Desktop is in its final memory location.
-    /// Must be called after Desktop is constructed and in a stable location (not moved).
-    /// Matches Borland: Desktop is the root of the palette chain with CP_APP_COLOR.
-    pub fn init_palette_chain(&mut self) {
-        // Set children's owner to this Desktop (for palette chain)
-        // Desktop provides CP_APP_COLOR palette, making it the palette root
-        // NOTE: We don't set owner pointer to avoid unsafe casting
-    }
-
-    pub fn add(&mut self, mut view: Box<dyn View>) -> usize {
+    pub fn add(&mut self, mut view: Box<dyn View>) {
         use crate::core::state::{OF_CENTERED, OF_CENTER_X, OF_CENTER_Y};
-
-        // Set owner pointer to Desktop (for drag limits and bounds checking)
-        // Matches Borland: TGroup::insert() sets view->owner = this
-        // Safety: Desktop's address is stable for the lifetime of the view
-        view.set_owner(self as *const dyn View);
 
         // Apply automatic centering if OF_CENTERED flags are set
         // Matches Borland: TView with ofCentered is centered when inserted
@@ -59,15 +45,8 @@ impl Desktop {
             self.center_view(&mut *view, options);
         }
 
-        // Constrain window to Desktop bounds (prevents centering from placing window out of bounds)
-        // This ensures windows with shadows don't extend below status bar
-        // Matches Borland: TView::locate() constrains position to owner bounds
-        view.constrain_to_parent_bounds();
-
-        let index = self.children.add(view);
-
-        // Initialize internal owner pointers after view is in final position
-        // This is critical for views like Dialog that contain Groups by value
+        self.children.add(view);
+        // Focus on the newly added window (last child)
         let num_children = self.children.len();
         if num_children > 0 {
             let last_idx = num_children - 1;
@@ -85,6 +64,37 @@ impl Desktop {
             }
         }
         index
+    }
+
+    /// Center a view within the desktop bounds based on its option flags
+    /// Matches Borland: Views with ofCentered are automatically centered
+    fn center_view(&self, view: &mut dyn View, options: u16) {
+        use crate::core::state::{OF_CENTER_X, OF_CENTER_Y};
+
+        let view_bounds = view.bounds();
+        let desktop_bounds = self.bounds;
+
+        let mut new_bounds = view_bounds;
+
+        // Center horizontally if OF_CENTER_X is set
+        if (options & OF_CENTER_X) != 0 {
+            let view_width = view_bounds.width();
+            let desktop_width = desktop_bounds.width();
+            let center_x = (desktop_width - view_width) / 2;
+            new_bounds.a.x = center_x;
+            new_bounds.b.x = center_x + view_width;
+        }
+
+        // Center vertically if OF_CENTER_Y is set
+        if (options & OF_CENTER_Y) != 0 {
+            let view_height = view_bounds.height();
+            let desktop_height = desktop_bounds.height();
+            let center_y = (desktop_height - view_height) / 2;
+            new_bounds.a.y = center_y;
+            new_bounds.b.y = center_y + view_height;
+        }
+
+        view.set_bounds(new_bounds);
     }
 
     /// Center a view within the desktop bounds based on its option flags

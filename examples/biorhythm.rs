@@ -306,16 +306,16 @@ impl View for BiorhythmChart {
     }
 }
 
-fn create_biorhythm_dialog(prev_day: &str, prev_month: &str, prev_year: &str, _screen_width: u16, _screen_height: u16) -> (turbo_vision::views::dialog::Dialog, Rc<RefCell<String>>, Rc<RefCell<String>>, Rc<RefCell<String>>) {
+fn create_biorhythm_dialog(prev_day: &str, prev_month: &str, prev_year: &str, _screen_width: u16, _screen_height: u16) -> (Dialog, Rc<RefCell<String>>, Rc<RefCell<String>>, Rc<RefCell<String>>) {
     // Dialog dimensions: 50 wide, 12 tall
     let dialog_width = 50i16;
     let dialog_height = 12i16;
 
     // Create dialog with dummy position - OF_CENTERED will auto-center it
-    let mut dialog = DialogBuilder::new()
-        .bounds(Rect::new(0, 0, dialog_width, dialog_height))
-        .title("Enter Birth Date")
-        .build();
+    let mut dialog = Dialog::new(
+        Rect::new(0, 0, dialog_width, dialog_height),
+        "Enter Birth Date"
+    );
 
     // Enable automatic centering (matches Borland's ofCentered option)
     dialog.set_options(OF_CENTERED);
@@ -607,21 +607,21 @@ fn main() -> turbo_vision::core::error::Result<()> {
         }
     }
 
-    // Now create and show the main dialog with chart - sized to available space
-    let mut main_dialog = DialogBuilder::new()
-        .bounds(Rect::new(window_x, window_y, window_x + window_width, window_y + window_height))
-        .title("Biorhythm Calculator")
-        .build();
+    // Now create and show the main window with chart - sized to available space
+    let mut main_window = Window::new(
+        Rect::new(window_x, window_y, window_x + window_width, window_y + window_height),
+        "Biorhythm Calculator"
+    );
 
-    // Chart uses interior space (dialog minus frame), with 1-column margins
+    // Chart uses interior space (window minus frame), with 1-column margins
     let chart_width = window_width - 2;   // Subtract frame (2 chars total)
     let chart_height = window_height - 2; // Subtract frame (2 chars total)
     let chart = BiorhythmChart::new(
         Rect::new(1, 1, chart_width, chart_height),
         Arc::clone(&biorhythm_data)
     );
-    main_dialog.add(Box::new(chart));
-    app.desktop.add(Box::new(main_dialog));
+    main_window.add(Box::new(chart));
+    app.desktop.add(Box::new(main_window));
 
     // Custom event handler loop
     app.running = true;

@@ -263,56 +263,7 @@ impl View for Dialog {
         self.window.set_options(options);
     }
 
-    fn can_focus(&self) -> bool {
-        // Dialogs can receive focus
-        true
-    }
-
-    fn set_focus(&mut self, focused: bool) {
-        self.window.set_focus(focused);
-    }
-
-    fn update_cursor(&self, terminal: &mut Terminal) {
-        self.window.update_cursor(terminal);
-    }
-
-    fn valid(&mut self, command: CommandId) -> bool {
-        // Dialogs validate on OK/Yes (but not Cancel/No)
-        // Matches Borland: TDialog::valid() (tdialog.cc:88-104)
-        if command == CM_CANCEL || command == 13 /* CM_NO */ {
-            // Cancel/No always succeeds without validation
-            return true;
-        } else {
-            // Validate through window (which will validate all children)
-            self.window.valid(command)
-        }
-    }
-
-    fn set_owner(&mut self, owner: *const dyn View) {
-        self.window.set_owner(owner);
-    }
-
-    fn get_owner(&self) -> Option<*const dyn View> {
-        self.window.get_owner()
-    }
-
-    fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        use crate::core::palette::{Palette, palettes};
-        // Dialog uses gray dialog palette (Borland: TDialog::getPalette)
-        Some(Palette::from_slice(palettes::CP_GRAY_DIALOG))
-    }
-
-    fn init_after_add(&mut self) {
-        // Initialize Window's interior owner pointer now that Dialog is in final position
-        // This completes the palette chain: Button → interior → Window → Desktop
-        self.window.init_interior_owner();
-    }
-
-    fn constrain_to_parent_bounds(&mut self) {
-        self.window.constrain_to_limits();
-    }
-
-    fn get_end_state(&self) -> crate::core::command::CommandId {
+    fn get_end_state(&self) -> CommandId {
         self.window.get_end_state()
     }
 
