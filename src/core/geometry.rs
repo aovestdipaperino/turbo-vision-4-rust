@@ -5,6 +5,19 @@
 use std::fmt;
 
 /// A point in 2D space
+///
+/// # Examples
+///
+/// ```
+/// use turbo_vision::core::geometry::Point;
+///
+/// let p = Point::new(10, 20);
+/// assert_eq!(p.x, 10);
+/// assert_eq!(p.y, 20);
+///
+/// let origin = Point::zero();
+/// assert_eq!(origin, Point::new(0, 0));
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct Point {
     pub x: i16,
@@ -28,6 +41,29 @@ impl fmt::Display for Point {
 }
 
 /// A rectangle defined by two points (top-left inclusive, bottom-right exclusive)
+///
+/// # Examples
+///
+/// ```
+/// use turbo_vision::core::geometry::{Point, Rect};
+///
+/// // Create a 10x10 rectangle at origin
+/// let rect = Rect::new(0, 0, 10, 10);
+/// assert_eq!(rect.width(), 10);
+/// assert_eq!(rect.height(), 10);
+///
+/// // Check if a point is inside
+/// assert!(rect.contains(Point::new(5, 5)));
+/// assert!(!rect.contains(Point::new(10, 10))); // Bottom-right is exclusive
+///
+/// // Move and resize
+/// let mut r = Rect::new(0, 0, 10, 10);
+/// r.move_by(5, 5);
+/// assert_eq!(r, Rect::new(5, 5, 15, 15));
+///
+/// r.grow(2, 2);  // Expand by 2 in all directions
+/// assert_eq!(r, Rect::new(3, 3, 17, 17));
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Rect {
     pub a: Point,  // top-left (inclusive)
@@ -95,6 +131,17 @@ impl Rect {
     }
 
     /// Intersect this rectangle with another
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use turbo_vision::core::geometry::Rect;
+    ///
+    /// let r1 = Rect::new(0, 0, 10, 10);
+    /// let r2 = Rect::new(5, 5, 15, 15);
+    /// let intersection = r1.intersect(&r2);
+    /// assert_eq!(intersection, Rect::new(5, 5, 10, 10));
+    /// ```
     pub fn intersect(&self, other: &Rect) -> Rect {
         Rect {
             a: Point::new(self.a.x.max(other.a.x), self.a.y.max(other.a.y)),

@@ -73,6 +73,27 @@ impl TvColor {
 }
 
 /// Text attributes (foreground and background colors)
+///
+/// # Examples
+///
+/// ```
+/// use turbo_vision::core::palette::{Attr, TvColor, colors};
+///
+/// // Create custom attribute
+/// let attr = Attr::new(TvColor::White, TvColor::Blue);
+/// assert_eq!(attr.fg, TvColor::White);
+/// assert_eq!(attr.bg, TvColor::Blue);
+///
+/// // Use predefined colors from colors module
+/// let button_attr = colors::BUTTON_NORMAL;
+/// assert_eq!(button_attr.fg, TvColor::Black);
+/// assert_eq!(button_attr.bg, TvColor::Green);
+///
+/// // Convert to/from byte representation
+/// let byte = attr.to_u8();
+/// let restored = Attr::from_u8(byte);
+/// assert_eq!(attr, restored);
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Attr {
     pub fg: TvColor,

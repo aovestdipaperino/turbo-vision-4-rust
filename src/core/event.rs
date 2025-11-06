@@ -110,6 +110,26 @@ pub struct MouseEvent {
 }
 
 /// A unified event structure
+///
+/// # Examples
+///
+/// ```
+/// use turbo_vision::core::event::{Event, EventType, KB_ESC, KB_ENTER};
+/// use turbo_vision::core::command::CM_QUIT;
+///
+/// // Create keyboard event
+/// let esc_event = Event::keyboard(KB_ESC);
+/// assert_eq!(esc_event.key_code, KB_ESC);
+///
+/// // Create command event
+/// let quit_cmd = Event::command(CM_QUIT);
+/// assert_eq!(quit_cmd.command, CM_QUIT);
+///
+/// // Clear an event to mark it as handled
+/// let mut event = Event::keyboard(KB_ENTER);
+/// event.clear();
+/// assert_eq!(event.what, EventType::Nothing);
+/// ```
 #[derive(Debug, Clone, Copy)]
 pub struct Event {
     pub what: EventType,

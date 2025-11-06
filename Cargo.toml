@@ -26,6 +26,10 @@ exclude = [
 name = "turbo_vision"
 path = "src/lib.rs"
 
+[features]
+# Test utilities for applications using turbo-vision
+test-util = []
+
 [[bin]]
 name = "key_debug"
 path = "debug/key_debug.rs"

@@ -217,6 +217,10 @@ pub mod terminal;
 pub mod views;
 pub mod app;
 
+// Test utilities (only available with test-util feature)
+#[cfg(feature = "test-util")]
+pub mod test_util;
+
 // Re-export commonly used types
 pub mod prelude {
     pub use crate::core::geometry::{Point, Rect};
