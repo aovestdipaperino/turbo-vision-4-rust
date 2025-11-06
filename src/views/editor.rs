@@ -940,6 +940,53 @@ impl Editor {
         }
     }
 
+    /// Copy selection to clipboard
+    /// Matches Borland: TEditor::clipCopy()
+    pub fn clip_copy(&mut self) -> bool {
+        if let Some(text) = self.get_selection() {
+            clipboard::set_clipboard(&text);
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Cut selection to clipboard (copy + delete)
+    /// Matches Borland: TEditor::clipCut()
+    pub fn clip_cut(&mut self) -> bool {
+        if self.read_only || !self.has_selection() {
+            return false;
+        }
+
+        if let Some(text) = self.get_selection() {
+            clipboard::set_clipboard(&text);
+            self.delete_selection();
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Paste from clipboard
+    /// Matches Borland: TEditor::clipPaste()
+    pub fn clip_paste(&mut self) -> bool {
+        if self.read_only {
+            return false;
+        }
+
+        let text = clipboard::get_clipboard();
+        if !text.is_empty() {
+            // Delete selection first if there is one
+            if self.has_selection() {
+                self.delete_selection();
+            }
+            self.insert_text(&text);
+            true
+        } else {
+            false
+        }
+    }
+
     fn insert_text_internal(&mut self, text: &str) {
         if self.read_only {
             return;
@@ -1272,23 +1319,15 @@ impl View for Editor {
                     event.clear();
                 }
                 KB_CTRL_C => {
-                    if let Some(selection) = self.get_selection() {
-                        clipboard::set_clipboard(&selection);
-                    }
+                    self.clip_copy();
                     event.clear();
                 }
                 KB_CTRL_X => {
-                    if let Some(selection) = self.get_selection() {
-                        clipboard::set_clipboard(&selection);
-                        self.delete_selection();
-                    }
+                    self.clip_cut();
                     event.clear();
                 }
                 KB_CTRL_V => {
-                    let clipboard_text = clipboard::get_clipboard();
-                    if !clipboard_text.is_empty() {
-                        self.insert_text(&clipboard_text);
-                    }
+                    self.clip_paste();
                     event.clear();
                 }
                 KB_CTRL_Z => {
