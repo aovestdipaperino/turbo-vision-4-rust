@@ -424,6 +424,13 @@ impl View for Window {
         interior_bounds.grow(-1, -1);
         self.interior.set_bounds(interior_bounds);
     }
+
+    /// Validate window before closing with given command
+    /// Matches Borland: TWindow inherits TGroup::valid() which validates all children
+    /// Delegates to interior group to validate all children
+    fn valid(&mut self, command: crate::core::command::CommandId) -> bool {
+        self.interior.valid(command)
+    }
 }
 
 /// Builder for creating windows with a fluent API.

@@ -33,6 +33,7 @@ pub const OF_TILEABLE: u16 = 0x080;
 pub const OF_CENTER_X: u16 = 0x100;
 pub const OF_CENTER_Y: u16 = 0x200;
 pub const OF_CENTERED: u16 = 0x300;
+pub const OF_VALIDATE: u16 = 0x400;  // View should be validated on focus release (Borland: ofValidate)
 
 /// Shadow size (width, height)
 pub const SHADOW_SIZE: (i16, i16) = (2, 1);

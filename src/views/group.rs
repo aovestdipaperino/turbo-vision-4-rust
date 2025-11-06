@@ -539,6 +539,35 @@ impl View for Group {
     fn set_end_state(&mut self, command: crate::core::command::CommandId) {
         self.end_state = command;
     }
+
+    /// Validate group before performing command
+    /// Matches Borland: TGroup::valid(ushort command)
+    /// - If command is CM_RELEASED_FOCUS, validate current focused child if it has OF_VALIDATE
+    /// - Otherwise, validate all children (return false if any child is invalid)
+    fn valid(&mut self, command: crate::core::command::CommandId) -> bool {
+        use crate::core::command::CM_RELEASED_FOCUS;
+        use crate::core::state::OF_VALIDATE;
+
+        if command == CM_RELEASED_FOCUS {
+            // Validate only the currently focused child if it has OF_VALIDATE flag
+            if self.focused < self.children.len() {
+                let child = &mut self.children[self.focused];
+                if (child.options() & OF_VALIDATE) != 0 {
+                    return child.valid(command);
+                }
+            }
+            true
+        } else {
+            // Validate all children - return false if any child is invalid
+            // Matches Borland: firstThat(isInvalid, &command) == nullptr
+            for child in &mut self.children {
+                if !child.valid(command) {
+                    return false;
+                }
+            }
+            true
+        }
+    }
 }
 
 #[cfg(test)]

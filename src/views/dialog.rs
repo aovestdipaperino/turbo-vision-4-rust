@@ -227,6 +227,22 @@ impl View for Dialog {
     fn set_end_state(&mut self, command: CommandId) {
         self.window.set_end_state(command);
     }
+
+    /// Validate dialog before closing with given command
+    /// Matches Borland: TDialog::valid(ushort command)
+    /// - cmCancel always allowed (user can always cancel)
+    /// - Other commands validated through window (which validates children)
+    fn valid(&mut self, command: CommandId) -> bool {
+        use crate::core::command::CM_CANCEL;
+
+        if command == CM_CANCEL {
+            // Can always cancel
+            true
+        } else {
+            // Validate through window (which will validate all children)
+            self.window.valid(command)
+        }
+    }
 }
 
 impl Dialog {

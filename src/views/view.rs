@@ -111,6 +111,23 @@ pub trait View {
         // Default: do nothing (only Window implements zoom)
     }
 
+    /// Validate the view before performing a command (usually closing)
+    /// Matches Borland: TView::valid(ushort command) - returns Boolean
+    /// Returns true if the view's state is valid for the given command
+    /// Used for "Save before closing?" type scenarios and input validation
+    ///
+    /// # Arguments
+    /// * `command` - The command being performed (CM_OK, CM_CANCEL, CM_RELEASED_FOCUS, etc.)
+    ///
+    /// # Returns
+    /// * `true` - View state is valid, command can proceed
+    /// * `false` - View state is invalid, command should be blocked
+    ///
+    /// Default implementation always returns true (no validation)
+    fn valid(&mut self, _command: crate::core::command::CommandId) -> bool {
+        true
+    }
+
     /// Dump this view's region of the terminal buffer to an ANSI file for debugging
     fn dump_to_file(&self, terminal: &Terminal, path: &str) -> io::Result<()> {
         let bounds = self.shadow_bounds();
