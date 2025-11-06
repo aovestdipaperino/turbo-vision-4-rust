@@ -2,7 +2,7 @@
 
 Have you ever wanted to build a terminal UI application that feels polished and responsive, with validation that updates as you type? Today, we're diving deep into the Biorhythm Calculator example—a complete Turbo Vision application that showcases some fascinating patterns you won't find in typical TUI frameworks.
 
-What makes this interesting isn't just the biorhythm calculations (those theoretical cycles of physical, emotional, and intellectual states). It's how we handle *real-time validation*—watching every keystroke, enabling and disabling buttons dynamically, and making it all feel natural. Along the way, we'll discover why shadows matter for window positioning, when to abandon standard dialog loops, and how Turbo Vision's command system makes everything click together.
+What makes this interesting isn't just the biorhythm calculations (those theoretical cycles of physical, emotional, and intellectual states). It's how we handle *real-time validation*—watching every keystroke, enabling and disabling buttons dynamically, and making it all feel natural. Along the way, we'll discover how automatic centering simplifies layout, when to abandon standard dialog loops, and how Turbo Vision's command system makes everything click together.
 
 Let's build something that feels right.
 
@@ -56,10 +56,11 @@ fn main() -> std::io::Result<()> {
     // ...
 
     // Calculate where the window WILL go (but don't create it yet)
+    // Note: Main window uses manual positioning to account for menu bar
     let window_x = (width as i16 - (window_width + 2)) / 2;
     let window_y = 1 + ((height as i16 - 2) - (window_height + 1)) / 2;
 
-    // Show the birthdate dialog FIRST
+    // Show the birthdate dialog FIRST (uses OF_CENTERED for auto-centering)
     let result = show_birthdate_dialog(...);
 
     // User canceled? Just exit.
@@ -83,40 +84,51 @@ This is one of those details that makes an app feel *intentional*.
 
 ---
 
-## The Shadow Problem: Why Centering Is Harder Than You Think
+## Automatic Centering: Let Turbo Vision Handle the Details
 
-Pop quiz: You have a window that's 76 characters wide. Your terminal is 80 characters wide. Where do you position it?
-
-Obvious answer: `(80 - 76) / 2 = 2`. Position it at column 2.
-
-**Wrong.**
-
-Why? Because Turbo Vision windows have *shadows*. That shadow extends 2 columns to the right and 1 row down. Your 76-character window actually takes up 78 characters of visual space.
-
-So the real answer is: `(80 - 78) / 2 = 1`. Position it at column 1.
+Here's something nice: Turbo Vision has an `OF_CENTERED` option that automatically centers windows and dialogs for you.
 
 ```rust
-// ❌ WRONG: Centers the window bounds, not the visual appearance
+use turbo_vision::core::state::OF_CENTERED;
+
+// Create dialog with any position - OF_CENTERED will reposition it
+let mut dialog = Dialog::new(
+    Rect::new(0, 0, dialog_width, dialog_height),
+    "Enter Birth Date"
+);
+
+// Enable automatic centering (matches Borland's ofCentered option)
+dialog.set_options(OF_CENTERED);
+```
+
+That's it. When the dialog is added to the desktop, it'll be perfectly centered.
+
+### Why This Matters: The Shadow Problem
+
+Under the hood, `OF_CENTERED` handles a subtle detail that's easy to get wrong: **shadows**.
+
+Windows have shadows—2 columns to the right and 1 row down. A 50-character dialog actually takes up 52 characters of visual space. If you manually center based on the dialog width alone, it'll look off-center to the right.
+
+```rust
+// ❌ WRONG: Ignores shadow, looks off-center
 let x = (screen_width - window_width) / 2;
 
-// ✅ RIGHT: Centers the window INCLUDING its shadow
+// ✅ RIGHT: Accounts for shadow
 let x = (screen_width - (window_width + 2)) / 2;
 //                                     ↑
 //                              shadow width
 ```
 
-And vertically? You've got a menu bar at the top (1 row) and a status line at the bottom (1 row). Plus the shadow (1 row). So:
+`OF_CENTERED` handles this automatically. You just specify the dialog dimensions, and the framework calculates the perfect position, shadow included.
 
-```rust
-let available_height = screen_height - 2;  // Minus menu and status
-let y = 1 + (available_height - (window_height + 1)) / 2;
-//      ↑                                       ↑
-//   menu bar                              shadow height
-```
+### When To Use Manual Positioning
 
-I spent an hour wondering why my "centered" windows looked off-center to the right and down. Then I realized: shadows are *part of the visual*. You have to account for them.
+You'd still manually calculate positions when:
+- Positioning relative to other windows
+- Cascading multiple windows
+- Specific layout requirements (toolbars, side panels, etc.)
 
-This is the kind of thing you only learn by building. And now you know.
+But for "just center this dialog," `OF_CENTERED` is the way.
 
 ---
 
@@ -511,7 +523,20 @@ let button = dialog.child_at_mut(8).downcast_mut::<Button>();
 button.set_disabled(true);
 ```
 
-### ✅ DO: Account for Shadows When Centering
+### ✅ DO: Use OF_CENTERED for Simple Centering
+
+```rust
+use turbo_vision::core::state::OF_CENTERED;
+
+let mut dialog = Dialog::new(Rect::new(0, 0, width, height), "Title");
+dialog.set_options(OF_CENTERED);  // Automatically centered on desktop
+```
+
+**Why**: Handles shadows automatically. Less error-prone. Cleaner code.
+
+### ✅ DO: Account for Shadows When Manually Positioning
+
+For special cases (relative positioning, menu bar offsets):
 
 ```rust
 let x = (screen_width - (window_width + 2)) / 2;  // +2 for shadow
@@ -520,7 +545,7 @@ let y = (screen_height - (window_height + 1)) / 2; // +1 for shadow
 
 **Why**: Shadows are part of the visual. Ignoring them makes windows look off-center.
 
-### ❌ DON'T: Ignore Shadows
+### ❌ DON'T: Ignore Shadows in Manual Positioning
 
 ```rust
 let x = (screen_width - window_width) / 2;  // Looks off-center!
@@ -721,7 +746,7 @@ if !is_day_valid() {
 
 Building this biorhythm calculator taught me things I wouldn't have learned from just reading documentation:
 
-1. **Shadows matter for centering** - They're part of the visual. Ignore them and your "centered" windows look wrong.
+1. **Use OF_CENTERED for dialogs** - Turbo Vision's `OF_CENTERED` option handles shadow positioning automatically. For special cases (menu bar offsets, relative positioning), calculate manually and account for shadows.
 
 2. **Command set over direct manipulation** - Global command state is more robust than finding and toggling individual buttons.
 
@@ -733,7 +758,7 @@ Building this biorhythm calculator taught me things I wouldn't have learned from
 
 6. **Window creation timing matters** - Create windows after validation, not before. Gives you clean exit paths.
 
-7. **Details make the difference** - Leap years, empty string checks, shadow offsets—these are what make it feel polished.
+7. **Details make the difference** - Leap years, empty string checks, proper centering—these are what make it feel polished.
 
 These aren't things you'd guess from the API. They're things you learn by *building*.
 
@@ -745,7 +770,7 @@ The Biorhythm Calculator isn't just a demo of calculating sine waves. It's a dem
 
 The patterns here—command set integration, custom event loops, proper centering, real-time validation—apply to any Turbo Vision application. You might be building a database front-end, a system monitor, a text editor. These patterns still apply.
 
-And the philosophy applies too: **Sweat the details.** The shadow offset. The initial validation. The Enter key. None of these are individually important, but together they're the difference between "it works" and "it feels right."
+And the philosophy applies too: **Sweat the details.** The automatic centering. The initial validation. The Enter key. None of these are individually important, but together they're the difference between "it works" and "it feels right."
 
 Build something that feels right.
 
@@ -777,7 +802,13 @@ loop {
 restore_state();
 ```
 
-**Centering with shadows:**
+**Centering (automatic):**
+```rust
+use turbo_vision::core::state::OF_CENTERED;
+dialog.set_options(OF_CENTERED);  // Handles shadows automatically
+```
+
+**Centering (manual, with shadows):**
 ```rust
 let x = (screen_width - (width + 2)) / 2;
 let y = 1 + ((screen_height - 2) - (height + 1)) / 2;

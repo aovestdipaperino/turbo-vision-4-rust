@@ -34,7 +34,16 @@ impl Desktop {
         }
     }
 
-    pub fn add(&mut self, view: Box<dyn View>) {
+    pub fn add(&mut self, mut view: Box<dyn View>) {
+        use crate::core::state::{OF_CENTERED, OF_CENTER_X, OF_CENTER_Y};
+
+        // Apply automatic centering if OF_CENTERED flags are set
+        // Matches Borland: TView with ofCentered is centered when inserted
+        let options = view.options();
+        if (options & OF_CENTERED) != 0 || (options & OF_CENTER_X) != 0 || (options & OF_CENTER_Y) != 0 {
+            self.center_view(&mut *view, options);
+        }
+
         self.children.add(view);
         // Focus on the newly added window (last child)
         let num_children = self.children.len();
@@ -47,6 +56,37 @@ impl Desktop {
                 self.children.set_focus_to(last_idx);
             }
         }
+    }
+
+    /// Center a view within the desktop bounds based on its option flags
+    /// Matches Borland: Views with ofCentered are automatically centered
+    fn center_view(&self, view: &mut dyn View, options: u16) {
+        use crate::core::state::{OF_CENTER_X, OF_CENTER_Y};
+
+        let view_bounds = view.bounds();
+        let desktop_bounds = self.bounds;
+
+        let mut new_bounds = view_bounds;
+
+        // Center horizontally if OF_CENTER_X is set
+        if (options & OF_CENTER_X) != 0 {
+            let view_width = view_bounds.width();
+            let desktop_width = desktop_bounds.width();
+            let center_x = (desktop_width - view_width) / 2;
+            new_bounds.a.x = center_x;
+            new_bounds.b.x = center_x + view_width;
+        }
+
+        // Center vertically if OF_CENTER_Y is set
+        if (options & OF_CENTER_Y) != 0 {
+            let view_height = view_bounds.height();
+            let desktop_height = desktop_bounds.height();
+            let center_y = (desktop_height - view_height) / 2;
+            new_bounds.a.y = center_y;
+            new_bounds.b.y = center_y + view_height;
+        }
+
+        view.set_bounds(new_bounds);
     }
 
     /// Get the number of child views (windows) on the desktop

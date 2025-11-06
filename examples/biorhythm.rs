@@ -303,20 +303,19 @@ impl View for BiorhythmChart {
     fn update_cursor(&self, _terminal: &mut Terminal) {}
 }
 
-fn create_biorhythm_dialog(prev_day: &str, prev_month: &str, prev_year: &str, screen_width: u16, screen_height: u16) -> (Dialog, Rc<RefCell<String>>, Rc<RefCell<String>>, Rc<RefCell<String>>) {
+fn create_biorhythm_dialog(prev_day: &str, prev_month: &str, prev_year: &str, _screen_width: u16, _screen_height: u16) -> (Dialog, Rc<RefCell<String>>, Rc<RefCell<String>>, Rc<RefCell<String>>) {
     // Dialog dimensions: 50 wide, 12 tall
-    // Shadow adds 2 to width, 1 to height
     let dialog_width = 50i16;
     let dialog_height = 12i16;
 
-    // Center the dialog including its shadow
-    let dialog_x = (screen_width as i16 - (dialog_width + 2)) / 2;
-    let dialog_y = (screen_height as i16 - (dialog_height + 1)) / 2;
-
+    // Create dialog with dummy position - OF_CENTERED will auto-center it
     let mut dialog = Dialog::new(
-        Rect::new(dialog_x, dialog_y, dialog_x + dialog_width, dialog_y + dialog_height),
+        Rect::new(0, 0, dialog_width, dialog_height),
         "Enter Birth Date"
     );
+
+    // Enable automatic centering (matches Borland's ofCentered option)
+    dialog.set_options(OF_CENTERED);
 
     // Get today's date for display
     let (today_year, today_month, today_day) = get_current_date();
@@ -450,20 +449,22 @@ fn main() -> turbo_vision::core::error::Result<()> {
     );
     app.set_status_line(status_line);
 
-    // Calculate centered position for main window (76 wide, 21 tall)
+    // Calculate window size: fixed width, maximum height
     // Account for menu bar (1 row), status line (1 row), and shadow (2 cols, 1 row)
-    let window_width = 76i16;
-    let window_height = 21i16;
+    let window_width = 76i16;  // Fixed width for optimal chart readability
     let available_width = width as i16;
     let available_height = height as i16 - 2;  // Subtract menu bar and status line
 
-    // Center the window including its shadow (shadow adds 2 to width, 1 to height)
+    // Use maximum available height with small top/bottom margins
+    let margin_vertical = 1i16;    // Leave 1 row top and bottom
+    let window_height = available_height - (margin_vertical * 2) - 1;  // -1 for shadow
+
+    // Center the window horizontally, position vertically with margin
     let window_x = (available_width - (window_width + 2)) / 2;
-    let window_y = 1 + (available_height - (window_height + 1)) / 2;  // 1+ for menu bar offset
+    let window_y = 1 + margin_vertical;  // 1 for menu bar + vertical margin
 
     // Show birthdate dialog at startup
     // Custom event loop with validation
-    use turbo_vision::core::state::SF_MODAL;
     use turbo_vision::core::command_set;
     use turbo_vision::core::command::CM_COMMAND_SET_CHANGED;
     use std::time::Duration;
@@ -493,23 +494,31 @@ fn main() -> turbo_vision::core::error::Result<()> {
     dialog.handle_event(&mut broadcast_event);
     command_set::clear_command_set_changed();
 
+    // Add dialog to desktop - this will center it automatically via OF_CENTERED
+    app.desktop.add(Box::new(dialog));
+    let dialog_index = app.desktop.child_count() - 1;
+
     let result;
 
     loop {
-        // Draw desktop and dialog
+        // Draw desktop (which includes the dialog as a child)
         app.desktop.draw(&mut app.terminal);
-        dialog.draw(&mut app.terminal);
-        dialog.update_cursor(&mut app.terminal);
+        // Get cursor position from the dialog through desktop
+        if let Some(dialog_view) = app.desktop.window_at_mut(dialog_index) {
+            dialog_view.update_cursor(&mut app.terminal);
+        }
         let _ = app.terminal.flush();
 
         // Poll for event
         if let Some(mut event) = app.terminal.poll_event(Duration::from_millis(50)).ok().flatten() {
-            // Handle the event
-            dialog.handle_event(&mut event);
+            // Handle the event through the desktop child
+            if let Some(dialog_view) = app.desktop.window_at_mut(dialog_index) {
+                dialog_view.handle_event(&mut event);
 
-            // If event was converted to command, process it again
-            if event.what == EventType::Command {
-                dialog.handle_event(&mut event);
+                // If event was converted to command, process it again
+                if event.what == EventType::Command {
+                    dialog_view.handle_event(&mut event);
+                }
             }
 
             // After every event, revalidate and update command state
@@ -529,21 +538,29 @@ fn main() -> turbo_vision::core::error::Result<()> {
             // Broadcast to update button state if command set changed
             if command_set::command_set_changed() {
                 let mut broadcast_event = Event::broadcast(CM_COMMAND_SET_CHANGED);
-                dialog.handle_event(&mut broadcast_event);
+                if let Some(dialog_view) = app.desktop.window_at_mut(dialog_index) {
+                    dialog_view.handle_event(&mut broadcast_event);
+                }
                 command_set::clear_command_set_changed();
             }
         }
 
         // Check if dialog should close
-        let end_state = dialog.get_end_state();
+        let end_state = if let Some(dialog_view) = app.desktop.window_at_mut(dialog_index) {
+            dialog_view.get_end_state()
+        } else {
+            0
+        };
         if end_state != 0 {
             result = end_state;
             break;
         }
     }
 
-    // Restore previous state and re-enable CM_OK
-    dialog.set_state(old_state);
+    // Remove dialog from desktop
+    app.desktop.remove_child(dialog_index);
+
+    // Re-enable CM_OK command
     command_set::enable_command(CM_OK);
 
     // If user canceled, quit the app
@@ -572,12 +589,19 @@ fn main() -> turbo_vision::core::error::Result<()> {
         }
     }
 
-    // Now create and show the main window with chart - centered
+    // Now create and show the main window with chart - sized to available space
     let mut main_window = Window::new(
         Rect::new(window_x, window_y, window_x + window_width, window_y + window_height),
         "Biorhythm Calculator"
     );
-    let chart = BiorhythmChart::new(Rect::new(1, 1, 74, 19), Arc::clone(&biorhythm_data));
+
+    // Chart uses interior space (window minus frame), with 1-column margins
+    let chart_width = window_width - 2;   // Subtract frame (2 chars total)
+    let chart_height = window_height - 2; // Subtract frame (2 chars total)
+    let chart = BiorhythmChart::new(
+        Rect::new(1, 1, chart_width, chart_height),
+        Arc::clone(&biorhythm_data)
+    );
     main_window.add(Box::new(chart));
     app.desktop.add(Box::new(main_window));
 
@@ -619,11 +643,6 @@ fn main() -> turbo_vision::core::error::Result<()> {
                         let (mut dialog, day_data, month_data, year_data) = create_biorhythm_dialog(&prev_day, &prev_month, &prev_year, width, height);
 
                         // Custom event loop with validation
-                        use turbo_vision::core::state::SF_MODAL;
-                        use turbo_vision::core::command_set;
-                        use turbo_vision::core::command::CM_COMMAND_SET_CHANGED;
-                        use std::time::Duration;
-
                         // Set modal flag
                         let old_state = dialog.state();
                         dialog.set_state(old_state | SF_MODAL);
@@ -647,23 +666,31 @@ fn main() -> turbo_vision::core::error::Result<()> {
                         dialog.handle_event(&mut broadcast_event);
                         command_set::clear_command_set_changed();
 
+                        // Add dialog to desktop - this will center it automatically via OF_CENTERED
+                        app.desktop.add(Box::new(dialog));
+                        let dialog_index = app.desktop.child_count() - 1;
+
                         let result;
 
                         loop {
-                            // Draw desktop and dialog
+                            // Draw desktop (which includes the dialog as a child)
                             app.desktop.draw(&mut app.terminal);
-                            dialog.draw(&mut app.terminal);
-                            dialog.update_cursor(&mut app.terminal);
+                            // Get cursor position from the dialog through desktop
+                            if let Some(dialog_view) = app.desktop.window_at_mut(dialog_index) {
+                                dialog_view.update_cursor(&mut app.terminal);
+                            }
                             let _ = app.terminal.flush();
 
                             // Poll for event
                             if let Some(mut event) = app.terminal.poll_event(Duration::from_millis(50)).ok().flatten() {
-                                // Handle the event
-                                dialog.handle_event(&mut event);
+                                // Handle the event through the desktop child
+                                if let Some(dialog_view) = app.desktop.window_at_mut(dialog_index) {
+                                    dialog_view.handle_event(&mut event);
 
-                                // If event was converted to command, process it again
-                                if event.what == EventType::Command {
-                                    dialog.handle_event(&mut event);
+                                    // If event was converted to command, process it again
+                                    if event.what == EventType::Command {
+                                        dialog_view.handle_event(&mut event);
+                                    }
                                 }
 
                                 // After every event, revalidate and update command state
@@ -683,21 +710,29 @@ fn main() -> turbo_vision::core::error::Result<()> {
                                 // Broadcast to update button state if command set changed
                                 if command_set::command_set_changed() {
                                     let mut broadcast_event = Event::broadcast(CM_COMMAND_SET_CHANGED);
-                                    dialog.handle_event(&mut broadcast_event);
+                                    if let Some(dialog_view) = app.desktop.window_at_mut(dialog_index) {
+                                        dialog_view.handle_event(&mut broadcast_event);
+                                    }
                                     command_set::clear_command_set_changed();
                                 }
                             }
 
                             // Check if dialog should close
-                            let end_state = dialog.get_end_state();
+                            let end_state = if let Some(dialog_view) = app.desktop.window_at_mut(dialog_index) {
+                                dialog_view.get_end_state()
+                            } else {
+                                0
+                            };
                             if end_state != 0 {
                                 result = end_state;
                                 break;
                             }
                         }
 
-                        // Restore previous state and re-enable CM_OK
-                        dialog.set_state(old_state);
+                        // Remove dialog from desktop
+                        app.desktop.remove_child(dialog_index);
+
+                        // Re-enable CM_OK command
                         command_set::enable_command(CM_OK);
 
                         if result == CM_OK {

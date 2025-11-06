@@ -17,6 +17,7 @@ pub struct Window {
     frame: Frame,
     interior: Group,
     state: StateFlags,
+    options: u16,
     /// Drag start position (relative to mouse when drag started)
     drag_offset: Option<Point>,
     /// Resize start size (size when resize drag started)
@@ -42,6 +43,7 @@ impl Window {
             frame,
             interior,
             state: SF_SHADOW, // Windows have shadows by default
+            options: 0,
             drag_offset: None,
             resize_start_size: None,
             min_size: Point::new(16, 6), // Minimum size: 16 wide, 6 tall (matches Borland's minWinSize)
@@ -326,6 +328,14 @@ impl View for Window {
 
     fn set_state(&mut self, state: StateFlags) {
         self.state = state;
+    }
+
+    fn options(&self) -> u16 {
+        self.options
+    }
+
+    fn set_options(&mut self, options: u16) {
+        self.options = options;
     }
 
     fn get_end_state(&self) -> crate::core::command::CommandId {
