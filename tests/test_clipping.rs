@@ -13,7 +13,7 @@ use turbo_vision::views::{
 use std::rc::Rc;
 use std::cell::RefCell;
 
-fn main() -> std::io::Result<()> {
+fn main() -> turbo_vision::core::error::Result<()> {
     // Create terminal in a non-interactive way for testing
     let mut terminal = Terminal::init()?;
 

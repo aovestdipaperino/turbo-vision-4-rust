@@ -2,6 +2,7 @@
 // Dynamic Title Demo - demonstrates changing window title at runtime
 
 use turbo_vision::app::Application;
+use turbo_vision::views::View;
 use turbo_vision::views::window::Window;
 use turbo_vision::views::button::Button;
 use turbo_vision::views::static_text::StaticText;
