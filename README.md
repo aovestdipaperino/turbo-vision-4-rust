@@ -6,7 +6,14 @@ A Rust implementation of the classic Borland Turbo Vision text user interface fr
 
 **Version 0.9.0 - CODE COMPLETE** ✅
 
-This port achieves **100% API parity** with Borland Turbo Vision C++. All features from the original framework have been implemented. While the codebase is complete and production-ready, it may contain bugs. Please report any issues you encounter!
+Based on
+kloczek Borland Turbo Vision C++ port [here](https://github.com/kloczek/tvision)
+Other implementations:
+- [Magiblot Turbo Vision for C++](https://github.com/magiblot/tvision)
+- [Borland Original Turbo Vision 2.0.3 code](http://www.sigala.it/sergio/tvision/source/tv2orig.zip)
+
+This port achieves **100% API parity** with
+kloczek port of Borland Turbo Vision C++. All features from the original framework have been implemented. While the codebase is complete and production-ready, it may contain bugs. Please report any issues you encounter!
 
 ## Features
 

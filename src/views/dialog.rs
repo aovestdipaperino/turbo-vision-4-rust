@@ -263,6 +263,16 @@ impl View for Dialog {
         self.window.set_options(options);
     }
 
+    fn can_focus(&self) -> bool {
+        // Dialogs can receive focus (delegates to window)
+        self.window.can_focus()
+    }
+
+    fn set_focus(&mut self, focused: bool) {
+        // Delegate focus to the underlying window
+        self.window.set_focus(focused);
+    }
+
     fn get_end_state(&self) -> CommandId {
         self.window.get_end_state()
     }
