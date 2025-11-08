@@ -196,22 +196,10 @@ impl TvColor {
     pub fn from_rgb(r: u8, g: u8, b: u8) -> Self {
         // Find closest color in the palette
         let all_colors = [
-            TvColor::Black,
-            TvColor::Blue,
-            TvColor::Green,
-            TvColor::Cyan,
-            TvColor::Red,
-            TvColor::Magenta,
-            TvColor::Brown,
-            TvColor::LightGray,
-            TvColor::DarkGray,
-            TvColor::LightBlue,
-            TvColor::LightGreen,
-            TvColor::LightCyan,
-            TvColor::LightRed,
-            TvColor::LightMagenta,
-            TvColor::Yellow,
-            TvColor::White,
+            TvColor::Black, TvColor::Blue, TvColor::Green, TvColor::Cyan,
+            TvColor::Red, TvColor::Magenta, TvColor::Brown, TvColor::LightGray,
+            TvColor::DarkGray, TvColor::LightBlue, TvColor::LightGreen, TvColor::LightCyan,
+            TvColor::LightRed, TvColor::LightMagenta, TvColor::Yellow, TvColor::White,
         ];
 
         let mut best_color = TvColor::Black;
@@ -219,9 +207,9 @@ impl TvColor {
 
         for &color in &all_colors {
             let (cr, cg, cb) = color.to_rgb();
-            let distance = (r as i32 - cr as i32).pow(2) as u32
-                + (g as i32 - cg as i32).pow(2) as u32
-                + (b as i32 - cb as i32).pow(2) as u32;
+            let distance = (r as i32 - cr as i32).pow(2) as u32 +
+                          (g as i32 - cg as i32).pow(2) as u32 +
+                          (b as i32 - cb as i32).pow(2) as u32;
             if distance < best_distance {
                 best_distance = distance;
                 best_color = color;
@@ -296,15 +284,6 @@ impl Attr {
 
     pub fn to_u8(self) -> u8 {
         (self.fg as u8) | ((self.bg as u8) << 4)
-    }
-
-    /// Swaps foreground and background colors
-    /// Useful when using block characters instead of spaces for shadows
-    pub fn swap(self) -> Self {
-        Self {
-            fg: self.bg,
-            bg: self.fg,
-        }
     }
 
     /// Creates a darkened version of this attribute (for semi-transparent shadows)
