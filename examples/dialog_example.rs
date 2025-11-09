@@ -10,10 +10,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
     let mut dialog = Dialog::new(Rect::new(20, 8, 60, 18), "Confirm Action");
 
     // Add a message (relative coordinates within dialog interior)
-    let text = StaticText::new(
-        Rect::new(2, 1, 36, 4),
-        "Are you sure you want to\nproceed with this action?",
-    );
+    let text = StaticText::new(Rect::new(2, 1, 36, 4), "Are you sure you want to\nproceed with this action?");
     dialog.add(Box::new(text));
 
     // Add OK button (default) - positioned relative to dialog interior
