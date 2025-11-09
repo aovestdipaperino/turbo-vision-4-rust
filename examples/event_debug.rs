@@ -2,9 +2,9 @@
 // Event Debug Tool
 // Prints all events to help diagnose mouse/keyboard issues
 
-use turbo_vision::app::Application;
-use turbo_vision::core::event::{Event, EventType};
 use std::time::Duration;
+use turbo_vision::app::Application;
+use turbo_vision::core::event::EventType;
 
 fn main() -> turbo_vision::core::error::Result<()> {
     let mut app = Application::new()?;
@@ -27,8 +27,11 @@ fn main() -> turbo_vision::core::error::Result<()> {
                 EventType::MouseDown => {
                     eprintln!(
                         "[{}] MouseDown at ({}, {}) buttons=0x{:02x} double={}",
-                        event_count, event.mouse.pos.x, event.mouse.pos.y,
-                        event.mouse.buttons, event.mouse.double_click
+                        event_count,
+                        event.mouse.pos.x,
+                        event.mouse.pos.y,
+                        event.mouse.buttons,
+                        event.mouse.double_click
                     );
                 }
                 EventType::MouseUp => {
@@ -59,16 +62,10 @@ fn main() -> turbo_vision::core::error::Result<()> {
                     }
                 }
                 EventType::Command => {
-                    eprintln!(
-                        "[{}] Command command={}",
-                        event_count, event.command
-                    );
+                    eprintln!("[{}] Command command={}", event_count, event.command);
                 }
                 _ => {
-                    eprintln!(
-                        "[{}] Other event type: {:?}",
-                        event_count, event.what
-                    );
+                    eprintln!("[{}] Other event type: {:?}", event_count, event.what);
                 }
             }
         }
