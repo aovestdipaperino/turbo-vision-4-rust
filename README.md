@@ -4,7 +4,7 @@
 
 A Rust implementation of the classic Borland Turbo Vision text user interface framework.
 
-**Version 0.9.2 - CODE COMPLETE** ✅
+**Version 0.10.0 - CODE COMPLETE** ✅
 
 Based on
 kloczek Borland Turbo Vision C++ port [here](https://github.com/kloczek/tvision)
@@ -31,7 +31,7 @@ kloczek port of Borland Turbo Vision C++. All features from the original framewo
 - **Mouse Support**: Full mouse support for buttons, menus, status bar, dialog close buttons, scroll wheel, and double-click detection
 - **Window Dragging and Resizing**: Drag windows by title bar, resize by bottom-right corner
 - **Flexible Layout System**: Geometry primitives with absolute and relative positioning
-- **Color Support**: 16-color palette with attribute system
+- **Color Support**: 16-color palette with Borland-accurate attribute system and context-aware remapping
 - **Cross-Platform**: Built on crossterm for wide terminal compatibility
 - **Modal Dialogs**: Built-in support for modal dialog execution
 - **Focus Management**: Tab navigation and keyboard shortcuts
@@ -87,6 +87,20 @@ fn main() -> turbo_vision::core::error::Result<()> {
 
 **Tip**: Press F12 at any time to capture full screen to `screen-dump.txt`, or F11 to capture active window/dialog to `active-view-dump.txt` - both with a visual flash effect for debugging!
 
+## Palette System
+
+The color palette system accurately replicates Borland Turbo Vision's behavior:
+
+- **Context-Aware Remapping**: Views automatically remap colors based on their container (Dialog, Window, or Desktop)
+- **Owner Type Support**: Each view tracks its owner type for correct palette inheritance
+- **Borland-Accurate Colors**: All UI elements (menus, buttons, labels, dialogs) match original Borland colors
+- **Regression Testing**: 9 comprehensive palette tests ensure color stability across changes
+
+The palette system uses a three-level mapping chain:
+1. View palette (e.g., Button, Label) → indices 1-31
+2. Container palette (Dialog/Window) → remaps to indices 32-63
+3. Application palette → final RGB colors
+
 ## Module Overview
 
 - **core**: Fundamental types (geometry, events, drawing, colors)
@@ -103,8 +117,8 @@ Read [examples/README.md](examples/README.md) for a complete set of examples.
 Compile all examples at once:
 
 ```bash
-cargo build --examples             # Checkout `target/debug/examples`
-cargo run --example dialog_example # For example  
+cargo build --examples           # Checkout `target/debug/examples`
+cargo run --example full-demo    # Run the comprehensive demo
 ```
 
 Build and run the demo `rust_editor` 
@@ -178,7 +192,9 @@ This implementation closely follows Borland Turbo Vision's architecture, adapted
 
 Generated with [tokei](https://github.com/XAMPPRocky/tokei) - includes inline documentation
 
-**178 tests** - all passing ✅
+**194 tests** - all passing ✅
+- 185 unit tests
+- 9 palette regression tests
 
 ## License
 
