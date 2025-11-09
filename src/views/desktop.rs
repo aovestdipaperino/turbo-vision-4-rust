@@ -42,7 +42,7 @@ impl Desktop {
     pub fn init_palette_chain(&mut self) {
         // Set children's owner to this Desktop (for palette chain)
         // Desktop provides CP_APP_COLOR palette, making it the palette root
-        self.children.set_owner(self as *const Self as *const dyn View);
+        // NOTE: We don't set owner pointer to avoid unsafe casting
     }
 
     pub fn add(&mut self, mut view: Box<dyn View>) -> usize {

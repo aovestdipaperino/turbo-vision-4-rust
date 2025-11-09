@@ -44,9 +44,8 @@ impl Group {
     }
 
     pub fn add(&mut self, mut view: Box<dyn View>) -> usize {
-        // Set this group as the owner of the child view
-        // Matches Borland: TGroup::insert() sets owner pointer
-        view.set_owner(self as *const Self as *const dyn View);
+        // NOTE: We don't set owner pointer to avoid unsafe casting
+        // Color palette resolution is handled without needing parent pointers
 
         // Convert child's bounds from relative to absolute coordinates
         // Child bounds are specified relative to this Group's interior
