@@ -13,7 +13,7 @@
 
 use super::menu_box::MenuBox;
 use super::menu_viewer::{MenuViewer, MenuViewerState};
-use super::view::{draw_shadow, write_line_to_terminal, View};
+use super::view::{write_line_to_terminal, View};
 use crate::core::draw::DrawBuffer;
 use crate::core::event::{
     Event, EventType, KB_ALT_F, KB_ALT_H, KB_ENTER, KB_ESC, KB_ESC_E, KB_ESC_ESC, KB_ESC_F,

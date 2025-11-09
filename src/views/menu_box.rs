@@ -12,7 +12,7 @@
 // Rust composition: View + MenuViewer → MenuBox
 
 use super::menu_viewer::{MenuViewer, MenuViewerState};
-use super::view::{draw_shadow, write_line_to_terminal, View};
+use super::view::{write_line_to_terminal, View};
 use crate::core::command::CommandId;
 use crate::core::draw::DrawBuffer;
 use crate::core::event::{Event, EventType, KB_ENTER, KB_ESC, KB_ESC_ESC, MB_LEFT_BUTTON};
