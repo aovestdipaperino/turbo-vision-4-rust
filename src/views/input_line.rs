@@ -33,6 +33,7 @@ pub struct InputLine {
     validator: Option<ValidatorRef>, // Optional validator for input validation
     state: StateFlags,               // View state flags (including SF_FOCUSED)
     owner: Option<*const dyn View>,
+    owner_type: super::view::OwnerType,
 }
 
 impl InputLine {
@@ -49,6 +50,7 @@ impl InputLine {
             validator: None,
             state: 0,
             owner: None,
+            owner_type: super::view::OwnerType::Dialog, // InputLine defaults to Dialog context
         }
     }
 
@@ -433,6 +435,14 @@ impl View for InputLine {
 
     fn get_owner(&self) -> Option<*const dyn View> {
         self.owner
+    }
+
+    fn get_owner_type(&self) -> super::view::OwnerType {
+        self.owner_type
+    }
+
+    fn set_owner_type(&mut self, owner_type: super::view::OwnerType) {
+        self.owner_type = owner_type;
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {

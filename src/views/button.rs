@@ -22,6 +22,7 @@ pub struct Button {
     state: StateFlags,
     options: u16,
     owner: Option<*const dyn View>,
+    owner_type: super::view::OwnerType,
 }
 
 impl Button {
@@ -45,6 +46,7 @@ impl Button {
             state,
             options: OF_POST_PROCESS, // Buttons process in post-process phase
             owner: None,
+            owner_type: super::view::OwnerType::Dialog, // Buttons default to Dialog context
         }
     }
 
@@ -107,7 +109,9 @@ impl View for Button {
             self.map_color(BUTTON_NORMAL) // Normal
         };
 
-        let shadow_attr = self.map_color(BUTTON_SHADOW); // Shadow
+        // Shadow attribute - Borland uses spaces where BG is visible, we use blocks where FG is visible
+        // So we swap FG/BG: 0x70 (Black on LightGray) becomes 0x07 (LightGray on Black)
+        let shadow_attr = self.map_color(BUTTON_SHADOW).swap();
 
         // Shortcut attributes
         let shortcut_attr = if is_disabled {
@@ -267,6 +271,14 @@ impl View for Button {
 
     fn get_owner(&self) -> Option<*const dyn View> {
         self.owner
+    }
+
+    fn get_owner_type(&self) -> super::view::OwnerType {
+        self.owner_type
+    }
+
+    fn set_owner_type(&mut self, owner_type: super::view::OwnerType) {
+        self.owner_type = owner_type;
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
