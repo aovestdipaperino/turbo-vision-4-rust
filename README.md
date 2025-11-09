@@ -4,7 +4,7 @@
 
 A Rust implementation of the classic Borland Turbo Vision text user interface framework.
 
-**Version 0.9.0 - CODE COMPLETE** ✅
+**Version 0.9.2 - CODE COMPLETE** ✅
 
 Based on
 kloczek Borland Turbo Vision C++ port [here](https://github.com/kloczek/tvision)
@@ -135,8 +135,8 @@ Read [examples/README.md](examples/README.md) for a complete set of examples.
 Compile all examples at once:
 
 ```bash
-cargo build --examples           # Checkout `target/debug/examples`
-cargo run --example full-demo    # Run the comprehensive demo
+cargo build --examples             # Checkout `target/debug/examples`
+cargo run --example dialog_example # For example  
 ```
 
 Build and run the demo `rust_editor` 

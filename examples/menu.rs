@@ -7,10 +7,7 @@
 
 use turbo_vision::app::Application;
 use turbo_vision::core::command::{CM_NEW, CM_OK, CM_OPEN, CM_QUIT, CM_SAVE};
-use turbo_vision::core::event::{
-    Event, EventType, KB_ALT_X, KB_CTRL_C, KB_CTRL_N, KB_CTRL_O, KB_CTRL_S, KB_CTRL_V,
-    KB_CTRL_X, KB_F10, MB_RIGHT_BUTTON,
-};
+use turbo_vision::core::event::{EventType, KB_F10, MB_RIGHT_BUTTON};
 use turbo_vision::core::geometry::{Point, Rect};
 use turbo_vision::core::menu_data::{Menu, MenuItem};
 use turbo_vision::views::button::ButtonBuilder;
@@ -26,6 +23,7 @@ const CMD_ABOUT: u16 = 100;
 const CMD_CUT: u16 = 200;
 const CMD_COPY: u16 = 201;
 const CMD_PASTE: u16 = 202;
+//const CMD_PREFERENCES: u16 = 203;
 const CMD_GENERAL_PREFS: u16 = 204;
 const CMD_APPEARANCE_PREFS: u16 = 205;
 const CMD_SHORTCUTS_PREFS: u16 = 206;
@@ -124,16 +122,15 @@ fn setup_status_line(app: &mut Application, width: u16, height: u16) {
 fn setup_welcome_message(app: &mut Application, width: u16, height: u16) {
     let msg_width = 60;
     let msg_x = (width as i16 - msg_width) / 2;
-    let msg = StaticTextBuilder::new()
-        .bounds(Rect::new(
+    let msg = StaticText::new_centered(
+        Rect::new(
             msg_x,
             height as i16 / 2,
             msg_x + msg_width,
             height as i16 / 2 + 4,
-        ))
-        .text("Extended Menu Example\n\nTry the menu bar with submenus\nor right-click for a popup menu!")
-        .centered(true)
-        .build();
+        ),
+        "Extended Menu Example\n\nTry the menu bar with submenus\nor right-click for a popup menu!",
+    );
     app.desktop.add(Box::new(msg));
 }
 
@@ -307,34 +304,30 @@ fn show_message(app: &mut Application, title: &str, message: &str) {
     let dialog_x = (term_width as i16 - dialog_width) / 2;
     let dialog_y = (term_height as i16 - dialog_height) / 2;
 
-    let mut dialog = DialogBuilder::new()
-        .bounds(Rect::new(
+    let mut dialog = Dialog::new(
+        Rect::new(
             dialog_x,
             dialog_y,
             dialog_x + dialog_width,
             dialog_y + dialog_height,
-        ))
-        .title(title)
-        .build();
+        ),
+        title,
+    );
 
-    // Add centered message text (coordinates are relative to dialog interior)
-    let text_width = dialog_width - 4;
-    let text = StaticTextBuilder::new()
-        .bounds(Rect::new(2, 1, text_width, 2))
-        .text(message)
-        .centered(true)
-        .build();
+    // Text positioned relative to dialog interior (coordinates are relative)
+    let text_width = dialog_width - 4; // Leave margin
+    let text = StaticText::new_centered(Rect::new(2, 1, text_width, 2), message);
     dialog.add(Box::new(text));
 
     // Add centered OK button
     let button_width = 10;
-    let button_x = (dialog_width - 2 - button_width) / 2; // -2 for dialog frame
-    let button = ButtonBuilder::new()
-        .bounds(Rect::new(button_x, 3, button_x + button_width, 5))
-        .title("  ~O~K  ")
-        .command(CM_OK)
-        .default(true)
-        .build();
+    let button_x = (dialog_width - 2 - button_width) / 2; // -2 for frame
+    let button = Button::new(
+        Rect::new(button_x, 3, button_x + button_width, 5),
+        "  ~O~K  ",
+        CM_OK,
+        true,
+    );
     dialog.add(Box::new(button));
     dialog.set_initial_focus();
 
@@ -350,34 +343,33 @@ fn show_about(app: &mut Application) {
     let dialog_x = (term_width as i16 - dialog_width) / 2;
     let dialog_y = (term_height as i16 - dialog_height) / 2;
 
-    let mut dialog = DialogBuilder::new()
-        .bounds(Rect::new(
+    let mut dialog = Dialog::new(
+        Rect::new(
             dialog_x,
             dialog_y,
             dialog_x + dialog_width,
             dialog_y + dialog_height,
-        ))
-        .title("Turbo Vision for Rust")
-        .build();
+        ),
+        "Turbo Vision for Rust",
+    );
 
-    // Add centered about text
-    let text_width = dialog_width - 4;
-    let text = StaticTextBuilder::new()
-        .bounds(Rect::new(2, 1, text_width, 7))
-        .text("Welcome To Turbo Vision for Rust!\n\nExtended Menu Example\n\nFeatures:\n- Menu bar with nested submenus\n- Right-click popup/context menus")
-        .centered(true)
-        .build();
+    // Text positioned relative to dialog interior (coordinates are relative)
+    let text_width = dialog_width - 4; // Leave margin
+    let text = StaticText::new_centered(
+        Rect::new(2, 1, text_width, 7),
+        "Welcome To Turbo Vision for Rust!\n\nExtended Menu Example\n\nFeatures:\n- Menu bar with nested submenus\n- Right-click popup/context menus",
+    );
     dialog.add(Box::new(text));
 
     // Add centered OK button
     let button_width = 10;
-    let button_x = (dialog_width - 2 - button_width) / 2;
-    let button = ButtonBuilder::new()
-        .bounds(Rect::new(button_x, 8, button_x + button_width, 10))
-        .title("  ~O~K  ")
-        .command(CM_OK)
-        .default(true)
-        .build();
+    let button_x = (dialog_width - 2 - button_width) / 2; // -2 for frame
+    let button = Button::new(
+        Rect::new(button_x, 8, button_x + button_width, 10),
+        "  ~O~K  ",
+        CM_OK,
+        true,
+    );
     dialog.add(Box::new(button));
     dialog.set_initial_focus();
 

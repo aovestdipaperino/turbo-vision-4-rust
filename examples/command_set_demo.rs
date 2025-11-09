@@ -24,7 +24,7 @@ use turbo_vision::core::command::{
 use turbo_vision::core::command_set;
 use turbo_vision::core::event::EventType;
 use turbo_vision::core::geometry::Rect;
-use turbo_vision::views::{button::ButtonBuilder, dialog::DialogBuilder, static_text::StaticTextBuilder};
+use turbo_vision::views::{button::Button, dialog::Dialog, static_text::StaticText};
 
 // Custom commands for this demo
 const CMD_ENABLE_EDITS: CommandId = 200;
@@ -42,10 +42,10 @@ fn main() -> turbo_vision::core::error::Result<()> {
     command_set::disable_command(CM_REDO);
 
     // Create dialog
-    let mut dialog = DialogBuilder::new()
-        .bounds(Rect::new(10, 4, 70, 21))
-        .title("Command Set Demo - Automatic Button Enable/Disable")
-        .build();
+    let mut dialog = Dialog::new(
+        Rect::new(10, 4, 70, 21),
+        "Command Set Demo - Automatic Button Enable/Disable",
+    );
 
     // Instructions
     let instructions = StaticTextBuilder::new()
@@ -54,49 +54,24 @@ fn main() -> turbo_vision::core::error::Result<()> {
          \n\
          Edit commands start DISABLED (gray).\n\
          Press ~E~ to Enable edits - buttons turn GREEN!\n\
-         Press ~D~ to Disable edits - buttons turn GRAY!")
-        .build();
+         Press ~D~ to Disable edits - buttons turn GRAY!",
+    );
     dialog.add(Box::new(instructions));
 
     // Edit command buttons (will be initially disabled due to command set)
-    let cut_button = ButtonBuilder::new()
-        .bounds(Rect::new(2, 7, 14, 9))
-        .title(" C~u~t ")
-        .command(CM_CUT)
-        .default(false)
-        .build();
+    let cut_button = Button::new(Rect::new(2, 7, 14, 9), " C~u~t ", CM_CUT, false);
     dialog.add(Box::new(cut_button));
 
-    let copy_button = ButtonBuilder::new()
-        .bounds(Rect::new(15, 7, 27, 9))
-        .title(" ~C~opy ")
-        .command(CM_COPY)
-        .default(false)
-        .build();
+    let copy_button = Button::new(Rect::new(15, 7, 27, 9), " ~C~opy ", CM_COPY, false);
     dialog.add(Box::new(copy_button));
 
-    let paste_button = ButtonBuilder::new()
-        .bounds(Rect::new(28, 7, 40, 9))
-        .title(" ~P~aste ")
-        .command(CM_PASTE)
-        .default(false)
-        .build();
+    let paste_button = Button::new(Rect::new(28, 7, 40, 9), " ~P~aste ", CM_PASTE, false);
     dialog.add(Box::new(paste_button));
 
-    let undo_button = ButtonBuilder::new()
-        .bounds(Rect::new(2, 10, 14, 12))
-        .title(" ~U~ndo ")
-        .command(CM_UNDO)
-        .default(false)
-        .build();
+    let undo_button = Button::new(Rect::new(2, 10, 14, 12), " ~U~ndo ", CM_UNDO, false);
     dialog.add(Box::new(undo_button));
 
-    let redo_button = ButtonBuilder::new()
-        .bounds(Rect::new(15, 10, 27, 12))
-        .title(" ~R~edo ")
-        .command(CM_REDO)
-        .default(false)
-        .build();
+    let redo_button = Button::new(Rect::new(15, 10, 27, 12), " ~R~edo ", CM_REDO, false);
     dialog.add(Box::new(redo_button));
 
     // Control buttons
@@ -117,12 +92,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
     dialog.add(Box::new(disable_button));
 
     // Close button
-    let close_button = ButtonBuilder::new()
-        .bounds(Rect::new(22, 13, 38, 15))
-        .title("  Close  ")
-        .command(CM_CANCEL)
-        .default(true)
-        .build();
+    let close_button = Button::new(Rect::new(22, 13, 38, 15), "  Close  ", CM_CANCEL, true);
     dialog.add(Box::new(close_button));
 
     // Execute the dialog - use standard Application.run() with custom command handling
