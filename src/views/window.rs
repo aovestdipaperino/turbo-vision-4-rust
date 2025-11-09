@@ -2,20 +2,14 @@
 
 //! Window view - draggable, resizable window with frame and shadow.
 
-use crate::core::geometry::{Rect, Point};
-use crate::core::event::{Event, EventType};
-use crate::core::command::{CM_CLOSE, CM_CANCEL};
-use crate::core::state::{StateFlags, SF_SHADOW, SF_DRAGGING, SF_RESIZING, SF_MODAL, SHADOW_ATTR};
-use crate::core::palette::{Attr, TvColor};
-use crate::terminal::Terminal;
-use super::view::{View, draw_shadow};
 use super::frame::Frame;
 use super::group::Group;
-use super::view::View;
+use super::view::{draw_shadow, View};
 use crate::core::command::{CM_CANCEL, CM_CLOSE};
 use crate::core::event::{Event, EventType};
 use crate::core::geometry::{Point, Rect};
-use crate::core::state::{StateFlags, SF_DRAGGING, SF_MODAL, SF_RESIZING, SF_SHADOW};
+use crate::core::palette::{Attr, TvColor};
+use crate::core::state::{StateFlags, SF_DRAGGING, SF_MODAL, SF_RESIZING, SF_SHADOW, SHADOW_ATTR};
 use crate::terminal::Terminal;
 
 pub struct Window {
@@ -45,9 +39,11 @@ pub struct Window {
 }
 
 #[derive(Clone, Copy)]
-enum WindowPaletteType {
-    Dialog,  // Uses CP_GRAY_DIALOG
-    Editor,  // No palette (transparent)
+pub enum WindowPaletteType {
+    Blue,   // Uses CP_BLUE_WINDOW
+    Cyan,   // Uses CP_CYAN_WINDOW
+    Gray,   // Uses CP_GRAY_WINDOW
+    Dialog, // Uses CP_GRAY_DIALOG
 }
 
 impl Window {
@@ -55,17 +51,35 @@ impl Window {
     /// Matches Borland: TWindow constructor sets palette(wpBlueWindow)
     /// For TDialog (gray palette), use new_for_dialog() instead
     pub fn new(bounds: Rect, title: &str) -> Self {
-        Self::new_with_palette(bounds, title, super::frame::FramePaletteType::Editor, Attr::new(TvColor::White, TvColor::Blue), WindowPaletteType::Editor)
+        Self::new_with_palette(
+            bounds,
+            title,
+            super::frame::FramePaletteType::Editor,
+            Attr::new(TvColor::Black, TvColor::LightGray),
+            WindowPaletteType::Gray,
+        )
     }
 
     /// Create a window for TDialog with gray palette
     /// Matches Borland: TDialog overrides TWindow palette to use cpGrayDialog
     pub(crate) fn new_for_dialog(bounds: Rect, title: &str) -> Self {
-        Self::new_with_palette(bounds, title, super::frame::FramePaletteType::Dialog, Attr::new(TvColor::Black, TvColor::LightGray), WindowPaletteType::Dialog)
+        Self::new_with_palette(
+            bounds,
+            title,
+            super::frame::FramePaletteType::Dialog,
+            Attr::new(TvColor::Black, TvColor::LightGray),
+            WindowPaletteType::Dialog,
+        )
     }
 
-    fn new_with_palette(bounds: Rect, title: &str, frame_palette: super::frame::FramePaletteType, interior_color: crate::core::palette::Attr, window_palette: WindowPaletteType) -> Self {
-        use crate::core::state::{OF_SELECTABLE, OF_TOP_SELECT, OF_TILEABLE};
+    fn new_with_palette(
+        bounds: Rect,
+        title: &str,
+        frame_palette: super::frame::FramePaletteType,
+        interior_color: crate::core::palette::Attr,
+        window_palette: WindowPaletteType,
+    ) -> Self {
+        use crate::core::state::{OF_SELECTABLE, OF_TILEABLE, OF_TOP_SELECT};
 
         let frame = Frame::with_palette(bounds, title, frame_palette);
 
@@ -84,14 +98,21 @@ impl Window {
             drag_offset: None,
             resize_start_size: None,
             min_size: Point::new(16, 6), // Minimum size: 16 wide, 6 tall (matches Borland's minWinSize)
-            zoom_rect: bounds, // Initialize to current bounds
+            zoom_rect: bounds,           // Initialize to current bounds
             prev_bounds: None,
             owner: None,
             palette_type: window_palette,
         }
     }
 
-    pub fn add(&mut self, view: Box<dyn View>) -> usize {
+    pub fn add(&mut self, mut view: Box<dyn View>) -> usize {
+        // Set the owner type based on whether this is a Dialog or regular Window
+        let owner_type = match self.palette_type {
+            WindowPaletteType::Dialog => super::view::OwnerType::Dialog,
+            _ => super::view::OwnerType::Window,
+        };
+        view.set_owner_type(owner_type);
+
         // NOTE: We don't set interior's owner pointer to avoid unsafe casting
         // Color palette resolution is handled without needing parent pointers
         self.interior.add(view)
@@ -532,7 +553,12 @@ impl View for Window {
             .ok();
 
         if let Some(ref mut log) = log {
-            writeln!(log, "Window::set_owner called, owner={:?}, self={:p}", owner, self).ok();
+            writeln!(
+                log,
+                "Window::set_owner called, owner={:?}, self={:p}",
+                owner, self
+            )
+            .ok();
         }
 
         self.owner = Some(owner);
@@ -540,7 +566,11 @@ impl View for Window {
         // Instead, init_interior_owner() must be called after Window is in final position
 
         if let Some(ref mut log) = log {
-            writeln!(log, "Window::set_owner done (interior owner will be set via init_interior_owner)").ok();
+            writeln!(
+                log,
+                "Window::set_owner done (interior owner will be set via init_interior_owner)"
+            )
+            .ok();
         }
     }
 
@@ -549,10 +579,12 @@ impl View for Window {
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        use crate::core::palette::{Palette, palettes};
+        use crate::core::palette::{palettes, Palette};
         match self.palette_type {
+            WindowPaletteType::Blue => Some(Palette::from_slice(palettes::CP_BLUE_WINDOW)),
+            WindowPaletteType::Cyan => Some(Palette::from_slice(palettes::CP_CYAN_WINDOW)),
+            WindowPaletteType::Gray => Some(Palette::from_slice(palettes::CP_GRAY_WINDOW)),
             WindowPaletteType::Dialog => Some(Palette::from_slice(palettes::CP_GRAY_DIALOG)),
-            WindowPaletteType::Editor => None,  // No palette (transparent)
         }
     }
 

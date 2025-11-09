@@ -196,10 +196,22 @@ impl TvColor {
     pub fn from_rgb(r: u8, g: u8, b: u8) -> Self {
         // Find closest color in the palette
         let all_colors = [
-            TvColor::Black, TvColor::Blue, TvColor::Green, TvColor::Cyan,
-            TvColor::Red, TvColor::Magenta, TvColor::Brown, TvColor::LightGray,
-            TvColor::DarkGray, TvColor::LightBlue, TvColor::LightGreen, TvColor::LightCyan,
-            TvColor::LightRed, TvColor::LightMagenta, TvColor::Yellow, TvColor::White,
+            TvColor::Black,
+            TvColor::Blue,
+            TvColor::Green,
+            TvColor::Cyan,
+            TvColor::Red,
+            TvColor::Magenta,
+            TvColor::Brown,
+            TvColor::LightGray,
+            TvColor::DarkGray,
+            TvColor::LightBlue,
+            TvColor::LightGreen,
+            TvColor::LightCyan,
+            TvColor::LightRed,
+            TvColor::LightMagenta,
+            TvColor::Yellow,
+            TvColor::White,
         ];
 
         let mut best_color = TvColor::Black;
@@ -207,9 +219,9 @@ impl TvColor {
 
         for &color in &all_colors {
             let (cr, cg, cb) = color.to_rgb();
-            let distance = (r as i32 - cr as i32).pow(2) as u32 +
-                          (g as i32 - cg as i32).pow(2) as u32 +
-                          (b as i32 - cb as i32).pow(2) as u32;
+            let distance = (r as i32 - cr as i32).pow(2) as u32
+                + (g as i32 - cg as i32).pow(2) as u32
+                + (b as i32 - cb as i32).pow(2) as u32;
             if distance < best_distance {
                 best_distance = distance;
                 best_color = color;
@@ -340,10 +352,10 @@ pub mod colors {
     // InputLine colors - matching actual C++ rendering (see colors.png)
     // Focused state uses Yellow on Blue (clearly visible in screenshot)
     // Both states use same color per C++ cpInputLine behavior
-    pub const INPUT_NORMAL: Attr = Attr::new(TvColor::Yellow, TvColor::Blue);     // Same as focused
-    pub const INPUT_FOCUSED: Attr = Attr::new(TvColor::Yellow, TvColor::Blue);    // SAME as unfocused!
-    pub const INPUT_SELECTED: Attr = Attr::new(TvColor::Cyan, TvColor::Cyan);     // cpDialog[20] = 0x33
-    pub const INPUT_ARROWS: Attr = Attr::new(TvColor::Red, TvColor::Cyan);        // cpDialog[21] = 0x34
+    pub const INPUT_NORMAL: Attr = Attr::new(TvColor::Yellow, TvColor::Blue); // Same as focused
+    pub const INPUT_FOCUSED: Attr = Attr::new(TvColor::Yellow, TvColor::Blue); // SAME as unfocused!
+    pub const INPUT_SELECTED: Attr = Attr::new(TvColor::Cyan, TvColor::Cyan); // cpDialog[20] = 0x33
+    pub const INPUT_ARROWS: Attr = Attr::new(TvColor::Red, TvColor::Cyan); // cpDialog[21] = 0x34
 
     // Editor colors (matching original Turbo Vision)
     pub const EDITOR_NORMAL: Attr = Attr::new(TvColor::White, TvColor::Blue);
@@ -440,18 +452,37 @@ pub mod palettes {
         0x71, 0x70, 0x78, 0x74, 0x20, 0x28, 0x24, 0x17, // 1-8: Desktop colors
         0x1F, 0x1A, 0x31, 0x31, 0x1E, 0x71, 0x1F,       // 9-15: Menu colors
         0x37, 0x3F, 0x3A, 0x13, 0x13, 0x3E, 0x21,       // 16-22: More menu
-        0x70, 0x7F, 0x7A, 0x13, 0x13, 0x70, 0x7F,       // 23-29: Dialog frame
-        0x7A, 0x13, 0x13, 0x70, 0x70, 0x7F, 0x7E,       // 30-36: Dialog interior
+        0x70, 0x7F, 0x7A, 0x71, 0x71, 0x71, 0x71,       // 23-29: Dialog frame (27-29 for Window ScrollBar)
+        0x7A, 0x13, 0x13, 0x70, 0x74, 0x74, 0x7E,       // 30-36: Dialog interior (35-36 for Dialog ScrollBar)
         0x20, 0x2B, 0x2F, 0x87, 0x2E, 0x70,             // 37-42: Dialog controls (shadow: 0x87 test)
         0x20, 0x2A, 0x2F, 0x1F, 0x2E, 0x70,             // 43-48: Button (Green background!)
-        0x20, 0x72, 0x31, 0x31, 0x30, 0x2F,             // 49-54: Cluster
-        0x3E, 0x31,                                      // 55-56: Input line
+        0x3F, 0x1E, 0x1F, 0x2F, 0x1A, 0x20,             // 49-54: InputLine at 50 = 0x1E (Yellow/Blue)
+        0x72, 0x31,                                      // 55-56: Borland positions 54-55
         0x13, 0x13, 0x30, 0x3E, 0x13,                   // 57-61: History
         0x30, 0x3F, 0x3E, 0x70, 0x2F,                   // 62-66: List viewer
         0x37, 0x3F, 0x3A, 0x20, 0x2E, 0x30,             // 67-72: Info pane
         0x3F, 0x3E, 0x1F, 0x2F, 0x1A, 0x20,             // 73-78: Cluster (more)
         0x72, 0x31, 0x31, 0x30, 0x2F, 0x3E,             // 79-84: Editor
         0x31,                                            // 85: Reserved
+    ];
+
+    // Window palettes - map window color indices to app palette
+    // BlueWindow: indices 8-15
+    #[rustfmt::skip]
+    pub const CP_BLUE_WINDOW: &[u8] = &[
+        8, 9, 10, 11, 12, 13, 14, 15,  // Maps to app palette 8-15
+    ];
+
+    // CyanWindow: indices 16-23
+    #[rustfmt::skip]
+    pub const CP_CYAN_WINDOW: &[u8] = &[
+        16, 17, 18, 19, 20, 21, 22, 23,  // Maps to app palette 16-23
+    ];
+
+    // GrayWindow: indices 24-31
+    #[rustfmt::skip]
+    pub const CP_GRAY_WINDOW: &[u8] = &[
+        24, 25, 26, 27, 28, 29, 30, 31,  // Maps to app palette 24-31
     ];
 
     // Gray dialog palette - maps dialog color indices to app palette
@@ -472,10 +503,11 @@ pub mod palettes {
         46, 47,                                   // 31-32
     ];
 
-    // Button palette - maps button colors to parent (dialog) palette
+    // Button palette - maps button colors to dialog palette indices (1-32)
+    // Dialog indices 12-17 map through CP_GRAY_DIALOG to app indices 43-48 (button colors)
     #[rustfmt::skip]
     pub const CP_BUTTON: &[u8] = &[
-        13, 13, 14, 14, 16, 15, 15, 9,  // 1-8: (4=disabled), shadow maps to dialog 9
+        12, 12, 13, 13, 15, 14, 14, 9,  // 1-8: Normal, Default, Focused, Disabled, reserved, Shortcut, reserved, Shadow (9->40 = 0x87)
     ];
 
     // StaticText palette
@@ -484,10 +516,11 @@ pub mod palettes {
         2,  // 1: Normal text color (maps to dialog color 2 → app 33 = 0x70 Black on LightGray)
     ];
 
-    // InputLine palette
+    // InputLine palette - from Borland cpInputLine "\x13\x13\x14\x15" (19, 19, 20, 21)
+    // These are dialog-relative indices that should map to dialog palette positions
     #[rustfmt::skip]
     pub const CP_INPUT_LINE: &[u8] = &[
-        19, 19, 20, 21,  // 1-4: Normal, focused, selected, arrows
+        19, 19, 20, 21,  // 1-4: Normal, focused, selected, arrows (from Borland)
     ];
 
     // Label palette
@@ -526,3 +559,8 @@ pub mod palettes {
         2, 39, 3, 4,  // 1-4: Normal (Black/LightGray), Selected (White/Green), Disabled (DarkGray/LightGray), Shortcut (Red/LightGray)
     ];
 }
+
+// Include regression tests module
+#[cfg(test)]
+#[path = "palette_regression_tests.rs"]
+mod palette_regression_tests;

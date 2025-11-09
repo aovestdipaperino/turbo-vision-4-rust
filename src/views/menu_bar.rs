@@ -11,21 +11,13 @@
 // Borland inheritance: TView → TMenuView → TMenuBar
 // Rust composition: View + MenuViewer → MenuBar
 
-use crate::core::geometry::{Rect, Point};
-use crate::core::event::{Event, EventType, KB_ALT_F, KB_ALT_H, KB_ENTER, KB_ESC, KB_LEFT, KB_RIGHT, KB_ESC_F, KB_ESC_H, KB_ESC_E, KB_ESC_S, KB_ESC_V, KB_ESC_ESC, MB_LEFT_BUTTON};
-use crate::core::draw::DrawBuffer;
-use crate::core::state::StateFlags;
-use crate::core::menu_data::{Menu, MenuItem};
-use crate::terminal::Terminal;
-use super::view::{View, write_line_to_terminal, draw_shadow};
-use super::menu_viewer::{MenuViewer, MenuViewerState};
 use super::menu_box::MenuBox;
 use super::menu_viewer::{MenuViewer, MenuViewerState};
-use super::view::{write_line_to_terminal, View};
+use super::view::{draw_shadow, write_line_to_terminal, View};
 use crate::core::draw::DrawBuffer;
 use crate::core::event::{
-    Event, EventType, KB_ALT_E, KB_ALT_F, KB_ALT_H, KB_ENTER, KB_ESC, KB_ESC_E, KB_ESC_ESC,
-    KB_ESC_F, KB_ESC_H, KB_ESC_S, KB_ESC_V, KB_F1, KB_F10, KB_LEFT, KB_RIGHT, MB_LEFT_BUTTON,
+    Event, EventType, KB_ALT_F, KB_ALT_H, KB_ENTER, KB_ESC, KB_ESC_E, KB_ESC_ESC, KB_ESC_F,
+    KB_ESC_H, KB_ESC_S, KB_ESC_V, KB_LEFT, KB_RIGHT, MB_LEFT_BUTTON,
 };
 use crate::core::geometry::{Point, Rect};
 use crate::core::menu_data::{Menu, MenuItem};
@@ -164,12 +156,10 @@ impl MenuBar {
         let menu_y = self.bounds.a.y + 1;
         let menu = &self.submenus[menu_idx].menu;
 
-        // MenuBar palette indices:
-        // 1: Normal, 2: Selected, 3: Disabled, 4: Shortcut
-        let normal_attr = self.map_color(1);
-        let selected_attr = self.map_color(2);
-        let disabled_attr = self.map_color(3);
-        let shortcut_attr = self.map_color(4);
+        let normal_attr = self.map_color(MENU_NORMAL);
+        let selected_attr = self.map_color(MENU_SELECTED);
+        let disabled_attr = self.map_color(MENU_DISABLED);
+        let shortcut_attr = self.map_color(MENU_SHORTCUT);
 
         // Calculate dropdown width
         let mut max_text_width = 12;
@@ -346,11 +336,9 @@ impl View for MenuBar {
         let width = self.bounds.width() as usize;
         let mut buf = DrawBuffer::new(width);
 
-        // MenuBar palette indices:
-        // 1: Normal, 2: Selected, 3: Disabled, 4: Shortcut
-        let normal_attr = self.map_color(1);
-        let selected_attr = self.map_color(2);
-        let shortcut_attr = self.map_color(4);
+        let normal_attr = self.map_color(MENU_NORMAL);
+        let selected_attr = self.map_color(MENU_SELECTED);
+        let shortcut_attr = self.map_color(MENU_SHORTCUT);
 
         buf.move_char(0, ' ', normal_attr, width);
 
@@ -580,14 +568,16 @@ impl View for MenuBar {
                 // Hot keys to open specific menus
                 if self.active_menu_idx.is_none() {
                     let menu_to_open = match event.key_code {
-                        KB_F10 | KB_ALT_F | KB_ESC_F if !self.submenus.is_empty() => {
-                            Some(0) // F10 or Alt+F opens first menu (File)
+                        KB_ALT_F | KB_ESC_F | crate::core::event::KB_F1
+                            if !self.submenus.is_empty() =>
+                        {
+                            Some(0)
                         }
-                        KB_ALT_E | KB_ESC_E if self.submenus.len() > 1 => Some(1),
+                        KB_ESC_E if self.submenus.len() > 1 => Some(1),
                         KB_ESC_S if self.submenus.len() > 2 => Some(2),
                         KB_ESC_V if self.submenus.len() > 3 => Some(3),
-                        KB_F1 | KB_ALT_H | KB_ESC_H if self.submenus.len() > 1 => {
-                            Some(self.submenus.len() - 1) // F1 or Alt+H opens last menu (Help)
+                        KB_ALT_H | KB_ESC_H if self.submenus.len() > 1 => {
+                            Some(self.submenus.len() - 1)
                         }
                         _ => None,
                     };
@@ -679,7 +669,7 @@ impl View for MenuBar {
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        use crate::core::palette::{Palette, palettes};
+        use crate::core::palette::{palettes, Palette};
         Some(Palette::from_slice(palettes::CP_MENU_BAR))
     }
 }

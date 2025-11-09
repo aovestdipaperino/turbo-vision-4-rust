@@ -4,6 +4,10 @@
 
 use super::view::{write_line_to_terminal, View};
 use crate::core::draw::DrawBuffer;
+use crate::core::event::{
+    Event, EventType, KB_DOWN, KB_END, KB_HOME, KB_LEFT, KB_PGDN, KB_PGUP, KB_RIGHT, KB_UP,
+};
+use crate::core::geometry::{Point, Rect};
 use crate::terminal::Terminal;
 
 /// Scroll bar part codes (used by getPartCode() method)
@@ -41,6 +45,7 @@ pub struct ScrollBar {
     chars: [char; 5],
     is_vertical: bool,
     owner: Option<*const dyn View>,
+    owner_type: super::view::OwnerType,
 }
 
 impl ScrollBar {
@@ -55,6 +60,7 @@ impl ScrollBar {
             chars: VSCROLL_CHARS,
             is_vertical: true,
             owner: None,
+            owner_type: super::view::OwnerType::Window, // Default to Window context
         }
     }
 
@@ -69,6 +75,7 @@ impl ScrollBar {
             chars: HSCROLL_CHARS,
             is_vertical: false,
             owner: None,
+            owner_type: super::view::OwnerType::Window, // Default to Window context
         }
     }
 
@@ -563,7 +570,62 @@ impl Default for ScrollBarBuilder {
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        use crate::core::palette::{Palette, palettes};
+        use crate::core::palette::{palettes, Palette};
         Some(Palette::from_slice(palettes::CP_SCROLLBAR))
+    }
+
+    fn get_owner_type(&self) -> super::view::OwnerType {
+        self.owner_type
+    }
+
+    fn set_owner_type(&mut self, owner_type: super::view::OwnerType) {
+        self.owner_type = owner_type;
+    }
+
+    fn map_color(&self, color_index: u8) -> crate::core::palette::Attr {
+        use crate::core::palette::{palettes, Attr, Palette};
+
+        // First remap through ScrollBar's own palette
+        let mut color = color_index;
+        if let Some(palette) = self.get_palette() {
+            if !palette.is_empty() {
+                color = palette.get(color as usize);
+                if color == 0 {
+                    return Attr::from_u8(0x0F); // Error color
+                }
+            }
+        }
+
+        // Now apply context-specific remapping based on owner type
+        // ScrollBar uses indices 4,5 which need different handling
+        match self.owner_type {
+            super::view::OwnerType::Window => {
+                // In Window context: remap through GrayWindow palette
+                // Index 4 -> GrayWindow[4] = 27, Index 5 -> GrayWindow[5] = 28
+                let window_palette = Palette::from_slice(palettes::CP_GRAY_WINDOW);
+                if color >= 1 && color <= window_palette.len() as u8 {
+                    color = window_palette.get(color as usize);
+                }
+            }
+            super::view::OwnerType::Dialog => {
+                // In Dialog context: remap through Dialog palette
+                // Index 4 -> Dialog[4] = 35, Index 5 -> Dialog[5] = 36
+                let dialog_palette = Palette::from_slice(palettes::CP_GRAY_DIALOG);
+                if color >= 1 && color <= dialog_palette.len() as u8 {
+                    color = dialog_palette.get(color as usize);
+                }
+            }
+            super::view::OwnerType::None => {
+                // No owner: use app palette directly (shouldn't happen for ScrollBar)
+            }
+        }
+
+        // Finally, get the actual color from app palette
+        let app_palette = Palette::from_slice(palettes::CP_APP_COLOR);
+        let final_color = app_palette.get(color as usize);
+        if final_color == 0 {
+            return Attr::from_u8(0x0F); // Error color
+        }
+        Attr::from_u8(final_color)
     }
 }

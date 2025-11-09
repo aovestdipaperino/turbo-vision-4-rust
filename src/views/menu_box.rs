@@ -11,16 +11,8 @@
 // Borland inheritance: TView → TMenuView → TMenuBox
 // Rust composition: View + MenuViewer → MenuBox
 
-use crate::core::geometry::{Rect, Point};
-use crate::core::event::{Event, EventType, KB_ENTER, KB_ESC, KB_ESC_ESC, MB_LEFT_BUTTON};
-use crate::core::draw::DrawBuffer;
-use crate::core::state::{StateFlags, SF_SHADOW};
-use crate::core::menu_data::{Menu, MenuItem};
-use crate::core::command::CommandId;
-use crate::terminal::Terminal;
-use super::view::{View, write_line_to_terminal, draw_shadow};
 use super::menu_viewer::{MenuViewer, MenuViewerState};
-use super::view::{write_line_to_terminal, View};
+use super::view::{draw_shadow, write_line_to_terminal, View};
 use crate::core::command::CommandId;
 use crate::core::draw::DrawBuffer;
 use crate::core::event::{Event, EventType, KB_ENTER, KB_ESC, KB_ESC_ESC, MB_LEFT_BUTTON};
@@ -159,12 +151,10 @@ impl View for MenuBox {
             None => return,
         };
 
-        // MenuBox palette indices (same as MenuBar):
-        // 1: Normal, 2: Selected, 3: Disabled, 4: Shortcut
-        let normal_attr = self.map_color(1);
-        let selected_attr = self.map_color(2);
-        let disabled_attr = self.map_color(3);
-        let shortcut_attr = self.map_color(4);
+        let normal_attr = self.map_color(MENU_NORMAL);
+        let selected_attr = self.map_color(MENU_SELECTED);
+        let disabled_attr = self.map_color(MENU_DISABLED);
+        let shortcut_attr = self.map_color(MENU_SHORTCUT);
 
         // Draw top border
         let mut buf = DrawBuffer::new(width);
@@ -392,19 +382,16 @@ impl View for MenuBox {
                     }
                 }
 
-                // Only execute if there was a corresponding MouseDown in this menu
-                if self.mouse_down_in_menu {
-                    // Execute the currently selected item on mouse up
-                    if let Some(item) = self.menu_state.get_current_item() {
-                        if let MenuItem::Regular {
-                            command,
-                            enabled: true,
-                            ..
-                        } = item
-                        {
-                            *event = Event::command(*command);
-                            return;
-                        }
+                // Execute the currently selected item on mouse up
+                if let Some(item) = self.menu_state.get_current_item() {
+                    if let MenuItem::Regular {
+                        command,
+                        enabled: true,
+                        ..
+                    } = item
+                    {
+                        *event = Event::command(*command);
+                        return;
                     }
                 }
                 event.clear();
@@ -430,7 +417,7 @@ impl View for MenuBox {
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        use crate::core::palette::{Palette, palettes};
+        use crate::core::palette::{palettes, Palette};
         Some(Palette::from_slice(palettes::CP_MENU_BAR))
     }
 }
