@@ -1,8 +1,8 @@
 // (C) 2025 - Enzo Lombardi
-use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyModifiers};
-use crossterm::terminal::{self, EnterAlternateScreen, LeaveAlternateScreen};
+use crossterm::event::{self, Event, KeyCode};
 use crossterm::execute;
-use std::io::{self, Write};
+use crossterm::terminal::{self, EnterAlternateScreen, LeaveAlternateScreen};
+use std::io::{self};
 
 fn main() -> io::Result<()> {
     // Setup terminal

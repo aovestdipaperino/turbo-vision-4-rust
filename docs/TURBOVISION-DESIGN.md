@@ -1,7 +1,7 @@
 # Turbo Vision for Rust - Design Documentation
 
-**Version:** 0.2.6
-**Last Updated:** 2025-11-03
+**Version:** 0.3.0
+**Last Updated:** 2025-11-05
 **Reference:** Borland Turbo Vision 2.0
 
 ---
@@ -96,7 +96,7 @@ TObject (Base)
         ┌───────────┴───────────┐
         │                       │
         │                       │
-┌───────┴────────┐      ┌──────┴─────────┐
+┌───────┴────────┐      ┌───────┴────────┐
 │  Leaf Views    │      │  Container     │
 │  (Components)  │      │  Views         │
 │                │      │                │
@@ -170,9 +170,9 @@ Inheritance Chain                 Composition Chain
 ### 2. Event Flow (Both Systems)
 
 ```
-User Input
-    │
-    ▼
+           User Input
+               │
+               ▼
 ┌─────────────────────────────────────┐
 │  Terminal                           │
 │  (Captures keyboard/mouse)          │
@@ -198,7 +198,7 @@ User Input
                │ Event
                ▼
 ┌─────────────────────────────────────┐
-│  Group (Three-Phase Processing)    │
+│  Group (Three-Phase Processing)     │
 │                                     │
 │  Phase 1: PreProcess                │
 │    └─> StatusLine (OF_PRE_PROCESS)  │
@@ -245,56 +245,56 @@ Circular references                  Call stack unwinding
 │                         Editor                               │
 │                                                              │
 │  Fields:                                                     │
-│  ├─ lines: Vec<String>         (text content)               │
-│  ├─ cursor: Point              (cursor position)            │
-│  ├─ selection: Option<Selection>  (text selection)          │
-│  ├─ undo_stack: Vec<Action>    (undo/redo)                  │
-│  ├─ highlighter: Option<Box<dyn SyntaxHighlighter>>  ◄──┐   │
-│  ├─ scrollbar_v: Option<ScrollBar>                       │   │
-│  ├─ scrollbar_h: Option<ScrollBar>                       │   │
-│  └─ indicator: Option<Indicator>                         │   │
-│                                                           │   │
-│  Methods:                                                 │   │
-│  ├─ set_highlighter(h: Box<dyn SyntaxHighlighter>)   ◄──┤   │
-│  ├─ clear_highlighter()                                  │   │
-│  ├─ has_highlighter() -> bool                            │   │
-│  └─ draw(&mut self, terminal)  ◄─────────────────────┐   │   │
-│         │                                            │   │   │
-│         └─> if let Some(ref highlighter) = self.highlighter │   │
-│                 │                                    │   │   │
-│                 └─> tokens = highlighter.highlight_line(line)  │
-│                         │                            │   │   │
-│                         └─> for token in tokens      │   │   │
-│                                  │                   │   │   │
-│                                  └─> draw with color │   │   │
-└──────────────────────────────────────────────────────┼───┼───┘
-                                                      │   │
-                                                      │   │
-┌─────────────────────────────────────────────────────┼───┼───┐
-│         SyntaxHighlighter Trait                     │   │   │
-│                                                     │   │   │
-│  fn language(&self) -> &str                         │   │   │
+│  ├─ lines: Vec<String>         (text content)                │
+│  ├─ cursor: Point              (cursor position)             │
+│  ├─ selection: Option<Selection>  (text selection)           │
+│  ├─ undo_stack: Vec<Action>    (undo/redo)                   │
+│  ├─ highlighter: Option<Box<dyn SyntaxHighlighter>>  ◄──┐    │
+│  ├─ scrollbar_v: Option<ScrollBar>                      │    │
+│  ├─ scrollbar_h: Option<ScrollBar>                      │    │
+│  └─ indicator: Option<Indicator>                        │    │
+│                                                         │    │
+│  Methods:                                               │    │
+│  ├─ set_highlighter(h: Box<dyn SyntaxHighlighter>)   ◄──┤    │
+│  ├─ clear_highlighter()                                 │    │
+│  ├─ has_highlighter() -> bool                           │    │
+│  └─ draw(&mut self, terminal)  ◄─────────────────────┐  │    │
+│         │                                            │  │    │
+│         └─> if let Some(ref highlighter) = self.highlighter  │   
+│                 │                                    │  │    │
+│                 └─> tokens = highlighter.highlight_line(line)│
+│                         │                            │  │    │
+│                         └─> for token in tokens      │  │    │
+│                                  │                   │  │    │
+│                                  └─> draw with color │  │    │
+└──────────────────────────────────────────────────────┼──┼────┘
+                                                       │  │
+                                                       │  │
+┌──────────────────────────────────────────────────────┼──┼─────┐
+│         SyntaxHighlighter Trait                      │  │     │
+│                                                      │  │     │
+│  fn language(&self) -> &str                          │  │     │
 │  fn highlight_line(&self, line: &str, line_num) -> Vec<Token> │
-│  fn is_multiline_context(&self, line_num) -> bool  │   │   │
-│  fn update_multiline_state(&mut self, line, ...)   │   │   │
-└─────────────────────────────────────────────────────┼───┼───┘
-                        △                             │   │
-                        │ implements                  │   │
-        ┌───────────────┴───────────────┐             │   │
-        │                               │             │   │
-┌───────┴────────────┐        ┌─────────┴──────────┐  │   │
-│  RustHighlighter   │        │ PlainTextHighlighter│  │   │
-│                    │        │                     │  │   │
-│  • Keywords        │        │  • No coloring      │  │   │
-│  • Strings         │        │  • Default color    │  │   │
-│  • Comments        │        │  • Minimal overhead │  │   │
-│  • Numbers         │        └─────────────────────┘  │   │
-│  • Types           │                                 │   │
-│  • Functions       │                                 │   │
-│  • Operators       │         ┌──────────────────────┘   │
+│  fn is_multiline_context(&self, line_num) -> bool    │  │     │
+│  fn update_multiline_state(&mut self, line, ...)     │  │     │
+└──────────────────────────────────────────────────────┼──┼─────┘
+                        △                              │  │
+                        │ implements                   │  │
+        ┌───────────────┴───────────────┐              │  │
+        │                               │              │  │
+┌───────┴────────────┐        ┌─────────┴───────────┐  │  │
+│  RustHighlighter   │        │ PlainTextHighlighter│  │  │
+│                    │        │                     │  │  │
+│  • Keywords        │        │  • No coloring      │  │  │
+│  • Strings         │        │  • Default color    │  │  │
+│  • Comments        │        │  • Minimal overhead │  │  │
+│  • Numbers         │        └─────────────────────┘  │  │
+│  • Types           │                                 │  │
+│  • Functions       │                                 │  │
+│  • Operators       │         ┌───────────────────────┘  │
 └────────────────────┘         │                          │
                                │                          │
-                    ┌──────────▼──────────────────────────▼──┐
+                    ┌──────────▼──────────────────────────▼───┐
                     │         Token Structure                 │
                     │                                         │
                     │  start: usize    (character position)   │
