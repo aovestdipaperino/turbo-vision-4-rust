@@ -8,7 +8,8 @@ A Rust implementation of the classic Borland Turbo Vision text user interface fr
 
 Based on
 kloczek Borland Turbo Vision C++ port [here](https://github.com/kloczek/tvision)
-Other implementations:
+
+Other C++ implementations:
 - [Magiblot Turbo Vision for C++](https://github.com/magiblot/tvision)
 - [Borland Original Turbo Vision 2.0.3 code](http://www.sigala.it/sergio/tvision/source/tv2orig.zip)
 
