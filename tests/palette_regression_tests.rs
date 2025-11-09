@@ -238,24 +238,24 @@ fn test_menu_palette_regression() {
 
     let colors = verify_menu_colors();
 
-    // MenuBar colors (Borland cpMenuView = "\x02\x03\x04\x05\x06\x07"):
+    // MenuBar colors:
     // CP_MENU_BAR[1]=2 -> CP_APP_COLOR[2]=0x70 (Black on LightGray)
     assert_eq!(colors[0].2, 0x70, "MenuBar normal color changed!");
 
-    // CP_MENU_BAR[2]=3 -> CP_APP_COLOR[3]=0x78 (DarkGray on LightGray)
-    assert_eq!(colors[1].2, 0x78, "MenuBar selected color changed!");
+    // CP_MENU_BAR[2]=39 -> CP_APP_COLOR[39]=0x7F (White on LightGray)
+    assert_eq!(colors[1].2, 0x7F, "MenuBar selected color changed!");
 
-    // CP_MENU_BAR[3]=4 -> CP_APP_COLOR[4]=0x74 (Red on LightGray)
-    assert_eq!(colors[2].2, 0x74, "MenuBar disabled color changed!");
+    // CP_MENU_BAR[3]=3 -> CP_APP_COLOR[3]=0x78 (DarkGray on LightGray)
+    assert_eq!(colors[2].2, 0x78, "MenuBar disabled color changed!");
 
-    // CP_MENU_BAR[4]=5 -> CP_APP_COLOR[5]=0x20 (Green on Black)
-    assert_eq!(colors[3].2, 0x20, "MenuBar shortcut color changed!");
+    // CP_MENU_BAR[4]=4 -> CP_APP_COLOR[4]=0x74 (Red on LightGray)
+    assert_eq!(colors[3].2, 0x74, "MenuBar shortcut color changed!");
 
     // MenuBox should have the same colors as MenuBar
     assert_eq!(colors[4].2, 0x70, "MenuBox normal color changed!");
-    assert_eq!(colors[5].2, 0x78, "MenuBox selected color changed!");
-    assert_eq!(colors[6].2, 0x74, "MenuBox disabled color changed!");
-    assert_eq!(colors[7].2, 0x20, "MenuBox shortcut color changed!");
+    assert_eq!(colors[5].2, 0x7F, "MenuBox selected color changed!");
+    assert_eq!(colors[6].2, 0x78, "MenuBox disabled color changed!");
+    assert_eq!(colors[7].2, 0x74, "MenuBox shortcut color changed!");
 }
 
 #[test]
@@ -385,11 +385,11 @@ fn test_palette_remapping_ranges() {
         let color = menu_bar.map_color(index);
         // MenuBar palette maps these, but then they should go direct to app
         let menu_mapped = match index {
-            1 => 2, // normal
-            2 => 3, // selected (updated - now maps to app[3])
-            3 => 4, // disabled
-            4 => 5, // shortcut
-            _ => index, // MenuBar only defines 6 entries
+            1 => 2,  // normal
+            2 => 39, // selected
+            3 => 3,  // disabled
+            4 => 4,  // shortcut
+            _ => index, // MenuBar only defines 4 entries
         };
 
         // For indices > 4, MenuBar palette returns 0, so we expect error color (0x0F)
