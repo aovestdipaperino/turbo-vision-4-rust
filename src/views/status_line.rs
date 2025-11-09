@@ -6,6 +6,7 @@ use crate::core::geometry::Rect;
 use crate::core::event::{Event, EventType, KeyCode, MB_LEFT_BUTTON};
 use crate::core::draw::DrawBuffer;
 use crate::core::command::CommandId;
+use crate::core::palette::{STATUSLINE_NORMAL, STATUSLINE_SHORTCUT, STATUSLINE_SELECTED, STATUSLINE_SELECTED_SHORTCUT};
 use crate::terminal::Terminal;
 use super::view::{View, write_line_to_terminal};
 
@@ -62,10 +63,10 @@ impl StatusLine {
 
         // StatusLine palette indices:
         // 1: Normal, 2: Shortcut, 3: Selected, 4: Selected shortcut
-        let normal_attr = self.map_color(1);
-        let shortcut_attr = self.map_color(2);
-        let selected_attr = self.map_color(3);
-        let selected_shortcut_attr = self.map_color(4);
+        let normal_attr = self.map_color(STATUSLINE_NORMAL);
+        let shortcut_attr = self.map_color(STATUSLINE_SHORTCUT);
+        let selected_attr = self.map_color(STATUSLINE_SELECTED);
+        let selected_shortcut_attr = self.map_color(STATUSLINE_SELECTED_SHORTCUT);
 
         buf.move_char(0, ' ', normal_attr, width);
 
