@@ -4,7 +4,7 @@
 
 A Rust implementation of the classic Borland Turbo Vision text user interface framework.
 
-**Version 0.9.2 - CODE COMPLETE** ✅
+**Version 0.10.0 - CODE COMPLETE** ✅
 
 Based on
 kloczek Borland Turbo Vision C++ port [here](https://github.com/kloczek/tvision)
@@ -94,30 +94,12 @@ The color palette system accurately replicates Borland Turbo Vision's behavior:
 - **Context-Aware Remapping**: Views automatically remap colors based on their container (Dialog, Window, or Desktop)
 - **Owner Type Support**: Each view tracks its owner type for correct palette inheritance
 - **Borland-Accurate Colors**: All UI elements (menus, buttons, labels, dialogs) match original Borland colors
-- **Runtime Customization**: Change the entire application palette at runtime with `app.set_palette()` for custom themes
 - **Regression Testing**: 9 comprehensive palette tests ensure color stability across changes
 
 The palette system uses a three-level mapping chain:
 1. View palette (e.g., Button, Label) → indices 1-31
 2. Container palette (Dialog/Window) → remaps to indices 32-63
 3. Application palette → final RGB colors
-
-### Custom Palettes and Theming
-
-You can customize the entire application palette at runtime to create custom themes:
-
-```rust
-// Create a custom palette (63 bytes, each encoding foreground << 4 | background)
-let dark_palette = vec![/* 63 color bytes */];
-
-// Set the palette - redraw happens automatically!
-app.set_palette(Some(dark_palette));
-
-// Reset to default Borland palette
-app.set_palette(None);
-```
-
-See `examples/palette_themes_demo.rs` for a complete example with multiple themes.
 
 ## Module Overview
 
@@ -135,8 +117,8 @@ Read [examples/README.md](examples/README.md) for a complete set of examples.
 Compile all examples at once:
 
 ```bash
-cargo build --examples             # Checkout `target/debug/examples`
-cargo run --example dialog_example # For example  
+cargo build --examples           # Checkout `target/debug/examples`
+cargo run --example full-demo    # Run the comprehensive demo
 ```
 
 Build and run the demo `rust_editor` 
@@ -210,8 +192,8 @@ This implementation closely follows Borland Turbo Vision's architecture, adapted
 
 Generated with [tokei](https://github.com/XAMPPRocky/tokei) - includes inline documentation
 
-**198 tests** - all passing ✅
-- 189 unit tests
+**194 tests** - all passing ✅
+- 185 unit tests
 - 9 palette regression tests
 
 ## License

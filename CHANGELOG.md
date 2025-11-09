@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.0] - 2025-11-09
+
+### Fixed
+- **Palette Remapping System**
+  - Fixed dialog control palette remapping to match Borland Turbo Vision behavior
+  - Labels now display correct white-on-grey instead of red-on-grey
+  - Menu selected items show black-on-green instead of white-on-grey
+  - Menu shortcuts display red-on-grey as in original Borland implementation
+  - Button shadows render correctly with proper foreground/background swap
+  - Added `owner_type` field to Button, Label, StaticText, and InputLine
+  - All dialog controls now default to `OwnerType::Dialog` for proper palette remapping
+  - Views with `OwnerType::None` (MenuBar, StatusLine) use direct app palette
+  - Views with `OwnerType::Dialog` remap indices 1-31 through dialog palette
+
+### Added
+- **Palette Regression Tests**
+  - Added 9 comprehensive palette regression tests in `tests/palette_regression_tests.rs`
+  - Tests verify Borland-accurate colors for Button, Label, StaticText, InputLine, ScrollBar, MenuBar, and Dialog
+  - Tests ensure color stability across changes
+  - All tests pass with visually correct colors
+
+### Changed
+- Moved palette regression tests from `src/core/` to `tests/` directory for better organization
+- Updated `map_color()` to respect `OwnerType` for context-aware palette remapping
+- Fixed CP_MENU_BAR palette to match Borland's original values `[2, 5, 3, 4]`
+- Removed ScrollBar's custom `map_color()` implementation (now uses default View trait implementation)
+- Replaced magic palette indices in StatusLine with named constants
+
+### Removed
+- Deleted obsolete example files: `dialog_example.rs`, `history.rs`, `key_test.rs`, `menu_status_data.rs`, `quick_start.rs`, `status_line_demo.rs`
+- Moved `menu_status_data.rs` to `tests/` directory
+
 ## [0.9.2] - 2025-11-08
 
 ### Added
