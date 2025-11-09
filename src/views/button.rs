@@ -7,6 +7,9 @@ use crate::core::command::CommandId;
 use crate::core::draw::DrawBuffer;
 use crate::core::event::{Event, EventType, KB_ENTER, MB_LEFT_BUTTON};
 use crate::core::geometry::Rect;
+use crate::core::palette::{
+    BUTTON_DEFAULT, BUTTON_DISABLED, BUTTON_NORMAL, BUTTON_SELECTED, BUTTON_SHADOW, BUTTON_SHORTCUT,
+};
 use crate::core::state::{StateFlags, SF_DISABLED, SHADOW_BOTTOM, SHADOW_SOLID, SHADOW_TOP};
 use crate::terminal::Terminal;
 
@@ -114,7 +117,7 @@ impl View for Button {
             if let Some(ref mut log) = log {
                 writeln!(log, "  Calling map_color(4)...").ok();
             }
-            let result = self.map_color(4); // Disabled
+            let result = self.map_color(BUTTON_DISABLED); // Disabled
             if let Some(ref mut log) = log {
                 writeln!(log, "  map_color(4) OK").ok();
             }
@@ -123,7 +126,7 @@ impl View for Button {
             if let Some(ref mut log) = log {
                 writeln!(log, "  Calling map_color(3)...").ok();
             }
-            let result = self.map_color(3); // Selected/focused
+            let result = self.map_color(BUTTON_SELECTED); // Selected/focused
             if let Some(ref mut log) = log {
                 writeln!(log, "  map_color(3) OK").ok();
             }
@@ -132,7 +135,7 @@ impl View for Button {
             if let Some(ref mut log) = log {
                 writeln!(log, "  Calling map_color(2)...").ok();
             }
-            let result = self.map_color(2); // Default but not focused
+            let result = self.map_color(BUTTON_DEFAULT); // Default but not focused
             if let Some(ref mut log) = log {
                 writeln!(log, "  map_color(2) OK").ok();
             }
@@ -141,7 +144,7 @@ impl View for Button {
             if let Some(ref mut log) = log {
                 writeln!(log, "  Calling map_color(1)...").ok();
             }
-            let result = self.map_color(1); // Normal
+            let result = self.map_color(BUTTON_NORMAL); // Normal
             if let Some(ref mut log) = log {
                 writeln!(log, "  map_color(1) OK").ok();
             }
@@ -151,16 +154,16 @@ impl View for Button {
         if let Some(ref mut log) = log {
             writeln!(log, "  Calling map_color(8) for shadow...").ok();
         }
-        let shadow_attr = self.map_color(8); // Shadow
+        let shadow_attr = self.map_color(BUTTON_SHADOW); // Shadow
         if let Some(ref mut log) = log {
             writeln!(log, "  map_color(8) OK").ok();
         }
 
         // Shortcut attributes
         let shortcut_attr = if is_disabled {
-            self.map_color(4) // Disabled shortcut same as disabled text
+            self.map_color(BUTTON_DISABLED) // Disabled shortcut same as disabled text
         } else {
-            self.map_color(7) // Shortcut color
+            self.map_color(BUTTON_SHORTCUT) // Shortcut color
         };
 
         // Draw all lines except the last (which is the bottom shadow)

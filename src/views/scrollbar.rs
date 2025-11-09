@@ -8,6 +8,7 @@ use crate::core::event::{
     Event, EventType, KB_DOWN, KB_END, KB_HOME, KB_LEFT, KB_PGDN, KB_PGUP, KB_RIGHT, KB_UP,
 };
 use crate::core::geometry::{Point, Rect};
+use crate::core::palette::{SCROLLBAR_INDICATOR, SCROLLBAR_PAGE};
 use crate::terminal::Terminal;
 
 /// Scroll bar part codes (used by getPartCode() method)
@@ -198,8 +199,8 @@ impl View for ScrollBar {
     fn draw(&mut self, terminal: &mut Terminal) {
         // ScrollBar palette indices:
         // 1: Page, 2: Arrows, 3: Indicator
-        let page_attr = self.map_color(1);
-        let indicator_attr = self.map_color(3);
+        let page_attr = self.map_color(SCROLLBAR_PAGE);
+        let indicator_attr = self.map_color(SCROLLBAR_INDICATOR);
 
         if self.is_vertical {
             // Draw vertical scrollbar

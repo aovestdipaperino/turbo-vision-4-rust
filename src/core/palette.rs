@@ -1,9 +1,62 @@
 // (C) 2025 - Enzo Lombardi
 
 //! Color palette - 16-color palette definitions and attribute management.
+//! Palette index constants for view color mapping
+//!
+//! These constants define the logical color indices used by each view type
+//! when calling map_color(). These indices are mapped through the view's
+//! palette to determine the actual color attribute.
 // Color Palette
 // Color definitions, attributes, and palette management matching Borland Turbo Vision
 use crossterm::style::Color;
+
+// Button palette indices (maps to CP_BUTTON)
+pub const BUTTON_NORMAL: u8 = 1; // Normal button color
+pub const BUTTON_DEFAULT: u8 = 2; // Default button (not focused)
+pub const BUTTON_SELECTED: u8 = 3; // Selected/focused button
+pub const BUTTON_DISABLED: u8 = 4; // Disabled button
+pub const BUTTON_SHORTCUT: u8 = 7; // Shortcut letter color
+pub const BUTTON_SHADOW: u8 = 8; // Shadow color
+
+// InputLine palette indices (maps to CP_INPUT_LINE)
+pub const INPUT_NORMAL: u8 = 1; // Normal input line
+pub const INPUT_FOCUSED: u8 = 2; // Focused input line
+pub const INPUT_SELECTED: u8 = 3; // Selected text
+pub const INPUT_ARROWS: u8 = 4; // Arrow indicators
+
+// ScrollBar palette indices (maps to CP_SCROLLBAR)
+pub const SCROLLBAR_PAGE: u8 = 1; // Page/background area
+pub const SCROLLBAR_ARROWS: u8 = 2; // Arrow buttons
+pub const SCROLLBAR_INDICATOR: u8 = 3; // Scroll indicator
+
+// ListBox palette indices (maps to CP_LISTBOX)
+pub const LISTBOX_NORMAL: u8 = 1; // Normal item
+pub const LISTBOX_FOCUSED: u8 = 2; // Focused list (active)
+pub const LISTBOX_SELECTED: u8 = 3; // Selected item
+pub const LISTBOX_DIVIDER: u8 = 4; // Divider line
+
+// Cluster (CheckBox/RadioButton) palette indices (maps to CP_CLUSTER)
+pub const CLUSTER_NORMAL: u8 = 1; // Normal item
+pub const CLUSTER_FOCUSED: u8 = 2; // Focused cluster
+pub const CLUSTER_SHORTCUT: u8 = 3; // Shortcut letter
+pub const CLUSTER_DISABLED: u8 = 4; // Disabled item
+
+// Label palette indices (maps to CP_LABEL)
+pub const LABEL_NORMAL: u8 = 1; // Normal label text
+pub const LABEL_SELECTED: u8 = 2; // Selected label
+pub const LABEL_SHORTCUT: u8 = 3; // Shortcut letter
+
+// StaticText palette indices (maps to CP_STATIC_TEXT)
+pub const STATIC_TEXT_NORMAL: u8 = 1; // Normal static text
+
+// ParamText palette indices (same as StaticText)
+pub const PARAM_TEXT_NORMAL: u8 = 1; // Normal param text
+
+// StatusLine palette indices (maps to CP_STATUSLINE)
+pub const STATUSLINE_NORMAL: u8 = 1; // Normal text
+pub const STATUSLINE_SHORTCUT: u8 = 2; // Shortcut letter
+pub const STATUSLINE_SELECTED: u8 = 3; // Selected item
+pub const STATUSLINE_SELECTED_SHORTCUT: u8 = 4; // Selected shortcut
 
 /// 16-color palette matching Turbo Vision
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

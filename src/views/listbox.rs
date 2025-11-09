@@ -2,14 +2,15 @@
 
 //! ListBox view - scrollable list with single selection support.
 
-use crate::core::geometry::Rect;
-use crate::core::event::{Event, EventType, KB_ENTER, MB_LEFT_BUTTON};
+use super::list_viewer::{ListViewer, ListViewerState};
+use super::view::{write_line_to_terminal, View};
+use crate::core::command::CommandId;
 use crate::core::draw::DrawBuffer;
+use crate::core::event::{Event, EventType, KB_ENTER, MB_LEFT_BUTTON};
+use crate::core::geometry::Rect;
+use crate::core::palette::{LISTBOX_FOCUSED, LISTBOX_NORMAL, LISTBOX_SELECTED};
 use crate::core::state::StateFlags;
 use crate::terminal::Terminal;
-use crate::core::command::CommandId;
-use super::view::{View, write_line_to_terminal};
-use super::list_viewer::{ListViewer, ListViewerState};
 
 /// ListBox - A scrollable list of selectable items
 ///
@@ -18,7 +19,7 @@ use super::list_viewer::{ListViewer, ListViewerState};
 pub struct ListBox {
     bounds: Rect,
     items: Vec<String>,
-    list_state: ListViewerState,  // Embedded state from ListViewer
+    list_state: ListViewerState, // Embedded state from ListViewer
     state: StateFlags,
     on_select_command: CommandId,
     owner: Option<*const dyn View>,
@@ -62,7 +63,9 @@ impl ListBox {
 
     /// Get the currently selected item text
     pub fn get_selected_item(&self) -> Option<&str> {
-        self.list_state.focused.and_then(|idx| self.items.get(idx).map(|s| s.as_str()))
+        self.list_state
+            .focused
+            .and_then(|idx| self.items.get(idx).map(|s| s.as_str()))
     }
 
     /// Set the selected item by index
@@ -134,11 +137,11 @@ impl View for ListBox {
         // ListBox palette indices:
         // 1: Normal, 2: Focused, 3: Selected, 4: Divider
         let color_normal = if self.is_focused() {
-            self.map_color(2)  // Focused
+            self.map_color(LISTBOX_FOCUSED) // Focused
         } else {
-            self.map_color(1)  // Normal
+            self.map_color(LISTBOX_NORMAL) // Normal
         };
-        let color_selected = self.map_color(3);  // Selected
+        let color_selected = self.map_color(LISTBOX_SELECTED); // Selected
 
         // Draw visible items
         for i in 0..height {
@@ -147,7 +150,11 @@ impl View for ListBox {
 
             if item_idx < self.items.len() {
                 let is_selected = Some(item_idx) == self.list_state.focused;
-                let color = if is_selected { color_selected } else { color_normal };
+                let color = if is_selected {
+                    color_selected
+                } else {
+                    color_normal
+                };
 
                 let text = &self.items[item_idx];
                 buf.move_str(0, text, color);
@@ -239,7 +246,7 @@ impl View for ListBox {
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        use crate::core::palette::{Palette, palettes};
+        use crate::core::palette::{palettes, Palette};
         Some(Palette::from_slice(palettes::CP_LISTBOX))
     }
 }
@@ -285,11 +292,7 @@ mod tests {
     #[test]
     fn test_listbox_set_items() {
         let mut listbox = ListBox::new(Rect::new(0, 0, 20, 10), 1000);
-        let items = vec![
-            "Alpha".to_string(),
-            "Beta".to_string(),
-            "Gamma".to_string(),
-        ];
+        let items = vec!["Alpha".to_string(), "Beta".to_string(), "Gamma".to_string()];
         listbox.set_items(items);
 
         assert_eq!(listbox.item_count(), 3);

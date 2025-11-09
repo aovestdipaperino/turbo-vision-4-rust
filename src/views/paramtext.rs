@@ -2,11 +2,12 @@
 
 //! ParamText view - parametrized text display with dynamic string substitution.
 
-use crate::core::geometry::Rect;
-use crate::core::event::Event;
+use super::view::{write_line_to_terminal, View};
 use crate::core::draw::DrawBuffer;
+use crate::core::event::Event;
+use crate::core::geometry::Rect;
+use crate::core::palette::PARAM_TEXT_NORMAL;
 use crate::terminal::Terminal;
-use super::view::{View, write_line_to_terminal};
 
 /// ParamText - Static text with parameter substitution
 /// Displays text with placeholders like "File: %s" or "Total: %d items"
@@ -107,7 +108,7 @@ impl View for ParamText {
 
         // ParamText palette indices:
         // 1: Normal text
-        let normal_attr = self.map_color(1);
+        let normal_attr = self.map_color(PARAM_TEXT_NORMAL);
 
         // Split text into lines
         let lines: Vec<&str> = self.text.lines().collect();
@@ -152,7 +153,7 @@ impl View for ParamText {
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        use crate::core::palette::{Palette, palettes};
+        use crate::core::palette::{palettes, Palette};
         Some(Palette::from_slice(palettes::CP_STATIC_TEXT))
     }
 }
@@ -184,30 +185,21 @@ mod tests {
 
     #[test]
     fn test_paramtext_multiple_params() {
-        let mut param_text = ParamText::new(
-            Rect::new(0, 0, 40, 1),
-            "File: %s, Size: %d bytes"
-        );
+        let mut param_text = ParamText::new(Rect::new(0, 0, 40, 1), "File: %s, Size: %d bytes");
         param_text.set_params(&["test.txt"], &[1024]);
         assert_eq!(param_text.get_text(), "File: test.txt, Size: 1024 bytes");
     }
 
     #[test]
     fn test_paramtext_multiple_strings() {
-        let mut param_text = ParamText::new(
-            Rect::new(0, 0, 40, 1),
-            "From %s to %s"
-        );
+        let mut param_text = ParamText::new(Rect::new(0, 0, 40, 1), "From %s to %s");
         param_text.set_params_str(&["Alice", "Bob"]);
         assert_eq!(param_text.get_text(), "From Alice to Bob");
     }
 
     #[test]
     fn test_paramtext_escape_percent() {
-        let mut param_text = ParamText::new(
-            Rect::new(0, 0, 30, 1),
-            "Progress: %d%%"
-        );
+        let mut param_text = ParamText::new(Rect::new(0, 0, 30, 1), "Progress: %d%%");
         param_text.set_params(&[], &[75]);
         assert_eq!(param_text.get_text(), "Progress: 75%");
     }
@@ -227,9 +219,12 @@ mod tests {
     fn test_paramtext_complex() {
         let mut param_text = ParamText::new(
             Rect::new(0, 0, 60, 1),
-            "User: %s, Files: %d, Size: %d MB (%d%%)"
+            "User: %s, Files: %d, Size: %d MB (%d%%)",
         );
         param_text.set_params(&["admin"], &[150, 2048, 95]);
-        assert_eq!(param_text.get_text(), "User: admin, Files: 150, Size: 2048 MB (95%)");
+        assert_eq!(
+            param_text.get_text(),
+            "User: admin, Files: 150, Size: 2048 MB (95%)"
+        );
     }
 }
