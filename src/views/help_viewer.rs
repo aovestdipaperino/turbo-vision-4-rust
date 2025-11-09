@@ -7,15 +7,15 @@
 //
 // Displays help topic content with scrolling support.
 
-use crate::core::geometry::{Rect, Point};
-use crate::core::event::{Event, EventType, KB_UP, KB_DOWN, KB_PGUP, KB_PGDN, KB_HOME, KB_END};
-use crate::core::state::{StateFlags, SF_FOCUSED};
-use crate::core::palette::{Attr, TvColor};
-use crate::core::draw::DrawBuffer;
-use crate::terminal::Terminal;
-use super::view::{View, write_line_to_terminal};
+use super::help_file::HelpTopic;
 use super::scrollbar::ScrollBar;
-use super::help_file::{HelpTopic};
+use super::view::{write_line_to_terminal, View};
+use crate::core::draw::DrawBuffer;
+use crate::core::event::{Event, EventType, KB_DOWN, KB_END, KB_HOME, KB_PGDN, KB_PGUP, KB_UP};
+use crate::core::geometry::{Point, Rect};
+use crate::core::palette::{Attr, TvColor};
+use crate::core::state::{StateFlags, SF_FOCUSED};
+use crate::terminal::Terminal;
 
 /// HelpViewer - Displays help topic content
 ///
@@ -23,8 +23,8 @@ use super::help_file::{HelpTopic};
 pub struct HelpViewer {
     bounds: Rect,
     state: StateFlags,
-    delta: Point,           // Current scroll offset
-    limit: Point,           // Maximum scroll values
+    delta: Point, // Current scroll offset
+    limit: Point, // Maximum scroll values
     vscrollbar: Option<Box<ScrollBar>>,
     lines: Vec<String>,
     current_topic: Option<String>,
@@ -124,12 +124,7 @@ impl View for HelpViewer {
 
         // Update scrollbar position if present
         if self.vscrollbar.is_some() {
-            let sb_bounds = Rect::new(
-                bounds.b.x - 1,
-                bounds.a.y,
-                bounds.b.x,
-                bounds.b.y,
-            );
+            let sb_bounds = Rect::new(bounds.b.x - 1, bounds.a.y, bounds.b.x, bounds.b.y);
             if let Some(ref mut sb) = self.vscrollbar {
                 sb.set_bounds(sb_bounds);
             }
@@ -241,14 +236,13 @@ impl View for HelpViewer {
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        None  // HelpViewer uses hardcoded colors
+        None // HelpViewer uses hardcoded colors
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::views::help_file::HelpTopic;
 
     #[test]
     fn test_help_viewer_creation() {

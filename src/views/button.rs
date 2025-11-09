@@ -40,7 +40,7 @@ impl Button {
             is_default,
             is_broadcast: false,
             state,
-            options: OF_POST_PROCESS,  // Buttons process in post-process phase
+            options: OF_POST_PROCESS, // Buttons process in post-process phase
             owner: None,
         }
     }
@@ -89,7 +89,12 @@ impl View for Button {
             .ok();
 
         if let Some(ref mut log) = log {
-            writeln!(log, "Button '{}' draw START, owner={:?}", self.title, self.owner).ok();
+            writeln!(
+                log,
+                "Button '{}' draw START, owner={:?}",
+                self.title, self.owner
+            )
+            .ok();
         }
 
         let width = self.bounds.width() as usize;
@@ -109,7 +114,7 @@ impl View for Button {
             if let Some(ref mut log) = log {
                 writeln!(log, "  Calling map_color(4)...").ok();
             }
-            let result = self.map_color(4);  // Disabled
+            let result = self.map_color(4); // Disabled
             if let Some(ref mut log) = log {
                 writeln!(log, "  map_color(4) OK").ok();
             }
@@ -118,7 +123,7 @@ impl View for Button {
             if let Some(ref mut log) = log {
                 writeln!(log, "  Calling map_color(3)...").ok();
             }
-            let result = self.map_color(3);  // Selected/focused
+            let result = self.map_color(3); // Selected/focused
             if let Some(ref mut log) = log {
                 writeln!(log, "  map_color(3) OK").ok();
             }
@@ -127,7 +132,7 @@ impl View for Button {
             if let Some(ref mut log) = log {
                 writeln!(log, "  Calling map_color(2)...").ok();
             }
-            let result = self.map_color(2);  // Default but not focused
+            let result = self.map_color(2); // Default but not focused
             if let Some(ref mut log) = log {
                 writeln!(log, "  map_color(2) OK").ok();
             }
@@ -136,7 +141,7 @@ impl View for Button {
             if let Some(ref mut log) = log {
                 writeln!(log, "  Calling map_color(1)...").ok();
             }
-            let result = self.map_color(1);  // Normal
+            let result = self.map_color(1); // Normal
             if let Some(ref mut log) = log {
                 writeln!(log, "  map_color(1) OK").ok();
             }
@@ -146,16 +151,16 @@ impl View for Button {
         if let Some(ref mut log) = log {
             writeln!(log, "  Calling map_color(8) for shadow...").ok();
         }
-        let shadow_attr = self.map_color(8);  // Shadow
+        let shadow_attr = self.map_color(8); // Shadow
         if let Some(ref mut log) = log {
             writeln!(log, "  map_color(8) OK").ok();
         }
 
         // Shortcut attributes
         let shortcut_attr = if is_disabled {
-            self.map_color(4)  // Disabled shortcut same as disabled text
+            self.map_color(4) // Disabled shortcut same as disabled text
         } else {
-            self.map_color(7)  // Shortcut color
+            self.map_color(7) // Shortcut color
         };
 
         // Draw all lines except the last (which is the bottom shadow)
@@ -178,12 +183,7 @@ impl View for Button {
                 buf.move_str_with_shortcut(start, &self.title, button_attr, shortcut_attr);
             }
 
-            write_line_to_terminal(
-                terminal,
-                self.bounds.a.x,
-                self.bounds.a.y + y as i16,
-                &buf,
-            );
+            write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y + y as i16, &buf);
         }
 
         // Draw bottom shadow line (1 char shorter, offset 1 to the right)
@@ -262,7 +262,8 @@ impl View for Button {
                     && mouse_pos.x >= self.bounds.a.x
                     && mouse_pos.x < self.bounds.b.x
                     && mouse_pos.y >= self.bounds.a.y
-                    && mouse_pos.y < self.bounds.b.y - 1  // Exclude shadow line
+                    && mouse_pos.y < self.bounds.b.y - 1
+                // Exclude shadow line
                 {
                     // Button clicked - generate command or broadcast
                     if self.is_broadcast {
@@ -316,7 +317,7 @@ impl View for Button {
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        use crate::core::palette::{Palette, palettes};
+        use crate::core::palette::{palettes, Palette};
         Some(Palette::from_slice(palettes::CP_BUTTON))
     }
 }
@@ -409,7 +410,6 @@ impl Default for ButtonBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::event::{Event, EventType};
     use crate::core::command::CM_COMMAND_SET_CHANGED;
     use crate::core::command_set;
     use crate::core::geometry::Point;
@@ -420,14 +420,12 @@ mod tests {
         const TEST_CMD: u16 = 500;
         command_set::disable_command(TEST_CMD);
 
-        let button = Button::new(
-            Rect::new(0, 0, 10, 2),
-            "Test",
-            TEST_CMD,
-            false
-        );
+        let button = Button::new(Rect::new(0, 0, 10, 2), "Test", TEST_CMD, false);
 
-        assert!(button.is_disabled(), "Button should start disabled when command is disabled");
+        assert!(
+            button.is_disabled(),
+            "Button should start disabled when command is disabled"
+        );
     }
 
     #[test]
@@ -436,14 +434,12 @@ mod tests {
         const TEST_CMD: u16 = 501;
         command_set::enable_command(TEST_CMD);
 
-        let button = Button::new(
-            Rect::new(0, 0, 10, 2),
-            "Test",
-            TEST_CMD,
-            false
-        );
+        let button = Button::new(Rect::new(0, 0, 10, 2), "Test", TEST_CMD, false);
 
-        assert!(!button.is_disabled(), "Button should start enabled when command is enabled");
+        assert!(
+            !button.is_disabled(),
+            "Button should start enabled when command is enabled"
+        );
     }
 
     #[test]
@@ -457,12 +453,7 @@ mod tests {
         // Start with command disabled
         command_set::disable_command(TEST_CMD);
 
-        let mut button = Button::new(
-            Rect::new(0, 0, 10, 2),
-            "Test",
-            TEST_CMD,
-            false
-        );
+        let mut button = Button::new(Rect::new(0, 0, 10, 2), "Test", TEST_CMD, false);
 
         // Verify button starts disabled
         assert!(button.is_disabled(), "Button should start disabled");
@@ -475,7 +466,10 @@ mod tests {
         button.handle_event(&mut event);
 
         // Verify button is now enabled
-        assert!(!button.is_disabled(), "Button should be enabled after receiving broadcast");
+        assert!(
+            !button.is_disabled(),
+            "Button should be enabled after receiving broadcast"
+        );
     }
 
     #[test]
@@ -487,12 +481,7 @@ mod tests {
         // Start with command enabled
         command_set::enable_command(TEST_CMD);
 
-        let mut button = Button::new(
-            Rect::new(0, 0, 10, 2),
-            "Test",
-            TEST_CMD,
-            false
-        );
+        let mut button = Button::new(Rect::new(0, 0, 10, 2), "Test", TEST_CMD, false);
 
         // Verify button starts enabled
         assert!(!button.is_disabled(), "Button should start enabled");
@@ -505,7 +494,10 @@ mod tests {
         button.handle_event(&mut event);
 
         // Verify button is now disabled
-        assert!(button.is_disabled(), "Button should be disabled after receiving broadcast");
+        assert!(
+            button.is_disabled(),
+            "Button should be disabled after receiving broadcast"
+        );
     }
 
     #[test]
@@ -515,12 +507,7 @@ mod tests {
         const TEST_CMD: u16 = 504;
         command_set::disable_command(TEST_CMD);
 
-        let mut button = Button::new(
-            Rect::new(0, 0, 10, 2),
-            "Test",
-            TEST_CMD,
-            false
-        );
+        let mut button = Button::new(Rect::new(0, 0, 10, 2), "Test", TEST_CMD, false);
 
         button.set_focus(true);
 
@@ -529,7 +516,11 @@ mod tests {
         button.handle_event(&mut event);
 
         // Event should not be converted to command
-        assert_ne!(event.what, EventType::Command, "Disabled button should not generate command");
+        assert_ne!(
+            event.what,
+            EventType::Command,
+            "Disabled button should not generate command"
+        );
     }
 
     #[test]
@@ -539,24 +530,23 @@ mod tests {
         const TEST_CMD: u16 = 505;
         command_set::disable_command(TEST_CMD);
 
-        let mut button = Button::new(
-            Rect::new(0, 0, 10, 2),
-            "Test",
-            TEST_CMD,
-            false
-        );
+        let mut button = Button::new(Rect::new(0, 0, 10, 2), "Test", TEST_CMD, false);
 
         // Try to click the button
         let mut event = Event::mouse(
             EventType::MouseDown,
             Point::new(5, 1),
             crate::core::event::MB_LEFT_BUTTON,
-            false
+            false,
         );
         button.handle_event(&mut event);
 
         // Event should not be converted to command
-        assert_ne!(event.what, EventType::Command, "Disabled button should not generate command");
+        assert_ne!(
+            event.what,
+            EventType::Command,
+            "Disabled button should not generate command"
+        );
     }
 
     #[test]
@@ -567,12 +557,7 @@ mod tests {
         const TEST_CMD: u16 = 506;
         command_set::disable_command(TEST_CMD);
 
-        let mut button = Button::new(
-            Rect::new(0, 0, 10, 2),
-            "Test",
-            TEST_CMD,
-            false
-        );
+        let mut button = Button::new(Rect::new(0, 0, 10, 2), "Test", TEST_CMD, false);
 
         command_set::enable_command(TEST_CMD);
 
@@ -580,8 +565,15 @@ mod tests {
         button.handle_event(&mut event);
 
         // Event should still be a broadcast (not cleared)
-        assert_eq!(event.what, EventType::Broadcast, "Broadcast should not be cleared");
-        assert_eq!(event.command, CM_COMMAND_SET_CHANGED, "Broadcast command should remain");
+        assert_eq!(
+            event.what,
+            EventType::Broadcast,
+            "Broadcast should not be cleared"
+        );
+        assert_eq!(
+            event.command, CM_COMMAND_SET_CHANGED,
+            "Broadcast command should remain"
+        );
     }
 
     #[test]
@@ -619,10 +611,7 @@ mod tests {
     #[should_panic(expected = "Button bounds must be set")]
     fn test_button_builder_panics_without_bounds() {
         const TEST_CMD: u16 = 509;
-        ButtonBuilder::new()
-            .title("Test")
-            .command(TEST_CMD)
-            .build();
+        ButtonBuilder::new().title("Test").command(TEST_CMD).build();
     }
 
     #[test]
