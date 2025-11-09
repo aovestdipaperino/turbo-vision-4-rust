@@ -84,22 +84,6 @@ impl View for Button {
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        use std::io::Write;
-        let mut log = std::fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open("calc.log")
-            .ok();
-
-        if let Some(ref mut log) = log {
-            writeln!(
-                log,
-                "Button '{}' draw START, owner={:?}",
-                self.title, self.owner
-            )
-            .ok();
-        }
-
         let width = self.bounds.width() as usize;
         let height = self.bounds.height() as usize;
 
@@ -114,50 +98,16 @@ impl View for Button {
         // 7: Shortcut text
         // 8: Shadow
         let button_attr = if is_disabled {
-            if let Some(ref mut log) = log {
-                writeln!(log, "  Calling map_color(4)...").ok();
-            }
-            let result = self.map_color(BUTTON_DISABLED); // Disabled
-            if let Some(ref mut log) = log {
-                writeln!(log, "  map_color(4) OK").ok();
-            }
-            result
+            self.map_color(BUTTON_DISABLED) // Disabled
         } else if is_focused {
-            if let Some(ref mut log) = log {
-                writeln!(log, "  Calling map_color(3)...").ok();
-            }
-            let result = self.map_color(BUTTON_SELECTED); // Selected/focused
-            if let Some(ref mut log) = log {
-                writeln!(log, "  map_color(3) OK").ok();
-            }
-            result
+            self.map_color(BUTTON_SELECTED) // Selected/focused
         } else if self.is_default {
-            if let Some(ref mut log) = log {
-                writeln!(log, "  Calling map_color(2)...").ok();
-            }
-            let result = self.map_color(BUTTON_DEFAULT); // Default but not focused
-            if let Some(ref mut log) = log {
-                writeln!(log, "  map_color(2) OK").ok();
-            }
-            result
+            self.map_color(BUTTON_DEFAULT) // Default but not focused
         } else {
-            if let Some(ref mut log) = log {
-                writeln!(log, "  Calling map_color(1)...").ok();
-            }
-            let result = self.map_color(BUTTON_NORMAL); // Normal
-            if let Some(ref mut log) = log {
-                writeln!(log, "  map_color(1) OK").ok();
-            }
-            result
+            self.map_color(BUTTON_NORMAL) // Normal
         };
 
-        if let Some(ref mut log) = log {
-            writeln!(log, "  Calling map_color(8) for shadow...").ok();
-        }
         let shadow_attr = self.map_color(BUTTON_SHADOW); // Shadow
-        if let Some(ref mut log) = log {
-            writeln!(log, "  map_color(8) OK").ok();
-        }
 
         // Shortcut attributes
         let shortcut_attr = if is_disabled {
