@@ -17,8 +17,6 @@
 // Rust composition:
 //   View trait + Cluster trait → CheckBox, RadioButton (embed ClusterState)
 
-use crate::core::event::{Event, EventType};
-use crate::core::palette::Attr;
 use super::view::View;
 use crate::core::event::{Event, EventType};
 use crate::core::palette::Attr;
@@ -143,9 +141,15 @@ pub trait Cluster: View {
         // Cluster palette indices:
         // 1: Normal (unfocused), 2: Focused, 3: Shortcut
         if self.is_focused() {
-            (self.map_color(2), self.map_color(3))
+            (
+                self.map_color(CLUSTER_FOCUSED),
+                self.map_color(CLUSTER_SHORTCUT),
+            )
         } else {
-            (self.map_color(1), self.map_color(3))
+            (
+                self.map_color(CLUSTER_NORMAL),
+                self.map_color(CLUSTER_SHORTCUT),
+            )
         }
     }
 

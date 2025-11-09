@@ -2,9 +2,8 @@
 
 //! InputLine view - single-line text input with editing and history support.
 
-use crate::core::geometry::Rect;
-use crate::core::event::{Event, EventType, KB_ENTER, KB_BACKSPACE, KB_LEFT, KB_RIGHT, KB_HOME, KB_END, KB_DEL};
-use crate::core::draw::DrawBuffer;
+use super::validator::ValidatorRef;
+use super::view::{write_line_to_terminal, View};
 use crate::core::clipboard;
 use crate::core::draw::DrawBuffer;
 use crate::core::event::{
@@ -28,11 +27,11 @@ pub struct InputLine {
     data: Rc<RefCell<String>>,
     cursor_pos: usize,
     max_length: usize,
-    sel_start: usize,      // Selection start position
-    sel_end: usize,        // Selection end position
-    first_pos: usize,      // First visible character position for horizontal scrolling
-    validator: Option<ValidatorRef>,  // Optional validator for input validation
-    state: StateFlags,     // View state flags (including SF_FOCUSED)
+    sel_start: usize,                // Selection start position
+    sel_end: usize,                  // Selection end position
+    first_pos: usize,                // First visible character position for horizontal scrolling
+    validator: Option<ValidatorRef>, // Optional validator for input validation
+    state: StateFlags,               // View state flags (including SF_FOCUSED)
     owner: Option<*const dyn View>,
 }
 
@@ -167,13 +166,13 @@ impl View for InputLine {
         // InputLine palette indices:
         // 1: Normal, 2: Focused, 3: Selected, 4: Arrows
         let attr = if self.is_focused() {
-            self.map_color(2)  // Focused
+            self.map_color(INPUT_FOCUSED) // Focused
         } else {
-            self.map_color(1)  // Normal
+            self.map_color(INPUT_NORMAL) // Normal
         };
 
-        let sel_attr = self.map_color(3);  // Selected text
-        let arrow_attr = self.map_color(4);  // Arrow indicators
+        let sel_attr = self.map_color(INPUT_SELECTED); // Selected text
+        let arrow_attr = self.map_color(INPUT_ARROWS); // Arrow indicators
 
         buf.move_char(0, ' ', attr, width);
 
@@ -437,7 +436,7 @@ impl View for InputLine {
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        use crate::core::palette::{Palette, palettes};
+        use crate::core::palette::{palettes, Palette};
         Some(Palette::from_slice(palettes::CP_INPUT_LINE))
     }
 }

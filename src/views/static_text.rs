@@ -4,6 +4,9 @@
 
 use super::view::{write_line_to_terminal, View};
 use crate::core::draw::DrawBuffer;
+use crate::core::event::Event;
+use crate::core::geometry::Rect;
+use crate::core::palette::STATIC_TEXT_NORMAL;
 use crate::terminal::Terminal;
 
 pub struct StaticText {
@@ -47,7 +50,7 @@ impl View for StaticText {
         let lines: Vec<&str> = self.text.split('\n').collect();
 
         // StaticText palette color index 1 = normal text
-        let text_attr = self.map_color(1);
+        let text_attr = self.map_color(STATIC_TEXT_NORMAL);
 
         for (i, line) in lines.iter().enumerate() {
             if i >= self.bounds.height() as usize {
@@ -87,7 +90,7 @@ impl View for StaticText {
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        use crate::core::palette::{Palette, palettes};
+        use crate::core::palette::{palettes, Palette};
         Some(Palette::from_slice(palettes::CP_STATIC_TEXT))
     }
 }

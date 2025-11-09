@@ -2,8 +2,7 @@
 
 //! ParamText view - parametrized text display with dynamic string substitution.
 
-use crate::core::geometry::Rect;
-use crate::core::event::Event;
+use super::view::{write_line_to_terminal, View};
 use crate::core::draw::DrawBuffer;
 use crate::core::event::Event;
 use crate::core::geometry::Rect;
@@ -109,7 +108,7 @@ impl View for ParamText {
 
         // ParamText palette indices:
         // 1: Normal text
-        let normal_attr = self.map_color(1);
+        let normal_attr = self.map_color(PARAM_TEXT_NORMAL);
 
         // Split text into lines
         let lines: Vec<&str> = self.text.lines().collect();
@@ -154,7 +153,7 @@ impl View for ParamText {
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        use crate::core::palette::{Palette, palettes};
+        use crate::core::palette::{palettes, Palette};
         Some(Palette::from_slice(palettes::CP_STATIC_TEXT))
     }
 }
@@ -227,45 +226,5 @@ mod tests {
             param_text.get_text(),
             "User: admin, Files: 150, Size: 2048 MB (95%)"
         );
-    }
-}
-
-/// Builder for creating param texts with a fluent API.
-pub struct ParamTextBuilder {
-    bounds: Option<Rect>,
-    template: Option<String>,
-}
-
-impl ParamTextBuilder {
-    pub fn new() -> Self {
-        Self { bounds: None, template: None }
-    }
-
-    #[must_use]
-    pub fn bounds(mut self, bounds: Rect) -> Self {
-        self.bounds = Some(bounds);
-        self
-    }
-
-    #[must_use]
-    pub fn template(mut self, template: impl Into<String>) -> Self {
-        self.template = Some(template.into());
-        self
-    }
-
-    pub fn build(self) -> ParamText {
-        let bounds = self.bounds.expect("ParamText bounds must be set");
-        let template = self.template.expect("ParamText template must be set");
-        ParamText::new(bounds, &template)
-    }
-
-    pub fn build_boxed(self) -> Box<ParamText> {
-        Box::new(self.build())
-    }
-}
-
-impl Default for ParamTextBuilder {
-    fn default() -> Self {
-        Self::new()
     }
 }

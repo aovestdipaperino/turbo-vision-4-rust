@@ -4,12 +4,15 @@
 
 use super::view::{write_line_to_terminal, View};
 use crate::core::draw::DrawBuffer;
+use crate::core::event::Event;
+use crate::core::geometry::Rect;
+use crate::core::palette::{LABEL_NORMAL, LABEL_SHORTCUT};
 use crate::terminal::Terminal;
 
 pub struct Label {
     bounds: Rect,
     text: String,
-    link: Option<usize>,  // Index of linked control in parent group
+    link: Option<usize>, // Index of linked control in parent group
     owner: Option<*const dyn View>,
 }
 
@@ -46,8 +49,8 @@ impl View for Label {
 
         // Label palette indices:
         // 1: Normal, 2: Selected, 3: Shortcut
-        let normal_attr = self.map_color(1);
-        let shortcut_attr = self.map_color(3);
+        let normal_attr = self.map_color(LABEL_NORMAL);
+        let shortcut_attr = self.map_color(LABEL_SHORTCUT);
 
         buf.move_char(0, ' ', normal_attr, width);
         buf.move_str_with_shortcut(0, &self.text, normal_attr, shortcut_attr);
@@ -75,7 +78,7 @@ impl View for Label {
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        use crate::core::palette::{Palette, palettes};
+        use crate::core::palette::{palettes, Palette};
         Some(Palette::from_slice(palettes::CP_LABEL))
     }
 }

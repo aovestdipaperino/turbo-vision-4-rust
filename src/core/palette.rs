@@ -58,25 +58,6 @@ pub const STATUSLINE_SHORTCUT: u8 = 2; // Shortcut letter
 pub const STATUSLINE_SELECTED: u8 = 3; // Selected item
 pub const STATUSLINE_SELECTED_SHORTCUT: u8 = 4; // Selected shortcut
 
-// Frame palette indices (maps to Window/Dialog palette based on frame type)
-// Borland: cFrame values use these palette indices
-pub const FRAME_INACTIVE: u8 = 1; // Inactive frame (both fg and bg)
-pub const FRAME_ACTIVE_BORDER: u8 = 2; // Active frame border (White on LightGray for dialog)
-pub const FRAME_TITLE: u8 = 2; // Frame title (White on LightGray for dialog)
-pub const FRAME_ICON: u8 = 3; // Close icon and dragging state (LightGreen on LightGray)
-
-// Window interior palette indices
-pub const WINDOW_BACKGROUND: u8 = 1; // Window interior/background color (maps differently per window type)
-pub const BLUE_WINDOW_BACKGROUND: u8 = 5; // Blue window interior (Yellow on Blue)
-
-// Editor palette indices (cpEditor palette-relative indices)
-// Editor now uses CP_EDITOR palette [6, 7] with proper parent-child hierarchy
-// Index 1 → CP_EDITOR[0] = 6 → App palette position 6 (Normal text)
-// Index 2 → CP_EDITOR[1] = 7 → App palette position 7 (Selected text)
-pub const EDITOR_NORMAL: u8 = 1; // Normal editor text - cpEditor position 1 → app palette 6
-pub const EDITOR_SELECTED: u8 = 2; // Selected text - cpEditor position 2 → app palette 7
-pub const EDITOR_CURSOR: u8 = 2; // Cursor - same as selected
-
 /// 16-color palette matching Turbo Vision
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
