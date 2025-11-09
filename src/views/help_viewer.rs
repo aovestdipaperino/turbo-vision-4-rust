@@ -7,18 +7,13 @@
 //
 // Displays help topic content with scrolling support.
 
-use crate::core::geometry::{Rect, Point};
-use crate::core::event::{Event, EventType, KB_UP, KB_DOWN, KB_PGUP, KB_PGDN, KB_HOME, KB_END};
-use crate::core::state::{StateFlags, SF_FOCUSED};
-use crate::core::palette::{Attr, TvColor};
-use crate::core::draw::DrawBuffer;
-use crate::terminal::Terminal;
-use super::view::{View, write_line_to_terminal};
+use super::help_file::HelpTopic;
 use super::scrollbar::ScrollBar;
 use super::view::{write_line_to_terminal, View};
 use crate::core::draw::DrawBuffer;
 use crate::core::event::{Event, EventType, KB_DOWN, KB_END, KB_HOME, KB_PGDN, KB_PGUP, KB_UP};
 use crate::core::geometry::{Point, Rect};
+use crate::core::palette::{Attr, TvColor};
 use crate::core::state::{StateFlags, SF_FOCUSED};
 use crate::terminal::Terminal;
 
@@ -242,7 +237,7 @@ impl View for HelpViewer {
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        None  // HelpViewer uses hardcoded colors
+        None // HelpViewer uses hardcoded colors
     }
 }
 

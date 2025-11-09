@@ -40,7 +40,7 @@ impl Button {
             is_default,
             is_broadcast: false,
             state,
-            options: OF_POST_PROCESS,  // Buttons process in post-process phase
+            options: OF_POST_PROCESS, // Buttons process in post-process phase
             owner: None,
         }
     }
@@ -89,7 +89,12 @@ impl View for Button {
             .ok();
 
         if let Some(ref mut log) = log {
-            writeln!(log, "Button '{}' draw START, owner={:?}", self.title, self.owner).ok();
+            writeln!(
+                log,
+                "Button '{}' draw START, owner={:?}",
+                self.title, self.owner
+            )
+            .ok();
         }
 
         let width = self.bounds.width() as usize;
@@ -109,7 +114,7 @@ impl View for Button {
             if let Some(ref mut log) = log {
                 writeln!(log, "  Calling map_color(4)...").ok();
             }
-            let result = self.map_color(4);  // Disabled
+            let result = self.map_color(4); // Disabled
             if let Some(ref mut log) = log {
                 writeln!(log, "  map_color(4) OK").ok();
             }
@@ -118,7 +123,7 @@ impl View for Button {
             if let Some(ref mut log) = log {
                 writeln!(log, "  Calling map_color(3)...").ok();
             }
-            let result = self.map_color(3);  // Selected/focused
+            let result = self.map_color(3); // Selected/focused
             if let Some(ref mut log) = log {
                 writeln!(log, "  map_color(3) OK").ok();
             }
@@ -127,7 +132,7 @@ impl View for Button {
             if let Some(ref mut log) = log {
                 writeln!(log, "  Calling map_color(2)...").ok();
             }
-            let result = self.map_color(2);  // Default but not focused
+            let result = self.map_color(2); // Default but not focused
             if let Some(ref mut log) = log {
                 writeln!(log, "  map_color(2) OK").ok();
             }
@@ -136,7 +141,7 @@ impl View for Button {
             if let Some(ref mut log) = log {
                 writeln!(log, "  Calling map_color(1)...").ok();
             }
-            let result = self.map_color(1);  // Normal
+            let result = self.map_color(1); // Normal
             if let Some(ref mut log) = log {
                 writeln!(log, "  map_color(1) OK").ok();
             }
@@ -146,16 +151,16 @@ impl View for Button {
         if let Some(ref mut log) = log {
             writeln!(log, "  Calling map_color(8) for shadow...").ok();
         }
-        let shadow_attr = self.map_color(8);  // Shadow
+        let shadow_attr = self.map_color(8); // Shadow
         if let Some(ref mut log) = log {
             writeln!(log, "  map_color(8) OK").ok();
         }
 
         // Shortcut attributes
         let shortcut_attr = if is_disabled {
-            self.map_color(4)  // Disabled shortcut same as disabled text
+            self.map_color(4) // Disabled shortcut same as disabled text
         } else {
-            self.map_color(7)  // Shortcut color
+            self.map_color(7) // Shortcut color
         };
 
         // Draw all lines except the last (which is the bottom shadow)
@@ -312,7 +317,7 @@ impl View for Button {
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        use crate::core::palette::{Palette, palettes};
+        use crate::core::palette::{palettes, Palette};
         Some(Palette::from_slice(palettes::CP_BUTTON))
     }
 }
