@@ -253,6 +253,60 @@ pub trait View {
         (global_x - bounds.a.x, global_y - bounds.a.y)
     }
 
+    /// Draw shadow for this view
+    /// Draws a shadow offset by (1, 1) from the view bounds
+    /// Shadow is semi-transparent - darkens the underlying content by 50%
+    /// This matches the Borland Turbo Vision behavior more closely
+    fn draw_shadow(&self, terminal: &mut Terminal) {
+        use crate::core::palette::Attr;
+
+        const SHADOW_FACTOR: f32 = 0.5; // Darken to 50% of original brightness
+
+        let bounds = self.bounds();
+        let mut buf = DrawBuffer::new(SHADOW_SIZE.0 as usize);
+
+        // Draw right edge shadow (2 columns wide, offset by 1 vertically)
+        // Read existing cells and darken them for semi-transparency
+        for y in (bounds.a.y + 1)..(bounds.b.y + 1) {
+            for i in 0..SHADOW_SIZE.0 {
+                let x = bounds.b.x + i;
+
+                // Read the existing cell at this position
+                if let Some(existing_cell) = terminal.read_cell(x, y) {
+                    // Darken the existing cell's attribute
+                    let darkened_attr = existing_cell.attr.darken(SHADOW_FACTOR);
+                    buf.put_char(i as usize, existing_cell.ch, darkened_attr);
+                } else {
+                    // Out of bounds - use default shadow
+                    let default_attr = Attr::from_u8(SHADOW_ATTR);
+                    buf.put_char(i as usize, ' ', default_attr);
+                }
+            }
+            write_line_to_terminal(terminal, bounds.b.x, y, &buf);
+        }
+
+        // Draw bottom edge shadow (offset by 1 horizontally, excludes right shadow area to prevent double-darkening)
+        let bottom_width = (bounds.b.x - bounds.a.x - 1) as usize;
+        let mut bottom_buf = DrawBuffer::new(bottom_width);
+
+        let shadow_y = bounds.b.y;
+        for i in 0..bottom_width {
+            let x = bounds.a.x + 1 + i as i16;
+
+            // Read the existing cell at this position
+            if let Some(existing_cell) = terminal.read_cell(x, shadow_y) {
+                // Darken the existing cell's attribute
+                let darkened_attr = existing_cell.attr.darken(SHADOW_FACTOR);
+                bottom_buf.put_char(i, existing_cell.ch, darkened_attr);
+            } else {
+                // Out of bounds - use default shadow
+                let default_attr = Attr::from_u8(SHADOW_ATTR);
+                bottom_buf.put_char(i, ' ', default_attr);
+            }
+        }
+        write_line_to_terminal(terminal, bounds.a.x + 1, bounds.b.y, &bottom_buf);
+    }
+
     /// Get the linked control index for labels
     /// Matches Borland: TLabel::link field
     /// Returns Some(index) if this is a label with a linked control, None otherwise
@@ -436,11 +490,13 @@ pub fn write_line_to_terminal(terminal: &mut Terminal, x: i16, y: i16, buf: &Dra
     terminal.write_line(x.max(0) as u16, y as u16, &buf.data);
 }
 
-/// Draw shadow for a view
-/// Draws a shadow offset by (1, 1) from the view bounds
-/// Shadow is semi-transparent - darkens the underlying content by 50%
-/// This matches the Borland Turbo Vision behavior more closely
-pub fn draw_shadow(terminal: &mut Terminal, bounds: Rect, _shadow_attr: u8) {
+/// Draw shadow for arbitrary bounds (for non-view elements like temporary dropdowns)
+///
+/// Note: Views should use the `draw_shadow()` trait method instead, which gets bounds
+/// from `self.bounds()` following the principle "bounds should not be passed down".
+/// This standalone function is only for special cases where you're drawing shadows
+/// for elements that aren't views (e.g., temporary dropdowns).
+pub fn draw_shadow_bounds(terminal: &mut Terminal, bounds: Rect) {
     use crate::core::palette::Attr;
 
     const SHADOW_FACTOR: f32 = 0.5; // Darken to 50% of original brightness
@@ -467,8 +523,8 @@ pub fn draw_shadow(terminal: &mut Terminal, bounds: Rect, _shadow_attr: u8) {
         write_line_to_terminal(terminal, bounds.b.x, y, &buf);
     }
 
-    // Draw bottom edge shadow (offset by 1 horizontally, includes right shadow area)
-    let bottom_width = (bounds.b.x - bounds.a.x + SHADOW_SIZE.0 - 1) as usize;
+    // Draw bottom edge shadow (offset by 1 horizontally, excludes right shadow area to prevent double-darkening)
+    let bottom_width = (bounds.b.x - bounds.a.x - 1) as usize;
     let mut bottom_buf = DrawBuffer::new(bottom_width);
 
     let shadow_y = bounds.b.y;

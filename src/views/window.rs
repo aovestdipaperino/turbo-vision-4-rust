@@ -4,12 +4,12 @@
 
 use super::frame::Frame;
 use super::group::Group;
-use super::view::{draw_shadow, View};
+use super::view::View;
 use crate::core::command::{CM_CANCEL, CM_CLOSE};
 use crate::core::event::{Event, EventType};
 use crate::core::geometry::{Point, Rect};
 use crate::core::palette::{Attr, TvColor};
-use crate::core::state::{StateFlags, SF_DRAGGING, SF_MODAL, SF_RESIZING, SF_SHADOW, SHADOW_ATTR};
+use crate::core::state::{StateFlags, SF_DRAGGING, SF_MODAL, SF_RESIZING, SF_SHADOW};
 use crate::terminal::Terminal;
 
 pub struct Window {
@@ -263,7 +263,7 @@ impl View for Window {
 
         // Draw shadow if enabled
         if self.has_shadow() {
-            draw_shadow(terminal, self.bounds, SHADOW_ATTR);
+            self.draw_shadow(terminal);
         }
     }
 
