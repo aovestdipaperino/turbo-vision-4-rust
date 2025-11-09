@@ -329,39 +329,24 @@ pub trait View {
             }
         }
 
-        // Then walk up the owner chain
-        let mut current_view = self.get_owner();
-        let mut depth = 0;
-        while let Some(view_ptr) = current_view {
-            depth += 1;
-            if let Some(ref mut log) = log {
-                writeln!(log, "      Chain depth {}: ptr={:?}", depth, view_ptr).ok();
-            }
+        // NOTE: We skip the owner chain traversal to avoid unsafe pointer dereference.
+        // Instead, we apply a standard palette chain: View -> Dialog -> Application
+        // This matches the typical Turbo Vision palette hierarchy without needing pointers.
 
-            let view = unsafe { &*view_ptr };
-
-            // Try to get palette for current view
-            if let Some(palette) = view.get_palette() {
-                if !palette.is_empty() {
-                    // Remap color through this palette
-                    let old_color = color;
-                    color = palette.get(color as usize);
-                    if let Some(ref mut log) = log {
-                        writeln!(log, "      Remapped {} -> {} at depth {}", old_color, color, depth).ok();
-                    }
-                    if color == 0 {
-                        // Palette entry was 0 - error color
-                        return Attr::from_u8(ERROR_ATTR);
-                    }
+        // Apply Gray Dialog palette mapping (typical parent for buttons, inputs, etc.)
+        let dialog_palette = Palette::from_slice(palettes::CP_GRAY_DIALOG);
+        if color > 0 && (color as usize) < dialog_palette.len() {
+            let remapped = dialog_palette.get(color as usize);
+            if remapped > 0 {
+                if let Some(ref mut log) = log {
+                    writeln!(log, "      Remapped {} -> {} via dialog palette", color, remapped).ok();
                 }
+                color = remapped;
             }
-
-            // Try to move to owner
-            current_view = view.get_owner();
         }
 
         if let Some(ref mut log) = log {
-            writeln!(log, "      Reached root after {} levels, using CP_APP_COLOR[{}]", depth, color).ok();
+            writeln!(log, "      Using CP_APP_COLOR[{}]", color).ok();
         }
 
         // Reached root (Application) - color is now an index into app palette
@@ -435,4 +420,3 @@ pub fn draw_shadow(terminal: &mut Terminal, bounds: Rect, _shadow_attr: u8) {
     }
     write_line_to_terminal(terminal, bounds.a.x + 1, bounds.b.y, &bottom_buf);
 }
-

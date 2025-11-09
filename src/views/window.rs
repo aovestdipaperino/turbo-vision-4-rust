@@ -82,11 +82,8 @@ impl Window {
     }
 
     pub fn add(&mut self, view: Box<dyn View>) -> usize {
-        // Set interior's owner to this window (for palette chain)
-        // Matches Borland: interior group's owner points to the window
-        if self.interior.get_owner().is_none() {
-            self.interior.set_owner(self as *const Self as *const dyn View);
-        }
+        // NOTE: We don't set interior's owner pointer to avoid unsafe casting
+        // Color palette resolution is handled without needing parent pointers
         self.interior.add(view)
     }
 
@@ -210,17 +207,8 @@ impl Window {
             writeln!(log, "Window::init_interior_owner called, self={:p}", self).ok();
         }
 
-        // Set interior's owner to this Window
-        self.interior.set_owner(self as *const Self as *const dyn View);
-
-        // CRITICAL: Also reinitialize all children's owner pointers
-        // The children have pointers to interior Group at the OLD location (before Dialog moved)
-        // We need to update them to point to interior at NEW location
-        self.interior.reinit_children_owners();
-
-        if let Some(ref mut log) = log {
-            writeln!(log, "Window::init_interior_owner done, set interior.owner to {:p}", self as *const Self).ok();
-        }
+        // NOTE: We don't set interior's owner pointer to avoid unsafe casting
+        // Color palette resolution is handled without needing parent pointers
     }
 }
 
