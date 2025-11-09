@@ -18,7 +18,6 @@ pub struct Scroller {
     h_scrollbar: Option<Box<ScrollBar>>,
     v_scrollbar: Option<Box<ScrollBar>>,
     owner: Option<*const dyn View>,
-    owner_type: super::view::OwnerType,
 }
 
 impl Scroller {
@@ -30,7 +29,6 @@ impl Scroller {
             h_scrollbar,
             v_scrollbar,
             owner: None,
-            owner_type: super::view::OwnerType::None,
         };
         scroller.update_scrollbars();
         scroller
@@ -169,115 +167,6 @@ impl View for Scroller {
 
     fn get_owner(&self) -> Option<*const dyn View> {
         self.owner
-    }
-
-    fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        use crate::core::palette::{palettes, Palette};
-        Some(Palette::from_slice(palettes::CP_SCROLLER))
-    }
-
-    fn get_owner_type(&self) -> super::view::OwnerType {
-        self.owner_type
-    }
-
-    fn set_owner_type(&mut self, owner_type: super::view::OwnerType) {
-        self.owner_type = owner_type;
-    }
-}
-
-/// Builder for creating scrollers with a fluent API.
-///
-/// # Examples
-///
-/// ```ignore
-/// use turbo_vision::views::scroller::ScrollerBuilder;
-/// use turbo_vision::views::scrollbar::ScrollBarBuilder;
-/// use turbo_vision::core::geometry::Rect;
-///
-/// // Create a scroller with both scrollbars
-/// let v_scrollbar = ScrollBarBuilder::new()
-///     .bounds(Rect::new(78, 0, 79, 24))
-///     .vertical()
-///     .build_boxed();
-///
-/// let h_scrollbar = ScrollBarBuilder::new()
-///     .bounds(Rect::new(0, 24, 78, 25))
-///     .horizontal()
-///     .build_boxed();
-///
-/// let scroller = ScrollerBuilder::new()
-///     .bounds(Rect::new(0, 0, 79, 25))
-///     .v_scrollbar(v_scrollbar)
-///     .h_scrollbar(h_scrollbar)
-///     .build();
-///
-/// // Create a scroller with only vertical scrollbar
-/// let v_scrollbar = ScrollBarBuilder::new()
-///     .bounds(Rect::new(78, 0, 79, 25))
-///     .vertical()
-///     .build_boxed();
-///
-/// let scroller = ScrollerBuilder::new()
-///     .bounds(Rect::new(0, 0, 79, 25))
-///     .v_scrollbar(v_scrollbar)
-///     .build();
-/// ```
-pub struct ScrollerBuilder {
-    bounds: Option<Rect>,
-    h_scrollbar: Option<Box<ScrollBar>>,
-    v_scrollbar: Option<Box<ScrollBar>>,
-}
-
-impl ScrollerBuilder {
-    /// Creates a new ScrollerBuilder with default values.
-    pub fn new() -> Self {
-        Self {
-            bounds: None,
-            h_scrollbar: None,
-            v_scrollbar: None,
-        }
-    }
-
-    /// Sets the scroller bounds (required).
-    #[must_use]
-    pub fn bounds(mut self, bounds: Rect) -> Self {
-        self.bounds = Some(bounds);
-        self
-    }
-
-    /// Sets the horizontal scrollbar (optional).
-    #[must_use]
-    pub fn h_scrollbar(mut self, scrollbar: Box<ScrollBar>) -> Self {
-        self.h_scrollbar = Some(scrollbar);
-        self
-    }
-
-    /// Sets the vertical scrollbar (optional).
-    #[must_use]
-    pub fn v_scrollbar(mut self, scrollbar: Box<ScrollBar>) -> Self {
-        self.v_scrollbar = Some(scrollbar);
-        self
-    }
-
-    /// Builds the Scroller.
-    ///
-    /// # Panics
-    ///
-    /// Panics if required fields (bounds) are not set.
-    pub fn build(self) -> Scroller {
-        let bounds = self.bounds.expect("Scroller bounds must be set");
-        Scroller::new(bounds, self.h_scrollbar, self.v_scrollbar)
-    }
-
-    /// Builds the Scroller as a Box.
-    pub fn build_boxed(self) -> Box<Scroller> {
-        Box::new(self.build())
-    }
-}
-
-impl Default for ScrollerBuilder {
-    fn default() -> Self {
-        Self::new()
     }
 }
 

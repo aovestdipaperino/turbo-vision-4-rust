@@ -2,7 +2,8 @@
 
 //! ParamText view - parametrized text display with dynamic string substitution.
 
-use super::view::{write_line_to_terminal, View};
+use crate::core::geometry::Rect;
+use crate::core::event::Event;
 use crate::core::draw::DrawBuffer;
 use crate::core::event::Event;
 use crate::core::geometry::Rect;
@@ -16,7 +17,6 @@ pub struct ParamText {
     template: String,
     text: String,
     owner: Option<*const dyn View>,
-    owner_type: super::view::OwnerType,
 }
 
 impl ParamText {
@@ -31,7 +31,6 @@ impl ParamText {
             template: template.to_string(),
             text: template.to_string(),
             owner: None,
-            owner_type: super::view::OwnerType::None,
         }
     }
 
@@ -110,7 +109,7 @@ impl View for ParamText {
 
         // ParamText palette indices:
         // 1: Normal text
-        let normal_attr = self.map_color(PARAM_TEXT_NORMAL);
+        let normal_attr = self.map_color(1);
 
         // Split text into lines
         let lines: Vec<&str> = self.text.lines().collect();
@@ -155,16 +154,8 @@ impl View for ParamText {
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        use crate::core::palette::{palettes, Palette};
+        use crate::core::palette::{Palette, palettes};
         Some(Palette::from_slice(palettes::CP_STATIC_TEXT))
-    }
-
-    fn get_owner_type(&self) -> super::view::OwnerType {
-        self.owner_type
-    }
-
-    fn set_owner_type(&mut self, owner_type: super::view::OwnerType) {
-        self.owner_type = owner_type;
     }
 }
 

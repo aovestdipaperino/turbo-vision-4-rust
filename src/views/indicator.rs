@@ -5,6 +5,7 @@
 use crate::core::geometry::{Point, Rect};
 use crate::core::event::Event;
 use crate::core::draw::DrawBuffer;
+use crate::core::palette::{Attr, TvColor};
 use crate::terminal::Terminal;
 use super::view::{View, write_line_to_terminal};
 
@@ -15,7 +16,6 @@ pub struct Indicator {
     location: Point,  // Width x Height for window size display
     modified: bool,   // Has the document been modified?
     owner: Option<*const dyn View>,
-    owner_type: super::view::OwnerType,
 }
 
 impl Indicator {
@@ -25,7 +25,6 @@ impl Indicator {
             location: Point::new(1, 1),
             modified: false,
             owner: None,
-            owner_type: super::view::OwnerType::None,
         }
     }
 
@@ -59,24 +58,8 @@ impl View for Indicator {
         // Fill with spaces (background)
         buf.move_char(0, ' ', color, width);
 
-        // Show modified star at the left if modified (matching Borland)
-        if self.modified {
-            buf.move_char(0, '*', color, 1);
-        }
-
-        // Format: " WxH " (width x height) centered
-        let text = format!(" {}x{} ", self.location.x, self.location.y);
-
-        // Center the text around the 'x' character
-        if let Some(x_pos) = text.find('x') {
-            let start_pos = (8_i32 - x_pos as i32).max(1) as usize;
-            let start_pos = start_pos.min(width.saturating_sub(text.len()));
-            buf.move_str(start_pos, &text, color);
-        } else {
-            // Fallback: center normally if no 'x' found
-            let start_pos = (width / 2).saturating_sub(text.len() / 2);
-            buf.move_str(start_pos, &text, color);
-        }
+        buf.move_char(0, ' ', Attr::new(TvColor::White, TvColor::LightGray), width);
+        buf.move_str(start_pos, &text, Attr::new(TvColor::White, TvColor::LightGray));
 
         write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y, &buf);
     }
@@ -94,47 +77,6 @@ impl View for Indicator {
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        use crate::core::palette::{palettes, Palette};
-        Some(Palette::from_slice(palettes::CP_INDICATOR))
-    }
-
-    fn get_owner_type(&self) -> super::view::OwnerType {
-        self.owner_type
-    }
-
-    fn set_owner_type(&mut self, owner_type: super::view::OwnerType) {
-        self.owner_type = owner_type;
-    }
-}
-
-/// Builder for creating indicators with a fluent API.
-pub struct IndicatorBuilder {
-    bounds: Option<Rect>,
-}
-
-impl IndicatorBuilder {
-    pub fn new() -> Self {
-        Self { bounds: None }
-    }
-
-    #[must_use]
-    pub fn bounds(mut self, bounds: Rect) -> Self {
-        self.bounds = Some(bounds);
-        self
-    }
-
-    pub fn build(self) -> Indicator {
-        let bounds = self.bounds.expect("Indicator bounds must be set");
-        Indicator::new(bounds)
-    }
-
-    pub fn build_boxed(self) -> Box<Indicator> {
-        Box::new(self.build())
-    }
-}
-
-impl Default for IndicatorBuilder {
-    fn default() -> Self {
-        Self::new()
+        None  // Indicator uses hardcoded dialog colors
     }
 }

@@ -4,15 +4,13 @@
 
 use super::view::{write_line_to_terminal, View};
 use crate::core::draw::DrawBuffer;
-use crate::core::event::Event;
-use crate::core::geometry::Rect;
-use crate::core::palette::{LABEL_NORMAL, LABEL_SHORTCUT};
 use crate::terminal::Terminal;
 
 pub struct Label {
     bounds: Rect,
     text: String,
     link: Option<usize>,  // Index of linked control in parent group
+    owner: Option<*const dyn View>,
 }
 
 impl Label {
@@ -21,6 +19,7 @@ impl Label {
             bounds,
             text: text.to_string(),
             link: None,
+            owner: None,
         }
     }
 
@@ -47,8 +46,8 @@ impl View for Label {
 
         // Label palette indices:
         // 1: Normal, 2: Selected, 3: Shortcut
-        let normal_attr = self.map_color(LABEL_NORMAL);
-        let shortcut_attr = self.map_color(LABEL_SHORTCUT);
+        let normal_attr = self.map_color(1);
+        let shortcut_attr = self.map_color(3);
 
         buf.move_char(0, ' ', normal_attr, width);
         buf.move_str_with_shortcut(0, &self.text, normal_attr, shortcut_attr);
@@ -65,5 +64,18 @@ impl View for Label {
     /// Matches Borland: TLabel::link field
     fn label_link(&self) -> Option<usize> {
         self.link
+    }
+
+    fn set_owner(&mut self, owner: *const dyn View) {
+        self.owner = Some(owner);
+    }
+
+    fn get_owner(&self) -> Option<*const dyn View> {
+        self.owner
+    }
+
+    fn get_palette(&self) -> Option<crate::core::palette::Palette> {
+        use crate::core::palette::{Palette, palettes};
+        Some(Palette::from_slice(palettes::CP_LABEL))
     }
 }

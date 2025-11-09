@@ -5,6 +5,7 @@
 use crate::core::geometry::{Point, Rect};
 use crate::core::event::{Event, EventType, KB_UP, KB_DOWN, KB_LEFT, KB_RIGHT, KB_PGUP, KB_PGDN, KB_HOME, KB_END};
 use crate::core::draw::DrawBuffer;
+use crate::core::palette::{Attr, TvColor};
 use crate::terminal::Terminal;
 use super::view::{View, write_line_to_terminal};
 use super::scrollbar::ScrollBar;
@@ -23,7 +24,6 @@ pub struct TextViewer {
     indicator: Option<Box<Indicator>>,
     show_line_numbers: bool,
     owner: Option<*const dyn View>,
-    owner_type: super::view::OwnerType,
 }
 
 impl TextViewer {
@@ -38,7 +38,6 @@ impl TextViewer {
             indicator: None,
             show_line_numbers: false,
             owner: None,
-            owner_type: super::view::OwnerType::None,
         }
     }
 
@@ -247,7 +246,7 @@ impl View for TextViewer {
             let color = self.map_color(1);
 
             // Fill with spaces
-            buf.move_char(0, ' ', color, width);
+            buf.move_char(0, ' ', Attr::new(TvColor::Black, TvColor::LightGray), width);
 
             if line_idx < self.lines.len() {
                 let line = &self.lines[line_idx];
@@ -256,7 +255,7 @@ impl View for TextViewer {
                 // Draw line number if enabled
                 if self.show_line_numbers {
                     let line_num = format!("{:4} ", line_idx + 1);
-                    buf.move_str(0, &line_num, color);
+                    buf.move_str(0, &line_num, Attr::new(TvColor::White, TvColor::LightGray));
                     x_offset = line_num_width;
                 }
 
@@ -266,7 +265,7 @@ impl View for TextViewer {
                     let visible_width = width - x_offset;
                     let end_col = min(start_col + visible_width, line.len());
                     let visible_text = &line[start_col..end_col];
-                    buf.move_str(x_offset, visible_text, color);
+                    buf.move_str(x_offset, visible_text, Attr::new(TvColor::Black, TvColor::LightGray));
                 }
             }
 
@@ -383,77 +382,6 @@ impl View for TextViewer {
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        use crate::core::palette::{palettes, Palette};
-        Some(Palette::from_slice(palettes::CP_SCROLLER))
-    }
-
-    fn get_owner_type(&self) -> super::view::OwnerType {
-        self.owner_type
-    }
-
-    fn set_owner_type(&mut self, owner_type: super::view::OwnerType) {
-        self.owner_type = owner_type;
-    }
-}
-
-/// Builder for creating text viewers with a fluent API.
-pub struct TextViewerBuilder {
-    bounds: Option<Rect>,
-    with_scrollbars: bool,
-    with_indicator: bool,
-    show_line_numbers: bool,
-}
-
-impl TextViewerBuilder {
-    pub fn new() -> Self {
-        Self {
-            bounds: None,
-            with_scrollbars: false,
-            with_indicator: false,
-            show_line_numbers: false,
-        }
-    }
-
-    #[must_use]
-    pub fn bounds(mut self, bounds: Rect) -> Self {
-        self.bounds = Some(bounds);
-        self
-    }
-
-    #[must_use]
-    pub fn with_scrollbars(mut self, with_scrollbars: bool) -> Self {
-        self.with_scrollbars = with_scrollbars;
-        self
-    }
-
-    #[must_use]
-    pub fn with_indicator(mut self, with_indicator: bool) -> Self {
-        self.with_indicator = with_indicator;
-        self
-    }
-
-    #[must_use]
-    pub fn show_line_numbers(mut self, show_line_numbers: bool) -> Self {
-        self.show_line_numbers = show_line_numbers;
-        self
-    }
-
-    pub fn build(self) -> TextViewer {
-        let bounds = self.bounds.expect("TextViewer bounds must be set");
-        let mut viewer = TextViewer::new(bounds)
-            .with_scrollbars(self.with_scrollbars)
-            .with_indicator(self.with_indicator);
-        viewer.set_show_line_numbers(self.show_line_numbers);
-        viewer
-    }
-
-    pub fn build_boxed(self) -> Box<TextViewer> {
-        Box::new(self.build())
-    }
-}
-
-impl Default for TextViewerBuilder {
-    fn default() -> Self {
-        Self::new()
+        None  // TextViewer uses hardcoded dialog colors
     }
 }

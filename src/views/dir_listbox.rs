@@ -25,6 +25,7 @@
 use crate::core::geometry::Rect;
 use crate::core::event::{Event, EventType, KB_ENTER};
 use crate::core::state::StateFlags;
+use crate::core::palette::{Attr, TvColor};
 use crate::terminal::Terminal;
 use super::view::View;
 use super::list_viewer::{ListViewer, ListViewerState};
@@ -83,7 +84,6 @@ pub struct DirListBox {
     current_path: PathBuf,
     root_path: PathBuf,
     owner: Option<*const dyn View>,
-    owner_type: super::view::OwnerType,
 }
 
 impl DirListBox {
@@ -97,7 +97,6 @@ impl DirListBox {
             current_path: path.to_path_buf(),
             root_path: Self::find_root(path),
             owner: None,
-            owner_type: super::view::OwnerType::None,
         };
         dlb.rebuild_tree();
         dlb
@@ -299,14 +298,13 @@ impl View for DirListBox {
                 let text = self.get_text(item_idx, width);
                 let is_focused = self.is_focused() && Some(item_idx) == self.list_state.focused;
                 let color = if is_focused {
-                    LISTBOX_FOCUSED
+                    Attr::new(TvColor::Black, TvColor::White)
                 } else {
-                    LISTBOX_NORMAL
+                    Attr::new(TvColor::Black, TvColor::LightGray)
                 };
                 (text, color)
             } else {
-                use crate::core::palette::colors::LISTBOX_NORMAL;
-                (String::new(), LISTBOX_NORMAL)
+                (String::new(), Attr::new(TvColor::Black, TvColor::LightGray))
             };
 
             let padded = format!("{:width$}", text, width = width);
@@ -357,16 +355,7 @@ impl View for DirListBox {
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        use crate::core::palette::{palettes, Palette};
-        Some(Palette::from_slice(palettes::CP_LISTBOX))
-    }
-
-    fn get_owner_type(&self) -> super::view::OwnerType {
-        self.owner_type
-    }
-
-    fn set_owner_type(&mut self, owner_type: super::view::OwnerType) {
-        self.owner_type = owner_type;
+        None  // DirListBox uses hardcoded listbox colors
     }
 }
 

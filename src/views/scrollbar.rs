@@ -4,12 +4,6 @@
 
 use super::view::{write_line_to_terminal, View};
 use crate::core::draw::DrawBuffer;
-use crate::core::event::{
-    Event, EventType, KB_DOWN, KB_END, KB_HOME, KB_LEFT, KB_PGDN, KB_PGUP, KB_RIGHT, KB_UP,
-    MB_LEFT_BUTTON,
-};
-use crate::core::geometry::{Point, Rect};
-use crate::core::palette::{SCROLLBAR_INDICATOR, SCROLLBAR_PAGE};
 use crate::terminal::Terminal;
 
 /// Scroll bar part codes (used by getPartCode() method)
@@ -47,7 +41,6 @@ pub struct ScrollBar {
     chars: [char; 5],
     is_vertical: bool,
     owner: Option<*const dyn View>,
-    owner_type: super::view::OwnerType,
 }
 
 impl ScrollBar {
@@ -62,7 +55,6 @@ impl ScrollBar {
             chars: VSCROLL_CHARS,
             is_vertical: true,
             owner: None,
-            owner_type: super::view::OwnerType::Window, // Default to Window context
         }
     }
 
@@ -77,7 +69,6 @@ impl ScrollBar {
             chars: HSCROLL_CHARS,
             is_vertical: false,
             owner: None,
-            owner_type: super::view::OwnerType::Window, // Default to Window context
         }
     }
 
@@ -200,8 +191,8 @@ impl View for ScrollBar {
     fn draw(&mut self, terminal: &mut Terminal) {
         // ScrollBar palette indices:
         // 1: Page, 2: Arrows, 3: Indicator
-        let page_attr = self.map_color(SCROLLBAR_PAGE);
-        let indicator_attr = self.map_color(SCROLLBAR_INDICATOR);
+        let page_attr = self.map_color(1);
+        let indicator_attr = self.map_color(3);
 
         if self.is_vertical {
             // Draw vertical scrollbar
@@ -561,5 +552,18 @@ impl ScrollBarBuilder {
 impl Default for ScrollBarBuilder {
     fn default() -> Self {
         Self::new()
+    }
+
+    fn set_owner(&mut self, owner: *const dyn View) {
+        self.owner = Some(owner);
+    }
+
+    fn get_owner(&self) -> Option<*const dyn View> {
+        self.owner
+    }
+
+    fn get_palette(&self) -> Option<crate::core::palette::Palette> {
+        use crate::core::palette::{Palette, palettes};
+        Some(Palette::from_slice(palettes::CP_SCROLLBAR))
     }
 }

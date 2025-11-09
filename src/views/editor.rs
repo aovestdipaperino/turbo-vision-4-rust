@@ -5,6 +5,7 @@
 use crate::core::geometry::{Point, Rect};
 use crate::core::event::{Event, EventType, KB_UP, KB_DOWN, KB_LEFT, KB_RIGHT, KB_PGUP, KB_PGDN, KB_HOME, KB_END, KB_ENTER, KB_BACKSPACE, KB_DEL, KB_TAB};
 use crate::core::draw::DrawBuffer;
+use crate::core::palette::{Attr, TvColor};
 use crate::core::clipboard;
 use crate::core::state::StateFlags;
 use crate::terminal::Terminal;
@@ -108,7 +109,6 @@ pub struct Editor {
     // Syntax highlighting
     highlighter: Option<Box<dyn SyntaxHighlighter>>,
     owner: Option<*const dyn View>,
-    owner_type: super::view::OwnerType,
 }
 
 impl Editor {
@@ -136,7 +136,6 @@ impl Editor {
             filename: None,
             highlighter: None,
             owner: None,
-            owner_type: super::view::OwnerType::None,
         }
     }
 
@@ -1072,9 +1071,7 @@ impl View for Editor {
         let width = content_area.width() as usize;
         let height = content_area.height() as usize;
 
-        let default_color = self.map_color(EDITOR_NORMAL);
-        let selected_color = self.map_color(EDITOR_SELECTED);
-        let cursor_color = self.map_color(EDITOR_CURSOR);
+        let default_color = Attr::new(TvColor::White, TvColor::Blue);
 
         for y in 0..height {
             let line_idx = (self.delta.y + y as i16) as usize;
@@ -1160,7 +1157,7 @@ impl View for Editor {
                     if self.is_position_selected(line_y, col) {
                         // Highlight this character as selected
                         if x < buf.data.len() {
-                            buf.data[x].attr = selected_color;
+                            buf.data[x].attr = Attr::new(TvColor::Black, TvColor::Cyan);
                         }
                     }
                 }
@@ -1190,7 +1187,7 @@ impl View for Editor {
                     ' '
                 };
 
-                let cursor_attr = cursor_color;
+                let cursor_attr = Attr::new(TvColor::Black, TvColor::Cyan);
                 terminal.write_cell(
                     cursor_screen_x as u16,
                     cursor_screen_y as u16,
@@ -1365,18 +1362,7 @@ impl View for Editor {
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        use crate::core::palette::{palettes, Palette};
-        // Editor uses cpEditor palette for proper color remapping through window hierarchy
-        // Matches Borland: cpEditor = [6, 7] for normal and selected text
-        Some(Palette::from_slice(palettes::CP_EDITOR))
-    }
-
-    fn get_owner_type(&self) -> super::view::OwnerType {
-        self.owner_type
-    }
-
-    fn set_owner_type(&mut self, owner_type: super::view::OwnerType) {
-        self.owner_type = owner_type;
+        None  // Editor uses hardcoded blue window colors
     }
 }
 

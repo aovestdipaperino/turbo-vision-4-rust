@@ -5,6 +5,7 @@
 use crate::core::geometry::{Point, Rect};
 use crate::core::event::{Event, EventType, KB_UP, KB_DOWN, KB_LEFT, KB_RIGHT, KB_PGUP, KB_PGDN, KB_HOME, KB_END, KB_ENTER, KB_BACKSPACE, KB_DEL, KB_TAB};
 use crate::core::draw::DrawBuffer;
+use crate::core::palette::{Attr, TvColor};
 use crate::core::clipboard;
 use crate::core::state::StateFlags;
 use crate::terminal::Terminal;
@@ -36,7 +37,6 @@ pub struct Memo {
     modified: bool,
     tab_size: usize,
     owner: Option<*const dyn View>,
-    owner_type: super::view::OwnerType,
 }
 
 impl Memo {
@@ -56,7 +56,6 @@ impl Memo {
             modified: false,
             tab_size: 4,
             owner: None,
-            owner_type: super::view::OwnerType::None,
         }
     }
 
@@ -568,10 +567,7 @@ impl View for Memo {
         let width = content_area.width() as usize;
         let height = content_area.height() as usize;
 
-        // Use palette indices from CP_MEMO
-        // 1 = Normal text, 2 = Selected/cursor text
-        let color = self.map_color(1);
-        let cursor_color = self.map_color(2);
+        let color = Attr::new(TvColor::White, TvColor::Blue);
 
         // Draw text content
         for y in 0..height {
@@ -625,7 +621,7 @@ impl View for Memo {
                     ' '
                 };
 
-                let cursor_attr = cursor_color;
+                let cursor_attr = Attr::new(TvColor::Black, TvColor::Cyan);
                 terminal.write_cell(
                     cursor_screen_x as u16,
                     cursor_screen_y as u16,
@@ -817,16 +813,7 @@ impl View for Memo {
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        use crate::core::palette::{palettes, Palette};
-        Some(Palette::from_slice(palettes::CP_MEMO))
-    }
-
-    fn get_owner_type(&self) -> super::view::OwnerType {
-        self.owner_type
-    }
-
-    fn set_owner_type(&mut self, owner_type: super::view::OwnerType) {
-        self.owner_type = owner_type;
+        None  // Memo uses hardcoded blue window colors
     }
 }
 

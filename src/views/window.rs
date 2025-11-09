@@ -6,7 +6,7 @@ use crate::core::geometry::{Rect, Point};
 use crate::core::event::{Event, EventType};
 use crate::core::command::{CM_CLOSE, CM_CANCEL};
 use crate::core::state::{StateFlags, SF_SHADOW, SF_DRAGGING, SF_RESIZING, SF_MODAL, SHADOW_ATTR};
-use crate::core::palette::colors;
+use crate::core::palette::{Attr, TvColor};
 use crate::terminal::Terminal;
 use super::view::{View, draw_shadow};
 use super::frame::Frame;
@@ -42,17 +42,12 @@ pub struct Window {
     owner: Option<*const dyn View>,
     /// Palette type (Dialog vs Editor window)
     palette_type: WindowPaletteType,
-    /// Explicit drag limits (for modal dialogs not added to desktop)
-    /// Used when owner is None but we still want to constrain dragging
-    explicit_drag_limits: Option<Rect>,
 }
 
 #[derive(Clone, Copy)]
-pub enum WindowPaletteType {
-    Blue,   // Uses CP_BLUE_WINDOW
-    Cyan,   // Uses CP_CYAN_WINDOW
-    Gray,   // Uses CP_GRAY_WINDOW
-    Dialog, // Uses CP_GRAY_DIALOG
+enum WindowPaletteType {
+    Dialog,  // Uses CP_GRAY_DIALOG
+    Editor,  // No palette (transparent)
 }
 
 impl Window {
@@ -60,16 +55,16 @@ impl Window {
     /// Matches Borland: TWindow constructor sets palette(wpBlueWindow)
     /// For TDialog (gray palette), use new_for_dialog() instead
     pub fn new(bounds: Rect, title: &str) -> Self {
-        Self::new_with_palette(bounds, title, super::frame::FramePaletteType::Editor, colors::EDITOR_NORMAL)
+        Self::new_with_palette(bounds, title, super::frame::FramePaletteType::Editor, Attr::new(TvColor::White, TvColor::Blue), WindowPaletteType::Editor)
     }
 
     /// Create a window for TDialog with gray palette
     /// Matches Borland: TDialog overrides TWindow palette to use cpGrayDialog
     pub(crate) fn new_for_dialog(bounds: Rect, title: &str) -> Self {
-        Self::new_with_palette(bounds, title, super::frame::FramePaletteType::Dialog, colors::DIALOG_NORMAL)
+        Self::new_with_palette(bounds, title, super::frame::FramePaletteType::Dialog, Attr::new(TvColor::Black, TvColor::LightGray), WindowPaletteType::Dialog)
     }
 
-    fn new_with_palette(bounds: Rect, title: &str, frame_palette: super::frame::FramePaletteType, interior_color: crate::core::palette::Attr) -> Self {
+    fn new_with_palette(bounds: Rect, title: &str, frame_palette: super::frame::FramePaletteType, interior_color: crate::core::palette::Attr, window_palette: WindowPaletteType) -> Self {
         use crate::core::state::{OF_SELECTABLE, OF_TOP_SELECT, OF_TILEABLE};
 
         let frame = Frame::with_palette(bounds, title, frame_palette);
@@ -93,63 +88,15 @@ impl Window {
             prev_bounds: None,
             owner: None,
             palette_type: window_palette,
-            explicit_drag_limits: None,
-        };
-
-        // Set the interior's owner to the window for palette chain resolution
-        window.interior.set_owner(&window as *const _ as *const dyn View);
-
-        window
-    }
-
-    pub fn add(&mut self, mut view: Box<dyn View>) -> usize {
-        // Set the owner type based on whether this is a Dialog or regular Window
-        let owner_type = match self.palette_type {
-            WindowPaletteType::Dialog => super::view::OwnerType::Dialog,
-            _ => super::view::OwnerType::Window,
-        };
-        view.set_owner_type(owner_type);
-
-        // Add to interior group (which will set owner pointer for palette chain)
-        self.interior.add(view)
-    }
-
-    /// Add a child positioned relative to the window frame (not interior)
-    /// Used for scrollbars and other frame-edge elements
-    /// Matches Borland: TWindow is a TGroup, all children use window-relative coords
-    pub fn add_frame_child(&mut self, mut view: Box<dyn View>) -> usize {
-        // Set the owner type
-        let owner_type = match self.palette_type {
-            WindowPaletteType::Dialog => super::view::OwnerType::Dialog,
-            _ => super::view::OwnerType::Window,
-        };
-        view.set_owner_type(owner_type);
-
-        // Set owner pointer for palette chain
-        view.set_owner(self as *const _ as *const dyn View);
-
-        // Convert from relative to absolute coordinates (relative to window frame)
-        let child_bounds = view.bounds();
-        let absolute_bounds = Rect::new(
-            self.bounds.a.x + child_bounds.a.x,
-            self.bounds.a.y + child_bounds.a.y,
-            self.bounds.a.x + child_bounds.b.x,
-            self.bounds.a.y + child_bounds.b.y,
-        );
-        view.set_bounds(absolute_bounds);
-
-        self.frame_children.push(view);
-        self.frame_children.len() - 1
-    }
-
-    /// Update a frame child's bounds (for use by subclasses during resize)
-    pub fn update_frame_child(&mut self, index: usize, bounds: Rect) {
-        if let Some(child) = self.frame_children.get_mut(index) {
-            child.set_bounds(bounds);
         }
     }
 
     pub fn add(&mut self, view: Box<dyn View>) -> usize {
+        // Set interior's owner to this window (for palette chain)
+        // Matches Borland: interior group's owner points to the window
+        if self.interior.get_owner().is_none() {
+            self.interior.set_owner(self as *const Self as *const dyn View);
+        }
         self.interior.add(view)
     }
 
@@ -265,8 +212,28 @@ impl Window {
     /// Must be called after any operation that moves the Window (adding to parent, etc.)
     /// This ensures the interior Group has a valid pointer to this Window.
     pub fn init_interior_owner(&mut self) {
-        // NOTE: We don't set interior's owner pointer to avoid unsafe casting
-        // Color palette resolution is handled without needing parent pointers
+        use std::io::Write;
+        let mut log = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open("calc.log")
+            .ok();
+
+        if let Some(ref mut log) = log {
+            writeln!(log, "Window::init_interior_owner called, self={:p}", self).ok();
+        }
+
+        // Set interior's owner to this Window
+        self.interior.set_owner(self as *const Self as *const dyn View);
+
+        // CRITICAL: Also reinitialize all children's owner pointers
+        // The children have pointers to interior Group at the OLD location (before Dialog moved)
+        // We need to update them to point to interior at NEW location
+        self.interior.reinit_children_owners();
+
+        if let Some(ref mut log) = log {
+            writeln!(log, "Window::init_interior_owner done, set interior.owner to {:p}", self as *const Self).ok();
+        }
     }
 }
 
@@ -566,6 +533,59 @@ impl View for Window {
     /// Delegates to interior group to validate all children
     fn valid(&mut self, command: crate::core::command::CommandId) -> bool {
         self.interior.valid(command)
+    }
+
+    fn set_owner(&mut self, owner: *const dyn View) {
+        use std::io::Write;
+        let mut log = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open("calc.log")
+            .ok();
+
+        if let Some(ref mut log) = log {
+            writeln!(log, "Window::set_owner called, owner={:?}, self={:p}", owner, self).ok();
+        }
+
+        self.owner = Some(owner);
+        // Do NOT set interior.owner here - Window might still move!
+        // Instead, init_interior_owner() must be called after Window is in final position
+
+        if let Some(ref mut log) = log {
+            writeln!(log, "Window::set_owner done (interior owner will be set via init_interior_owner)").ok();
+        }
+    }
+
+    fn get_owner(&self) -> Option<*const dyn View> {
+        self.owner
+    }
+
+    fn get_palette(&self) -> Option<crate::core::palette::Palette> {
+        use crate::core::palette::{Palette, palettes};
+        match self.palette_type {
+            WindowPaletteType::Dialog => Some(Palette::from_slice(palettes::CP_GRAY_DIALOG)),
+            WindowPaletteType::Editor => None,  // No palette (transparent)
+        }
+    }
+
+    fn init_after_add(&mut self) {
+        use std::io::Write;
+        let mut log = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open("calc.log")
+            .ok();
+
+        if let Some(ref mut log) = log {
+            writeln!(log, "Window::init_after_add called").ok();
+        }
+
+        // Initialize interior owner pointer now that Window is in final position
+        self.init_interior_owner();
+
+        if let Some(ref mut log) = log {
+            writeln!(log, "Window::init_after_add done").ok();
+        }
     }
 }
 

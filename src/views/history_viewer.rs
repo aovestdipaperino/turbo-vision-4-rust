@@ -31,7 +31,6 @@ pub struct HistoryViewer {
     list_state: ListViewerState,
     state: StateFlags,
     owner: Option<*const dyn View>,
-    owner_type: super::view::OwnerType,
 }
 
 impl HistoryViewer {
@@ -48,7 +47,6 @@ impl HistoryViewer {
             list_state,
             state: 0,
             owner: None,
-            owner_type: super::view::OwnerType::None,
         }
     }
 
@@ -79,7 +77,7 @@ impl View for HistoryViewer {
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        
+        use crate::core::palette::{Attr, TvColor};
         use crate::core::draw::DrawBuffer;
         use super::view::write_line_to_terminal;
 
@@ -88,14 +86,14 @@ impl View for HistoryViewer {
 
         use crate::core::palette::colors::{LISTBOX_FOCUSED, LISTBOX_NORMAL, LISTBOX_SELECTED_FOCUSED, LISTBOX_SELECTED};
         let color_normal = if self.is_focused() {
-            LISTBOX_FOCUSED
+            Attr::new(TvColor::Black, TvColor::White)
         } else {
-            LISTBOX_NORMAL
+            Attr::new(TvColor::Black, TvColor::LightGray)
         };
         let color_selected = if self.is_focused() {
-            LISTBOX_SELECTED_FOCUSED
+            Attr::new(TvColor::White, TvColor::Cyan)
         } else {
-            LISTBOX_SELECTED
+            Attr::new(TvColor::White, TvColor::Blue)
         };
 
         // Draw visible items
@@ -161,16 +159,7 @@ impl View for HistoryViewer {
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        use crate::core::palette::{palettes, Palette};
-        Some(Palette::from_slice(palettes::CP_HISTORY_VIEWER))
-    }
-
-    fn get_owner_type(&self) -> super::view::OwnerType {
-        self.owner_type
-    }
-
-    fn set_owner_type(&mut self, owner_type: super::view::OwnerType) {
-        self.owner_type = owner_type;
+        None  // HistoryViewer uses hardcoded listbox colors
     }
 }
 

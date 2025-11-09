@@ -7,7 +7,13 @@
 //
 // Displays help topic content with scrolling support.
 
-use super::help_file::HelpTopic;
+use crate::core::geometry::{Rect, Point};
+use crate::core::event::{Event, EventType, KB_UP, KB_DOWN, KB_PGUP, KB_PGDN, KB_HOME, KB_END};
+use crate::core::state::{StateFlags, SF_FOCUSED};
+use crate::core::palette::{Attr, TvColor};
+use crate::core::draw::DrawBuffer;
+use crate::terminal::Terminal;
+use super::view::{View, write_line_to_terminal};
 use super::scrollbar::ScrollBar;
 use super::view::{write_line_to_terminal, View};
 use crate::core::draw::DrawBuffer;
@@ -28,7 +34,6 @@ pub struct HelpViewer {
     lines: Vec<String>,
     current_topic: Option<String>,
     owner: Option<*const dyn View>,
-    owner_type: super::view::OwnerType,
 }
 
 impl HelpViewer {
@@ -43,7 +48,6 @@ impl HelpViewer {
             lines: Vec::new(),
             current_topic: None,
             owner: None,
-            owner_type: super::view::OwnerType::None,
         }
     }
 
@@ -154,9 +158,9 @@ impl View for HelpViewer {
         // Determine color based on focus using CP_HELP_VIEWER palette
         // 1 = Normal text, 2 = Focused text
         let color = if self.state & SF_FOCUSED != 0 {
-            self.map_color(2)
+            Attr::new(TvColor::Black, TvColor::White)
         } else {
-            self.map_color(1)
+            Attr::new(TvColor::Black, TvColor::LightGray)
         };
 
         for row in 0..self.bounds.height() {
@@ -238,60 +242,7 @@ impl View for HelpViewer {
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        use crate::core::palette::{palettes, Palette};
-        Some(Palette::from_slice(palettes::CP_HELP_VIEWER))
-    }
-
-    fn get_owner_type(&self) -> super::view::OwnerType {
-        self.owner_type
-    }
-
-    fn set_owner_type(&mut self, owner_type: super::view::OwnerType) {
-        self.owner_type = owner_type;
-    }
-}
-
-/// Builder for creating help viewers with a fluent API.
-pub struct HelpViewerBuilder {
-    bounds: Option<Rect>,
-    with_scrollbar: bool,
-}
-
-impl HelpViewerBuilder {
-    pub fn new() -> Self {
-        Self { bounds: None, with_scrollbar: false }
-    }
-
-    #[must_use]
-    pub fn bounds(mut self, bounds: Rect) -> Self {
-        self.bounds = Some(bounds);
-        self
-    }
-
-    #[must_use]
-    pub fn with_scrollbar(mut self, with_scrollbar: bool) -> Self {
-        self.with_scrollbar = with_scrollbar;
-        self
-    }
-
-    pub fn build(self) -> HelpViewer {
-        let bounds = self.bounds.expect("HelpViewer bounds must be set");
-        let viewer = HelpViewer::new(bounds);
-        if self.with_scrollbar {
-            viewer.with_scrollbar()
-        } else {
-            viewer
-        }
-    }
-
-    pub fn build_boxed(self) -> Box<HelpViewer> {
-        Box::new(self.build())
-    }
-}
-
-impl Default for HelpViewerBuilder {
-    fn default() -> Self {
-        Self::new()
+        None  // HelpViewer uses hardcoded colors
     }
 }
 

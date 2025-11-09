@@ -140,18 +140,12 @@ pub trait Cluster: View {
     ///
     /// Returns (normal_color, hotkey_color)
     fn get_colors(&self) -> (Attr, Attr) {
-        use crate::core::palette::TvColor;
-
+        // Cluster palette indices:
+        // 1: Normal (unfocused), 2: Focused, 3: Shortcut
         if self.is_focused() {
-            (
-                self.map_color(CLUSTER_FOCUSED),
-                self.map_color(CLUSTER_SHORTCUT),
-            )
+            (self.map_color(2), self.map_color(3))
         } else {
-            (
-                self.map_color(CLUSTER_NORMAL),
-                self.map_color(CLUSTER_SHORTCUT),
-            )
+            (self.map_color(1), self.map_color(3))
         }
     }
 

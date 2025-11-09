@@ -63,10 +63,10 @@ impl StatusLine {
 
         // StatusLine palette indices:
         // 1: Normal, 2: Shortcut, 3: Selected, 4: Selected shortcut
-        let normal_attr = self.map_color(STATUSLINE_NORMAL);
-        let shortcut_attr = self.map_color(STATUSLINE_SHORTCUT);
-        let selected_attr = self.map_color(STATUSLINE_SELECTED);
-        let selected_shortcut_attr = self.map_color(STATUSLINE_SELECTED_SHORTCUT);
+        let normal_attr = self.map_color(1);
+        let shortcut_attr = self.map_color(2);
+        let selected_attr = self.map_color(3);
+        let selected_shortcut_attr = self.map_color(4);
 
         buf.move_char(0, ' ', normal_attr, width);
 

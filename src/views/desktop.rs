@@ -4,6 +4,7 @@
 
 use crate::core::geometry::Rect;
 use crate::core::event::Event;
+use crate::core::palette::{Attr, TvColor};
 use crate::terminal::Terminal;
 use super::view::View;
 use super::group::Group;
@@ -25,7 +26,7 @@ impl Desktop {
         let width = bounds.width();
         let height = bounds.height();
         let background_bounds = Rect::new(0, 0, width, height);
-        let background = Box::new(Background::new(background_bounds, '░', crate::core::palette::colors::DESKTOP));
+        let background = Box::new(Background::new(background_bounds, '░', Attr::new(TvColor::LightGray, TvColor::DarkGray)));
         children.add(background);
 
         Self {
@@ -33,6 +34,15 @@ impl Desktop {
             children,
             owner: None,
         }
+    }
+
+    /// Initialize the palette chain after Desktop is in its final memory location.
+    /// Must be called after Desktop is constructed and in a stable location (not moved).
+    /// Matches Borland: Desktop is the root of the palette chain with CP_APP_COLOR.
+    pub fn init_palette_chain(&mut self) {
+        // Set children's owner to this Desktop (for palette chain)
+        // Desktop provides CP_APP_COLOR palette, making it the palette root
+        self.children.set_owner(self as *const Self as *const dyn View);
     }
 
     pub fn add(&mut self, mut view: Box<dyn View>) -> usize {
@@ -46,7 +56,9 @@ impl Desktop {
         }
 
         let index = self.children.add(view);
-        // Focus on the newly added window (last child)
+
+        // Initialize internal owner pointers after view is in final position
+        // This is critical for views like Dialog that contain Groups by value
         let num_children = self.children.len();
         if num_children > 0 {
             let last_idx = num_children - 1;
@@ -487,39 +499,6 @@ impl View for Desktop {
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
         use crate::core::palette::{Palette, palettes};
         // Desktop uses the application palette directly (no remapping)
-        let app_palette_data = palettes::get_app_palette();
-        Some(Palette::from_slice(&app_palette_data))
-    }
-}
-
-/// Builder for creating desktops with a fluent API.
-pub struct DesktopBuilder {
-    bounds: Option<Rect>,
-}
-
-impl DesktopBuilder {
-    pub fn new() -> Self {
-        Self { bounds: None }
-    }
-
-    #[must_use]
-    pub fn bounds(mut self, bounds: Rect) -> Self {
-        self.bounds = Some(bounds);
-        self
-    }
-
-    pub fn build(self) -> Desktop {
-        let bounds = self.bounds.expect("Desktop bounds must be set");
-        Desktop::new(bounds)
-    }
-
-    pub fn build_boxed(self) -> Box<Desktop> {
-        Box::new(self.build())
-    }
-}
-
-impl Default for DesktopBuilder {
-    fn default() -> Self {
-        Self::new()
+        Some(Palette::from_slice(palettes::CP_APP_COLOR))
     }
 }

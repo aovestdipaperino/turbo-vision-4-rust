@@ -14,6 +14,7 @@
 
 use crate::core::geometry::{Point, Rect};
 use crate::core::event::{Event, EventType, MB_LEFT_BUTTON};
+use crate::core::palette::{Attr, TvColor};
 use crate::core::draw::DrawBuffer;
 use crate::core::state::StateFlags;
 use crate::core::history::HistoryManager;
@@ -30,7 +31,6 @@ pub struct History {
     state: StateFlags,
     pub selected_item: Option<String>, // Public so InputLine can read it
     owner: Option<*const dyn View>,
-    owner_type: super::view::OwnerType,
 }
 
 impl History {
@@ -44,7 +44,6 @@ impl History {
             state: 0,
             selected_item: None,
             owner: None,
-            owner_type: super::view::OwnerType::None,
         }
     }
 
@@ -91,9 +90,9 @@ impl View for History {
 
         use crate::core::palette::colors::{BUTTON_SELECTED, BUTTON_NORMAL};
         let color = if self.is_focused() {
-            BUTTON_SELECTED
+            Attr::new(TvColor::White, TvColor::Green)
         } else {
-            BUTTON_NORMAL
+            Attr::new(TvColor::Black, TvColor::Green)
         };
 
         buf.move_str(0, arrow, color);
@@ -135,56 +134,7 @@ impl View for History {
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        use crate::core::palette::{palettes, Palette};
-        Some(Palette::from_slice(palettes::CP_HISTORY))
-    }
-
-    fn get_owner_type(&self) -> super::view::OwnerType {
-        self.owner_type
-    }
-
-    fn set_owner_type(&mut self, owner_type: super::view::OwnerType) {
-        self.owner_type = owner_type;
-    }
-}
-
-/// Builder for creating history buttons with a fluent API.
-pub struct HistoryBuilder {
-    pos: Option<Point>,
-    history_id: Option<u16>,
-}
-
-impl HistoryBuilder {
-    pub fn new() -> Self {
-        Self { pos: None, history_id: None }
-    }
-
-    #[must_use]
-    pub fn pos(mut self, pos: Point) -> Self {
-        self.pos = Some(pos);
-        self
-    }
-
-    #[must_use]
-    pub fn history_id(mut self, history_id: u16) -> Self {
-        self.history_id = Some(history_id);
-        self
-    }
-
-    pub fn build(self) -> History {
-        let pos = self.pos.expect("History pos must be set");
-        let history_id = self.history_id.expect("History history_id must be set");
-        History::new(pos, history_id)
-    }
-
-    pub fn build_boxed(self) -> Box<History> {
-        Box::new(self.build())
-    }
-}
-
-impl Default for HistoryBuilder {
-    fn default() -> Self {
-        Self::new()
+        None  // History uses hardcoded button colors
     }
 }
 

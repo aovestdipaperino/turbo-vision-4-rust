@@ -13,7 +13,7 @@
 use crate::core::geometry::Rect;
 use crate::core::event::{Event, EventType, KB_ENTER, KB_LEFT, KB_RIGHT};
 use crate::core::state::StateFlags;
-use crate::core::palette::colors;
+use crate::core::palette::{Attr, TvColor};
 use crate::core::draw::DrawBuffer;
 use crate::terminal::Terminal;
 use super::view::{View, write_line_to_terminal};
@@ -137,6 +137,7 @@ pub struct OutlineViewer<T> {
     list_state: ListViewerState,
     /// Function to convert data to display string
     format_fn: Box<dyn Fn(&T) -> String>,
+    owner: Option<*const dyn View>,
 }
 
 impl<T: 'static> OutlineViewer<T> {
@@ -154,6 +155,7 @@ impl<T: 'static> OutlineViewer<T> {
             all_nodes: Vec::new(),
             list_state: ListViewerState::new(),
             format_fn: Box::new(format_fn),
+            owner: None,
         }
     }
 
@@ -296,14 +298,14 @@ impl<T: 'static> View for OutlineViewer<T> {
         let height = self.bounds.height() as usize;
 
         let color_normal = if self.is_focused() {
-            colors::LISTBOX_FOCUSED
+            Attr::new(TvColor::Black, TvColor::White)
         } else {
-            colors::LISTBOX_NORMAL
+            Attr::new(TvColor::Black, TvColor::LightGray)
         };
         let color_selected = if self.is_focused() {
-            colors::LISTBOX_SELECTED_FOCUSED
+            Attr::new(TvColor::White, TvColor::Cyan)
         } else {
-            colors::LISTBOX_SELECTED
+            Attr::new(TvColor::White, TvColor::Blue)
         };
 
         // Draw visible items
@@ -370,6 +372,18 @@ impl<T: 'static> View for OutlineViewer<T> {
 
     fn can_focus(&self) -> bool {
         true
+    }
+
+    fn set_owner(&mut self, owner: *const dyn View) {
+        self.owner = Some(owner);
+    }
+
+    fn get_owner(&self) -> Option<*const dyn View> {
+        self.owner
+    }
+
+    fn get_palette(&self) -> Option<crate::core::palette::Palette> {
+        None  // OutlineViewer uses hardcoded listbox colors
     }
 }
 

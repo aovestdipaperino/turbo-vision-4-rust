@@ -11,6 +11,14 @@
 // Borland inheritance: TView → TMenuView → TMenuBar
 // Rust composition: View + MenuViewer → MenuBar
 
+use crate::core::geometry::{Rect, Point};
+use crate::core::event::{Event, EventType, KB_ALT_F, KB_ALT_H, KB_ENTER, KB_ESC, KB_LEFT, KB_RIGHT, KB_ESC_F, KB_ESC_H, KB_ESC_E, KB_ESC_S, KB_ESC_V, KB_ESC_ESC, MB_LEFT_BUTTON};
+use crate::core::draw::DrawBuffer;
+use crate::core::state::StateFlags;
+use crate::core::menu_data::{Menu, MenuItem};
+use crate::terminal::Terminal;
+use super::view::{View, write_line_to_terminal, draw_shadow};
+use super::menu_viewer::{MenuViewer, MenuViewerState};
 use super::menu_box::MenuBox;
 use super::menu_viewer::{MenuViewer, MenuViewerState};
 use super::view::{write_line_to_terminal, View};
@@ -156,10 +164,12 @@ impl MenuBar {
         let menu_y = self.bounds.a.y + 1;
         let menu = &self.submenus[menu_idx].menu;
 
-        let normal_attr = self.map_color(MENU_NORMAL);
-        let selected_attr = self.map_color(MENU_SELECTED);
-        let disabled_attr = self.map_color(MENU_DISABLED);
-        let shortcut_attr = self.map_color(MENU_SHORTCUT);
+        // MenuBar palette indices:
+        // 1: Normal, 2: Selected, 3: Disabled, 4: Shortcut
+        let normal_attr = self.map_color(1);
+        let selected_attr = self.map_color(2);
+        let disabled_attr = self.map_color(3);
+        let shortcut_attr = self.map_color(4);
 
         // Calculate dropdown width
         let mut max_text_width = 12;
@@ -336,9 +346,11 @@ impl View for MenuBar {
         let width = self.bounds.width() as usize;
         let mut buf = DrawBuffer::new(width);
 
-        let normal_attr = self.map_color(MENU_NORMAL);
-        let selected_attr = self.map_color(MENU_SELECTED);
-        let shortcut_attr = self.map_color(MENU_SHORTCUT);
+        // MenuBar palette indices:
+        // 1: Normal, 2: Selected, 3: Disabled, 4: Shortcut
+        let normal_attr = self.map_color(1);
+        let selected_attr = self.map_color(2);
+        let shortcut_attr = self.map_color(4);
 
         buf.move_char(0, ' ', normal_attr, width);
 
@@ -667,7 +679,7 @@ impl View for MenuBar {
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        use crate::core::palette::{palettes, Palette};
+        use crate::core::palette::{Palette, palettes};
         Some(Palette::from_slice(palettes::CP_MENU_BAR))
     }
 }

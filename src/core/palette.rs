@@ -433,72 +433,25 @@ impl Default for Palette {
 
 /// Standard palette definitions matching Borland Turbo Vision
 pub mod palettes {
-    use std::cell::RefCell;
-
-    thread_local! {
-        /// Custom application palette that overrides CP_APP_COLOR if set
-        /// This allows runtime palette customization for theming
-        static CUSTOM_APP_PALETTE: RefCell<Option<Vec<u8>>> = RefCell::new(None);
-    }
-
-    /// Set a custom application palette
-    /// Pass None to reset to default CP_APP_COLOR
-    pub fn set_custom_palette(palette: Option<Vec<u8>>) {
-        CUSTOM_APP_PALETTE.with(|p| {
-            *p.borrow_mut() = palette;
-        });
-    }
-
-    /// Get the current application palette (custom or default)
-    pub fn get_app_palette() -> Vec<u8> {
-        CUSTOM_APP_PALETTE.with(|p| {
-            if let Some(custom) = p.borrow().as_ref() {
-                custom.clone()
-            } else {
-                CP_APP_COLOR.to_vec()
-            }
-        })
-    }
-
     // Application color palette - contains actual color attributes (1-indexed)
     // This is the root palette that contains real Attr values encoded as u8
-    // From Borland cpColor (program.h):
-    //   Palette layout:
-    //     1      = TBackground
-    //     2-7    = TMenuView and TStatusLine
-    //     8-15   = TWindow(Blue)
-    //     16-23  = TWindow(Cyan)
-    //     24-31  = TWindow(Gray)
-    //     32-63  = TDialog
     #[rustfmt::skip]
     pub const CP_APP_COLOR: &[u8] = &[
         0x71, 0x70, 0x78, 0x74, 0x20, 0x28, 0x24, 0x17, // 1-8: Desktop colors
-        0x1F, 0x1A, 0x31, 0x31, 0x1E, 0x71, 0x00,       // 9-15: Menu colors
-        0x37, 0x3F, 0x3A, 0x13, 0x13, 0x3E, 0x21, 0x00, // 16-23: Cyan Window
-        0x70, 0x7F, 0x7A, 0x13, 0x13, 0x70, 0x7F, 0x00, // 24-31: Gray Window
-        0x70, 0x7F, 0x7A, 0x13, 0x13, 0x70, 0x70, 0x7F, // 32-39: Dialog (Frame, StaticText, Label, etc.)
-        0x7E, 0x20, 0x2B, 0x2F, 0x78, 0x2E, 0x70, 0x30, // 40-47: Dialog (controls)
-        0x3F, 0x3E, 0x1F, 0x2F, 0x1A, 0x20, 0x72, 0x31, // 48-55: Dialog (InputLine, Button, etc.)
-        0x31, 0x30, 0x2F, 0x3E, 0x31, 0x13, 0x38, 0x00, // 56-63: Dialog (remaining)
-    ];
-
-    // Window palettes - map window color indices to app palette
-    // BlueWindow: indices 8-15
-    #[rustfmt::skip]
-    pub const CP_BLUE_WINDOW: &[u8] = &[
-        8, 9, 10, 11, 12, 13, 14, 15,  // Maps to app palette 8-15
-    ];
-
-    // CyanWindow: indices 16-23
-    #[rustfmt::skip]
-    pub const CP_CYAN_WINDOW: &[u8] = &[
-        16, 17, 18, 19, 20, 21, 22, 23,  // Maps to app palette 16-23
-    ];
-
-    // GrayWindow: indices 24-31
-    #[rustfmt::skip]
-    pub const CP_GRAY_WINDOW: &[u8] = &[
-        24, 25, 26, 27, 28, 29, 30, 31,  // Maps to app palette 24-31
+        0x1F, 0x1A, 0x31, 0x31, 0x1E, 0x71, 0x1F,       // 9-15: Menu colors
+        0x37, 0x3F, 0x3A, 0x13, 0x13, 0x3E, 0x21,       // 16-22: More menu
+        0x70, 0x7F, 0x7A, 0x13, 0x13, 0x70, 0x7F,       // 23-29: Dialog frame
+        0x7A, 0x13, 0x13, 0x70, 0x70, 0x7F, 0x7E,       // 30-36: Dialog interior
+        0x20, 0x2B, 0x2F, 0x87, 0x2E, 0x70,             // 37-42: Dialog controls (shadow: 0x87 test)
+        0x20, 0x2A, 0x2F, 0x1F, 0x2E, 0x70,             // 43-48: Button (Green background!)
+        0x20, 0x72, 0x31, 0x31, 0x30, 0x2F,             // 49-54: Cluster
+        0x3E, 0x31,                                      // 55-56: Input line
+        0x13, 0x13, 0x30, 0x3E, 0x13,                   // 57-61: History
+        0x30, 0x3F, 0x3E, 0x70, 0x2F,                   // 62-66: List viewer
+        0x37, 0x3F, 0x3A, 0x20, 0x2E, 0x30,             // 67-72: Info pane
+        0x3F, 0x3E, 0x1F, 0x2F, 0x1A, 0x20,             // 73-78: Cluster (more)
+        0x72, 0x31, 0x31, 0x30, 0x2F, 0x3E,             // 79-84: Editor
+        0x31,                                            // 85: Reserved
     ];
 
     // Gray dialog palette - maps dialog color indices to app palette
@@ -519,30 +472,28 @@ pub mod palettes {
         46, 47,                                   // 31-32
     ];
 
-    // Button palette - from Borland cpButton "\x0A\x0B\x0C\x0D\x0E\x0E\x0E\x0F"
+    // Button palette - maps button colors to parent (dialog) palette
     #[rustfmt::skip]
     pub const CP_BUTTON: &[u8] = &[
-        10, 11, 12, 13, 14, 14, 14, 15,  // 1-8: Matches Borland exactly
+        13, 13, 14, 14, 16, 15, 15, 9,  // 1-8: (4=disabled), shadow maps to dialog 9
     ];
 
-    // StaticText palette - from Borland cpStaticText "\x06"
+    // StaticText palette
     #[rustfmt::skip]
     pub const CP_STATIC_TEXT: &[u8] = &[
-        6,  // 1: Normal text color
+        2,  // 1: Normal text color (maps to dialog color 2 → app 33 = 0x70 Black on LightGray)
     ];
 
-    // InputLine palette - from Borland cpInputLine "\x13\x13\x14\x15" (19, 19, 20, 21)
-    // These are dialog-relative indices that should map to dialog palette positions
+    // InputLine palette
     #[rustfmt::skip]
     pub const CP_INPUT_LINE: &[u8] = &[
-        19, 19, 20, 21,  // 1-4: Normal, focused, selected, arrows (from Borland)
+        19, 19, 20, 21,  // 1-4: Normal, focused, selected, arrows
     ];
 
-    // Label palette - from Borland cpLabel "\x07\x08\x09\x09\x0D\x0D"
-    // Used with getColor(0x0301) for normal, getColor(0x0402) for focused, getColor(0x0605) for disabled
+    // Label palette
     #[rustfmt::skip]
     pub const CP_LABEL: &[u8] = &[
-        7, 8, 9, 9, 13, 13,  // 1-6: Normal fg/bg, Light fg/bg, Disabled fg/bg
+        7, 8, 9,  // 1-3: Normal, selected, shortcut
     ];
 
     // ListBox palette
@@ -555,14 +506,6 @@ pub mod palettes {
     #[rustfmt::skip]
     pub const CP_SCROLLBAR: &[u8] = &[
         4, 5, 5,  // 1-3: Page, arrows, indicator
-    ];
-
-    // Scroller palette (base class for scrollable views)
-    // Borland: cpScroller = "\x06\x07" (6, 7)
-    // Used by TScroller and derived classes like TTextDevice/TTerminal
-    #[rustfmt::skip]
-    pub const CP_SCROLLER: &[u8] = &[
-        6, 7,  // 1-2: Normal scrollable area, Selected item
     ];
 
     // Cluster palette (CheckBox, RadioButton)
@@ -580,58 +523,6 @@ pub mod palettes {
     // MenuBar palette (gray background, matching desktop colors)
     #[rustfmt::skip]
     pub const CP_MENU_BAR: &[u8] = &[
-        2, 5, 3, 4,  // 1-4: Normal (Black/LightGray), Selected (Black/Green), Disabled (DarkGray/LightGray), Shortcut (Red/LightGray)
-    ];
-
-    // Memo palette (multi-line text editor)
-    // Borland: cpMemo = "\x1A\x1B" (26, 27)
-    // Maps to window interior colors for editor-like behavior
-    #[rustfmt::skip]
-    pub const CP_MEMO: &[u8] = &[
-        26, 27,  // 1-2: Normal text, Selected text
-    ];
-
-    // Indicator palette (position/status indicator in editors)
-    // Borland: cpIndicator = "\x02\x03" (2, 3)
-    // Uses app-level status colors
-    #[rustfmt::skip]
-    pub const CP_INDICATOR: &[u8] = &[
-        2, 3,  // 1-2: Normal indicator, Modified/active indicator
-    ];
-
-    // Help Viewer palette (help text display)
-    // Borland: cHelpViewer = "\x06\x07\x08" (6, 7, 8)
-    #[rustfmt::skip]
-    pub const CP_HELP_VIEWER: &[u8] = &[
-        6, 7, 8,  // 1-3: Normal text, Focused text, Cross-reference links
-    ];
-
-    // Editor palette (TEditor view)
-    // Borland: cpEditor = "\x06\x07" (6, 7)
-    // Same as CP_SCROLLER - editors use window background colors
-    #[rustfmt::skip]
-    pub const CP_EDITOR: &[u8] = &[
-        6, 7,  // 1-2: Normal text, Selected text
-    ];
-
-    // History Viewer palette (THistoryViewer)
-    // Borland: cpHistoryViewer = "\x06\x06\x07\x06\x06" (6, 6, 7, 6, 6)
-    #[rustfmt::skip]
-    pub const CP_HISTORY_VIEWER: &[u8] = &[
-        6, 6, 7, 6, 6,  // 1-5: Normal, Normal bg, Selected, Divider bg, Arrows
-    ];
-
-    // History dropdown button palette (THistory)
-    // Borland: cpHistory = "\x16\x17" (22, 23)
-    #[rustfmt::skip]
-    pub const CP_HISTORY: &[u8] = &[
-        22, 23,  // 1-2: Normal button, Arrow icon
-    ];
-
-    // Background palette (TBackground)
-    // Borland: cpBackground = "\x01" (1)
-    #[rustfmt::skip]
-    pub const CP_BACKGROUND: &[u8] = &[
-        1,  // 1: Background color (maps to app palette position 1)
+        2, 39, 3, 4,  // 1-4: Normal (Black/LightGray), Selected (White/Green), Disabled (DarkGray/LightGray), Shortcut (Red/LightGray)
     ];
 }

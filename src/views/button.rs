@@ -7,9 +7,6 @@ use crate::core::command::CommandId;
 use crate::core::draw::DrawBuffer;
 use crate::core::event::{Event, EventType, KB_ENTER, MB_LEFT_BUTTON};
 use crate::core::geometry::Rect;
-use crate::core::palette::{
-    BUTTON_DEFAULT, BUTTON_DISABLED, BUTTON_NORMAL, BUTTON_SELECTED, BUTTON_SHADOW, BUTTON_SHORTCUT,
-};
 use crate::core::state::{StateFlags, SF_DISABLED, SHADOW_BOTTOM, SHADOW_SOLID, SHADOW_TOP};
 use crate::terminal::Terminal;
 
@@ -22,7 +19,6 @@ pub struct Button {
     state: StateFlags,
     options: u16,
     owner: Option<*const dyn View>,
-    owner_type: super::view::OwnerType,
 }
 
 impl Button {
@@ -44,9 +40,8 @@ impl Button {
             is_default,
             is_broadcast: false,
             state,
-            options: OF_POST_PROCESS, // Buttons process in post-process phase
+            options: OF_POST_PROCESS,  // Buttons process in post-process phase
             owner: None,
-            owner_type: super::view::OwnerType::Dialog, // Buttons default to Dialog context
         }
     }
 
@@ -86,6 +81,17 @@ impl View for Button {
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
+        use std::io::Write;
+        let mut log = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open("calc.log")
+            .ok();
+
+        if let Some(ref mut log) = log {
+            writeln!(log, "Button '{}' draw START, owner={:?}", self.title, self.owner).ok();
+        }
+
         let width = self.bounds.width() as usize;
         let height = self.bounds.height() as usize;
 
@@ -100,24 +106,56 @@ impl View for Button {
         // 7: Shortcut text
         // 8: Shadow
         let button_attr = if is_disabled {
-            self.map_color(BUTTON_DISABLED) // Disabled
+            if let Some(ref mut log) = log {
+                writeln!(log, "  Calling map_color(4)...").ok();
+            }
+            let result = self.map_color(4);  // Disabled
+            if let Some(ref mut log) = log {
+                writeln!(log, "  map_color(4) OK").ok();
+            }
+            result
         } else if is_focused {
-            self.map_color(BUTTON_SELECTED) // Selected/focused
+            if let Some(ref mut log) = log {
+                writeln!(log, "  Calling map_color(3)...").ok();
+            }
+            let result = self.map_color(3);  // Selected/focused
+            if let Some(ref mut log) = log {
+                writeln!(log, "  map_color(3) OK").ok();
+            }
+            result
         } else if self.is_default {
-            self.map_color(BUTTON_DEFAULT) // Default but not focused
+            if let Some(ref mut log) = log {
+                writeln!(log, "  Calling map_color(2)...").ok();
+            }
+            let result = self.map_color(2);  // Default but not focused
+            if let Some(ref mut log) = log {
+                writeln!(log, "  map_color(2) OK").ok();
+            }
+            result
         } else {
-            self.map_color(BUTTON_NORMAL) // Normal
+            if let Some(ref mut log) = log {
+                writeln!(log, "  Calling map_color(1)...").ok();
+            }
+            let result = self.map_color(1);  // Normal
+            if let Some(ref mut log) = log {
+                writeln!(log, "  map_color(1) OK").ok();
+            }
+            result
         };
 
-        // Shadow attribute - Borland uses spaces where BG is visible, we use blocks where FG is visible
-        // So we swap FG/BG: 0x70 (Black on LightGray) becomes 0x07 (LightGray on Black)
-        let shadow_attr = self.map_color(BUTTON_SHADOW).swap();
+        if let Some(ref mut log) = log {
+            writeln!(log, "  Calling map_color(8) for shadow...").ok();
+        }
+        let shadow_attr = self.map_color(8);  // Shadow
+        if let Some(ref mut log) = log {
+            writeln!(log, "  map_color(8) OK").ok();
+        }
 
         // Shortcut attributes
         let shortcut_attr = if is_disabled {
-            self.map_color(BUTTON_DISABLED) // Disabled shortcut same as disabled text
+            self.map_color(4)  // Disabled shortcut same as disabled text
         } else {
-            self.map_color(BUTTON_SHORTCUT) // Shortcut color
+            self.map_color(7)  // Shortcut color
         };
 
         // Draw all lines except the last (which is the bottom shadow)
@@ -273,16 +311,8 @@ impl View for Button {
         self.owner
     }
 
-    fn get_owner_type(&self) -> super::view::OwnerType {
-        self.owner_type
-    }
-
-    fn set_owner_type(&mut self, owner_type: super::view::OwnerType) {
-        self.owner_type = owner_type;
-    }
-
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        use crate::core::palette::{palettes, Palette};
+        use crate::core::palette::{Palette, palettes};
         Some(Palette::from_slice(palettes::CP_BUTTON))
     }
 }

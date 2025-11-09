@@ -5,7 +5,7 @@
 use crate::core::geometry::Rect;
 use crate::core::event::{Event, EventType, MB_LEFT_BUTTON};
 use crate::core::draw::DrawBuffer;
-use crate::core::palette::Attr;
+use crate::core::palette::{Attr, TvColor};
 use crate::core::command::CM_CLOSE;
 use crate::core::state::{StateFlags, SF_ACTIVE, SF_DRAGGING, SF_RESIZING};
 use crate::terminal::Terminal;
@@ -19,9 +19,6 @@ pub struct Frame {
     palette_type: FramePaletteType,
     /// State flags (active, dragging, etc.) - matches Borland's TView state
     state: StateFlags,
-    /// Whether the frame is resizable (matches Borland's wfGrow flag)
-    /// Resizable frames use single-line bottom corners and show resize handle
-    resizable: bool,
     owner: Option<*const dyn View>,
 }
 
@@ -44,7 +41,6 @@ impl Frame {
             title: title.to_string(),
             palette_type,
             state: SF_ACTIVE,  // Default to active
-            resizable,
             owner: None,
         }
     }
@@ -84,9 +80,9 @@ impl Frame {
                     // cpDialog[3] = 0x23 (Cyan on Green) -> White on LightGray (frame)
                     // cpDialog[5] = 0x25 (Magenta on Green) -> LightGreen on LightGray (highlight)
                     // cpDialog[4] = 0x24 (Red on Green) -> White on LightGray (title)
-                    let frame_attr = colors::DIALOG_FRAME_ACTIVE;  // White on LightGray
+                    let frame_attr = Attr::new(TvColor::White, TvColor::LightGray);  // White on LightGray
                     let close_icon_attr = Attr::new(TvColor::LightGreen, TvColor::LightGray);
-                    let title_attr = colors::DIALOG_TITLE;  // White on LightGray
+                    let title_attr = Attr::new(TvColor::White, TvColor::LightGray);  // White on LightGray
                     (frame_attr, close_icon_attr, title_attr)
                 }
             }
@@ -279,101 +275,6 @@ impl View for Frame {
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        use crate::core::palette::{palettes, Palette};
-        match self.palette_type {
-            FramePaletteType::Dialog => Some(Palette::from_slice(palettes::CP_GRAY_DIALOG)),
-            FramePaletteType::Editor => Some(Palette::from_slice(palettes::CP_BLUE_WINDOW)),
-        }
-    }
-}
-
-/// Builder for creating frames with a fluent API.
-///
-/// # Examples
-///
-/// ```ignore
-/// use turbo_vision::views::frame::{FrameBuilder, FramePaletteType};
-/// use turbo_vision::core::geometry::Rect;
-///
-/// // Create a basic dialog frame
-/// let frame = FrameBuilder::new()
-///     .bounds(Rect::new(0, 0, 60, 20))
-///     .title("My Dialog")
-///     .build();
-///
-/// // Create a resizable editor frame
-/// let frame = FrameBuilder::new()
-///     .bounds(Rect::new(0, 0, 80, 25))
-///     .title("Editor")
-///     .palette_type(FramePaletteType::Editor)
-///     .resizable(true)
-///     .build();
-/// ```
-pub struct FrameBuilder {
-    bounds: Option<Rect>,
-    title: Option<String>,
-    palette_type: FramePaletteType,
-    resizable: bool,
-}
-
-impl FrameBuilder {
-    /// Creates a new FrameBuilder with default values.
-    pub fn new() -> Self {
-        Self {
-            bounds: None,
-            title: None,
-            palette_type: FramePaletteType::Dialog,
-            resizable: false,
-        }
-    }
-
-    /// Sets the frame bounds (required).
-    #[must_use]
-    pub fn bounds(mut self, bounds: Rect) -> Self {
-        self.bounds = Some(bounds);
-        self
-    }
-
-    /// Sets the frame title (required).
-    #[must_use]
-    pub fn title(mut self, title: impl Into<String>) -> Self {
-        self.title = Some(title.into());
-        self
-    }
-
-    /// Sets the frame palette type (default: Dialog).
-    #[must_use]
-    pub fn palette_type(mut self, palette_type: FramePaletteType) -> Self {
-        self.palette_type = palette_type;
-        self
-    }
-
-    /// Sets whether the frame is resizable (default: false).
-    #[must_use]
-    pub fn resizable(mut self, resizable: bool) -> Self {
-        self.resizable = resizable;
-        self
-    }
-
-    /// Builds the Frame.
-    ///
-    /// # Panics
-    ///
-    /// Panics if required fields (bounds, title) are not set.
-    pub fn build(self) -> Frame {
-        let bounds = self.bounds.expect("Frame bounds must be set");
-        let title = self.title.expect("Frame title must be set");
-        Frame::with_palette(bounds, &title, self.palette_type, self.resizable)
-    }
-
-    /// Builds the Frame as a Box.
-    pub fn build_boxed(self) -> Box<Frame> {
-        Box::new(self.build())
-    }
-}
-
-impl Default for FrameBuilder {
-    fn default() -> Self {
-        Self::new()
+        None  // Frame uses hardcoded colors based on FramePaletteType
     }
 }

@@ -2,8 +2,9 @@
 
 //! InputLine view - single-line text input with editing and history support.
 
-use super::validator::ValidatorRef;
-use super::view::{write_line_to_terminal, View};
+use crate::core::geometry::Rect;
+use crate::core::event::{Event, EventType, KB_ENTER, KB_BACKSPACE, KB_LEFT, KB_RIGHT, KB_HOME, KB_END, KB_DEL};
+use crate::core::draw::DrawBuffer;
 use crate::core::clipboard;
 use crate::core::draw::DrawBuffer;
 use crate::core::event::{
@@ -27,13 +28,12 @@ pub struct InputLine {
     data: Rc<RefCell<String>>,
     cursor_pos: usize,
     max_length: usize,
-    sel_start: usize,                // Selection start position
-    sel_end: usize,                  // Selection end position
-    first_pos: usize,                // First visible character position for horizontal scrolling
-    validator: Option<ValidatorRef>, // Optional validator for input validation
-    state: StateFlags,               // View state flags (including SF_FOCUSED)
+    sel_start: usize,      // Selection start position
+    sel_end: usize,        // Selection end position
+    first_pos: usize,      // First visible character position for horizontal scrolling
+    validator: Option<ValidatorRef>,  // Optional validator for input validation
+    state: StateFlags,     // View state flags (including SF_FOCUSED)
     owner: Option<*const dyn View>,
-    owner_type: super::view::OwnerType,
 }
 
 impl InputLine {
@@ -50,7 +50,6 @@ impl InputLine {
             validator: None,
             state: 0,
             owner: None,
-            owner_type: super::view::OwnerType::Dialog, // InputLine defaults to Dialog context
         }
     }
 
@@ -168,13 +167,13 @@ impl View for InputLine {
         // InputLine palette indices:
         // 1: Normal, 2: Focused, 3: Selected, 4: Arrows
         let attr = if self.is_focused() {
-            self.map_color(INPUT_FOCUSED) // Focused
+            self.map_color(2)  // Focused
         } else {
-            self.map_color(INPUT_NORMAL) // Normal
+            self.map_color(1)  // Normal
         };
 
-        let sel_attr = self.map_color(INPUT_SELECTED); // Selected text
-        let arrow_attr = self.map_color(INPUT_ARROWS); // Arrow indicators
+        let sel_attr = self.map_color(3);  // Selected text
+        let arrow_attr = self.map_color(4);  // Arrow indicators
 
         buf.move_char(0, ' ', attr, width);
 
@@ -199,7 +198,7 @@ impl View for InputLine {
                 for (i, ch) in visible_text.chars().enumerate() {
                     let pos = visible_start + i;
                     let char_attr = if pos >= sel_start && pos < sel_end {
-                        colors::INPUT_SELECTED
+                        sel_attr
                     } else {
                         attr
                     };
@@ -437,117 +436,8 @@ impl View for InputLine {
         self.owner
     }
 
-    fn get_owner_type(&self) -> super::view::OwnerType {
-        self.owner_type
-    }
-
-    fn set_owner_type(&mut self, owner_type: super::view::OwnerType) {
-        self.owner_type = owner_type;
-    }
-
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        use crate::core::palette::{palettes, Palette};
+        use crate::core::palette::{Palette, palettes};
         Some(Palette::from_slice(palettes::CP_INPUT_LINE))
-    }
-}
-
-/// Builder for creating input lines with a fluent API.
-///
-/// # Examples
-///
-/// ```ignore
-/// use turbo_vision::views::input_line::InputLineBuilder;
-/// use turbo_vision::core::geometry::Rect;
-/// use std::rc::Rc;
-/// use std::cell::RefCell;
-///
-/// // Create a basic input line
-/// let data = Rc::new(RefCell::new(String::new()));
-/// let input = InputLineBuilder::new()
-///     .bounds(Rect::new(10, 5, 50, 6))
-///     .data(data.clone())
-///     .max_length(30)
-///     .build();
-///
-/// // Create an input line with validator
-/// let data = Rc::new(RefCell::new(String::new()));
-/// let input = InputLineBuilder::new()
-///     .bounds(Rect::new(10, 5, 50, 6))
-///     .data(data.clone())
-///     .max_length(10)
-///     .validator(some_validator)
-///     .build();
-/// ```
-pub struct InputLineBuilder {
-    bounds: Option<Rect>,
-    data: Option<Rc<RefCell<String>>>,
-    max_length: usize,
-    validator: Option<ValidatorRef>,
-}
-
-impl InputLineBuilder {
-    /// Creates a new InputLineBuilder with default values.
-    pub fn new() -> Self {
-        Self {
-            bounds: None,
-            data: None,
-            max_length: 255,
-            validator: None,
-        }
-    }
-
-    /// Sets the input line bounds (required).
-    #[must_use]
-    pub fn bounds(mut self, bounds: Rect) -> Self {
-        self.bounds = Some(bounds);
-        self
-    }
-
-    /// Sets the shared data reference (required).
-    #[must_use]
-    pub fn data(mut self, data: Rc<RefCell<String>>) -> Self {
-        self.data = Some(data);
-        self
-    }
-
-    /// Sets the maximum length (default: 255).
-    #[must_use]
-    pub fn max_length(mut self, max_length: usize) -> Self {
-        self.max_length = max_length;
-        self
-    }
-
-    /// Sets the validator for input validation (optional).
-    #[must_use]
-    pub fn validator(mut self, validator: ValidatorRef) -> Self {
-        self.validator = Some(validator);
-        self
-    }
-
-    /// Builds the InputLine.
-    ///
-    /// # Panics
-    ///
-    /// Panics if required fields (bounds, data) are not set.
-    pub fn build(self) -> InputLine {
-        let bounds = self.bounds.expect("InputLine bounds must be set");
-        let data = self.data.expect("InputLine data must be set");
-
-        let mut input_line = InputLine::new(bounds, self.max_length, data);
-        if let Some(validator) = self.validator {
-            input_line.validator = Some(validator);
-        }
-        input_line
-    }
-
-    /// Builds the InputLine as a Box.
-    pub fn build_boxed(self) -> Box<InputLine> {
-        Box::new(self.build())
-    }
-}
-
-impl Default for InputLineBuilder {
-    fn default() -> Self {
-        Self::new()
     }
 }

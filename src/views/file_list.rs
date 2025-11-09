@@ -18,6 +18,7 @@
 use crate::core::geometry::Rect;
 use crate::core::event::{Event, EventType};
 use crate::core::state::StateFlags;
+use crate::core::palette::{Attr, TvColor};
 use crate::terminal::Terminal;
 use super::view::View;
 use super::list_viewer::{ListViewer, ListViewerState};
@@ -91,7 +92,6 @@ pub struct FileList {
     wildcard: String,
     show_hidden: bool,
     owner: Option<*const dyn View>,
-    owner_type: super::view::OwnerType,
 }
 
 impl FileList {
@@ -106,7 +106,6 @@ impl FileList {
             wildcard: "*".to_string(),
             show_hidden: false,
             owner: None,
-            owner_type: super::view::OwnerType::None,
         }
     }
 
@@ -286,13 +285,13 @@ impl View for FileList {
                 let text = self.get_text(item_idx, width);
                 let is_focused = self.is_focused() && Some(item_idx) == self.list_state.focused;
                 let color = if is_focused {
-                    crate::core::palette::colors::LISTBOX_FOCUSED
+                    Attr::new(TvColor::Black, TvColor::White)
                 } else {
-                    crate::core::palette::colors::LISTBOX_NORMAL
+                    Attr::new(TvColor::Black, TvColor::LightGray)
                 };
                 (text, color)
             } else {
-                (String::new(), crate::core::palette::colors::LISTBOX_NORMAL)
+                (String::new(), Attr::new(TvColor::Black, TvColor::LightGray))
             };
 
             let padded = format!("{:width$}", text, width = width);
@@ -343,16 +342,7 @@ impl View for FileList {
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        use crate::core::palette::{palettes, Palette};
-        Some(Palette::from_slice(palettes::CP_LISTBOX))
-    }
-
-    fn get_owner_type(&self) -> super::view::OwnerType {
-        self.owner_type
-    }
-
-    fn set_owner_type(&mut self, owner_type: super::view::OwnerType) {
-        self.owner_type = owner_type;
+        None  // FileList uses hardcoded listbox colors
     }
 }
 

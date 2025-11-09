@@ -72,12 +72,8 @@ impl Application {
             status_line: None,
             desktop,
             running: false,
-            needs_redraw: true, // Initial draw needed
+            needs_redraw: true,  // Initial draw needed
         };
-
-        // Set initial Desktop bounds (adjusts for missing menu/status)
-        // Matches Borland: TProgram::initDeskTop() with no menuBar/statusLine
-        app.update_desktop_bounds();
 
         // Initialize Desktop's palette chain now that it's in its final location
         // This sets up the owner chain so views can resolve colors through Desktop's CP_APP_COLOR palette
