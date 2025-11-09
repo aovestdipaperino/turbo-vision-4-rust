@@ -605,22 +605,7 @@ impl View for Group {
     }
 
     fn set_owner(&mut self, owner: *const dyn View) {
-        use std::io::Write;
-        let mut log = std::fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open("calc.log")
-            .ok();
-
-        if let Some(ref mut log) = log {
-            writeln!(log, "Group::set_owner called on {:p}, owner={:?}", self, owner).ok();
-        }
-
         self.owner = Some(owner);
-
-        if let Some(ref mut log) = log {
-            writeln!(log, "Group::set_owner done, self.owner={:?}", self.owner).ok();
-        }
     }
 
     fn get_owner(&self) -> Option<*const dyn View> {

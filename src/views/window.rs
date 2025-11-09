@@ -226,17 +226,6 @@ impl Window {
     /// Must be called after any operation that moves the Window (adding to parent, etc.)
     /// This ensures the interior Group has a valid pointer to this Window.
     pub fn init_interior_owner(&mut self) {
-        use std::io::Write;
-        let mut log = std::fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open("calc.log")
-            .ok();
-
-        if let Some(ref mut log) = log {
-            writeln!(log, "Window::init_interior_owner called, self={:p}", self).ok();
-        }
-
         // NOTE: We don't set interior's owner pointer to avoid unsafe casting
         // Color palette resolution is handled without needing parent pointers
     }
@@ -496,33 +485,9 @@ impl View for Window {
     }
 
     fn set_owner(&mut self, owner: *const dyn View) {
-        use std::io::Write;
-        let mut log = std::fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open("calc.log")
-            .ok();
-
-        if let Some(ref mut log) = log {
-            writeln!(
-                log,
-                "Window::set_owner called, owner={:?}, self={:p}",
-                owner, self
-            )
-            .ok();
-        }
-
         self.owner = Some(owner);
         // Do NOT set interior.owner here - Window might still move!
         // Instead, init_interior_owner() must be called after Window is in final position
-
-        if let Some(ref mut log) = log {
-            writeln!(
-                log,
-                "Window::set_owner done (interior owner will be set via init_interior_owner)"
-            )
-            .ok();
-        }
     }
 
     fn get_owner(&self) -> Option<*const dyn View> {
@@ -540,23 +505,8 @@ impl View for Window {
     }
 
     fn init_after_add(&mut self) {
-        use std::io::Write;
-        let mut log = std::fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open("calc.log")
-            .ok();
-
-        if let Some(ref mut log) = log {
-            writeln!(log, "Window::init_after_add called").ok();
-        }
-
         // Initialize interior owner pointer now that Window is in final position
         self.init_interior_owner();
-
-        if let Some(ref mut log) = log {
-            writeln!(log, "Window::init_after_add done").ok();
-        }
     }
 }
 

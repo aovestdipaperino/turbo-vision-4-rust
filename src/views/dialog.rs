@@ -267,24 +267,9 @@ impl View for Dialog {
     }
 
     fn init_after_add(&mut self) {
-        use std::io::Write;
-        let mut log = std::fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open("calc.log")
-            .ok();
-
-        if let Some(ref mut log) = log {
-            writeln!(log, "Dialog::init_after_add called, initializing window interior owner").ok();
-        }
-
         // Initialize Window's interior owner pointer now that Dialog is in final position
         // This completes the palette chain: Button → interior → Window → Desktop
         self.window.init_interior_owner();
-
-        if let Some(ref mut log) = log {
-            writeln!(log, "Dialog::init_after_add done").ok();
-        }
     }
 }
 

@@ -375,17 +375,6 @@ pub trait View {
     /// The final color attribute
     fn map_color(&self, color_index: u8) -> crate::core::palette::Attr {
         use crate::core::palette::{palettes, Attr, Palette};
-        use std::io::Write;
-
-        let mut log = std::fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open("calc.log")
-            .ok();
-
-        if let Some(ref mut log) = log {
-            writeln!(log, "      map_color({}) START", color_index).ok();
-        }
 
         const ERROR_ATTR: u8 = 0x0F; // White on Black
 
@@ -399,14 +388,6 @@ pub trait View {
         if let Some(palette) = self.get_palette() {
             if !palette.is_empty() {
                 color = palette.get(color as usize);
-                if let Some(ref mut log) = log {
-                    writeln!(
-                        log,
-                        "      Remapped {} -> {} via own palette",
-                        color_index, color
-                    )
-                    .ok();
-                }
                 if color == 0 {
                     return Attr::from_u8(ERROR_ATTR);
                 }
@@ -440,14 +421,6 @@ pub trait View {
             let dialog_palette = Palette::from_slice(palettes::CP_GRAY_DIALOG);
             let remapped = dialog_palette.get(color as usize);
             if remapped > 0 {
-                if let Some(ref mut log) = log {
-                    writeln!(
-                        log,
-                        "      Remapped {} -> {} via dialog palette",
-                        color, remapped
-                    )
-                    .ok();
-                }
                 color = remapped;
             }
         } else if color >= 32 && color < 64 {
@@ -455,20 +428,8 @@ pub trait View {
             let dialog_palette = Palette::from_slice(palettes::CP_GRAY_DIALOG);
             let remapped = dialog_palette.get((color - 31) as usize);
             if remapped > 0 {
-                if let Some(ref mut log) = log {
-                    writeln!(
-                        log,
-                        "      Remapped {} -> {} via dialog palette",
-                        color, remapped
-                    )
-                    .ok();
-                }
                 color = remapped;
             }
-        }
-
-        if let Some(ref mut log) = log {
-            writeln!(log, "      Using CP_APP_COLOR[{}]", color).ok();
         }
 
         // Reached root (Application) - color is now an index into app palette
