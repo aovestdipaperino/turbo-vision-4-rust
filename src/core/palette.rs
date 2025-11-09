@@ -547,6 +547,6 @@ pub mod palettes {
     // MenuBar palette (gray background, matching desktop colors)
     #[rustfmt::skip]
     pub const CP_MENU_BAR: &[u8] = &[
-        2, 39, 3, 4,  // 1-4: Normal (Black/LightGray), Selected (White/LightGray), Disabled (DarkGray/LightGray), Shortcut (Red/LightGray)
+        2, 5, 3, 4,  // 1-4: Normal (Black/LightGray), Selected (Black/Green), Disabled (DarkGray/LightGray), Shortcut (Red/LightGray)
     ];
 }

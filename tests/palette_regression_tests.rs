@@ -242,8 +242,8 @@ fn test_menu_palette_regression() {
     // CP_MENU_BAR[1]=2 -> CP_APP_COLOR[2]=0x70 (Black on LightGray)
     assert_eq!(colors[0].2, 0x70, "MenuBar normal color changed!");
 
-    // CP_MENU_BAR[2]=39 -> CP_APP_COLOR[39]=0x7F (White on LightGray)
-    assert_eq!(colors[1].2, 0x7F, "MenuBar selected color changed!");
+    // CP_MENU_BAR[2]=5 -> CP_APP_COLOR[5]=0x20 (Black on Green)
+    assert_eq!(colors[1].2, 0x20, "MenuBar selected color changed!");
 
     // CP_MENU_BAR[3]=3 -> CP_APP_COLOR[3]=0x78 (DarkGray on LightGray)
     assert_eq!(colors[2].2, 0x78, "MenuBar disabled color changed!");
@@ -253,7 +253,7 @@ fn test_menu_palette_regression() {
 
     // MenuBox should have the same colors as MenuBar
     assert_eq!(colors[4].2, 0x70, "MenuBox normal color changed!");
-    assert_eq!(colors[5].2, 0x7F, "MenuBox selected color changed!");
+    assert_eq!(colors[5].2, 0x20, "MenuBox selected color changed!");
     assert_eq!(colors[6].2, 0x78, "MenuBox disabled color changed!");
     assert_eq!(colors[7].2, 0x74, "MenuBox shortcut color changed!");
 }
@@ -385,10 +385,10 @@ fn test_palette_remapping_ranges() {
         let color = menu_bar.map_color(index);
         // MenuBar palette maps these, but then they should go direct to app
         let menu_mapped = match index {
-            1 => 2,  // normal
-            2 => 39, // selected
-            3 => 3,  // disabled
-            4 => 4,  // shortcut
+            1 => 2, // normal
+            2 => 5, // selected
+            3 => 3, // disabled
+            4 => 4, // shortcut
             _ => index, // MenuBar only defines 4 entries
         };
 
