@@ -11,15 +11,24 @@
 // Borland inheritance: TView → TMenuView → TMenuBar
 // Rust composition: View + MenuViewer → MenuBar
 
-use crate::core::geometry::{Rect, Point};
-use crate::core::event::{Event, EventType, KB_ALT_F, KB_ALT_H, KB_ENTER, KB_ESC, KB_LEFT, KB_RIGHT, KB_ESC_F, KB_ESC_H, KB_ESC_E, KB_ESC_S, KB_ESC_V, KB_ESC_ESC, MB_LEFT_BUTTON};
-use crate::core::draw::DrawBuffer;
-use crate::core::state::StateFlags;
-use crate::core::menu_data::{Menu, MenuItem};
-use crate::terminal::Terminal;
-use super::view::{View, write_line_to_terminal, draw_shadow};
-use super::menu_viewer::{MenuViewer, MenuViewerState};
 use super::menu_box::MenuBox;
+use super::menu_viewer::{MenuViewer, MenuViewerState};
+use super::view::{draw_shadow, write_line_to_terminal, View};
+use crate::core::draw::DrawBuffer;
+use crate::core::event::{
+    Event, EventType, KB_ALT_F, KB_ALT_H, KB_ENTER, KB_ESC, KB_ESC_E, KB_ESC_ESC, KB_ESC_F,
+    KB_ESC_H, KB_ESC_S, KB_ESC_V, KB_LEFT, KB_RIGHT, MB_LEFT_BUTTON,
+};
+use crate::core::geometry::{Point, Rect};
+use crate::core::menu_data::{Menu, MenuItem};
+use crate::core::state::StateFlags;
+use crate::terminal::Terminal;
+
+// MenuBar palette indices (matches Borland TMenuView)
+const MENU_NORMAL: u8 = 1; // Normal item text
+const MENU_SELECTED: u8 = 2; // Selected item text
+const MENU_DISABLED: u8 = 3; // Disabled item text
+const MENU_SHORTCUT: u8 = 4; // Shortcut/accelerator text
 
 /// SubMenu represents a top-level menu with dropdown items
 pub struct SubMenu {
@@ -42,9 +51,9 @@ impl SubMenu {
 pub struct MenuBar {
     bounds: Rect,
     submenus: Vec<SubMenu>,
-    menu_positions: Vec<i16>,  // X positions of each menu for dropdown placement
-    active_menu_idx: Option<usize>,  // Which submenu is currently open
-    menu_state: MenuViewerState,  // State for dropdown menu items
+    menu_positions: Vec<i16>, // X positions of each menu for dropdown placement
+    active_menu_idx: Option<usize>, // Which submenu is currently open
+    menu_state: MenuViewerState, // State for dropdown menu items
     state: StateFlags,
     owner: Option<*const dyn View>,
 }
@@ -64,14 +73,15 @@ impl MenuBar {
 
     pub fn add_submenu(&mut self, submenu: SubMenu) {
         self.submenus.push(submenu);
-        self.menu_positions.push(0);  // Will be updated during draw
+        self.menu_positions.push(0); // Will be updated during draw
     }
 
     /// Open a specific submenu by index
     fn open_menu(&mut self, menu_idx: usize) {
         if menu_idx < self.submenus.len() {
             self.active_menu_idx = Some(menu_idx);
-            self.menu_state.set_menu(self.submenus[menu_idx].menu.clone());
+            self.menu_state
+                .set_menu(self.submenus[menu_idx].menu.clone());
         }
     }
 
@@ -146,12 +156,10 @@ impl MenuBar {
         let menu_y = self.bounds.a.y + 1;
         let menu = &self.submenus[menu_idx].menu;
 
-        // MenuBar palette indices:
-        // 1: Normal, 2: Selected, 3: Disabled, 4: Shortcut
-        let normal_attr = self.map_color(1);
-        let selected_attr = self.map_color(2);
-        let disabled_attr = self.map_color(3);
-        let shortcut_attr = self.map_color(4);
+        let normal_attr = self.map_color(MENU_NORMAL);
+        let selected_attr = self.map_color(MENU_SELECTED);
+        let disabled_attr = self.map_color(MENU_DISABLED);
+        let shortcut_attr = self.map_color(MENU_SHORTCUT);
 
         // Calculate dropdown width
         let mut max_text_width = 12;
@@ -202,7 +210,12 @@ impl MenuBar {
                     }
                     item_buf.put_char(dropdown_width - 1, '┤', normal_attr);
                 }
-                MenuItem::Regular { text, enabled, shortcut, .. } => {
+                MenuItem::Regular {
+                    text,
+                    enabled,
+                    shortcut,
+                    ..
+                } => {
                     let attr = if is_selected && *enabled {
                         selected_attr
                     } else if !enabled {
@@ -221,7 +234,9 @@ impl MenuBar {
                     let mut x = 1;
                     let mut chars = text.chars();
                     while let Some(ch) = chars.next() {
-                        if x >= dropdown_width - 1 { break; }
+                        if x >= dropdown_width - 1 {
+                            break;
+                        }
                         if ch == '~' {
                             let item_shortcut_attr = if is_selected && *enabled {
                                 selected_attr
@@ -231,7 +246,9 @@ impl MenuBar {
                                 shortcut_attr
                             };
                             while let Some(sc) = chars.next() {
-                                if sc == '~' { break; }
+                                if sc == '~' {
+                                    break;
+                                }
                                 if x < dropdown_width - 1 {
                                     item_buf.put_char(x, sc, item_shortcut_attr);
                                     x += 1;
@@ -248,7 +265,7 @@ impl MenuBar {
                         let shortcut_x = dropdown_width.saturating_sub(shortcut_text.len() + 1);
                         for (i, ch) in shortcut_text.chars().enumerate() {
                             if shortcut_x + i < dropdown_width - 1 {
-                                item_buf.put_char(shortcut_x + i, ch, attr);
+                                item_buf.put_char(shortcut_x + i, ch, shortcut_attr);
                             }
                         }
                     }
@@ -270,7 +287,9 @@ impl MenuBar {
                     // Draw text
                     let mut x = 1;
                     for ch in text.replace('~', "").chars() {
-                        if x >= dropdown_width - 2 { break; }
+                        if x >= dropdown_width - 2 {
+                            break;
+                        }
                         item_buf.put_char(x, ch, attr);
                         x += 1;
                     }
@@ -317,11 +336,9 @@ impl View for MenuBar {
         let width = self.bounds.width() as usize;
         let mut buf = DrawBuffer::new(width);
 
-        // MenuBar palette indices:
-        // 1: Normal, 2: Selected, 3: Disabled, 4: Shortcut
-        let normal_attr = self.map_color(1);
-        let selected_attr = self.map_color(2);
-        let shortcut_attr = self.map_color(4);
+        let normal_attr = self.map_color(MENU_NORMAL);
+        let selected_attr = self.map_color(MENU_SELECTED);
+        let shortcut_attr = self.map_color(MENU_SHORTCUT);
 
         buf.move_char(0, ' ', normal_attr, width);
 
@@ -386,7 +403,8 @@ impl View for MenuBar {
                 if mouse_pos.y == self.bounds.a.y {
                     for (i, &menu_x) in self.menu_positions.iter().enumerate() {
                         if i < self.submenus.len() {
-                            let menu_width = self.submenus[i].name.replace('~', "").len() as i16 + 2;
+                            let menu_width =
+                                self.submenus[i].name.replace('~', "").len() as i16 + 2;
                             if mouse_pos.x >= menu_x && mouse_pos.x < menu_x + menu_width {
                                 if self.active_menu_idx == Some(i) {
                                     self.close_menu();
@@ -421,7 +439,7 @@ impl View for MenuBar {
                             let bounds = Rect::new(
                                 menu_x,
                                 menu_y,
-                                menu_x + 20,  // Approximate width
+                                menu_x + 20, // Approximate width
                                 menu_y + 1 + item_count as i16 + 1,
                             );
                             (Some(bounds), item_count)
@@ -484,7 +502,9 @@ impl View for MenuBar {
                             // Check if mouse up is on currently selected item
                             for i in 0..item_count {
                                 let item_rect = self.get_item_rect(i);
-                                if item_rect.contains(mouse_pos) && self.menu_state.current == Some(i) {
+                                if item_rect.contains(mouse_pos)
+                                    && self.menu_state.current == Some(i)
+                                {
                                     // Check if it's a submenu - don't clear so check_cascading_submenu can handle it
                                     if let Some(item) = self.menu_state.get_current_item() {
                                         if matches!(item, MenuItem::SubMenu { .. }) {
@@ -494,13 +514,19 @@ impl View for MenuBar {
                                     }
 
                                     // If it's a regular item, execute it
-                                    let command = self.menu_state.get_current_item().and_then(|item| {
-                                        if let MenuItem::Regular { command, enabled: true, .. } = item {
-                                            Some(*command)
-                                        } else {
-                                            None
-                                        }
-                                    });
+                                    let command =
+                                        self.menu_state.get_current_item().and_then(|item| {
+                                            if let MenuItem::Regular {
+                                                command,
+                                                enabled: true,
+                                                ..
+                                            } = item
+                                            {
+                                                Some(*command)
+                                            } else {
+                                                None
+                                            }
+                                        });
 
                                     if let Some(cmd) = command {
                                         self.close_menu();
@@ -527,7 +553,8 @@ impl View for MenuBar {
                     if mouse_pos.y == self.bounds.a.y {
                         for (i, &menu_x) in self.menu_positions.iter().enumerate() {
                             if i < self.submenus.len() && i != menu_idx {
-                                let menu_width = self.submenus[i].name.replace('~', "").len() as i16 + 2;
+                                let menu_width =
+                                    self.submenus[i].name.replace('~', "").len() as i16 + 2;
                                 if mouse_pos.x >= menu_x && mouse_pos.x < menu_x + menu_width {
                                     self.open_menu(i);
                                     break;
@@ -541,11 +568,17 @@ impl View for MenuBar {
                 // Hot keys to open specific menus
                 if self.active_menu_idx.is_none() {
                     let menu_to_open = match event.key_code {
-                        KB_ALT_F | KB_ESC_F | crate::core::event::KB_F1 if !self.submenus.is_empty() => Some(0),
+                        KB_ALT_F | KB_ESC_F | crate::core::event::KB_F1
+                            if !self.submenus.is_empty() =>
+                        {
+                            Some(0)
+                        }
                         KB_ESC_E if self.submenus.len() > 1 => Some(1),
                         KB_ESC_S if self.submenus.len() > 2 => Some(2),
                         KB_ESC_V if self.submenus.len() > 3 => Some(3),
-                        KB_ALT_H | KB_ESC_H if self.submenus.len() > 1 => Some(self.submenus.len() - 1),
+                        KB_ALT_H | KB_ESC_H if self.submenus.len() > 1 => {
+                            Some(self.submenus.len() - 1)
+                        }
                         _ => None,
                     };
 
@@ -565,7 +598,11 @@ impl View for MenuBar {
                         }
                         KB_LEFT => {
                             // Previous menu
-                            let prev = if menu_idx > 0 { menu_idx - 1 } else { self.submenus.len() - 1 };
+                            let prev = if menu_idx > 0 {
+                                menu_idx - 1
+                            } else {
+                                self.submenus.len() - 1
+                            };
                             self.open_menu(prev);
                             event.clear();
                         }
@@ -585,7 +622,12 @@ impl View for MenuBar {
 
                             // Execute current item (if it's a regular item)
                             let command = self.menu_state.get_current_item().and_then(|item| {
-                                if let MenuItem::Regular { command, enabled: true, .. } = item {
+                                if let MenuItem::Regular {
+                                    command,
+                                    enabled: true,
+                                    ..
+                                } = item
+                                {
                                     Some(*command)
                                 } else {
                                     None
@@ -627,7 +669,7 @@ impl View for MenuBar {
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        use crate::core::palette::{Palette, palettes};
+        use crate::core::palette::{palettes, Palette};
         Some(Palette::from_slice(palettes::CP_MENU_BAR))
     }
 }

@@ -2,13 +2,21 @@
 
 //! View trait - base interface for all UI components with event handling and drawing.
 
-use crate::core::geometry::Rect;
-use crate::core::event::Event;
-use crate::core::draw::DrawBuffer;
-use crate::core::state::{StateFlags, SF_SHADOW, SF_FOCUSED, SHADOW_SIZE, SHADOW_ATTR};
 use crate::core::command::CommandId;
+use crate::core::draw::DrawBuffer;
+use crate::core::event::Event;
+use crate::core::geometry::Rect;
+use crate::core::state::{StateFlags, SF_FOCUSED, SF_SHADOW, SHADOW_ATTR, SHADOW_SIZE};
 use crate::terminal::Terminal;
 use std::io;
+
+/// Owner context for palette remapping
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum OwnerType {
+    None,   // Top-level view (Application)
+    Window, // Inside a Window
+    Dialog, // Inside a Dialog
+}
 
 /// View trait - all UI components implement this
 ///
@@ -40,7 +48,9 @@ pub trait View {
     fn set_bounds(&mut self, bounds: Rect);
     fn draw(&mut self, terminal: &mut Terminal);
     fn handle_event(&mut self, event: &mut Event);
-    fn can_focus(&self) -> bool { false }
+    fn can_focus(&self) -> bool {
+        false
+    }
 
     /// Set focus state - default implementation uses SF_FOCUSED flag
     /// Views should override only if they need custom focus behavior
@@ -54,13 +64,17 @@ pub trait View {
     }
 
     /// Get view option flags (OF_SELECTABLE, OF_PRE_PROCESS, OF_POST_PROCESS, etc.)
-    fn options(&self) -> u16 { 0 }
+    fn options(&self) -> u16 {
+        0
+    }
 
     /// Set view option flags
     fn set_options(&mut self, _options: u16) {}
 
     /// Get view state flags
-    fn state(&self) -> StateFlags { 0 }
+    fn state(&self) -> StateFlags {
+        0
+    }
 
     /// Set view state flags
     fn set_state(&mut self, _state: StateFlags) {}
@@ -244,7 +258,7 @@ pub trait View {
     /// Returns Some(index) if this is a label with a linked control, None otherwise
     /// Used by Group to implement focus transfer when clicking labels
     fn label_link(&self) -> Option<usize> {
-        None  // Default: not a label or no link
+        None // Default: not a label or no link
     }
 
     /// Initialize internal owner pointers after view is added to parent and won't move
@@ -267,6 +281,17 @@ pub trait View {
     /// Returns None if this view has no owner or doesn't track it
     fn get_owner(&self) -> Option<*const dyn View> {
         None // Default: no owner
+    }
+
+    /// Get the owner type for palette remapping
+    /// This allows views to know their context (Window vs Dialog)
+    fn get_owner_type(&self) -> OwnerType {
+        OwnerType::None // Default: no owner
+    }
+
+    /// Set the owner type for palette remapping
+    fn set_owner_type(&mut self, _owner_type: OwnerType) {
+        // Default: do nothing (views that need context will override)
     }
 
     /// Get this view's palette for the Borland indirect palette system
@@ -295,7 +320,7 @@ pub trait View {
     /// # Returns
     /// The final color attribute
     fn map_color(&self, color_index: u8) -> crate::core::palette::Attr {
-        use crate::core::palette::{Attr, Palette, palettes};
+        use crate::core::palette::{palettes, Attr, Palette};
         use std::io::Write;
 
         let mut log = std::fs::OpenOptions::new()
@@ -321,7 +346,12 @@ pub trait View {
             if !palette.is_empty() {
                 color = palette.get(color as usize);
                 if let Some(ref mut log) = log {
-                    writeln!(log, "      Remapped {} -> {} via own palette", color_index, color).ok();
+                    writeln!(
+                        log,
+                        "      Remapped {} -> {} via own palette",
+                        color_index, color
+                    )
+                    .ok();
                 }
                 if color == 0 {
                     return Attr::from_u8(ERROR_ATTR);
@@ -330,16 +360,54 @@ pub trait View {
         }
 
         // NOTE: We skip the owner chain traversal to avoid unsafe pointer dereference.
-        // Instead, we apply a standard palette chain: View -> Dialog -> Application
-        // This matches the typical Turbo Vision palette hierarchy without needing pointers.
+        // Instead, we apply a standard palette chain: View -> Window/Dialog -> Application
+        //
+        // Borland Turbo Vision palette layout (from program.h):
+        //    1      = TBackground
+        //    2-7    = TMenuView and TStatusLine (direct to app)
+        //    8-15   = TWindow(Blue)
+        //    16-23  = TWindow(Cyan)
+        //    24-31  = TWindow(Gray)
+        //    32-63  = TDialog (remapped through dialog palette)
+        //
+        // Apply palette remapping based on ranges
+        // This is a simplified version of Borland's owner chain traversal
+        //
+        // The issue: ScrollBar uses indices 4,5 which need different handling in Window vs Dialog
+        // - In Window: should map through Window palette (4->27, 5->28)
+        // - In Dialog: should map through Dialog palette (4->35, 5->36)
+        //
+        // Since we can't easily traverse owner chain, we use a heuristic:
+        // ScrollBar colors will default to Window style (blue on gray)
+        // TODO: Implement proper owner chain traversal for correct context detection
 
-        // Apply Gray Dialog palette mapping (typical parent for buttons, inputs, etc.)
-        let dialog_palette = Palette::from_slice(palettes::CP_GRAY_DIALOG);
-        if color > 0 && (color as usize) < dialog_palette.len() {
+        if color >= 9 && color <= 20 {
+            // Dialog control indices - remap through dialog palette
+            let dialog_palette = Palette::from_slice(palettes::CP_GRAY_DIALOG);
             let remapped = dialog_palette.get(color as usize);
             if remapped > 0 {
                 if let Some(ref mut log) = log {
-                    writeln!(log, "      Remapped {} -> {} via dialog palette", color, remapped).ok();
+                    writeln!(
+                        log,
+                        "      Remapped {} -> {} via dialog palette",
+                        color, remapped
+                    )
+                    .ok();
+                }
+                color = remapped;
+            }
+        } else if color >= 32 && color < 64 {
+            // Direct dialog range (32-63) always gets remapped
+            let dialog_palette = Palette::from_slice(palettes::CP_GRAY_DIALOG);
+            let remapped = dialog_palette.get((color - 31) as usize);
+            if remapped > 0 {
+                if let Some(ref mut log) = log {
+                    writeln!(
+                        log,
+                        "      Remapped {} -> {} via dialog palette",
+                        color, remapped
+                    )
+                    .ok();
                 }
                 color = remapped;
             }
