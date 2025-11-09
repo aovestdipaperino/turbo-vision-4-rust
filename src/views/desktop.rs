@@ -4,7 +4,7 @@
 
 use crate::core::geometry::Rect;
 use crate::core::event::Event;
-use crate::core::palette::colors;
+use crate::core::palette::{Attr, TvColor};
 use crate::terminal::Terminal;
 use super::view::View;
 use super::group::Group;
@@ -13,6 +13,7 @@ use super::background::Background;
 pub struct Desktop {
     bounds: Rect,
     children: Group,
+    owner: Option<*const dyn View>,
 }
 
 impl Desktop {
@@ -25,13 +26,23 @@ impl Desktop {
         let width = bounds.width();
         let height = bounds.height();
         let background_bounds = Rect::new(0, 0, width, height);
-        let background = Box::new(Background::new(background_bounds, '░', colors::DESKTOP));
+        let background = Box::new(Background::new(background_bounds, '░', Attr::new(TvColor::LightGray, TvColor::DarkGray)));
         children.add(background);
 
         Self {
             bounds,
             children,
+            owner: None,
         }
+    }
+
+    /// Initialize the palette chain after Desktop is in its final memory location.
+    /// Must be called after Desktop is constructed and in a stable location (not moved).
+    /// Matches Borland: Desktop is the root of the palette chain with CP_APP_COLOR.
+    pub fn init_palette_chain(&mut self) {
+        // Set children's owner to this Desktop (for palette chain)
+        // Desktop provides CP_APP_COLOR palette, making it the palette root
+        self.children.set_owner(self as *const Self as *const dyn View);
     }
 
     pub fn add(&mut self, mut view: Box<dyn View>) -> usize {
@@ -45,8 +56,16 @@ impl Desktop {
         }
 
         let index = self.children.add(view);
-        // Focus on the newly added window (last child)
+
+        // Initialize internal owner pointers after view is in final position
+        // This is critical for views like Dialog that contain Groups by value
         let num_children = self.children.len();
+        if num_children > 0 {
+            let last_idx = num_children - 1;
+            self.children.child_at_mut(last_idx).init_after_add();
+        }
+
+        // Focus on the newly added window (last child)
         if num_children > 0 {
             let last_idx = num_children - 1;
             if self.children.child_at(last_idx).can_focus() {
@@ -467,5 +486,19 @@ impl View for Desktop {
         } else {
             self.children.handle_event(event);
         }
+    }
+
+    fn set_owner(&mut self, owner: *const dyn View) {
+        self.owner = Some(owner);
+    }
+
+    fn get_owner(&self) -> Option<*const dyn View> {
+        self.owner
+    }
+
+    fn get_palette(&self) -> Option<crate::core::palette::Palette> {
+        use crate::core::palette::{Palette, palettes};
+        // Desktop uses the application palette directly (no remapping)
+        Some(Palette::from_slice(palettes::CP_APP_COLOR))
     }
 }

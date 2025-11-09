@@ -64,14 +64,20 @@ impl Application {
         // Matches Borland's initCommands() (tview.cc:58-68)
         command_set::init_command_set();
 
-        Ok(Self {
+        let mut app = Self {
             terminal,
             menu_bar: None,
             status_line: None,
             desktop,
             running: false,
             needs_redraw: true,  // Initial draw needed
-        })
+        };
+
+        // Initialize Desktop's palette chain now that it's in its final location
+        // This sets up the owner chain so views can resolve colors through Desktop's CP_APP_COLOR palette
+        app.desktop.init_palette_chain();
+
+        Ok(app)
     }
 
     pub fn set_menu_bar(&mut self, menu_bar: MenuBar) {

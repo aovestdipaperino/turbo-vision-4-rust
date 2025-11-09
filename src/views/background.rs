@@ -15,6 +15,7 @@ pub struct Background {
     bounds: Rect,
     pattern: char,
     attr: Attr,
+    owner: Option<*const dyn View>,
 }
 
 impl Background {
@@ -23,6 +24,7 @@ impl Background {
             bounds,
             pattern,
             attr,
+            owner: None,
         }
     }
 }
@@ -49,5 +51,13 @@ impl View for Background {
 
     fn handle_event(&mut self, _event: &mut Event) {
         // Background doesn't handle events
+    }
+
+    fn set_owner(&mut self, owner: *const dyn View) {
+        self.owner = Some(owner);
+    }
+
+    fn get_owner(&self) -> Option<*const dyn View> {
+        self.owner
     }
 }

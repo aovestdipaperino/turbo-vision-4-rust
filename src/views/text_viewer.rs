@@ -5,7 +5,7 @@
 use crate::core::geometry::{Point, Rect};
 use crate::core::event::{Event, EventType, KB_UP, KB_DOWN, KB_LEFT, KB_RIGHT, KB_PGUP, KB_PGDN, KB_HOME, KB_END};
 use crate::core::draw::DrawBuffer;
-use crate::core::palette::colors;
+use crate::core::palette::{Attr, TvColor};
 use crate::terminal::Terminal;
 use super::view::{View, write_line_to_terminal};
 use super::scrollbar::ScrollBar;
@@ -23,6 +23,7 @@ pub struct TextViewer {
     v_scrollbar: Option<Box<ScrollBar>>,
     indicator: Option<Box<Indicator>>,
     show_line_numbers: bool,
+    owner: Option<*const dyn View>,
 }
 
 impl TextViewer {
@@ -36,6 +37,7 @@ impl TextViewer {
             v_scrollbar: None,
             indicator: None,
             show_line_numbers: false,
+            owner: None,
         }
     }
 
@@ -241,7 +243,7 @@ impl View for TextViewer {
             let mut buf = DrawBuffer::new(width);
 
             // Fill with spaces
-            buf.move_char(0, ' ', colors::SCROLLER_NORMAL, width);
+            buf.move_char(0, ' ', Attr::new(TvColor::Black, TvColor::LightGray), width);
 
             if line_idx < self.lines.len() {
                 let line = &self.lines[line_idx];
@@ -250,7 +252,7 @@ impl View for TextViewer {
                 // Draw line number if enabled
                 if self.show_line_numbers {
                     let line_num = format!("{:4} ", line_idx + 1);
-                    buf.move_str(0, &line_num, colors::DIALOG_FRAME);
+                    buf.move_str(0, &line_num, Attr::new(TvColor::White, TvColor::LightGray));
                     x_offset = line_num_width;
                 }
 
@@ -260,7 +262,7 @@ impl View for TextViewer {
                     let visible_width = width - x_offset;
                     let end_col = min(start_col + visible_width, line.len());
                     let visible_text = &line[start_col..end_col];
-                    buf.move_str(x_offset, visible_text, colors::SCROLLER_NORMAL);
+                    buf.move_str(x_offset, visible_text, Attr::new(TvColor::Black, TvColor::LightGray));
                 }
             }
 
@@ -366,5 +368,17 @@ impl View for TextViewer {
         if old_delta != self.delta {
             event.clear();
         }
+    }
+
+    fn set_owner(&mut self, owner: *const dyn View) {
+        self.owner = Some(owner);
+    }
+
+    fn get_owner(&self) -> Option<*const dyn View> {
+        self.owner
+    }
+
+    fn get_palette(&self) -> Option<crate::core::palette::Palette> {
+        None  // TextViewer uses hardcoded dialog colors
     }
 }

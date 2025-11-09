@@ -18,7 +18,7 @@
 use crate::core::geometry::Rect;
 use crate::core::event::{Event, EventType};
 use crate::core::state::StateFlags;
-use crate::core::palette::colors;
+use crate::core::palette::{Attr, TvColor};
 use crate::terminal::Terminal;
 use super::view::View;
 use super::list_viewer::{ListViewer, ListViewerState};
@@ -91,6 +91,7 @@ pub struct FileList {
     current_path: PathBuf,
     wildcard: String,
     show_hidden: bool,
+    owner: Option<*const dyn View>,
 }
 
 impl FileList {
@@ -104,6 +105,7 @@ impl FileList {
             current_path: path.to_path_buf(),
             wildcard: "*".to_string(),
             show_hidden: false,
+            owner: None,
         }
     }
 
@@ -283,13 +285,13 @@ impl View for FileList {
                 let text = self.get_text(item_idx, width);
                 let is_focused = self.is_focused() && Some(item_idx) == self.list_state.focused;
                 let color = if is_focused {
-                    colors::LISTBOX_FOCUSED
+                    Attr::new(TvColor::Black, TvColor::White)
                 } else {
-                    colors::LISTBOX_NORMAL
+                    Attr::new(TvColor::Black, TvColor::LightGray)
                 };
                 (text, color)
             } else {
-                (String::new(), colors::LISTBOX_NORMAL)
+                (String::new(), Attr::new(TvColor::Black, TvColor::LightGray))
             };
 
             let padded = format!("{:width$}", text, width = width);
@@ -329,6 +331,18 @@ impl View for FileList {
 
     fn set_state(&mut self, state: StateFlags) {
         self.state = state;
+    }
+
+    fn set_owner(&mut self, owner: *const dyn View) {
+        self.owner = Some(owner);
+    }
+
+    fn get_owner(&self) -> Option<*const dyn View> {
+        self.owner
+    }
+
+    fn get_palette(&self) -> Option<crate::core::palette::Palette> {
+        None  // FileList uses hardcoded listbox colors
     }
 }
 

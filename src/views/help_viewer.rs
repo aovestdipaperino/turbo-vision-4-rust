@@ -10,7 +10,7 @@
 use crate::core::geometry::{Rect, Point};
 use crate::core::event::{Event, EventType, KB_UP, KB_DOWN, KB_PGUP, KB_PGDN, KB_HOME, KB_END};
 use crate::core::state::{StateFlags, SF_FOCUSED};
-use crate::core::palette::colors;
+use crate::core::palette::{Attr, TvColor};
 use crate::core::draw::DrawBuffer;
 use crate::terminal::Terminal;
 use super::view::{View, write_line_to_terminal};
@@ -28,6 +28,7 @@ pub struct HelpViewer {
     vscrollbar: Option<Box<ScrollBar>>,
     lines: Vec<String>,
     current_topic: Option<String>,
+    owner: Option<*const dyn View>,
 }
 
 impl HelpViewer {
@@ -41,6 +42,7 @@ impl HelpViewer {
             vscrollbar: None,
             lines: Vec::new(),
             current_topic: None,
+            owner: None,
         }
     }
 
@@ -155,9 +157,9 @@ impl View for HelpViewer {
 
         // Determine color based on focus
         let color = if self.state & SF_FOCUSED != 0 {
-            colors::HELP_FOCUSED
+            Attr::new(TvColor::Black, TvColor::White)
         } else {
-            colors::HELP_NORMAL
+            Attr::new(TvColor::Black, TvColor::LightGray)
         };
 
         for row in 0..self.bounds.height() {
@@ -228,6 +230,18 @@ impl View for HelpViewer {
 
     fn set_state(&mut self, state: StateFlags) {
         self.state = state;
+    }
+
+    fn set_owner(&mut self, owner: *const dyn View) {
+        self.owner = Some(owner);
+    }
+
+    fn get_owner(&self) -> Option<*const dyn View> {
+        self.owner
+    }
+
+    fn get_palette(&self) -> Option<crate::core::palette::Palette> {
+        None  // HelpViewer uses hardcoded colors
     }
 }
 

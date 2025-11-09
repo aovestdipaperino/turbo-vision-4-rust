@@ -13,7 +13,6 @@
 
 use crate::core::geometry::{Rect, Point};
 use crate::core::event::{Event, EventType, KB_ENTER, KB_ESC, KB_ESC_ESC, MB_LEFT_BUTTON};
-use crate::core::palette::colors;
 use crate::core::draw::DrawBuffer;
 use crate::core::state::{StateFlags, SF_SHADOW};
 use crate::core::menu_data::{Menu, MenuItem};
@@ -30,6 +29,7 @@ pub struct MenuBox {
     bounds: Rect,
     menu_state: MenuViewerState,
     state: StateFlags,
+    owner: Option<*const dyn View>,
 }
 
 impl MenuBox {
@@ -46,6 +46,7 @@ impl MenuBox {
             bounds,
             menu_state: MenuViewerState::with_menu(menu),
             state: SF_SHADOW, // MenuBox has shadow by default
+            owner: None,
         }
     }
 
@@ -142,13 +143,20 @@ impl View for MenuBox {
             None => return,
         };
 
+        // MenuBox palette indices (same as MenuBar):
+        // 1: Normal, 2: Selected, 3: Disabled, 4: Shortcut
+        let normal_attr = self.map_color(1);
+        let selected_attr = self.map_color(2);
+        let disabled_attr = self.map_color(3);
+        let shortcut_attr = self.map_color(4);
+
         // Draw top border
         let mut buf = DrawBuffer::new(width);
-        buf.put_char(0, '┌', colors::MENU_NORMAL);
+        buf.put_char(0, '┌', normal_attr);
         for i in 1..width - 1 {
-            buf.put_char(i, '─', colors::MENU_NORMAL);
+            buf.put_char(i, '─', normal_attr);
         }
-        buf.put_char(width - 1, '┐', colors::MENU_NORMAL);
+        buf.put_char(width - 1, '┐', normal_attr);
         write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y, &buf);
 
         // Draw menu items
@@ -164,27 +172,27 @@ impl View for MenuBox {
             match item {
                 MenuItem::Separator => {
                     // Draw separator line
-                    buf.put_char(0, '├', colors::MENU_NORMAL);
+                    buf.put_char(0, '├', normal_attr);
                     for i in 1..width - 1 {
-                        buf.put_char(i, '─', colors::MENU_NORMAL);
+                        buf.put_char(i, '─', normal_attr);
                     }
-                    buf.put_char(width - 1, '┤', colors::MENU_NORMAL);
+                    buf.put_char(width - 1, '┤', normal_attr);
                 }
                 MenuItem::Regular { text, enabled, shortcut, .. } => {
                     let color = if is_selected {
                         if *enabled {
-                            colors::MENU_SELECTED
+                            selected_attr
                         } else {
-                            colors::MENU_SELECTED // Disabled but selected
+                            selected_attr // Disabled but selected
                         }
                     } else if *enabled {
-                        colors::MENU_NORMAL
+                        normal_attr
                     } else {
-                        colors::MENU_DISABLED
+                        disabled_attr
                     };
 
                     // Left border
-                    buf.put_char(0, '│', colors::MENU_NORMAL);
+                    buf.put_char(0, '│', normal_attr);
 
                     // Fill with spaces
                     for i in 1..width - 1 {
@@ -202,9 +210,9 @@ impl View for MenuBox {
                                     break; // End of accelerator
                                 }
                                 let accel_color = if is_selected {
-                                    colors::MENU_SELECTED
+                                    selected_attr
                                 } else {
-                                    colors::MENU_SHORTCUT
+                                    shortcut_attr
                                 };
                                 buf.put_char(x, accel_ch, accel_color);
                                 x += 1;
@@ -224,17 +232,17 @@ impl View for MenuBox {
                     }
 
                     // Right border
-                    buf.put_char(width - 1, '│', colors::MENU_NORMAL);
+                    buf.put_char(width - 1, '│', normal_attr);
                 }
                 MenuItem::SubMenu { text, .. } => {
                     let color = if is_selected {
-                        colors::MENU_SELECTED
+                        selected_attr
                     } else {
-                        colors::MENU_NORMAL
+                        normal_attr
                     };
 
                     // Left border
-                    buf.put_char(0, '│', colors::MENU_NORMAL);
+                    buf.put_char(0, '│', normal_attr);
 
                     // Fill with spaces
                     for i in 1..width - 1 {
@@ -251,9 +259,9 @@ impl View for MenuBox {
                                     break;
                                 }
                                 let accel_color = if is_selected {
-                                    colors::MENU_SELECTED
+                                    selected_attr
                                 } else {
-                                    colors::MENU_SHORTCUT
+                                    shortcut_attr
                                 };
                                 buf.put_char(x, accel_ch, accel_color);
                                 x += 1;
@@ -268,7 +276,7 @@ impl View for MenuBox {
                     buf.put_char(width - 2, '►', color);
 
                     // Right border
-                    buf.put_char(width - 1, '│', colors::MENU_NORMAL);
+                    buf.put_char(width - 1, '│', normal_attr);
                 }
             }
 
@@ -278,11 +286,11 @@ impl View for MenuBox {
 
         // Draw bottom border
         let mut buf = DrawBuffer::new(width);
-        buf.put_char(0, '└', colors::MENU_NORMAL);
+        buf.put_char(0, '└', normal_attr);
         for i in 1..width - 1 {
-            buf.put_char(i, '─', colors::MENU_NORMAL);
+            buf.put_char(i, '─', normal_attr);
         }
-        buf.put_char(width - 1, '┘', colors::MENU_NORMAL);
+        buf.put_char(width - 1, '┘', normal_attr);
         write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y + y as i16, &buf);
 
         // Draw shadow
@@ -375,6 +383,19 @@ impl View for MenuBox {
 
     fn set_state(&mut self, state: StateFlags) {
         self.state = state;
+    }
+
+    fn set_owner(&mut self, owner: *const dyn View) {
+        self.owner = Some(owner);
+    }
+
+    fn get_owner(&self) -> Option<*const dyn View> {
+        self.owner
+    }
+
+    fn get_palette(&self) -> Option<crate::core::palette::Palette> {
+        use crate::core::palette::{Palette, palettes};
+        Some(Palette::from_slice(palettes::CP_MENU_BAR))
     }
 }
 

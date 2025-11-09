@@ -251,6 +251,41 @@ impl View for Dialog {
             self.window.valid(command)
         }
     }
+
+    fn set_owner(&mut self, owner: *const dyn View) {
+        self.window.set_owner(owner);
+    }
+
+    fn get_owner(&self) -> Option<*const dyn View> {
+        self.window.get_owner()
+    }
+
+    fn get_palette(&self) -> Option<crate::core::palette::Palette> {
+        use crate::core::palette::{Palette, palettes};
+        // Dialog uses gray dialog palette (Borland: TDialog::getPalette)
+        Some(Palette::from_slice(palettes::CP_GRAY_DIALOG))
+    }
+
+    fn init_after_add(&mut self) {
+        use std::io::Write;
+        let mut log = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open("calc.log")
+            .ok();
+
+        if let Some(ref mut log) = log {
+            writeln!(log, "Dialog::init_after_add called, initializing window interior owner").ok();
+        }
+
+        // Initialize Window's interior owner pointer now that Dialog is in final position
+        // This completes the palette chain: Button → interior → Window → Desktop
+        self.window.init_interior_owner();
+
+        if let Some(ref mut log) = log {
+            writeln!(log, "Dialog::init_after_add done").ok();
+        }
+    }
 }
 
 impl Dialog {

@@ -5,7 +5,7 @@
 use crate::core::geometry::{Point, Rect};
 use crate::core::event::Event;
 use crate::core::draw::DrawBuffer;
-use crate::core::palette::colors;
+use crate::core::palette::{Attr, TvColor};
 use crate::terminal::Terminal;
 use super::view::{View, write_line_to_terminal};
 
@@ -15,6 +15,7 @@ pub struct Indicator {
     bounds: Rect,
     location: Point,  // Line and column (1-based)
     modified: bool,   // Has the document been modified?
+    owner: Option<*const dyn View>,
 }
 
 impl Indicator {
@@ -23,6 +24,7 @@ impl Indicator {
             bounds,
             location: Point::new(1, 1),
             modified: false,
+            owner: None,
         }
     }
 
@@ -56,13 +58,25 @@ impl View for Indicator {
         let text_len = text.len().min(width);
         let start_pos = width.saturating_sub(text_len);
 
-        buf.move_char(0, ' ', colors::DIALOG_FRAME, width);
-        buf.move_str(start_pos, &text, colors::DIALOG_FRAME);
+        buf.move_char(0, ' ', Attr::new(TvColor::White, TvColor::LightGray), width);
+        buf.move_str(start_pos, &text, Attr::new(TvColor::White, TvColor::LightGray));
 
         write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y, &buf);
     }
 
     fn handle_event(&mut self, _event: &mut Event) {
         // Indicator doesn't handle events
+    }
+
+    fn set_owner(&mut self, owner: *const dyn View) {
+        self.owner = Some(owner);
+    }
+
+    fn get_owner(&self) -> Option<*const dyn View> {
+        self.owner
+    }
+
+    fn get_palette(&self) -> Option<crate::core::palette::Palette> {
+        None  // Indicator uses hardcoded dialog colors
     }
 }

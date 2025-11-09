@@ -5,7 +5,6 @@
 use crate::core::geometry::Rect;
 use crate::core::event::{Event, EventType, KB_ENTER, KB_BACKSPACE, KB_LEFT, KB_RIGHT, KB_HOME, KB_END, KB_DEL};
 use crate::core::draw::DrawBuffer;
-use crate::core::palette::colors;
 use crate::core::clipboard;
 use crate::core::state::StateFlags;
 use crate::terminal::Terminal;
@@ -30,6 +29,7 @@ pub struct InputLine {
     first_pos: usize,      // First visible character position for horizontal scrolling
     validator: Option<ValidatorRef>,  // Optional validator for input validation
     state: StateFlags,     // View state flags (including SF_FOCUSED)
+    owner: Option<*const dyn View>,
 }
 
 impl InputLine {
@@ -45,6 +45,7 @@ impl InputLine {
             first_pos: 0,
             validator: None,
             state: 0,
+            owner: None,
         }
     }
 
@@ -154,11 +155,16 @@ impl View for InputLine {
         let width = self.bounds.width() as usize;
         let mut buf = DrawBuffer::new(width);
 
+        // InputLine palette indices:
+        // 1: Normal, 2: Focused, 3: Selected, 4: Arrows
         let attr = if self.is_focused() {
-            colors::INPUT_FOCUSED
+            self.map_color(2)  // Focused
         } else {
-            colors::INPUT_NORMAL
+            self.map_color(1)  // Normal
         };
+
+        let sel_attr = self.map_color(3);  // Selected text
+        let arrow_attr = self.map_color(4);  // Arrow indicators
 
         buf.move_char(0, ' ', attr, width);
 
@@ -183,7 +189,7 @@ impl View for InputLine {
                 for (i, ch) in visible_text.chars().enumerate() {
                     let pos = visible_start + i;
                     let char_attr = if pos >= sel_start && pos < sel_end {
-                        colors::INPUT_SELECTED
+                        sel_attr
                     } else {
                         attr
                     };
@@ -195,12 +201,12 @@ impl View for InputLine {
 
             // Show left arrow if text is scrolled
             if self.first_pos > 0 {
-                buf.move_char(0, '<', attr, 1);
+                buf.move_char(0, '<', arrow_attr, 1);
             }
 
             // Show right arrow if there's more text beyond the visible area
             if visible_end < text_len {
-                buf.move_char(width - 1, '>', attr, 1);
+                buf.move_char(width - 1, '>', arrow_attr, 1);
             }
         }
 
@@ -411,5 +417,18 @@ impl View for InputLine {
             let _ = terminal.show_cursor(cursor_x as u16, cursor_y as u16);
         }
         // Note: cursor is already hidden by Group if not focused
+    }
+
+    fn set_owner(&mut self, owner: *const dyn View) {
+        self.owner = Some(owner);
+    }
+
+    fn get_owner(&self) -> Option<*const dyn View> {
+        self.owner
+    }
+
+    fn get_palette(&self) -> Option<crate::core::palette::Palette> {
+        use crate::core::palette::{Palette, palettes};
+        Some(Palette::from_slice(palettes::CP_INPUT_LINE))
     }
 }

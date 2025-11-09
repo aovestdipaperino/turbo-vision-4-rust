@@ -4,7 +4,6 @@
 
 use crate::core::geometry::Rect;
 use crate::core::event::{Event, EventType, KB_ENTER, MB_LEFT_BUTTON};
-use crate::core::palette::colors;
 use crate::core::draw::DrawBuffer;
 use crate::core::state::StateFlags;
 use crate::terminal::Terminal;
@@ -22,6 +21,7 @@ pub struct ListBox {
     list_state: ListViewerState,  // Embedded state from ListViewer
     state: StateFlags,
     on_select_command: CommandId,
+    owner: Option<*const dyn View>,
 }
 
 impl ListBox {
@@ -33,6 +33,7 @@ impl ListBox {
             list_state: ListViewerState::new(),
             state: 0,
             on_select_command,
+            owner: None,
         }
     }
 
@@ -130,16 +131,14 @@ impl View for ListBox {
         let width = self.bounds.width() as usize;
         let height = self.bounds.height() as usize;
 
+        // ListBox palette indices:
+        // 1: Normal, 2: Focused, 3: Selected, 4: Divider
         let color_normal = if self.is_focused() {
-            colors::LISTBOX_FOCUSED
+            self.map_color(2)  // Focused
         } else {
-            colors::LISTBOX_NORMAL
+            self.map_color(1)  // Normal
         };
-        let color_selected = if self.is_focused() {
-            colors::LISTBOX_SELECTED_FOCUSED
-        } else {
-            colors::LISTBOX_SELECTED
-        };
+        let color_selected = self.map_color(3);  // Selected
 
         // Draw visible items
         for i in 0..height {
@@ -229,6 +228,19 @@ impl View for ListBox {
 
     fn get_list_selection(&self) -> usize {
         self.list_state.focused.unwrap_or(0)
+    }
+
+    fn set_owner(&mut self, owner: *const dyn View) {
+        self.owner = Some(owner);
+    }
+
+    fn get_owner(&self) -> Option<*const dyn View> {
+        self.owner
+    }
+
+    fn get_palette(&self) -> Option<crate::core::palette::Palette> {
+        use crate::core::palette::{Palette, palettes};
+        Some(Palette::from_slice(palettes::CP_LISTBOX))
     }
 }
 

@@ -5,7 +5,6 @@
 use crate::core::geometry::{Point, Rect};
 use crate::core::event::{Event, EventType, KB_UP, KB_DOWN, KB_LEFT, KB_RIGHT, KB_PGUP, KB_PGDN, KB_HOME, KB_END};
 use crate::core::draw::DrawBuffer;
-use crate::core::palette::colors;
 use crate::terminal::Terminal;
 use super::view::{View, write_line_to_terminal};
 
@@ -43,6 +42,7 @@ pub struct ScrollBar {
     ar_step: i32,    // Arrow step
     chars: [char; 5],
     is_vertical: bool,
+    owner: Option<*const dyn View>,
 }
 
 impl ScrollBar {
@@ -56,6 +56,7 @@ impl ScrollBar {
             ar_step: 1,
             chars: VSCROLL_CHARS,
             is_vertical: true,
+            owner: None,
         }
     }
 
@@ -69,6 +70,7 @@ impl ScrollBar {
             ar_step: 1,
             chars: HSCROLL_CHARS,
             is_vertical: false,
+            owner: None,
         }
     }
 
@@ -176,6 +178,11 @@ impl View for ScrollBar {
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
+        // ScrollBar palette indices:
+        // 1: Page, 2: Arrows, 3: Indicator
+        let page_attr = self.map_color(1);
+        let indicator_attr = self.map_color(3);
+
         if self.is_vertical {
             // Draw vertical scrollbar
             let height = self.bounds.height();
@@ -194,9 +201,9 @@ impl View for ScrollBar {
                 };
 
                 let attr = if y - 1 == pos as i16 {
-                    colors::SCROLLBAR_INDICATOR
+                    indicator_attr
                 } else {
-                    colors::SCROLLBAR_PAGE
+                    page_attr
                 };
 
                 buf.put_char(0, ch, attr);
@@ -220,9 +227,9 @@ impl View for ScrollBar {
                 };
 
                 let attr = if x - 1 == pos as i16 {
-                    colors::SCROLLBAR_INDICATOR
+                    indicator_attr
                 } else {
-                    colors::SCROLLBAR_PAGE
+                    page_attr
                 };
 
                 buf.put_char(x as usize, ch, attr);
@@ -285,5 +292,18 @@ impl View for ScrollBar {
             }
         }
         // TODO: Add mouse support when mouse events are implemented
+    }
+
+    fn set_owner(&mut self, owner: *const dyn View) {
+        self.owner = Some(owner);
+    }
+
+    fn get_owner(&self) -> Option<*const dyn View> {
+        self.owner
+    }
+
+    fn get_palette(&self) -> Option<crate::core::palette::Palette> {
+        use crate::core::palette::{Palette, palettes};
+        Some(Palette::from_slice(palettes::CP_SCROLLBAR))
     }
 }

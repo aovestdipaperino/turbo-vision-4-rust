@@ -39,6 +39,7 @@ pub struct RadioButton {
     label: String,
     cluster_state: ClusterState,
     state: StateFlags,
+    owner: Option<*const dyn View>,
 }
 
 impl RadioButton {
@@ -51,6 +52,7 @@ impl RadioButton {
             label: label.to_string(),
             cluster_state: ClusterState::with_group(group_id),
             state: 0,
+            owner: None,
         }
     }
 
@@ -104,6 +106,19 @@ impl View for RadioButton {
 
     fn set_state(&mut self, state: StateFlags) {
         self.state = state;
+    }
+
+    fn set_owner(&mut self, owner: *const dyn View) {
+        self.owner = Some(owner);
+    }
+
+    fn get_owner(&self) -> Option<*const dyn View> {
+        self.owner
+    }
+
+    fn get_palette(&self) -> Option<crate::core::palette::Palette> {
+        use crate::core::palette::{Palette, palettes};
+        Some(Palette::from_slice(palettes::CP_CLUSTER))
     }
 }
 

@@ -17,6 +17,7 @@ pub struct Scroller {
     limit: Point,       // Maximum scroll range (content size)
     h_scrollbar: Option<Box<ScrollBar>>,
     v_scrollbar: Option<Box<ScrollBar>>,
+    owner: Option<*const dyn View>,
 }
 
 impl Scroller {
@@ -27,6 +28,7 @@ impl Scroller {
             limit: Point::zero(),
             h_scrollbar,
             v_scrollbar,
+            owner: None,
         };
         scroller.update_scrollbars();
         scroller
@@ -157,6 +159,14 @@ impl View for Scroller {
 
     fn handle_event(&mut self, event: &mut Event) {
         self.handle_scrollbar_events(event);
+    }
+
+    fn set_owner(&mut self, owner: *const dyn View) {
+        self.owner = Some(owner);
+    }
+
+    fn get_owner(&self) -> Option<*const dyn View> {
+        self.owner
     }
 }
 

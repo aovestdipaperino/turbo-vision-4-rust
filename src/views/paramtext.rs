@@ -4,7 +4,6 @@
 
 use crate::core::geometry::Rect;
 use crate::core::event::Event;
-use crate::core::palette::colors;
 use crate::core::draw::DrawBuffer;
 use crate::terminal::Terminal;
 use super::view::{View, write_line_to_terminal};
@@ -15,6 +14,7 @@ pub struct ParamText {
     bounds: Rect,
     template: String,
     text: String,
+    owner: Option<*const dyn View>,
 }
 
 impl ParamText {
@@ -28,6 +28,7 @@ impl ParamText {
             bounds,
             template: template.to_string(),
             text: template.to_string(),
+            owner: None,
         }
     }
 
@@ -104,6 +105,10 @@ impl View for ParamText {
         let width = self.bounds.width() as usize;
         let height = self.bounds.height() as usize;
 
+        // ParamText palette indices:
+        // 1: Normal text
+        let normal_attr = self.map_color(1);
+
         // Split text into lines
         let lines: Vec<&str> = self.text.lines().collect();
 
@@ -113,7 +118,7 @@ impl View for ParamText {
             }
 
             let mut buf = DrawBuffer::new(width);
-            buf.move_char(0, ' ', colors::DIALOG_NORMAL, width);
+            buf.move_char(0, ' ', normal_attr, width);
 
             // Truncate line if too long
             let display_text = if line.len() > width {
@@ -122,20 +127,33 @@ impl View for ParamText {
                 line
             };
 
-            buf.move_str(0, display_text, colors::DIALOG_NORMAL);
+            buf.move_str(0, display_text, normal_attr);
             write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y + i as i16, &buf);
         }
 
         // Fill remaining lines with spaces
         for i in lines.len()..height {
             let mut buf = DrawBuffer::new(width);
-            buf.move_char(0, ' ', colors::DIALOG_NORMAL, width);
+            buf.move_char(0, ' ', normal_attr, width);
             write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y + i as i16, &buf);
         }
     }
 
     fn handle_event(&mut self, _event: &mut Event) {
         // ParamText doesn't handle events
+    }
+
+    fn set_owner(&mut self, owner: *const dyn View) {
+        self.owner = Some(owner);
+    }
+
+    fn get_owner(&self) -> Option<*const dyn View> {
+        self.owner
+    }
+
+    fn get_palette(&self) -> Option<crate::core::palette::Palette> {
+        use crate::core::palette::{Palette, palettes};
+        Some(Palette::from_slice(palettes::CP_STATIC_TEXT))
     }
 }
 

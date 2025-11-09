@@ -81,6 +81,7 @@ const CM_CALC_PLUS: u16 = 219;
 struct ClockView {
     bounds: Rect,
     state: StateFlags,
+    owner: Option<*const dyn View>,
 }
 
 impl ClockView {
@@ -88,6 +89,7 @@ impl ClockView {
         Self {
             bounds,
             state: 0,
+            owner: None,
         }
     }
 
@@ -139,6 +141,18 @@ impl View for ClockView {
 
     fn handle_event(&mut self, _event: &mut Event) {}
     fn update_cursor(&self, _terminal: &mut Terminal) {}
+
+    fn set_owner(&mut self, owner: *const dyn View) {
+        self.owner = Some(owner);
+    }
+
+    fn get_owner(&self) -> Option<*const dyn View> {
+        self.owner
+    }
+
+    fn get_palette(&self) -> Option<turbo_vision::core::palette::Palette> {
+        None
+    }
 }
 
 // MessageView - displays static message on status bar
@@ -146,6 +160,7 @@ struct MessageView {
     bounds: Rect,
     state: StateFlags,
     message: String,
+    owner: Option<*const dyn View>,
 }
 
 impl MessageView {
@@ -154,6 +169,7 @@ impl MessageView {
             bounds,
             state: 0,
             message: message.to_string(),
+            owner: None,
         }
     }
 }
@@ -193,6 +209,18 @@ impl View for MessageView {
 
     fn handle_event(&mut self, _event: &mut Event) {}
     fn update_cursor(&self, _terminal: &mut Terminal) {}
+
+    fn set_owner(&mut self, owner: *const dyn View) {
+        self.owner = Some(owner);
+    }
+
+    fn get_owner(&self) -> Option<*const dyn View> {
+        self.owner
+    }
+
+    fn get_palette(&self) -> Option<turbo_vision::core::palette::Palette> {
+        None
+    }
 }
 
 fn create_menu_bar(width: u16) -> MenuBar {
@@ -278,6 +306,7 @@ fn show_about_dialog(app: &mut Application) {
 struct AsciiTable {
     bounds: Rect,
     state: StateFlags,
+    owner: Option<*const dyn View>,
 }
 
 impl AsciiTable {
@@ -285,6 +314,7 @@ impl AsciiTable {
         Self {
             bounds,
             state: 0,
+            owner: None,
         }
     }
 }
@@ -342,6 +372,18 @@ impl View for AsciiTable {
 
     fn handle_event(&mut self, _event: &mut Event) {}
     fn update_cursor(&self, _terminal: &mut Terminal) {}
+
+    fn set_owner(&mut self, owner: *const dyn View) {
+        self.owner = Some(owner);
+    }
+
+    fn get_owner(&self) -> Option<*const dyn View> {
+        self.owner
+    }
+
+    fn get_palette(&self) -> Option<turbo_vision::core::palette::Palette> {
+        None
+    }
 }
 
 fn show_ascii_table(app: &mut Application) {
@@ -384,6 +426,7 @@ struct CalcDisplay {
     sign: char,
     operator: char,
     operand: f64,
+    owner: Option<*const dyn View>,
 }
 
 impl CalcDisplay {
@@ -399,6 +442,7 @@ impl CalcDisplay {
             sign: ' ',
             operator: '=',
             operand: 0.0,
+            owner: None,
         }
     }
 
@@ -603,9 +647,30 @@ impl View for CalcDisplay {
     }
 
     fn update_cursor(&self, _terminal: &mut Terminal) {}
+
+    fn set_owner(&mut self, owner: *const dyn View) {
+        self.owner = Some(owner);
+    }
+
+    fn get_owner(&self) -> Option<*const dyn View> {
+        self.owner
+    }
+
+    fn get_palette(&self) -> Option<turbo_vision::core::palette::Palette> {
+        None  // CalcDisplay uses hardcoded colors
+    }
 }
 
 fn show_calculator_placeholder(app: &mut Application) {
+    use std::io::Write;
+    let mut log = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open("calc.log")
+        .unwrap();
+
+    writeln!(log, "\n=== show_calculator_placeholder START ===").unwrap();
+
     let display_len = 25;
     let dialog_width = 6 + display_len;
     let dialog_height = 15;  // Back to original height
@@ -642,13 +707,16 @@ fn show_calculator_placeholder(app: &mut Application) {
         // Matches Borland: bfBroadcast flag and ofSelectable cleared (calculat.cc:54-55)
         button.set_broadcast(true);
         button.set_selectable(false);
+        writeln!(log, "Adding button {}: '{}'", i, button_labels[i as usize]).unwrap();
         dialog.add(Box::new(button));
     }
 
     dialog.set_initial_focus();
 
     // Add to desktop as non-modal window (like Borland does)
+    writeln!(log, "Adding dialog to desktop...").unwrap();
     app.desktop.add(Box::new(dialog));
+    writeln!(log, "=== show_calculator_placeholder DONE ===\n").unwrap();
 }
 
 // Calendar Implementation
@@ -660,6 +728,7 @@ struct CalendarView {
     cur_day: u32,
     cur_month: u32,
     cur_year: u32,
+    owner: Option<*const dyn View>,
 }
 
 impl CalendarView {
@@ -684,6 +753,7 @@ impl CalendarView {
             cur_day: day,
             cur_month: month,
             cur_year: year,
+            owner: None,
         }
     }
 
@@ -896,6 +966,18 @@ impl View for CalendarView {
     }
 
     fn update_cursor(&self, _terminal: &mut Terminal) {}
+
+    fn set_owner(&mut self, owner: *const dyn View) {
+        self.owner = Some(owner);
+    }
+
+    fn get_owner(&self) -> Option<*const dyn View> {
+        self.owner
+    }
+
+    fn get_palette(&self) -> Option<turbo_vision::core::palette::Palette> {
+        None
+    }
 }
 
 fn show_calendar_placeholder(app: &mut Application) {
@@ -917,6 +999,7 @@ struct PuzzleView {
     board: [[char; 6]; 6],
     moves: u16,
     solved: bool,
+    owner: Option<*const dyn View>,
 }
 
 impl PuzzleView {
@@ -927,6 +1010,7 @@ impl PuzzleView {
             board: [[' '; 6]; 6],
             moves: 0,
             solved: false,
+            owner: None,
         };
 
         // Initialize board with starting position
@@ -1172,6 +1256,18 @@ impl View for PuzzleView {
     }
 
     fn update_cursor(&self, _terminal: &mut Terminal) {}
+
+    fn set_owner(&mut self, owner: *const dyn View) {
+        self.owner = Some(owner);
+    }
+
+    fn get_owner(&self) -> Option<*const dyn View> {
+        self.owner
+    }
+
+    fn get_palette(&self) -> Option<turbo_vision::core::palette::Palette> {
+        None
+    }
 }
 
 fn show_puzzle_placeholder(app: &mut Application) {
@@ -1332,6 +1428,41 @@ fn show_chdir_dialog(app: &mut Application) {
 }
 
 fn main() -> turbo_vision::core::error::Result<()> {
+    // Setup panic hook to log crashes
+    std::panic::set_hook(Box::new(|panic_info| {
+        use std::io::Write;
+        let mut log_file = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open("crash.log")
+            .unwrap();
+
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+
+        writeln!(log_file, "\n=== PANIC at timestamp {} ===", timestamp).unwrap();
+        writeln!(log_file, "{}", panic_info).unwrap();
+
+        if let Some(location) = panic_info.location() {
+            writeln!(log_file, "Location: {}:{}:{}",
+                location.file(), location.line(), location.column()).unwrap();
+        }
+
+        if let Some(message) = panic_info.payload().downcast_ref::<&str>() {
+            writeln!(log_file, "Message: {}", message).unwrap();
+        } else if let Some(message) = panic_info.payload().downcast_ref::<String>() {
+            writeln!(log_file, "Message: {}", message).unwrap();
+        }
+
+        writeln!(log_file, "Backtrace:").unwrap();
+        writeln!(log_file, "{:?}", std::backtrace::Backtrace::capture()).unwrap();
+        writeln!(log_file, "=== END PANIC ===\n").unwrap();
+
+        eprintln!("PANIC! Details written to crash.log");
+    }));
+
     let mut app = Application::new()?;
     let (width, height) = app.terminal.size();
 

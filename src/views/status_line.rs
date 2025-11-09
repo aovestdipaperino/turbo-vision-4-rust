@@ -5,7 +5,6 @@
 use crate::core::geometry::Rect;
 use crate::core::event::{Event, EventType, KeyCode, MB_LEFT_BUTTON};
 use crate::core::draw::DrawBuffer;
-use crate::core::palette::colors;
 use crate::core::command::CommandId;
 use crate::terminal::Terminal;
 use super::view::{View, write_line_to_terminal};
@@ -33,6 +32,7 @@ pub struct StatusLine {
     selected_item: Option<usize>,    // Currently hovered/selected item
     hint_text: Option<String>,       // Context-sensitive help text
     options: u16,
+    owner: Option<*const dyn View>,
 }
 
 impl StatusLine {
@@ -46,6 +46,7 @@ impl StatusLine {
             selected_item: None,
             hint_text: None,
             options: OF_PRE_PROCESS,  // Status line processes in pre-process phase (matches Borland)
+            owner: None,
         }
     }
 
@@ -58,7 +59,15 @@ impl StatusLine {
     fn draw_select(&mut self, terminal: &mut Terminal, selected: Option<usize>) {
         let width = self.bounds.width() as usize;
         let mut buf = DrawBuffer::new(width);
-        buf.move_char(0, ' ', colors::STATUS_NORMAL, width);
+
+        // StatusLine palette indices:
+        // 1: Normal, 2: Shortcut, 3: Selected, 4: Selected shortcut
+        let normal_attr = self.map_color(1);
+        let shortcut_attr = self.map_color(2);
+        let selected_attr = self.map_color(3);
+        let selected_shortcut_attr = self.map_color(4);
+
+        buf.move_char(0, ' ', normal_attr, width);
 
         // Clear previous item positions
         self.item_positions.clear();
@@ -71,19 +80,19 @@ impl StatusLine {
 
                 // Determine color based on selection
                 let is_selected = selected == Some(idx);
-                let normal_color = if is_selected {
-                    colors::STATUS_SELECTED
+                let item_normal = if is_selected {
+                    selected_attr
                 } else {
-                    colors::STATUS_NORMAL
+                    normal_attr
                 };
-                let shortcut_color = if is_selected {
-                    colors::STATUS_SELECTED_SHORTCUT
+                let item_shortcut = if is_selected {
+                    selected_shortcut_attr
                 } else {
-                    colors::STATUS_SHORTCUT
+                    shortcut_attr
                 };
 
                 // Draw leading space (Borland: b.moveChar(i, ' ', color, 1))
-                buf.put_char(x, ' ', normal_color);
+                buf.put_char(x, ' ', item_normal);
                 x += 1;
 
                 // Parse ~X~ for highlighting - everything between tildes is highlighted
@@ -95,17 +104,17 @@ impl StatusLine {
                             if shortcut_ch == '~' {
                                 break;  // Found closing tilde
                             }
-                            buf.put_char(x, shortcut_ch, shortcut_color);
+                            buf.put_char(x, shortcut_ch, item_shortcut);
                             x += 1;
                         }
                     } else {
-                        buf.put_char(x, ch, normal_color);
+                        buf.put_char(x, ch, item_normal);
                         x += 1;
                     }
                 }
 
                 // Draw trailing space (Borland: b.moveChar(i+l+1, ' ', color, 1))
-                buf.put_char(x, ' ', normal_color);
+                buf.put_char(x, ' ', item_normal);
                 x += 1;
 
                 // Hit area ends after the trailing space (matches Borland inc=2 spacing)
@@ -113,7 +122,7 @@ impl StatusLine {
                 self.item_positions.push((start_x, end_x));
 
                 // Separator is always drawn in normal color, never highlighted
-                buf.move_str(x, "│ ", colors::STATUS_NORMAL);
+                buf.move_str(x, "│ ", normal_attr);
                 x += 2;
             }
         }
@@ -121,11 +130,11 @@ impl StatusLine {
         // Display hint text if available and there's space
         if let Some(ref hint) = self.hint_text {
             if x + hint.len() + 2 < width {
-                buf.move_str(x, "- ", colors::STATUS_NORMAL);
+                buf.move_str(x, "- ", normal_attr);
                 x += 2;
                 let hint_len = (width - x).min(hint.len());
                 for (i, ch) in hint.chars().take(hint_len).enumerate() {
-                    buf.put_char(x + i, ch, colors::STATUS_NORMAL);
+                    buf.put_char(x + i, ch, normal_attr);
                 }
             }
         }
@@ -229,5 +238,18 @@ impl View for StatusLine {
 
     fn set_options(&mut self, options: u16) {
         self.options = options;
+    }
+
+    fn set_owner(&mut self, owner: *const dyn View) {
+        self.owner = Some(owner);
+    }
+
+    fn get_owner(&self) -> Option<*const dyn View> {
+        self.owner
+    }
+
+    fn get_palette(&self) -> Option<crate::core::palette::Palette> {
+        use crate::core::palette::{Palette, palettes};
+        Some(Palette::from_slice(palettes::CP_STATUSLINE))
     }
 }

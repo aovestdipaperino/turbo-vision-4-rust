@@ -41,6 +41,7 @@ pub struct SortedListBox {
     state: StateFlags,
     _on_select_command: CommandId,
     case_sensitive: bool,
+    owner: Option<*const dyn View>,
 }
 
 impl SortedListBox {
@@ -53,6 +54,7 @@ impl SortedListBox {
             state: 0,
             _on_select_command: on_select_command,
             case_sensitive: false,
+            owner: None,
         }
     }
 
@@ -244,7 +246,7 @@ impl View for SortedListBox {
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        use crate::core::palette::colors;
+        use crate::core::palette::{Attr, TvColor};
         use crate::core::draw::DrawBuffer;
         use super::view::write_line_to_terminal;
 
@@ -252,14 +254,14 @@ impl View for SortedListBox {
         let height = self.bounds.height() as usize;
 
         let color_normal = if self.is_focused() {
-            colors::LISTBOX_FOCUSED
+            Attr::new(TvColor::Black, TvColor::White)
         } else {
-            colors::LISTBOX_NORMAL
+            Attr::new(TvColor::Black, TvColor::LightGray)
         };
         let color_selected = if self.is_focused() {
-            colors::LISTBOX_SELECTED_FOCUSED
+            Attr::new(TvColor::White, TvColor::Cyan)
         } else {
-            colors::LISTBOX_SELECTED
+            Attr::new(TvColor::White, TvColor::Blue)
         };
 
         // Draw visible items
@@ -314,6 +316,18 @@ impl View for SortedListBox {
 
     fn get_list_selection(&self) -> usize {
         self.list_state.focused.unwrap_or(0)
+    }
+
+    fn set_owner(&mut self, owner: *const dyn View) {
+        self.owner = Some(owner);
+    }
+
+    fn get_owner(&self) -> Option<*const dyn View> {
+        self.owner
+    }
+
+    fn get_palette(&self) -> Option<crate::core::palette::Palette> {
+        None  // SortedListBox uses hardcoded listbox colors
     }
 }
 

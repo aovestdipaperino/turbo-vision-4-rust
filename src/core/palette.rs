@@ -247,3 +247,149 @@ pub mod colors {
     pub const HELP_NORMAL: Attr = Attr::new(TvColor::Black, TvColor::LightGray);
     pub const HELP_FOCUSED: Attr = Attr::new(TvColor::Black, TvColor::White);
 }
+
+/// Palette - array of color remappings for the Borland indirect palette system
+///
+/// Each view has an optional palette that maps logical color indices to parent color indices.
+/// When resolving a color, the system walks up the owner chain, remapping through each palette
+/// until reaching the Application which has the actual color attributes.
+#[derive(Debug, Clone)]
+pub struct Palette {
+    data: Vec<u8>,
+}
+
+impl Palette {
+    /// Create a new empty palette
+    pub fn new() -> Self {
+        Self { data: Vec::new() }
+    }
+
+    /// Create a palette from a slice of color indices
+    pub fn from_slice(data: &[u8]) -> Self {
+        Self {
+            data: data.to_vec(),
+        }
+    }
+
+    /// Get a color index from the palette (1-based indexing like Borland)
+    /// Returns 0 (error color) if index is out of bounds
+    pub fn get(&self, index: usize) -> u8 {
+        if index == 0 || index > self.data.len() {
+            0
+        } else {
+            self.data[index - 1]
+        }
+    }
+
+    /// Get the length of the palette
+    pub fn len(&self) -> usize {
+        self.data.len()
+    }
+
+    /// Check if the palette is empty
+    pub fn is_empty(&self) -> bool {
+        self.data.is_empty()
+    }
+}
+
+impl Default for Palette {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Standard palette definitions matching Borland Turbo Vision
+pub mod palettes {
+    // Application color palette - contains actual color attributes (1-indexed)
+    // This is the root palette that contains real Attr values encoded as u8
+    #[rustfmt::skip]
+    pub const CP_APP_COLOR: &[u8] = &[
+        0x71, 0x70, 0x78, 0x74, 0x20, 0x28, 0x24, 0x17, // 1-8: Desktop colors
+        0x1F, 0x1A, 0x31, 0x31, 0x1E, 0x71, 0x1F,       // 9-15: Menu colors
+        0x37, 0x3F, 0x3A, 0x13, 0x13, 0x3E, 0x21,       // 16-22: More menu
+        0x70, 0x7F, 0x7A, 0x13, 0x13, 0x70, 0x7F,       // 23-29: Dialog frame
+        0x7A, 0x13, 0x13, 0x70, 0x70, 0x7F, 0x7E,       // 30-36: Dialog interior
+        0x20, 0x2B, 0x2F, 0x87, 0x2E, 0x70,             // 37-42: Dialog controls (shadow: 0x87 test)
+        0x20, 0x2A, 0x2F, 0x1F, 0x2E, 0x70,             // 43-48: Button (Green background!)
+        0x20, 0x72, 0x31, 0x31, 0x30, 0x2F,             // 49-54: Cluster
+        0x3E, 0x31,                                      // 55-56: Input line
+        0x13, 0x13, 0x30, 0x3E, 0x13,                   // 57-61: History
+        0x30, 0x3F, 0x3E, 0x70, 0x2F,                   // 62-66: List viewer
+        0x37, 0x3F, 0x3A, 0x20, 0x2E, 0x30,             // 67-72: Info pane
+        0x3F, 0x3E, 0x1F, 0x2F, 0x1A, 0x20,             // 73-78: Cluster (more)
+        0x72, 0x31, 0x31, 0x30, 0x2F, 0x3E,             // 79-84: Editor
+        0x31,                                            // 85: Reserved
+    ];
+
+    // Gray dialog palette - maps dialog color indices to app palette
+    #[rustfmt::skip]
+    pub const CP_GRAY_DIALOG: &[u8] = &[
+        32, 33, 34, 35, 36, 37, 38, 39, 40, 41,  // 1-10
+        42, 43, 44, 45, 46, 47, 48, 49, 50, 51,  // 11-20
+        52, 53, 54, 55, 56, 57, 58, 59, 60, 61,  // 21-30
+        62, 63,                                   // 31-32
+    ];
+
+    // Blue dialog palette - maps dialog color indices to app palette
+    #[rustfmt::skip]
+    pub const CP_BLUE_DIALOG: &[u8] = &[
+        16, 17, 18, 19, 20, 21, 22, 23, 24, 25,  // 1-10
+        26, 27, 28, 29, 30, 31, 32, 33, 34, 35,  // 11-20
+        36, 37, 38, 39, 40, 41, 42, 43, 44, 45,  // 21-30
+        46, 47,                                   // 31-32
+    ];
+
+    // Button palette - maps button colors to parent (dialog) palette
+    #[rustfmt::skip]
+    pub const CP_BUTTON: &[u8] = &[
+        13, 13, 14, 14, 16, 15, 15, 9,  // 1-8: (4=disabled), shadow maps to dialog 9
+    ];
+
+    // StaticText palette
+    #[rustfmt::skip]
+    pub const CP_STATIC_TEXT: &[u8] = &[
+        2,  // 1: Normal text color (maps to dialog color 2 → app 33 = 0x70 Black on LightGray)
+    ];
+
+    // InputLine palette
+    #[rustfmt::skip]
+    pub const CP_INPUT_LINE: &[u8] = &[
+        19, 19, 20, 21,  // 1-4: Normal, focused, selected, arrows
+    ];
+
+    // Label palette
+    #[rustfmt::skip]
+    pub const CP_LABEL: &[u8] = &[
+        7, 8, 9,  // 1-3: Normal, selected, shortcut
+    ];
+
+    // ListBox palette
+    #[rustfmt::skip]
+    pub const CP_LISTBOX: &[u8] = &[
+        26, 26, 27, 28,  // 1-4: Normal, focused, selected, divider
+    ];
+
+    // ScrollBar palette
+    #[rustfmt::skip]
+    pub const CP_SCROLLBAR: &[u8] = &[
+        4, 5, 5,  // 1-3: Page, arrows, indicator
+    ];
+
+    // Cluster palette (CheckBox, RadioButton)
+    #[rustfmt::skip]
+    pub const CP_CLUSTER: &[u8] = &[
+        16, 17, 18, 19,  // 1-4: Normal, focused, shortcut, disabled
+    ];
+
+    // StatusLine palette
+    #[rustfmt::skip]
+    pub const CP_STATUSLINE: &[u8] = &[
+        2, 4, 45, 41,  // 1-4: Normal, shortcut, selected, selected_shortcut
+    ];
+
+    // MenuBar palette (gray background, matching desktop colors)
+    #[rustfmt::skip]
+    pub const CP_MENU_BAR: &[u8] = &[
+        2, 39, 3, 4,  // 1-4: Normal (Black/LightGray), Selected (White/Green), Disabled (DarkGray/LightGray), Shortcut (Red/LightGray)
+    ];
+}

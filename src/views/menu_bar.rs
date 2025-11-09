@@ -14,7 +14,6 @@
 use crate::core::geometry::{Rect, Point};
 use crate::core::event::{Event, EventType, KB_ALT_F, KB_ALT_H, KB_ENTER, KB_ESC, KB_LEFT, KB_RIGHT, KB_ESC_F, KB_ESC_H, KB_ESC_E, KB_ESC_S, KB_ESC_V, KB_ESC_ESC, MB_LEFT_BUTTON};
 use crate::core::draw::DrawBuffer;
-use crate::core::palette::colors;
 use crate::core::state::StateFlags;
 use crate::core::menu_data::{Menu, MenuItem};
 use crate::terminal::Terminal;
@@ -47,6 +46,7 @@ pub struct MenuBar {
     active_menu_idx: Option<usize>,  // Which submenu is currently open
     menu_state: MenuViewerState,  // State for dropdown menu items
     state: StateFlags,
+    owner: Option<*const dyn View>,
 }
 
 impl MenuBar {
@@ -58,6 +58,7 @@ impl MenuBar {
             active_menu_idx: None,
             menu_state: MenuViewerState::new(),
             state: 0,
+            owner: None,
         }
     }
 
@@ -145,6 +146,13 @@ impl MenuBar {
         let menu_y = self.bounds.a.y + 1;
         let menu = &self.submenus[menu_idx].menu;
 
+        // MenuBar palette indices:
+        // 1: Normal, 2: Selected, 3: Disabled, 4: Shortcut
+        let normal_attr = self.map_color(1);
+        let selected_attr = self.map_color(2);
+        let disabled_attr = self.map_color(3);
+        let shortcut_attr = self.map_color(4);
+
         // Calculate dropdown width
         let mut max_text_width = 12;
         let mut max_shortcut_width = 0;
@@ -174,11 +182,11 @@ impl MenuBar {
 
         // Draw top border
         let mut top_buf = DrawBuffer::new(dropdown_width);
-        top_buf.put_char(0, '┌', colors::MENU_NORMAL);
+        top_buf.put_char(0, '┌', normal_attr);
         for i in 1..dropdown_width - 1 {
-            top_buf.put_char(i, '─', colors::MENU_NORMAL);
+            top_buf.put_char(i, '─', normal_attr);
         }
-        top_buf.put_char(dropdown_width - 1, '┐', colors::MENU_NORMAL);
+        top_buf.put_char(dropdown_width - 1, '┐', normal_attr);
         write_line_to_terminal(terminal, menu_x, menu_y, &top_buf);
 
         // Draw menu items
@@ -188,23 +196,23 @@ impl MenuBar {
 
             match item {
                 MenuItem::Separator => {
-                    item_buf.put_char(0, '├', colors::MENU_NORMAL);
+                    item_buf.put_char(0, '├', normal_attr);
                     for j in 1..dropdown_width - 1 {
-                        item_buf.put_char(j, '─', colors::MENU_NORMAL);
+                        item_buf.put_char(j, '─', normal_attr);
                     }
-                    item_buf.put_char(dropdown_width - 1, '┤', colors::MENU_NORMAL);
+                    item_buf.put_char(dropdown_width - 1, '┤', normal_attr);
                 }
                 MenuItem::Regular { text, enabled, shortcut, .. } => {
                     let attr = if is_selected && *enabled {
-                        colors::MENU_SELECTED
+                        selected_attr
                     } else if !enabled {
-                        colors::MENU_DISABLED
+                        disabled_attr
                     } else {
-                        colors::MENU_NORMAL
+                        normal_attr
                     };
 
                     // Borders and fill
-                    item_buf.put_char(0, '│', colors::MENU_NORMAL);
+                    item_buf.put_char(0, '│', normal_attr);
                     for j in 1..dropdown_width - 1 {
                         item_buf.put_char(j, ' ', attr);
                     }
@@ -215,17 +223,17 @@ impl MenuBar {
                     while let Some(ch) = chars.next() {
                         if x >= dropdown_width - 1 { break; }
                         if ch == '~' {
-                            let shortcut_attr = if is_selected && *enabled {
-                                colors::MENU_SELECTED
+                            let item_shortcut_attr = if is_selected && *enabled {
+                                selected_attr
                             } else if !enabled {
-                                colors::MENU_DISABLED
+                                disabled_attr
                             } else {
-                                colors::MENU_SHORTCUT
+                                shortcut_attr
                             };
                             while let Some(sc) = chars.next() {
                                 if sc == '~' { break; }
                                 if x < dropdown_width - 1 {
-                                    item_buf.put_char(x, sc, shortcut_attr);
+                                    item_buf.put_char(x, sc, item_shortcut_attr);
                                     x += 1;
                                 }
                             }
@@ -245,16 +253,16 @@ impl MenuBar {
                         }
                     }
 
-                    item_buf.put_char(dropdown_width - 1, '│', colors::MENU_NORMAL);
+                    item_buf.put_char(dropdown_width - 1, '│', normal_attr);
                 }
                 MenuItem::SubMenu { text, .. } => {
                     let attr = if is_selected {
-                        colors::MENU_SELECTED
+                        selected_attr
                     } else {
-                        colors::MENU_NORMAL
+                        normal_attr
                     };
 
-                    item_buf.put_char(0, '│', colors::MENU_NORMAL);
+                    item_buf.put_char(0, '│', normal_attr);
                     for j in 1..dropdown_width - 1 {
                         item_buf.put_char(j, ' ', attr);
                     }
@@ -269,7 +277,7 @@ impl MenuBar {
 
                     // Draw arrow
                     item_buf.put_char(dropdown_width - 2, '►', attr);
-                    item_buf.put_char(dropdown_width - 1, '│', colors::MENU_NORMAL);
+                    item_buf.put_char(dropdown_width - 1, '│', normal_attr);
                 }
             }
 
@@ -278,11 +286,11 @@ impl MenuBar {
 
         // Draw bottom border
         let mut bottom_buf = DrawBuffer::new(dropdown_width);
-        bottom_buf.put_char(0, '└', colors::MENU_NORMAL);
+        bottom_buf.put_char(0, '└', normal_attr);
         for i in 1..dropdown_width - 1 {
-            bottom_buf.put_char(i, '─', colors::MENU_NORMAL);
+            bottom_buf.put_char(i, '─', normal_attr);
         }
-        bottom_buf.put_char(dropdown_width - 1, '┘', colors::MENU_NORMAL);
+        bottom_buf.put_char(dropdown_width - 1, '┘', normal_attr);
         write_line_to_terminal(terminal, menu_x, menu_y + 1 + dropdown_height, &bottom_buf);
 
         // Draw shadow
@@ -308,7 +316,14 @@ impl View for MenuBar {
     fn draw(&mut self, terminal: &mut Terminal) {
         let width = self.bounds.width() as usize;
         let mut buf = DrawBuffer::new(width);
-        buf.move_char(0, ' ', colors::MENU_NORMAL, width);
+
+        // MenuBar palette indices:
+        // 1: Normal, 2: Selected, 3: Disabled, 4: Shortcut
+        let normal_attr = self.map_color(1);
+        let selected_attr = self.map_color(2);
+        let shortcut_attr = self.map_color(4);
+
+        buf.move_char(0, ' ', normal_attr, width);
 
         // Draw menu names and track their positions
         let mut x: usize = 1;
@@ -319,9 +334,9 @@ impl View for MenuBar {
             }
 
             let attr = if self.active_menu_idx == Some(i) {
-                colors::MENU_SELECTED
+                selected_attr
             } else {
-                colors::MENU_NORMAL
+                normal_attr
             };
 
             // Parse ~X~ for highlighting
@@ -332,16 +347,16 @@ impl View for MenuBar {
             while let Some(ch) = chars.next() {
                 if ch == '~' {
                     // Read all characters until closing ~ in shortcut color
-                    let shortcut_attr = if self.active_menu_idx == Some(i) {
-                        colors::MENU_SELECTED
+                    let menu_shortcut_attr = if self.active_menu_idx == Some(i) {
+                        selected_attr
                     } else {
-                        colors::MENU_SHORTCUT
+                        shortcut_attr
                     };
                     while let Some(shortcut_ch) = chars.next() {
                         if shortcut_ch == '~' {
                             break;
                         }
-                        buf.put_char(x, shortcut_ch, shortcut_attr);
+                        buf.put_char(x, shortcut_ch, menu_shortcut_attr);
                         x += 1;
                     }
                 } else {
@@ -601,6 +616,19 @@ impl View for MenuBar {
 
     fn set_state(&mut self, state: StateFlags) {
         self.state = state;
+    }
+
+    fn set_owner(&mut self, owner: *const dyn View) {
+        self.owner = Some(owner);
+    }
+
+    fn get_owner(&self) -> Option<*const dyn View> {
+        self.owner
+    }
+
+    fn get_palette(&self) -> Option<crate::core::palette::Palette> {
+        use crate::core::palette::{Palette, palettes};
+        Some(Palette::from_slice(palettes::CP_MENU_BAR))
     }
 }
 

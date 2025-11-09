@@ -14,7 +14,7 @@
 
 use crate::core::geometry::{Point, Rect};
 use crate::core::event::{Event, EventType, MB_LEFT_BUTTON};
-use crate::core::palette::colors;
+use crate::core::palette::{Attr, TvColor};
 use crate::core::draw::DrawBuffer;
 use crate::core::state::StateFlags;
 use crate::core::history::HistoryManager;
@@ -30,6 +30,7 @@ pub struct History {
     history_id: u16,
     state: StateFlags,
     pub selected_item: Option<String>, // Public so InputLine can read it
+    owner: Option<*const dyn View>,
 }
 
 impl History {
@@ -42,6 +43,7 @@ impl History {
             history_id,
             state: 0,
             selected_item: None,
+            owner: None,
         }
     }
 
@@ -87,9 +89,9 @@ impl View for History {
         let arrow = if self.has_items() { "▼" } else { " " };
 
         let color = if self.is_focused() {
-            colors::BUTTON_SELECTED
+            Attr::new(TvColor::White, TvColor::Green)
         } else {
-            colors::BUTTON_NORMAL
+            Attr::new(TvColor::Black, TvColor::Green)
         };
 
         buf.move_str(0, arrow, color);
@@ -120,6 +122,18 @@ impl View for History {
 
     fn set_state(&mut self, state: StateFlags) {
         self.state = state;
+    }
+
+    fn set_owner(&mut self, owner: *const dyn View) {
+        self.owner = Some(owner);
+    }
+
+    fn get_owner(&self) -> Option<*const dyn View> {
+        self.owner
+    }
+
+    fn get_palette(&self) -> Option<crate::core::palette::Palette> {
+        None  // History uses hardcoded button colors
     }
 }
 

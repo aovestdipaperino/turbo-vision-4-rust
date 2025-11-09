@@ -246,6 +246,133 @@ pub trait View {
     fn label_link(&self) -> Option<usize> {
         None  // Default: not a label or no link
     }
+
+    /// Initialize internal owner pointers after view is added to parent and won't move
+    /// This is called by parent's add() method after the view is in its final position
+    /// Views that contain other views by value should override this to set up owner chains
+    /// Default implementation does nothing
+    fn init_after_add(&mut self) {
+        // Default: no action needed
+    }
+
+    /// Set the owner (parent) of this view
+    /// Matches Borland: TView::owner field
+    /// Called by Group when adding a child
+    fn set_owner(&mut self, _owner: *const dyn View) {
+        // Default: do nothing (views that need owner support will override)
+    }
+
+    /// Get the owner (parent) of this view
+    /// Matches Borland: TView::owner field
+    /// Returns None if this view has no owner or doesn't track it
+    fn get_owner(&self) -> Option<*const dyn View> {
+        None // Default: no owner
+    }
+
+    /// Get this view's palette for the Borland indirect palette system
+    /// Matches Borland: TView::getPalette()
+    ///
+    /// Returns a Palette that maps this view's logical color indices to the parent's indices.
+    /// When resolving colors, the system walks up the owner chain remapping through palettes
+    /// until reaching the Application which has actual color attributes.
+    ///
+    /// # Returns
+    /// * `Some(Palette)` - This view has a palette for color remapping
+    /// * `None` - This view has no palette (transparent to color mapping)
+    fn get_palette(&self) -> Option<crate::core::palette::Palette> {
+        None // Default: no palette
+    }
+
+    /// Map a logical color index to an actual color attribute
+    /// Matches Borland: TView::mapColor(uchar index)
+    ///
+    /// Walks up the owner chain, remapping the color index through each view's palette
+    /// until reaching a view with no owner (Application), which provides actual attributes.
+    ///
+    /// # Arguments
+    /// * `color_index` - Logical color index (1-based, 0 = error color)
+    ///
+    /// # Returns
+    /// The final color attribute
+    fn map_color(&self, color_index: u8) -> crate::core::palette::Attr {
+        use crate::core::palette::{Attr, Palette, palettes};
+        use std::io::Write;
+
+        let mut log = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open("calc.log")
+            .ok();
+
+        if let Some(ref mut log) = log {
+            writeln!(log, "      map_color({}) START", color_index).ok();
+        }
+
+        const ERROR_ATTR: u8 = 0x0F; // White on Black
+
+        if color_index == 0 {
+            return Attr::from_u8(ERROR_ATTR);
+        }
+
+        let mut color = color_index;
+
+        // First, remap through this view's palette
+        if let Some(palette) = self.get_palette() {
+            if !palette.is_empty() {
+                color = palette.get(color as usize);
+                if let Some(ref mut log) = log {
+                    writeln!(log, "      Remapped {} -> {} via own palette", color_index, color).ok();
+                }
+                if color == 0 {
+                    return Attr::from_u8(ERROR_ATTR);
+                }
+            }
+        }
+
+        // Then walk up the owner chain
+        let mut current_view = self.get_owner();
+        let mut depth = 0;
+        while let Some(view_ptr) = current_view {
+            depth += 1;
+            if let Some(ref mut log) = log {
+                writeln!(log, "      Chain depth {}: ptr={:?}", depth, view_ptr).ok();
+            }
+
+            let view = unsafe { &*view_ptr };
+
+            // Try to get palette for current view
+            if let Some(palette) = view.get_palette() {
+                if !palette.is_empty() {
+                    // Remap color through this palette
+                    let old_color = color;
+                    color = palette.get(color as usize);
+                    if let Some(ref mut log) = log {
+                        writeln!(log, "      Remapped {} -> {} at depth {}", old_color, color, depth).ok();
+                    }
+                    if color == 0 {
+                        // Palette entry was 0 - error color
+                        return Attr::from_u8(ERROR_ATTR);
+                    }
+                }
+            }
+
+            // Try to move to owner
+            current_view = view.get_owner();
+        }
+
+        if let Some(ref mut log) = log {
+            writeln!(log, "      Reached root after {} levels, using CP_APP_COLOR[{}]", depth, color).ok();
+        }
+
+        // Reached root (Application) - color is now an index into app palette
+        // Use the application color palette to get the final attribute
+        let app_palette = Palette::from_slice(palettes::CP_APP_COLOR);
+        let final_color = app_palette.get(color as usize);
+        if final_color == 0 {
+            return Attr::from_u8(ERROR_ATTR);
+        }
+        Attr::from_u8(final_color)
+    }
 }
 
 /// Helper to draw a line to the terminal

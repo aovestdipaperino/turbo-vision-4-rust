@@ -5,7 +5,7 @@
 use crate::core::geometry::Rect;
 use crate::core::event::{Event, EventType, MB_LEFT_BUTTON};
 use crate::core::draw::DrawBuffer;
-use crate::core::palette::{colors, Attr, TvColor};
+use crate::core::palette::{Attr, TvColor};
 use crate::core::command::CM_CLOSE;
 use crate::core::state::{StateFlags, SF_ACTIVE, SF_DRAGGING, SF_RESIZING};
 use crate::terminal::Terminal;
@@ -19,6 +19,7 @@ pub struct Frame {
     palette_type: FramePaletteType,
     /// State flags (active, dragging, etc.) - matches Borland's TView state
     state: StateFlags,
+    owner: Option<*const dyn View>,
 }
 
 /// Frame palette types for different window types
@@ -40,6 +41,7 @@ impl Frame {
             title: title.to_string(),
             palette_type,
             state: SF_ACTIVE,  // Default to active
+            owner: None,
         }
     }
 
@@ -78,9 +80,9 @@ impl Frame {
                     // cpDialog[3] = 0x23 (Cyan on Green) -> White on LightGray (frame)
                     // cpDialog[5] = 0x25 (Magenta on Green) -> LightGreen on LightGray (highlight)
                     // cpDialog[4] = 0x24 (Red on Green) -> White on LightGray (title)
-                    let frame_attr = colors::DIALOG_FRAME_ACTIVE;  // White on LightGray
+                    let frame_attr = Attr::new(TvColor::White, TvColor::LightGray);  // White on LightGray
                     let close_icon_attr = Attr::new(TvColor::LightGreen, TvColor::LightGray);
-                    let title_attr = colors::DIALOG_TITLE;  // White on LightGray
+                    let title_attr = Attr::new(TvColor::White, TvColor::LightGray);  // White on LightGray
                     (frame_attr, close_icon_attr, title_attr)
                 }
             }
@@ -238,5 +240,17 @@ impl View for Frame {
 
     fn set_state(&mut self, state: StateFlags) {
         self.state = state;
+    }
+
+    fn set_owner(&mut self, owner: *const dyn View) {
+        self.owner = Some(owner);
+    }
+
+    fn get_owner(&self) -> Option<*const dyn View> {
+        self.owner
+    }
+
+    fn get_palette(&self) -> Option<crate::core::palette::Palette> {
+        None  // Frame uses hardcoded colors based on FramePaletteType
     }
 }

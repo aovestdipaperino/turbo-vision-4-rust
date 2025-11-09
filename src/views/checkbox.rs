@@ -37,6 +37,7 @@ pub struct CheckBox {
     label: String,
     cluster_state: ClusterState,
     state: StateFlags,
+    owner: Option<*const dyn View>,
 }
 
 impl CheckBox {
@@ -47,6 +48,7 @@ impl CheckBox {
             label: label.to_string(),
             cluster_state: ClusterState::new(),
             state: 0,
+            owner: None,
         }
     }
 
@@ -95,6 +97,19 @@ impl View for CheckBox {
 
     fn set_state(&mut self, state: StateFlags) {
         self.state = state;
+    }
+
+    fn set_owner(&mut self, owner: *const dyn View) {
+        self.owner = Some(owner);
+    }
+
+    fn get_owner(&self) -> Option<*const dyn View> {
+        self.owner
+    }
+
+    fn get_palette(&self) -> Option<crate::core::palette::Palette> {
+        use crate::core::palette::{Palette, palettes};
+        Some(Palette::from_slice(palettes::CP_CLUSTER))
     }
 }
 
