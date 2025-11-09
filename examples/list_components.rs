@@ -8,10 +8,10 @@
 // - Menu building with MenuBuilder
 
 use turbo_vision::app::Application;
-use turbo_vision::core::command::{CM_QUIT, CM_NEW, CM_OPEN, CM_SAVE};
-use turbo_vision::core::event::{Event, EventType};
+use turbo_vision::core::command::{CM_NEW, CM_OPEN, CM_QUIT, CM_SAVE};
+use turbo_vision::core::event::EventType;
 use turbo_vision::core::geometry::{Point, Rect};
-use turbo_vision::core::menu_data::{MenuBuilder};
+use turbo_vision::core::menu_data::MenuBuilder;
 use turbo_vision::views::listbox::ListBox;
 use turbo_vision::views::menu_bar::{MenuBar, SubMenu};
 use turbo_vision::views::menu_box::MenuBox;
@@ -39,19 +39,14 @@ fn main() -> turbo_vision::core::error::Result<()> {
         .build();
 
     // Help menu
-    let help_menu = MenuBuilder::new()
-        .item("~A~bout", CMD_SHOW_MENU, 0)
-        .build();
+    let help_menu = MenuBuilder::new().item("~A~bout", CMD_SHOW_MENU, 0).build();
 
     menu_bar.add_submenu(SubMenu::new("~F~ile", file_menu));
     menu_bar.add_submenu(SubMenu::new("~H~elp", help_menu));
     app.set_menu_bar(menu_bar);
 
     // Create ListBox demonstrating ListViewer trait
-    let mut listbox = ListBox::new(
-        Rect::new(5, 3, 35, 13),
-        CMD_LIST_SELECT,
-    );
+    let mut listbox = ListBox::new(Rect::new(5, 3, 35, 13), CMD_LIST_SELECT);
     listbox.set_items(vec![
         "First Item".to_string(),
         "Second Item".to_string(),
@@ -133,7 +128,10 @@ fn main() -> turbo_vision::core::error::Result<()> {
         let _ = app.terminal.flush();
 
         // Handle events
-        if let Ok(Some(mut event)) = app.terminal.poll_event(std::time::Duration::from_millis(50)) {
+        if let Ok(Some(mut event)) = app
+            .terminal
+            .poll_event(std::time::Duration::from_millis(50))
+        {
             // MenuBar gets first chance
             if let Some(ref mut menu_bar) = app.menu_bar {
                 menu_bar.handle_event(&mut event);
@@ -184,7 +182,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
                             if selected_cmd != 0 {
                                 let msg = match selected_cmd {
                                     CM_NEW => "New Window selected",
-                                    102 => "Close Window selected",
+                                    //102 => "Close Window selected",
                                     103 => "Refresh selected",
                                     _ => "Unknown command",
                                 };
@@ -260,7 +258,10 @@ fn show_message(app: &mut Application, message: &str, width: i16, height: i16) {
 
     // Wait for keypress
     loop {
-        if let Ok(Some(event)) = app.terminal.poll_event(std::time::Duration::from_millis(50)) {
+        if let Ok(Some(event)) = app
+            .terminal
+            .poll_event(std::time::Duration::from_millis(50))
+        {
             if event.what == EventType::Keyboard {
                 break;
             }
