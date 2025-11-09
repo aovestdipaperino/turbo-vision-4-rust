@@ -407,26 +407,18 @@ pub trait View {
         //
         // Apply palette remapping based on ranges
         // This is a simplified version of Borland's owner chain traversal
-        //
-        // The issue: ScrollBar uses indices 4,5 which need different handling in Window vs Dialog
-        // - In Window: should map through Window palette (4->27, 5->28)
-        // - In Dialog: should map through Dialog palette (4->35, 5->36)
-        //
-        // Since we can't easily traverse owner chain, we use a heuristic:
-        // ScrollBar colors will default to Window style (blue on gray)
-        // TODO: Implement proper owner chain traversal for correct context detection
 
-        if color >= 9 && color <= 20 {
-            // Dialog control indices - remap through dialog palette
+        // For dialog controls (indices 1-31), remap through dialog palette based on OwnerType
+        // This includes scrollbars (4-5), static text (6), labels (7-9), buttons (10-14), etc.
+        // Note: Indices 32+ are already app palette indices and shouldn't be remapped
+        // Only remap if we're explicitly in a Dialog context
+        // Views with OwnerType::None (MenuBar, StatusLine, Desktop) use direct app palette
+        // Views with OwnerType::Window use direct app palette (Window-specific remapping not implemented)
+        let owner_type = self.get_owner_type();
+        if color >= 1 && color < 32 && owner_type == OwnerType::Dialog {
+            // Remap through dialog palette
             let dialog_palette = Palette::from_slice(palettes::CP_GRAY_DIALOG);
             let remapped = dialog_palette.get(color as usize);
-            if remapped > 0 {
-                color = remapped;
-            }
-        } else if color >= 32 && color < 64 {
-            // Direct dialog range (32-63) always gets remapped
-            let dialog_palette = Palette::from_slice(palettes::CP_GRAY_DIALOG);
-            let remapped = dialog_palette.get((color - 31) as usize);
             if remapped > 0 {
                 color = remapped;
             }
