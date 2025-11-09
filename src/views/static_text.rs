@@ -14,6 +14,7 @@ pub struct StaticText {
     text: String,
     centered: bool,
     owner: Option<*const dyn View>,
+    owner_type: super::view::OwnerType,
 }
 
 impl StaticText {
@@ -23,6 +24,7 @@ impl StaticText {
             text: text.to_string(),
             centered: false,
             owner: None,
+            owner_type: super::view::OwnerType::Dialog, // StaticText defaults to Dialog context
         }
     }
 
@@ -32,6 +34,7 @@ impl StaticText {
             text: text.to_string(),
             centered: true,
             owner: None,
+            owner_type: super::view::OwnerType::Dialog, // StaticText defaults to Dialog context
         }
     }
 }
@@ -87,6 +90,14 @@ impl View for StaticText {
 
     fn get_owner(&self) -> Option<*const dyn View> {
         self.owner
+    }
+
+    fn get_owner_type(&self) -> super::view::OwnerType {
+        self.owner_type
+    }
+
+    fn set_owner_type(&mut self, owner_type: super::view::OwnerType) {
+        self.owner_type = owner_type;
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {

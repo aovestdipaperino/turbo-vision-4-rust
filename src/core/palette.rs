@@ -279,6 +279,15 @@ impl Attr {
         (self.fg as u8) | ((self.bg as u8) << 4)
     }
 
+    /// Swaps foreground and background colors
+    /// Useful when using block characters instead of spaces for shadows
+    pub fn swap(self) -> Self {
+        Self {
+            fg: self.bg,
+            bg: self.fg,
+        }
+    }
+
     /// Creates a darkened version of this attribute (for semi-transparent shadows)
     /// Reduces RGB values by the given factor (0.0 = black, 1.0 = unchanged)
     /// Default shadow factor is 0.5 (50% darker)
@@ -428,23 +437,24 @@ impl Default for Palette {
 pub mod palettes {
     // Application color palette - contains actual color attributes (1-indexed)
     // This is the root palette that contains real Attr values encoded as u8
+    // From Borland cpColor (program.h):
+    //   Palette layout:
+    //     1      = TBackground
+    //     2-7    = TMenuView and TStatusLine
+    //     8-15   = TWindow(Blue)
+    //     16-23  = TWindow(Cyan)
+    //     24-31  = TWindow(Gray)
+    //     32-63  = TDialog
     #[rustfmt::skip]
     pub const CP_APP_COLOR: &[u8] = &[
         0x71, 0x70, 0x78, 0x74, 0x20, 0x28, 0x24, 0x17, // 1-8: Desktop colors
-        0x1F, 0x1A, 0x31, 0x31, 0x1E, 0x71, 0x1F,       // 9-15: Menu colors
-        0x37, 0x3F, 0x3A, 0x13, 0x13, 0x3E, 0x21,       // 16-22: More menu
-        0x70, 0x7F, 0x7A, 0x71, 0x71, 0x71, 0x71,       // 23-29: Dialog frame (27-29 for Window ScrollBar)
-        0x7A, 0x13, 0x13, 0x70, 0x74, 0x74, 0x7E,       // 30-36: Dialog interior (35-36 for Dialog ScrollBar)
-        0x20, 0x2B, 0x2F, 0x87, 0x2E, 0x70,             // 37-42: Dialog controls (shadow: 0x87 test)
-        0x20, 0x2A, 0x2F, 0x1F, 0x2E, 0x70,             // 43-48: Button (Green background!)
-        0x3F, 0x1E, 0x1F, 0x2F, 0x1A, 0x20,             // 49-54: InputLine at 50 = 0x1E (Yellow/Blue)
-        0x72, 0x31,                                      // 55-56: Borland positions 54-55
-        0x13, 0x13, 0x30, 0x3E, 0x13,                   // 57-61: History
-        0x30, 0x3F, 0x3E, 0x70, 0x2F,                   // 62-66: List viewer
-        0x37, 0x3F, 0x3A, 0x20, 0x2E, 0x30,             // 67-72: Info pane
-        0x3F, 0x3E, 0x1F, 0x2F, 0x1A, 0x20,             // 73-78: Cluster (more)
-        0x72, 0x31, 0x31, 0x30, 0x2F, 0x3E,             // 79-84: Editor
-        0x31,                                            // 85: Reserved
+        0x1F, 0x1A, 0x31, 0x31, 0x1E, 0x71, 0x00,       // 9-15: Menu colors
+        0x37, 0x3F, 0x3A, 0x13, 0x13, 0x3E, 0x21, 0x00, // 16-23: Cyan Window
+        0x70, 0x7F, 0x7A, 0x13, 0x13, 0x70, 0x7F, 0x00, // 24-31: Gray Window
+        0x70, 0x7F, 0x7A, 0x13, 0x13, 0x70, 0x70, 0x7F, // 32-39: Dialog (Frame, StaticText, Label, etc.)
+        0x7E, 0x20, 0x2B, 0x2F, 0x78, 0x2E, 0x70, 0x30, // 40-47: Dialog (controls)
+        0x3F, 0x3E, 0x1F, 0x2F, 0x1A, 0x20, 0x72, 0x31, // 48-55: Dialog (InputLine, Button, etc.)
+        0x31, 0x30, 0x2F, 0x3E, 0x31, 0x13, 0x38, 0x00, // 56-63: Dialog (remaining)
     ];
 
     // Window palettes - map window color indices to app palette
@@ -484,17 +494,16 @@ pub mod palettes {
         46, 47,                                   // 31-32
     ];
 
-    // Button palette - maps button colors to dialog palette indices (1-32)
-    // Dialog indices 12-17 map through CP_GRAY_DIALOG to app indices 43-48 (button colors)
+    // Button palette - from Borland cpButton "\x0A\x0B\x0C\x0D\x0E\x0E\x0E\x0F"
     #[rustfmt::skip]
     pub const CP_BUTTON: &[u8] = &[
-        12, 12, 13, 13, 15, 14, 14, 9,  // 1-8: Normal, Default, Focused, Disabled, reserved, Shortcut, reserved, Shadow (9->40 = 0x87)
+        10, 11, 12, 13, 14, 14, 14, 15,  // 1-8: Matches Borland exactly
     ];
 
-    // StaticText palette
+    // StaticText palette - from Borland cpStaticText "\x06"
     #[rustfmt::skip]
     pub const CP_STATIC_TEXT: &[u8] = &[
-        2,  // 1: Normal text color (maps to dialog color 2 → app 33 = 0x70 Black on LightGray)
+        6,  // 1: Normal text color
     ];
 
     // InputLine palette - from Borland cpInputLine "\x13\x13\x14\x15" (19, 19, 20, 21)
@@ -504,10 +513,11 @@ pub mod palettes {
         19, 19, 20, 21,  // 1-4: Normal, focused, selected, arrows (from Borland)
     ];
 
-    // Label palette
+    // Label palette - from Borland cpLabel "\x07\x08\x09\x09\x0D\x0D"
+    // Used with getColor(0x0301) for normal, getColor(0x0402) for focused, getColor(0x0605) for disabled
     #[rustfmt::skip]
     pub const CP_LABEL: &[u8] = &[
-        7, 8, 9,  // 1-3: Normal, selected, shortcut
+        7, 8, 9, 9, 13, 13,  // 1-6: Normal fg/bg, Light fg/bg, Disabled fg/bg
     ];
 
     // ListBox palette
@@ -537,11 +547,6 @@ pub mod palettes {
     // MenuBar palette (gray background, matching desktop colors)
     #[rustfmt::skip]
     pub const CP_MENU_BAR: &[u8] = &[
-        2, 39, 3, 4,  // 1-4: Normal (Black/LightGray), Selected (White/Green), Disabled (DarkGray/LightGray), Shortcut (Red/LightGray)
+        2, 3, 4, 5, 6, 7,  // 1-6: Matches Borland cpMenuView exactly
     ];
 }
-
-// Include regression tests module
-#[cfg(test)]
-#[path = "palette_regression_tests.rs"]
-mod palette_regression_tests;

@@ -14,6 +14,7 @@ pub struct Label {
     text: String,
     link: Option<usize>, // Index of linked control in parent group
     owner: Option<*const dyn View>,
+    owner_type: super::view::OwnerType,
 }
 
 impl Label {
@@ -23,6 +24,7 @@ impl Label {
             text: text.to_string(),
             link: None,
             owner: None,
+            owner_type: super::view::OwnerType::Dialog, // Labels default to Dialog context
         }
     }
 
@@ -75,6 +77,14 @@ impl View for Label {
 
     fn get_owner(&self) -> Option<*const dyn View> {
         self.owner
+    }
+
+    fn get_owner_type(&self) -> super::view::OwnerType {
+        self.owner_type
+    }
+
+    fn set_owner_type(&mut self, owner_type: super::view::OwnerType) {
+        self.owner_type = owner_type;
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
