@@ -8,8 +8,8 @@
 // - Case-sensitive vs case-insensitive sorting
 
 use turbo_vision::app::Application;
-use turbo_vision::core::command::{CM_QUIT};
-use turbo_vision::core::event::{Event, EventType};
+use turbo_vision::core::command::CM_QUIT;
+use turbo_vision::core::event::EventType;
 use turbo_vision::core::geometry::Rect;
 use turbo_vision::views::sorted_listbox::SortedListBox;
 use turbo_vision::views::status_line::{StatusItem, StatusLine};
@@ -135,7 +135,10 @@ fn main() -> turbo_vision::core::error::Result<()> {
         let _ = app.terminal.flush();
 
         // Handle events
-        if let Ok(Some(mut event)) = app.terminal.poll_event(std::time::Duration::from_millis(50)) {
+        if let Ok(Some(mut event)) = app
+            .terminal
+            .poll_event(std::time::Duration::from_millis(50))
+        {
             // Listbox handles navigation
             listbox.handle_event(&mut event);
 

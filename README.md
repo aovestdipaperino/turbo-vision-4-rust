@@ -4,11 +4,12 @@
 
 A Rust implementation of the classic Borland Turbo Vision text user interface framework.
 
-**Version 0.9.0 - CODE COMPLETE** ✅
+**Version 0.9.2 - CODE COMPLETE** ✅
 
 Based on
 kloczek Borland Turbo Vision C++ port [here](https://github.com/kloczek/tvision)
-Other implementations:
+
+Other C++ implementations:
 - [Magiblot Turbo Vision for C++](https://github.com/magiblot/tvision)
 - [Borland Original Turbo Vision 2.0.3 code](http://www.sigala.it/sergio/tvision/source/tv2orig.zip)
 
@@ -34,43 +35,52 @@ kloczek port of Borland Turbo Vision C++. All features from the original framewo
 - **Cross-Platform**: Built on crossterm for wide terminal compatibility
 - **Modal Dialogs**: Built-in support for modal dialog execution
 - **Focus Management**: Tab navigation and keyboard shortcuts
-- **ANSI Dump**: Debug UI by dumping screen/views to ANSI text files (F12 for full screen, F11 for active view, with flash effect)
+- **ANSI Dump**: Debug UI by dumping screen/views to ANSI text files (F12 for full screen, Shift+F12 for active view, with flash effect)
 
 ## Quick Start
 
 ```rust
 use turbo_vision::prelude::*;
-use turbo_vision::app::Application;
-use turbo_vision::views::{
-    dialog::Dialog,
-    button::Button,
-    static_text::StaticText,
-};
 
-fn main() -> std::io::Result<()> {
+fn main() -> turbo_vision::core::error::Result<()> {
+    // Create application with terminal
     let mut app = Application::new()?;
-
-    // Create a simple dialog
-    let mut dialog = Dialog::new(
-        Rect::new(20, 8, 60, 16),
-        "Hello World"
+    // Create a window
+    let mut window = turbo_vision::views::window::Window::new(Rect::new(10, 5, 50, 15), "My First Window");
+    // Create a button
+    let button = turbo_vision::views::button::Button::new(
+        Rect::new(15, 5, 25, 7),
+        "Click Me",
+        turbo_vision::core::command::CM_OK,
+        false,
     );
-
-    let text = StaticText::new(
-        Rect::new(22, 10, 58, 12),
-        "Welcome to Turbo Vision!"
-    );
-    dialog.add(Box::new(text));
-
-    let button = Button::new(
-        Rect::new(35, 13, 45, 15),
-        "  OK  ",
-        CM_OK,
-        true
-    );
-    dialog.add(Box::new(button));
-
-    dialog.execute(&mut app.terminal);
+    // Add the button to the window
+    window.add(Box::new(button));
+    // Add the window to the desktop
+    app.desktop.add(Box::new(window));
+    // Run event loop
+    app.running = true;
+    while app.running {
+        app.desktop.draw(&mut app.terminal);
+        app.terminal.flush()?;
+        if let Ok(Some(mut event)) = app
+            .terminal
+            .poll_event(std::time::Duration::from_millis(50))
+        {
+            app.desktop.handle_event(&mut event);
+            if event.what == EventType::Command {
+                match event.command {
+                    CM_QUIT => app.running = false,
+                    CM_OK => {
+                        // Handle button click
+                        app.running = false;
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+    app.terminal.shutdown()?;
     Ok(())
 }
 ```
@@ -86,7 +96,30 @@ fn main() -> std::io::Result<()> {
 
 ## Documentation
 
-See the [examples](examples) for a complete simple examples.
+### Examples
+
+Read [examples/README.md](examples/README.md) for a complete set of examples.
+
+Compile all examples at once:
+
+```bash
+cargo build --examples             # Checkout `target/debug/examples`
+cargo run --example dialog_example # For example  
+```
+
+Build and run the demo `rust_editor` 
+
+```bash
+cargo run --bin rust_editor --release 
+```
+
+### User Guide
+Read [Chapter 1](docs/user-guide/Chapter-1-Stepping-into-Turbo-Vision.md) of the User Guide. The 18 chapters are available in `docs/user-guide/` directory. 
+
+### References
+Read the [index](docs/DOCUMENTATION_INDEX.md). Other references are available in the `docs/` directory: 
+
+
 
 ## Status
 
@@ -130,9 +163,6 @@ This implementation closely follows Borland Turbo Vision's architecture, adapted
   - Three-phase processing (PreProcess → Focused → PostProcess) matching Borland's `TGroup::handleEvent()`
   - Event re-queuing via `Terminal::put_event()` matching Borland's `TProgram::putEvent()`
   - Owner-aware broadcasts via `Group::broadcast()` matching Borland's `message(owner, ...)` pattern
-- **Reference Implementation**: Studied original Borland C++ source code in `local-only/borland-tvision/`
-
-See `local-only/ARCHITECTURAL-FINDINGS.md` for detailed analysis of how Borland's C++ architecture maps to Rust.
 
 ## Project Statistics
 
@@ -153,3 +183,4 @@ Generated with [tokei](https://github.com/XAMPPRocky/tokei) - includes inline do
 ## License
 
 MIT License - see [LICENSE](LICENSE) file for details.
+
