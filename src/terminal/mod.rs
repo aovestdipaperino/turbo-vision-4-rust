@@ -38,7 +38,7 @@ use crate::core::error::Result;
 use crossterm::{
     cursor, execute, queue, style,
     terminal::{self},
-    event::{self, Event as CTEvent, MouseEventKind, MouseButton},
+    event::{self, Event as CTEvent, KeyEventKind, MouseEventKind, MouseButton},
 };
 use std::io::{self, Write, stdout};
 use std::time::{Duration, Instant};
@@ -396,6 +396,12 @@ impl Terminal {
         if event::poll(timeout)? {
             match event::read()? {
                 CTEvent::Key(key) => {
+                    // On Windows, crossterm sends both Press and Release events
+                    // Filter to only process Press events to avoid duplicates
+                    if key.kind != KeyEventKind::Press {
+                        return Ok(None);
+                    }
+
                     let key_code = self.esc_tracker.process_key(key);
                     if key_code == 0 {
                         // ESC sequence in progress, don't generate event yet
@@ -447,6 +453,12 @@ impl Terminal {
         loop {
             match event::read()? {
                 CTEvent::Key(key) => {
+                    // On Windows, crossterm sends both Press and Release events
+                    // Filter to only process Press events to avoid duplicates
+                    if key.kind != KeyEventKind::Press {
+                        continue;
+                    }
+
                     let key_code = self.esc_tracker.process_key(key);
                     if key_code == 0 {
                         // ESC sequence in progress, wait for next key
