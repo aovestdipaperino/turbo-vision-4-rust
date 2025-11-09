@@ -18,12 +18,13 @@
 //! - This happens automatically through the command set broadcast system!
 
 use turbo_vision::app::Application;
-use turbo_vision::core::command::{CommandId, CM_CANCEL, CM_COPY, CM_CUT, CM_PASTE, CM_UNDO, CM_REDO};
+use turbo_vision::core::command::{
+    CommandId, CM_CANCEL, CM_COPY, CM_CUT, CM_PASTE, CM_REDO, CM_UNDO,
+};
 use turbo_vision::core::command_set;
-use turbo_vision::core::event::{Event, EventType};
+use turbo_vision::core::event::EventType;
 use turbo_vision::core::geometry::Rect;
-use turbo_vision::views::{View, dialog::Dialog, button::Button, static_text::StaticText};
-use turbo_vision::terminal::Terminal;
+use turbo_vision::views::{button::Button, dialog::Dialog, static_text::StaticText};
 
 // Custom commands for this demo
 const CMD_ENABLE_EDITS: CommandId = 200;
@@ -43,7 +44,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
     // Create dialog
     let mut dialog = Dialog::new(
         Rect::new(10, 4, 70, 21),
-        "Command Set Demo - Automatic Button Enable/Disable"
+        "Command Set Demo - Automatic Button Enable/Disable",
     );
 
     // Instructions
@@ -53,49 +54,24 @@ fn main() -> turbo_vision::core::error::Result<()> {
          \n\
          Edit commands start DISABLED (gray).\n\
          Press ~E~ to Enable edits - buttons turn GREEN!\n\
-         Press ~D~ to Disable edits - buttons turn GRAY!"
+         Press ~D~ to Disable edits - buttons turn GRAY!",
     );
     dialog.add(Box::new(instructions));
 
     // Edit command buttons (will be initially disabled due to command set)
-    let cut_button = Button::new(
-        Rect::new(2, 7, 14, 9),
-        " C~u~t ",
-        CM_CUT,
-        false,
-    );
+    let cut_button = Button::new(Rect::new(2, 7, 14, 9), " C~u~t ", CM_CUT, false);
     dialog.add(Box::new(cut_button));
 
-    let copy_button = Button::new(
-        Rect::new(15, 7, 27, 9),
-        " ~C~opy ",
-        CM_COPY,
-        false,
-    );
+    let copy_button = Button::new(Rect::new(15, 7, 27, 9), " ~C~opy ", CM_COPY, false);
     dialog.add(Box::new(copy_button));
 
-    let paste_button = Button::new(
-        Rect::new(28, 7, 40, 9),
-        " ~P~aste ",
-        CM_PASTE,
-        false,
-    );
+    let paste_button = Button::new(Rect::new(28, 7, 40, 9), " ~P~aste ", CM_PASTE, false);
     dialog.add(Box::new(paste_button));
 
-    let undo_button = Button::new(
-        Rect::new(2, 10, 14, 12),
-        " ~U~ndo ",
-        CM_UNDO,
-        false,
-    );
+    let undo_button = Button::new(Rect::new(2, 10, 14, 12), " ~U~ndo ", CM_UNDO, false);
     dialog.add(Box::new(undo_button));
 
-    let redo_button = Button::new(
-        Rect::new(15, 10, 27, 12),
-        " ~R~edo ",
-        CM_REDO,
-        false,
-    );
+    let redo_button = Button::new(Rect::new(15, 10, 27, 12), " ~R~edo ", CM_REDO, false);
     dialog.add(Box::new(redo_button));
 
     // Control buttons
@@ -116,12 +92,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
     dialog.add(Box::new(disable_button));
 
     // Close button
-    let close_button = Button::new(
-        Rect::new(22, 13, 38, 15),
-        "  Close  ",
-        CM_CANCEL,
-        true,
-    );
+    let close_button = Button::new(Rect::new(22, 13, 38, 15), "  Close  ", CM_CANCEL, true);
     dialog.add(Box::new(close_button));
 
     // Execute the dialog - use standard Application.run() with custom command handling
@@ -131,7 +102,10 @@ fn main() -> turbo_vision::core::error::Result<()> {
     // Custom event loop to handle Enable/Disable commands
     loop {
         // Use application's event handling
-        if let Ok(Some(mut event)) = app.terminal.poll_event(std::time::Duration::from_millis(50)) {
+        if let Ok(Some(mut event)) = app
+            .terminal
+            .poll_event(std::time::Duration::from_millis(50))
+        {
             app.handle_event(&mut event);
 
             // Check for our custom commands

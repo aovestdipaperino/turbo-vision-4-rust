@@ -2,27 +2,29 @@
 // Full Demo - Turbo Vision Feature Demonstration
 // Port of the classic Borland TV demo application
 
+use std::time::SystemTime;
 use turbo_vision::app::Application;
-use turbo_vision::views::{
-    dialog::Dialog,
-    window::Window,
-    button::Button,
-    static_text::StaticText,
-    menu_bar::{MenuBar, SubMenu},
-    status_line::{StatusLine, StatusItem},
-    file_dialog::FileDialog,
-    View,
+use turbo_vision::core::command::{
+    CM_CASCADE, CM_CLOSE, CM_NEXT, CM_OK, CM_PREV, CM_QUIT, CM_TILE, CM_ZOOM,
 };
-use turbo_vision::core::command::{CM_QUIT, CM_OK, CM_CLOSE, CM_NEXT, CM_PREV, CM_ZOOM, CM_TILE, CM_CASCADE};
-use turbo_vision::core::event::{Event, EventType, KB_F1, KB_F3, KB_F10};
+use turbo_vision::core::draw::DrawBuffer;
+use turbo_vision::core::event::{Event, EventType, KB_F1, KB_F10, KB_F3};
 use turbo_vision::core::geometry::Rect;
 use turbo_vision::core::menu_data::{Menu, MenuItem};
 use turbo_vision::core::palette::{colors, Attr, TvColor};
-use turbo_vision::core::draw::DrawBuffer;
 use turbo_vision::core::state::StateFlags;
 use turbo_vision::terminal::Terminal;
 use turbo_vision::views::view::write_line_to_terminal;
-use std::time::SystemTime;
+use turbo_vision::views::{
+    button::Button,
+    dialog::Dialog,
+    file_dialog::FileDialog,
+    menu_bar::{MenuBar, SubMenu},
+    static_text::StaticText,
+    status_line::{StatusItem, StatusLine},
+    window::Window,
+    View,
+};
 
 // Custom commands
 const CM_ABOUT: u16 = 100;
@@ -85,10 +87,7 @@ struct ClockView {
 
 impl ClockView {
     fn new(bounds: Rect) -> Self {
-        Self {
-            bounds,
-            state: 0,
-        }
+        Self { bounds, state: 0 }
     }
 
     fn get_time_string() -> String {
@@ -249,10 +248,7 @@ fn create_status_line(width: u16, height: u16) -> StatusLine {
 }
 
 fn show_about_dialog(app: &mut Application) {
-    let mut dialog = Dialog::new(
-        Rect::new(20, 7, 60, 16),
-        "About"
-    );
+    let mut dialog = Dialog::new(Rect::new(20, 7, 60, 16), "About");
 
     dialog.add(Box::new(StaticText::new(
         Rect::new(2, 2, 36, 7),
@@ -267,7 +263,7 @@ fn show_about_dialog(app: &mut Application) {
         Rect::new(14, 5, 24, 7),
         "  OK  ",
         CM_OK,
-        true
+        true,
     )));
 
     dialog.set_initial_focus();
@@ -282,10 +278,7 @@ struct AsciiTable {
 
 impl AsciiTable {
     fn new(bounds: Rect) -> Self {
-        Self {
-            bounds,
-            state: 0,
-        }
+        Self { bounds, state: 0 }
     }
 }
 
@@ -318,7 +311,11 @@ impl View for AsciiTable {
 
             if row == 0 {
                 // Header
-                buf.move_str(2, "Char Dec  Hex", Attr::new(TvColor::Yellow, TvColor::Blue));
+                buf.move_str(
+                    2,
+                    "Char Dec  Hex",
+                    Attr::new(TvColor::Yellow, TvColor::Blue),
+                );
             } else if row > 0 && row <= 56 {
                 // 4 columns of characters (32-255 = 224 chars / 4 = 56 rows)
                 for col in 0..4 {
@@ -336,7 +333,12 @@ impl View for AsciiTable {
                 }
             }
 
-            write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y + row as i16, &buf);
+            write_line_to_terminal(
+                terminal,
+                self.bounds.a.x,
+                self.bounds.a.y + row as i16,
+                &buf,
+            );
         }
     }
 
@@ -355,13 +357,11 @@ fn show_ascii_table(app: &mut Application) {
 
     let mut window = Window::new(
         Rect::new(win_x, win_y, win_x + win_width, win_y + win_height),
-        "ASCII Table"
+        "ASCII Table",
     );
 
     // ASCII table fills the interior
-    let ascii_table = AsciiTable::new(
-        Rect::new(1, 1, win_width - 2, win_height - 2)
-    );
+    let ascii_table = AsciiTable::new(Rect::new(1, 1, win_width - 2, win_height - 2));
 
     window.add(Box::new(ascii_table));
     app.desktop.add(Box::new(window));
@@ -388,12 +388,12 @@ struct CalcDisplay {
 
 impl CalcDisplay {
     fn new(bounds: Rect) -> Self {
-        use turbo_vision::core::state::{SF_VISIBLE, OF_SELECTABLE};
+        use turbo_vision::core::state::{OF_SELECTABLE, SF_VISIBLE};
 
         Self {
             bounds,
             state: SF_VISIBLE,
-            options: OF_SELECTABLE,  // Must be selectable to receive keyboard events
+            options: OF_SELECTABLE, // Must be selectable to receive keyboard events
             calc_state: CalcState::First,
             number: "0".to_string(),
             sign: ' ',
@@ -430,7 +430,11 @@ impl CalcDisplay {
 
         // Remove trailing zeros after decimal point
         if self.number.contains('.') {
-            self.number = self.number.trim_end_matches('0').trim_end_matches('.').to_string();
+            self.number = self
+                .number
+                .trim_end_matches('0')
+                .trim_end_matches('.')
+                .to_string();
         }
 
         if self.number.len() > 25 {
@@ -461,7 +465,8 @@ impl CalcDisplay {
                     self.number.push(key);
                 }
             }
-            '\x08' | '\x1b' => { // Backspace or Escape
+            '\x08' | '\x1b' => {
+                // Backspace or Escape
                 self.check_first();
                 if self.number.len() == 1 {
                     self.number = "0".to_string();
@@ -469,7 +474,8 @@ impl CalcDisplay {
                     self.number.pop();
                 }
             }
-            '_' => { // +/- (toggle sign)
+            '_' => {
+                // +/- (toggle sign)
                 self.sign = if self.sign == ' ' { '-' } else { ' ' };
             }
             '.' => {
@@ -514,7 +520,10 @@ impl CalcDisplay {
     }
 
     fn handle_command(&mut self, command: u16) {
-        let keys = ['C', '\x08', '%', '_', '7', '8', '9', '/', '4', '5', '6', '*', '1', '2', '3', '-', '0', '.', '=', '+'];
+        let keys = [
+            'C', '\x08', '%', '_', '7', '8', '9', '/', '4', '5', '6', '*', '1', '2', '3', '-', '0',
+            '.', '=', '+',
+        ];
         if command >= CM_CALC_BUTTON && command < CM_CALC_BUTTON + 20 {
             let idx = (command - CM_CALC_BUTTON) as usize;
             if idx < keys.len() {
@@ -608,11 +617,11 @@ impl View for CalcDisplay {
 fn show_calculator_placeholder(app: &mut Application) {
     let display_len = 25;
     let dialog_width = 6 + display_len;
-    let dialog_height = 15;  // Back to original height
+    let dialog_height = 15; // Back to original height
 
     let mut dialog = Dialog::new(
         Rect::new(5, 3, 5 + dialog_width as i16, 3 + dialog_height as i16),
-        "Calculator"
+        "Calculator",
     );
 
     // Add display at top - moved 1 row up and 1 to the left
@@ -621,11 +630,8 @@ fn show_calculator_placeholder(app: &mut Application) {
 
     // Add buttons in 4x5 grid
     let button_labels = [
-        "C", "<-", "%", "+-",
-        "7", "8", "9", "/",
-        "4", "5", "6", "*",
-        "1", "2", "3", "-",
-        "0", ".", "=", "+",
+        "C", "<-", "%", "+-", "7", "8", "9", "/", "4", "5", "6", "*", "1", "2", "3", "-", "0", ".",
+        "=", "+",
     ];
 
     for i in 0..20 {
@@ -636,7 +642,7 @@ fn show_calculator_placeholder(app: &mut Application) {
             Rect::new(x, y, x + 6, y + 2),
             button_labels[i as usize],
             CM_CALC_BUTTON + i as u16,
-            false
+            false,
         );
         // Make button broadcast and non-selectable
         // Matches Borland: bfBroadcast flag and ofSelectable cleared (calculat.cc:54-55)
@@ -664,7 +670,7 @@ struct CalendarView {
 
 impl CalendarView {
     fn new(bounds: Rect) -> Self {
-        use std::time::{SystemTime, UNIX_EPOCH};
+        use std::time::UNIX_EPOCH;
 
         // Get current date
         let now = SystemTime::now()
@@ -702,8 +708,18 @@ impl CalendarView {
         }
 
         let days_in_month = [
-            31, if Self::is_leap_year(year) { 29 } else { 28 },
-            31, 30, 31, 30, 31, 31, 30, 31, 30, 31
+            31,
+            if Self::is_leap_year(year) { 29 } else { 28 },
+            31,
+            30,
+            31,
+            30,
+            31,
+            31,
+            30,
+            31,
+            30,
+            31,
         ];
 
         let mut month = 1;
@@ -727,7 +743,13 @@ impl CalendarView {
         match month {
             1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
             4 | 6 | 9 | 11 => 30,
-            2 => if Self::is_leap_year(year) { 29 } else { 28 },
+            2 => {
+                if Self::is_leap_year(year) {
+                    29
+                } else {
+                    28
+                }
+            }
             _ => 0,
         }
     }
@@ -746,7 +768,8 @@ impl CalendarView {
 
         let century = y / 100;
         let yr = y % 100;
-        let mut dw = (((26 * m - 2) / 10) + day as i32 + yr + (yr / 4) + (century / 4) - (2 * century)) % 7;
+        let mut dw =
+            (((26 * m - 2) / 10) + day as i32 + yr + (yr / 4) + (century / 4) - (2 * century)) % 7;
 
         if dw < 0 {
             dw += 7;
@@ -831,7 +854,11 @@ impl View for CalendarView {
         let first_day_of_week = Self::day_of_week(1, self.month, self.year);
         let days_in_month = Self::days_in_month(self.month, self.year);
 
-        let mut current = if first_day_of_week == 0 { 1 } else { 1 - first_day_of_week as i32 };
+        let mut current = if first_day_of_week == 0 {
+            1
+        } else {
+            1 - first_day_of_week as i32
+        };
 
         // Lines 2-7: Calendar grid (6 weeks)
         for week in 0..6 {
@@ -845,7 +872,8 @@ impl View for CalendarView {
                     let day_str = format!("{:2}", current);
                     let day_color = if self.year == self.cur_year
                         && self.month == self.cur_month
-                        && current == self.cur_day as i32 {
+                        && current == self.cur_day as i32
+                    {
                         bold_color
                     } else {
                         color
@@ -855,12 +883,17 @@ impl View for CalendarView {
                 current += 1;
             }
 
-            write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y + 2 + week as i16, &buf);
+            write_line_to_terminal(
+                terminal,
+                self.bounds.a.x,
+                self.bounds.a.y + 2 + week as i16,
+                &buf,
+            );
         }
     }
 
     fn handle_event(&mut self, event: &mut Event) {
-        use turbo_vision::core::event::{KB_UP, KB_DOWN};
+        use turbo_vision::core::event::{KB_DOWN, KB_UP};
 
         match event.what {
             EventType::MouseDown => {
@@ -880,11 +913,13 @@ impl View for CalendarView {
             }
             EventType::Keyboard => {
                 match event.key_code {
-                    KB_DOWN | 0x2B => { // Down arrow or '+'
+                    KB_DOWN | 0x2B => {
+                        // Down arrow or '+'
                         self.next_month();
                         event.what = EventType::Nothing;
                     }
-                    KB_UP | 0x2D => { // Up arrow or '-'
+                    KB_UP | 0x2D => {
+                        // Up arrow or '-'
                         self.prev_month();
                         event.what = EventType::Nothing;
                     }
@@ -899,10 +934,7 @@ impl View for CalendarView {
 }
 
 fn show_calendar_placeholder(app: &mut Application) {
-    let mut window = Window::new(
-        Rect::new(1, 1, 24, 11),
-        "Calendar"
-    );
+    let mut window = Window::new(Rect::new(1, 1, 24, 11), "Calendar");
 
     let calendar_view = CalendarView::new(Rect::new(0, 0, 22, 10));
     window.add(Box::new(calendar_view));
@@ -931,10 +963,7 @@ impl PuzzleView {
 
         // Initialize board with starting position
         let board_start = [
-            'A', 'B', 'C', 'D',
-            'E', 'F', 'G', 'H',
-            'I', 'J', 'K', 'L',
-            'M', 'N', 'O', ' ',
+            'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', ' ',
         ];
 
         for i in 0..4 {
@@ -948,7 +977,8 @@ impl PuzzleView {
     }
 
     fn scramble(&mut self) {
-        use std::time::{SystemTime, UNIX_EPOCH};
+        //use std::time::{SystemTime, UNIX_EPOCH};
+        use std::time::UNIX_EPOCH;
 
         self.moves = 0;
         self.solved = false;
@@ -994,7 +1024,7 @@ impl PuzzleView {
             }
         }
 
-        use turbo_vision::core::event::{KB_DOWN, KB_UP, KB_RIGHT, KB_LEFT};
+        use turbo_vision::core::event::{KB_DOWN, KB_LEFT, KB_RIGHT, KB_UP};
 
         match key {
             KB_DOWN => {
@@ -1102,12 +1132,7 @@ impl View for PuzzleView {
         let width = self.bounds.width() as usize;
 
         // Color map for alternating tile colors
-        let map = [
-            0, 1, 0, 1,
-            1, 0, 1, 0,
-            0, 1, 0, 1,
-            1, 0, 1
-        ];
+        let map = [0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1];
 
         let color_normal = Attr::new(TvColor::LightGray, TvColor::Blue);
         let color_alt = Attr::new(TvColor::White, TvColor::Cyan);
@@ -1150,7 +1175,8 @@ impl View for PuzzleView {
     }
 
     fn handle_event(&mut self, event: &mut Event) {
-        if self.solved && (event.what == EventType::Keyboard || event.what == EventType::MouseDown) {
+        if self.solved && (event.what == EventType::Keyboard || event.what == EventType::MouseDown)
+        {
             self.scramble();
             event.what = EventType::Nothing;
             return;
@@ -1175,10 +1201,7 @@ impl View for PuzzleView {
 }
 
 fn show_puzzle_placeholder(app: &mut Application) {
-    let mut window = Window::new(
-        Rect::new(1, 1, 21, 7),
-        "Puzzle"
-    );
+    let mut window = Window::new(Rect::new(1, 1, 21, 7), "Puzzle");
 
     let puzzle_view = PuzzleView::new(Rect::new(1, 1, 18, 5));
     window.add(Box::new(puzzle_view));
@@ -1196,11 +1219,17 @@ fn show_open_file_dialog(app: &mut Application) {
     let dialog_y = (height as i16 - dialog_height - 2) / 2;
 
     let mut file_dialog = FileDialog::new(
-        Rect::new(dialog_x, dialog_y, dialog_x + dialog_width, dialog_y + dialog_height),
+        Rect::new(
+            dialog_x,
+            dialog_y,
+            dialog_x + dialog_width,
+            dialog_y + dialog_height,
+        ),
         "Open File",
         "*.*",
         None,
-    ).build();  // Build the dialog UI
+    )
+    .build(); // Build the dialog UI
 
     if let Some(path) = file_dialog.execute(app) {
         // Show selected file in a message (in a real app, would open the file)
@@ -1211,12 +1240,12 @@ fn show_open_file_dialog(app: &mut Application) {
 }
 
 fn show_chdir_dialog(app: &mut Application) {
-    use turbo_vision::views::{input_line::InputLine, listbox::ListBox, label::Label};
-    use turbo_vision::core::command::CM_CANCEL;
-    use std::path::PathBuf;
-    use std::fs;
-    use std::rc::Rc;
     use std::cell::RefCell;
+    use std::fs;
+    use std::path::PathBuf;
+    use std::rc::Rc;
+    //use turbo_vision::core::command::CM_CANCEL;
+    use turbo_vision::views::{input_line::InputLine, label::Label, listbox::ListBox};
 
     let (width, height) = app.terminal.size();
 
@@ -1227,8 +1256,13 @@ fn show_chdir_dialog(app: &mut Application) {
     let dialog_y = (height as i16 - dialog_height - 2) / 2;
 
     let mut dialog = Dialog::new(
-        Rect::new(dialog_x, dialog_y, dialog_x + dialog_width, dialog_y + dialog_height),
-        "Change Directory"
+        Rect::new(
+            dialog_x,
+            dialog_y,
+            dialog_x + dialog_width,
+            dialog_y + dialog_height,
+        ),
+        "Change Directory",
     );
 
     // Directory name input - Matches Borland: TRect( 3, 3, 30, 4 )
@@ -1344,15 +1378,20 @@ fn main() -> turbo_vision::core::error::Result<()> {
     app.set_status_line(status_line);
 
     // Create clock view (right side of menu bar) - Matches Borland: tvdemo1.cc:128
-    let clock_width = 9;  // "HH:MM:SS" format + space
+    let clock_width = 9; // "HH:MM:SS" format + space
     let mut clock = ClockView::new(Rect::new(width as i16 - clock_width, 0, width as i16, 1));
 
     // Create heap/message view (right side of status bar) - Matches Borland: tvdemo1.cc:133
     let message = "Hello, World!";
-    let msg_width = 13;  // Fixed width like Borland's heap view
+    let msg_width = 13; // Fixed width like Borland's heap view
     let mut message_view = MessageView::new(
-        Rect::new(width as i16 - msg_width, height as i16 - 1, width as i16, height as i16),
-        message
+        Rect::new(
+            width as i16 - msg_width,
+            height as i16 - 1,
+            width as i16,
+            height as i16,
+        ),
+        message,
     );
 
     // Show about dialog on startup
@@ -1370,7 +1409,10 @@ fn main() -> turbo_vision::core::error::Result<()> {
 
         app.terminal.flush()?;
 
-        if let Ok(Some(mut event)) = app.terminal.poll_event(std::time::Duration::from_millis(50)) {
+        if let Ok(Some(mut event)) = app
+            .terminal
+            .poll_event(std::time::Duration::from_millis(50))
+        {
             // Menu bar handles events first
             if let Some(ref mut menu_bar) = app.menu_bar {
                 menu_bar.handle_event(&mut event);
