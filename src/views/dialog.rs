@@ -314,6 +314,10 @@ impl View for Dialog {
         // This completes the palette chain: Button → interior → Window → Desktop
         self.window.init_interior_owner();
     }
+
+    fn constrain_to_parent_bounds(&mut self) {
+        self.window.constrain_to_limits();
+    }
 }
 
 impl Dialog {
