@@ -57,6 +57,7 @@ impl Window {
             super::frame::FramePaletteType::Editor,
             Attr::new(TvColor::Yellow, TvColor::Blue),
             WindowPaletteType::Blue,
+            true, // resizable
         )
     }
 
@@ -69,6 +70,7 @@ impl Window {
             super::frame::FramePaletteType::Dialog,
             Attr::new(TvColor::Black, TvColor::LightGray),
             WindowPaletteType::Dialog,
+            false, // not resizable (TDialog doesn't have wfGrow)
         )
     }
 
@@ -78,12 +80,10 @@ impl Window {
         frame_palette: super::frame::FramePaletteType,
         interior_color: crate::core::palette::Attr,
         window_palette: WindowPaletteType,
+        resizable: bool,
     ) -> Self {
         use crate::core::state::{OF_SELECTABLE, OF_TILEABLE, OF_TOP_SELECT};
 
-        // Determine if frame should be resizable based on window type
-        // Matches Borland: TWindow has wfGrow flag, TDialog does not
-        let resizable = matches!(window_palette, WindowPaletteType::Blue | WindowPaletteType::Cyan | WindowPaletteType::Gray);
         let frame = Frame::with_palette(bounds, title, frame_palette, resizable);
 
         // Interior bounds are ABSOLUTE (inset by 1 from window bounds for frame)
@@ -645,6 +645,7 @@ impl WindowBuilder {
             bounds,
             &title,
             super::frame::FramePaletteType::Editor,
+            Attr::new(TvColor::Yellow, TvColor::Blue),
             WindowPaletteType::Blue,
             self.resizable,
         )
