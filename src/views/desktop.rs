@@ -508,7 +508,8 @@ impl View for Desktop {
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
         use crate::core::palette::{Palette, palettes};
         // Desktop uses the application palette directly (no remapping)
-        Some(Palette::from_slice(palettes::CP_APP_COLOR))
+        let app_palette_data = palettes::get_app_palette();
+        Some(Palette::from_slice(&app_palette_data))
     }
 }
 

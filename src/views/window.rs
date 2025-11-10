@@ -53,9 +53,10 @@ impl Window {
         use crate::core::palette::{palettes, Palette, Attr, BLUE_WINDOW_BACKGROUND};
 
         // Map interior color through blue window palette
+        let app_palette_data = palettes::get_app_palette();
         let palette = Palette::from_slice(palettes::CP_BLUE_WINDOW);
         let app_index = palette.get(BLUE_WINDOW_BACKGROUND as usize);
-        let interior_color = Attr::from_u8(palettes::CP_APP_COLOR[app_index as usize - 1]);
+        let interior_color = Attr::from_u8(app_palette_data[app_index as usize - 1]);
 
         Self::new_with_palette(
             bounds,
@@ -73,9 +74,10 @@ impl Window {
         use crate::core::palette::{palettes, Palette, Attr, WINDOW_BACKGROUND};
 
         // Map interior color through dialog palette
+        let app_palette_data = palettes::get_app_palette();
         let palette = Palette::from_slice(palettes::CP_GRAY_DIALOG);
         let app_index = palette.get(WINDOW_BACKGROUND as usize);
-        let interior_color = Attr::from_u8(palettes::CP_APP_COLOR[app_index as usize - 1]);
+        let interior_color = Attr::from_u8(app_palette_data[app_index as usize - 1]);
 
         Self::new_with_palette(
             bounds,
@@ -724,9 +726,10 @@ impl WindowBuilder {
         let title = self.title.expect("Window title must be set");
 
         // Map interior color through blue window palette
+        let app_palette_data = palettes::get_app_palette();
         let palette = Palette::from_slice(palettes::CP_BLUE_WINDOW);
         let app_index = palette.get(BLUE_WINDOW_BACKGROUND as usize);
-        let interior_color = Attr::from_u8(palettes::CP_APP_COLOR[app_index as usize - 1]);
+        let interior_color = Attr::from_u8(app_palette_data[app_index as usize - 1]);
 
         Window::new_with_palette(
             bounds,
