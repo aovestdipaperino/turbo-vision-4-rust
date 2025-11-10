@@ -11,7 +11,7 @@ use turbo_vision::app::Application;
 use turbo_vision::core::command::CM_QUIT;
 use turbo_vision::core::event::EventType;
 use turbo_vision::core::geometry::Rect;
-use turbo_vision::views::sorted_listbox::SortedListBox;
+use turbo_vision::views::sorted_listbox::SortedListBoxBuilder;
 use turbo_vision::views::status_line::{StatusItem, StatusLine};
 use turbo_vision::views::View;
 
