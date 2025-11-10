@@ -19,6 +19,9 @@ pub struct Frame {
     palette_type: FramePaletteType,
     /// State flags (active, dragging, etc.) - matches Borland's TView state
     state: StateFlags,
+    /// Whether the frame is resizable (matches Borland's wfGrow flag)
+    /// Resizable frames use single-line bottom corners and show resize handle
+    resizable: bool,
     owner: Option<*const dyn View>,
 }
 
@@ -41,6 +44,7 @@ impl Frame {
             title: title.to_string(),
             palette_type,
             state: SF_ACTIVE,  // Default to active
+            resizable,
             owner: None,
         }
     }

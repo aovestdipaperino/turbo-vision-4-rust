@@ -81,7 +81,10 @@ impl Window {
     ) -> Self {
         use crate::core::state::{OF_SELECTABLE, OF_TILEABLE, OF_TOP_SELECT};
 
-        let frame = Frame::with_palette(bounds, title, frame_palette);
+        // Determine if frame should be resizable based on window type
+        // Matches Borland: TWindow has wfGrow flag, TDialog does not
+        let resizable = matches!(window_palette, WindowPaletteType::Blue | WindowPaletteType::Cyan | WindowPaletteType::Gray);
+        let frame = Frame::with_palette(bounds, title, frame_palette, resizable);
 
         // Interior bounds are ABSOLUTE (inset by 1 from window bounds for frame)
         let mut interior_bounds = bounds;
