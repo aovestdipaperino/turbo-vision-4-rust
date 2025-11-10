@@ -24,7 +24,7 @@ use turbo_vision::core::command::{
 use turbo_vision::core::command_set;
 use turbo_vision::core::event::EventType;
 use turbo_vision::core::geometry::Rect;
-use turbo_vision::views::{button::Button, dialog::Dialog, static_text::StaticText};
+use turbo_vision::views::{button::ButtonBuilder, dialog::DialogBuilder, static_text::StaticTextBuilder};
 
 // Custom commands for this demo
 const CMD_ENABLE_EDITS: CommandId = 200;
@@ -42,57 +42,87 @@ fn main() -> turbo_vision::core::error::Result<()> {
     command_set::disable_command(CM_REDO);
 
     // Create dialog
-    let mut dialog = Dialog::new(
-        Rect::new(10, 4, 70, 21),
-        "Command Set Demo - Automatic Button Enable/Disable",
-    );
+    let mut dialog = DialogBuilder::new()
+        .bounds(Rect::new(10, 4, 70, 21))
+        .title("Command Set Demo - Automatic Button Enable/Disable")
+        .build();
 
     // Instructions
-    let instructions = StaticText::new(
-        Rect::new(2, 1, 56, 6),
-        "This demo shows AUTOMATIC button enable/disable!\n\
+    let instructions = StaticTextBuilder::new()
+        .bounds(Rect::new(2, 1, 56, 6))
+        .text("This demo shows AUTOMATIC button enable/disable!\n\
          \n\
          Edit commands start DISABLED (gray).\n\
          Press ~E~ to Enable edits - buttons turn GREEN!\n\
-         Press ~D~ to Disable edits - buttons turn GRAY!",
-    );
+         Press ~D~ to Disable edits - buttons turn GRAY!")
+        .build();
     dialog.add(Box::new(instructions));
 
     // Edit command buttons (will be initially disabled due to command set)
-    let cut_button = Button::new(Rect::new(2, 7, 14, 9), " C~u~t ", CM_CUT, false);
+    let cut_button = ButtonBuilder::new()
+        .bounds(Rect::new(2, 7, 14, 9))
+        .title(" C~u~t ")
+        .command(CM_CUT)
+        .default(false)
+        .build();
     dialog.add(Box::new(cut_button));
 
-    let copy_button = Button::new(Rect::new(15, 7, 27, 9), " ~C~opy ", CM_COPY, false);
+    let copy_button = ButtonBuilder::new()
+        .bounds(Rect::new(15, 7, 27, 9))
+        .title(" ~C~opy ")
+        .command(CM_COPY)
+        .default(false)
+        .build();
     dialog.add(Box::new(copy_button));
 
-    let paste_button = Button::new(Rect::new(28, 7, 40, 9), " ~P~aste ", CM_PASTE, false);
+    let paste_button = ButtonBuilder::new()
+        .bounds(Rect::new(28, 7, 40, 9))
+        .title(" ~P~aste ")
+        .command(CM_PASTE)
+        .default(false)
+        .build();
     dialog.add(Box::new(paste_button));
 
-    let undo_button = Button::new(Rect::new(2, 10, 14, 12), " ~U~ndo ", CM_UNDO, false);
+    let undo_button = ButtonBuilder::new()
+        .bounds(Rect::new(2, 10, 14, 12))
+        .title(" ~U~ndo ")
+        .command(CM_UNDO)
+        .default(false)
+        .build();
     dialog.add(Box::new(undo_button));
 
-    let redo_button = Button::new(Rect::new(15, 10, 27, 12), " ~R~edo ", CM_REDO, false);
+    let redo_button = ButtonBuilder::new()
+        .bounds(Rect::new(15, 10, 27, 12))
+        .title(" ~R~edo ")
+        .command(CM_REDO)
+        .default(false)
+        .build();
     dialog.add(Box::new(redo_button));
 
     // Control buttons
-    let enable_button = Button::new(
-        Rect::new(42, 7, 56, 9),
-        "~E~nable Edits",
-        CMD_ENABLE_EDITS,
-        false,
-    );
+    let enable_button = ButtonBuilder::new()
+        .bounds(Rect::new(42, 7, 56, 9))
+        .title("~E~nable Edits")
+        .command(CMD_ENABLE_EDITS)
+        .default(false)
+        .build();
     dialog.add(Box::new(enable_button));
 
-    let disable_button = Button::new(
-        Rect::new(42, 10, 56, 12),
-        "~D~isable Edits",
-        CMD_DISABLE_EDITS,
-        false,
-    );
+    let disable_button = ButtonBuilder::new()
+        .bounds(Rect::new(42, 10, 56, 12))
+        .title("~D~isable Edits")
+        .command(CMD_DISABLE_EDITS)
+        .default(false)
+        .build();
     dialog.add(Box::new(disable_button));
 
     // Close button
-    let close_button = Button::new(Rect::new(22, 13, 38, 15), "  Close  ", CM_CANCEL, true);
+    let close_button = ButtonBuilder::new()
+        .bounds(Rect::new(22, 13, 38, 15))
+        .title("  Close  ")
+        .command(CM_CANCEL)
+        .default(true)
+        .build();
     dialog.add(Box::new(close_button));
 
     // Execute the dialog - use standard Application.run() with custom command handling

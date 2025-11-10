@@ -7,10 +7,10 @@ use turbo_vision::core::command::CM_QUIT;
 use turbo_vision::core::event::EventType;
 use turbo_vision::core::geometry::Rect;
 use turbo_vision::core::palette::Attr;
-use turbo_vision::views::button::Button;
-use turbo_vision::views::static_text::StaticText;
+use turbo_vision::views::button::ButtonBuilder;
+use turbo_vision::views::static_text::StaticTextBuilder;
 use turbo_vision::views::terminal_widget::TerminalWidget;
-use turbo_vision::views::window::Window;
+use turbo_vision::views::window::WindowBuilder;
 use turbo_vision::views::View;
 
 const CM_ADD_LINE: u16 = 100;
@@ -52,41 +52,44 @@ fn main() -> turbo_vision::core::error::Result<()> {
     app.desktop.add(Box::new(terminal));
 
     // Create window with buttons
-    let mut window = Window::new(Rect::new(5, 2, 75, 22), "Terminal Widget Demo");
+    let mut window = WindowBuilder::new()
+        .bounds(Rect::new(5, 2, 75, 22))
+        .title("Terminal Widget Demo")
+        .build();
 
-    window.add(Box::new(StaticText::new(
-        Rect::new(2, 2, 66, 3),
-        "Simulates build output. Use arrows/PgUp/PgDn to scroll. Auto-scrolls when at bottom.",
-    )));
+    window.add(Box::new(StaticTextBuilder::new()
+        .bounds(Rect::new(2, 2, 66, 3))
+        .text("Simulates build output. Use arrows/PgUp/PgDn to scroll. Auto-scrolls when at bottom.")
+        .build()));
 
     // Buttons (positioned below the terminal widget area)
-    window.add(Box::new(Button::new(
-        Rect::new(2, 15, 17, 17),
-        "Add Line",
-        CM_ADD_LINE,
-        false,
-    )));
+    window.add(Box::new(ButtonBuilder::new()
+        .bounds(Rect::new(2, 15, 17, 17))
+        .title("Add Line")
+        .command(CM_ADD_LINE)
+        .default(false)
+        .build()));
 
-    window.add(Box::new(Button::new(
-        Rect::new(18, 15, 36, 17),
-        "Add 100 Lines",
-        CM_ADD_BATCH,
-        false,
-    )));
+    window.add(Box::new(ButtonBuilder::new()
+        .bounds(Rect::new(18, 15, 36, 17))
+        .title("Add 100 Lines")
+        .command(CM_ADD_BATCH)
+        .default(false)
+        .build()));
 
-    window.add(Box::new(Button::new(
-        Rect::new(37, 15, 48, 17),
-        "Clear",
-        CM_CLEAR,
-        false,
-    )));
+    window.add(Box::new(ButtonBuilder::new()
+        .bounds(Rect::new(37, 15, 48, 17))
+        .title("Clear")
+        .command(CM_CLEAR)
+        .default(false)
+        .build()));
 
-    window.add(Box::new(Button::new(
-        Rect::new(49, 15, 60, 17),
-        "Quit",
-        CM_QUIT,
-        true,
-    )));
+    window.add(Box::new(ButtonBuilder::new()
+        .bounds(Rect::new(49, 15, 60, 17))
+        .title("Quit")
+        .command(CM_QUIT)
+        .default(true)
+        .build()));
 
     app.desktop.add(Box::new(window));
 

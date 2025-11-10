@@ -6,9 +6,9 @@ use turbo_vision::app::Application;
 use turbo_vision::core::command::CM_QUIT;
 use turbo_vision::core::event::EventType;
 use turbo_vision::core::geometry::Rect;
-use turbo_vision::views::button::Button;
-use turbo_vision::views::static_text::StaticText;
-use turbo_vision::views::window::Window;
+use turbo_vision::views::button::ButtonBuilder;
+use turbo_vision::views::static_text::StaticTextBuilder;
+use turbo_vision::views::window::WindowBuilder;
 use turbo_vision::views::View;
 
 const CM_UPDATE_TITLE: u16 = 100;
@@ -16,26 +16,29 @@ const CM_UPDATE_TITLE: u16 = 100;
 fn main() -> turbo_vision::core::error::Result<()> {
     let mut app = Application::new()?;
 
-    let mut window = Window::new(Rect::new(10, 3, 70, 18), "Click button to change title");
+    let mut window = WindowBuilder::new()
+        .bounds(Rect::new(10, 3, 70, 18))
+        .title("Click button to change title")
+        .build();
 
-    window.add(Box::new(StaticText::new(
-        Rect::new(2, 2, 56, 6),
-        "This demo shows dynamic window title updates.\n\nClick the button below to cycle through\ndifferent window titles."
-    )));
+    window.add(Box::new(StaticTextBuilder::new()
+        .bounds(Rect::new(2, 2, 56, 6))
+        .text("This demo shows dynamic window title updates.\n\nClick the button below to cycle through\ndifferent window titles.")
+        .build()));
 
-    window.add(Box::new(Button::new(
-        Rect::new(15, 8, 40, 10),
-        "Change Title",
-        CM_UPDATE_TITLE,
-        true,
-    )));
+    window.add(Box::new(ButtonBuilder::new()
+        .bounds(Rect::new(15, 8, 40, 10))
+        .title("Change Title")
+        .command(CM_UPDATE_TITLE)
+        .default(true)
+        .build()));
 
-    window.add(Box::new(Button::new(
-        Rect::new(15, 11, 40, 13),
-        "Quit",
-        CM_QUIT,
-        false,
-    )));
+    window.add(Box::new(ButtonBuilder::new()
+        .bounds(Rect::new(15, 11, 40, 13))
+        .title("Quit")
+        .command(CM_QUIT)
+        .default(false)
+        .build()));
 
     app.desktop.add(Box::new(window));
     let window_index = app.desktop.child_count() - 1;

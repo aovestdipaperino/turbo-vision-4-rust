@@ -93,8 +93,11 @@ let scroll_bounds = Rect::new(
     interior_bounds.b.y
 );
 
-let vscroll = ScrollBar::new(scroll_bounds);
-window.add(Box::new(vscroll));
+let vscroll = ScrollBarBuilder::new()
+    .bounds(scroll_bounds)
+    .vertical()
+    .build_boxed();
+window.add(vscroll);
 
 // Create horizontal scroll bar at the bottom
 let hscroll_bounds = Rect::new(
@@ -104,8 +107,11 @@ let hscroll_bounds = Rect::new(
     interior_bounds.b.y
 );
 
-let hscroll = ScrollBar::new(hscroll_bounds);
-window.add(Box::new(hscroll));
+let hscroll = ScrollBarBuilder::new()
+    .bounds(hscroll_bounds)
+    .horizontal()
+    .build_boxed();
+window.add(hscroll);
 ```
 
 Scroll bars respond to mouse clicks on arrows, page areas, and thumb dragging. See `src/views/scrollbar.rs` for the ScrollBar implementation.
@@ -290,10 +296,12 @@ The current Rust implementation handles control data through direct access rathe
 
 ```rust
 // Store reference when creating
-let input = Rc::new(RefCell::new(InputLine::new(
-    Rect::new(16, 2, 36, 3),
-    30
-)));
+let input = Rc::new(RefCell::new(
+    InputLineBuilder::new()
+        .bounds(Rect::new(16, 2, 36, 3))
+        .max_length(30)
+        .build()
+));
 dialog.add(Box::new(input.clone()));
 
 // Later: set value

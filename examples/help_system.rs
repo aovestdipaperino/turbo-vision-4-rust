@@ -14,8 +14,8 @@ use turbo_vision::core::command::{CM_CANCEL, CM_OK};
 //use turbo_vision::core::geometry::Rect;
 use turbo_vision::prelude::*;
 use turbo_vision::views::{
-    button::Button, dialog::Dialog, help_context::HelpContext, help_file::HelpFile,
-    help_window::HelpWindow, static_text::StaticText,
+    button::ButtonBuilder, dialog::DialogBuilder, help_context::HelpContext, help_file::HelpFile,
+    help_window::HelpWindow, static_text::StaticTextBuilder,
 };
 
 fn main() -> turbo_vision::core::error::Result<()> {
@@ -34,31 +34,54 @@ fn main() -> turbo_vision::core::error::Result<()> {
     help_ctx.register(103, "search");
 
     // Create main dialog
-    let mut dialog = Dialog::new(Rect::new(15, 5, 65, 18), "Help System Demo");
+    let mut dialog = DialogBuilder::new()
+        .bounds(Rect::new(15, 5, 65, 18))
+        .title("Help System Demo")
+        .build();
 
-    let text = StaticText::new(
-        Rect::new(17, 7, 63, 11),
-        "Press buttons to show different help topics:\n\n\
+    let text = StaticTextBuilder::new()
+        .bounds(Rect::new(17, 7, 63, 11))
+        .text("Press buttons to show different help topics:\n\n\
          - Welcome: Introduction\n\
          - File Menu: File operations\n\
-         - Edit Menu: Editing commands",
-    );
+         - Edit Menu: Editing commands")
+        .build();
     dialog.add(Box::new(text));
 
     // Welcome button
-    let welcome_btn = Button::new(Rect::new(20, 12, 34, 14), "~W~elcome", 100, false);
+    let welcome_btn = ButtonBuilder::new()
+        .bounds(Rect::new(20, 12, 34, 14))
+        .title("~W~elcome")
+        .command(100)
+        .default(false)
+        .build();
     dialog.add(Box::new(welcome_btn));
 
     // File Menu button
-    let file_btn = Button::new(Rect::new(36, 12, 48, 14), "~F~ile", 101, false);
+    let file_btn = ButtonBuilder::new()
+        .bounds(Rect::new(36, 12, 48, 14))
+        .title("~F~ile")
+        .command(101)
+        .default(false)
+        .build();
     dialog.add(Box::new(file_btn));
 
     // Edit Menu button
-    let edit_btn = Button::new(Rect::new(50, 12, 62, 14), "~E~dit", 102, false);
+    let edit_btn = ButtonBuilder::new()
+        .bounds(Rect::new(50, 12, 62, 14))
+        .title("~E~dit")
+        .command(102)
+        .default(false)
+        .build();
     dialog.add(Box::new(edit_btn));
 
     // OK button
-    let ok_btn = Button::new(Rect::new(37, 15, 47, 17), "  OK  ", CM_OK, true);
+    let ok_btn = ButtonBuilder::new()
+        .bounds(Rect::new(37, 15, 47, 17))
+        .title("  OK  ")
+        .command(CM_OK)
+        .default(true)
+        .build();
     dialog.add(Box::new(ok_btn));
 
     // Show dialog and handle help buttons
