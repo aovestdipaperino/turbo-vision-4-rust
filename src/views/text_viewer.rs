@@ -238,12 +238,14 @@ impl View for TextViewer {
         };
 
         for y in 0..height {
-            use crate::core::palette::colors::DIALOG_NORMAL;
             let line_idx = (self.delta.y + y as i16) as usize;
             let mut buf = DrawBuffer::new(width);
 
+            // Use palette index 1 for normal text from CP_SCROLLER
+            let color = self.map_color(1);
+
             // Fill with spaces
-            buf.move_char(0, ' ', DIALOG_NORMAL, width);
+            buf.move_char(0, ' ', color, width);
 
             if line_idx < self.lines.len() {
                 let line = &self.lines[line_idx];
@@ -252,7 +254,7 @@ impl View for TextViewer {
                 // Draw line number if enabled
                 if self.show_line_numbers {
                     let line_num = format!("{:4} ", line_idx + 1);
-                    buf.move_str(0, &line_num, DIALOG_NORMAL);
+                    buf.move_str(0, &line_num, color);
                     x_offset = line_num_width;
                 }
 
@@ -262,7 +264,7 @@ impl View for TextViewer {
                     let visible_width = width - x_offset;
                     let end_col = min(start_col + visible_width, line.len());
                     let visible_text = &line[start_col..end_col];
-                    buf.move_str(x_offset, visible_text, DIALOG_NORMAL);
+                    buf.move_str(x_offset, visible_text, color);
                 }
             }
 
@@ -379,7 +381,8 @@ impl View for TextViewer {
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        None  // TextViewer uses hardcoded dialog colors
+        use crate::core::palette::{palettes, Palette};
+        Some(Palette::from_slice(palettes::CP_SCROLLER))
     }
 }
 

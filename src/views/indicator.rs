@@ -53,13 +53,20 @@ impl View for Indicator {
             format!(" {}:{} ", self.location.y, self.location.x)
         };
 
+        // Use palette indices from CP_INDICATOR
+        // 1 = Normal indicator, 2 = Modified indicator
+        let color = if self.modified {
+            self.map_color(2)
+        } else {
+            self.map_color(1)
+        };
+
         // Right-align the indicator
-        use crate::core::palette::colors::DIALOG_FRAME;
         let text_len = text.len().min(width);
         let start_pos = width.saturating_sub(text_len);
 
-        buf.move_char(0, ' ', DIALOG_FRAME, width);
-        buf.move_str(start_pos, &text, DIALOG_FRAME);
+        buf.move_char(0, ' ', color, width);
+        buf.move_str(start_pos, &text, color);
 
         write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y, &buf);
     }
@@ -77,7 +84,8 @@ impl View for Indicator {
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        None  // Indicator uses hardcoded dialog colors
+        use crate::core::palette::{palettes, Palette};
+        Some(Palette::from_slice(palettes::CP_INDICATOR))
     }
 }
 

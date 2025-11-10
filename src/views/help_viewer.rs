@@ -149,12 +149,12 @@ impl View for HelpViewer {
             self.bounds.width() as usize
         };
 
-        // Determine color based on focus
-        use crate::core::palette::colors::{LISTBOX_FOCUSED, LISTBOX_NORMAL};
+        // Determine color based on focus using CP_HELP_VIEWER palette
+        // 1 = Normal text, 2 = Focused text
         let color = if self.state & SF_FOCUSED != 0 {
-            LISTBOX_FOCUSED
+            self.map_color(2)
         } else {
-            LISTBOX_NORMAL
+            self.map_color(1)
         };
 
         for row in 0..self.bounds.height() {
@@ -236,7 +236,8 @@ impl View for HelpViewer {
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        None // HelpViewer uses hardcoded colors
+        use crate::core::palette::{palettes, Palette};
+        Some(Palette::from_slice(palettes::CP_HELP_VIEWER))
     }
 }
 

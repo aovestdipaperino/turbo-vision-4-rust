@@ -576,6 +576,14 @@ pub mod palettes {
         4, 5, 5,  // 1-3: Page, arrows, indicator
     ];
 
+    // Scroller palette (base class for scrollable views)
+    // Borland: cpScroller = "\x06\x07" (6, 7)
+    // Used by TScroller and derived classes like TTextDevice/TTerminal
+    #[rustfmt::skip]
+    pub const CP_SCROLLER: &[u8] = &[
+        6, 7,  // 1-2: Normal scrollable area, Selected item
+    ];
+
     // Cluster palette (CheckBox, RadioButton)
     #[rustfmt::skip]
     pub const CP_CLUSTER: &[u8] = &[
@@ -592,5 +600,28 @@ pub mod palettes {
     #[rustfmt::skip]
     pub const CP_MENU_BAR: &[u8] = &[
         2, 5, 3, 4,  // 1-4: Normal (Black/LightGray), Selected (Black/Green), Disabled (DarkGray/LightGray), Shortcut (Red/LightGray)
+    ];
+
+    // Memo palette (multi-line text editor)
+    // Borland: cpMemo = "\x1A\x1B" (26, 27)
+    // Maps to window interior colors for editor-like behavior
+    #[rustfmt::skip]
+    pub const CP_MEMO: &[u8] = &[
+        26, 27,  // 1-2: Normal text, Selected text
+    ];
+
+    // Indicator palette (position/status indicator in editors)
+    // Borland: cpIndicator = "\x02\x03" (2, 3)
+    // Uses app-level status colors
+    #[rustfmt::skip]
+    pub const CP_INDICATOR: &[u8] = &[
+        2, 3,  // 1-2: Normal indicator, Modified/active indicator
+    ];
+
+    // Help Viewer palette (help text display)
+    // Borland: cHelpViewer = "\x06\x07\x08" (6, 7, 8)
+    #[rustfmt::skip]
+    pub const CP_HELP_VIEWER: &[u8] = &[
+        6, 7, 8,  // 1-3: Normal text, Focused text, Cross-reference links
     ];
 }

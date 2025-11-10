@@ -562,14 +562,14 @@ impl View for Memo {
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        use crate::core::palette::{EDITOR_NORMAL, EDITOR_CURSOR};
-
         let content_area = self.get_content_area();
         let width = content_area.width() as usize;
         let height = content_area.height() as usize;
 
-        let color = self.map_color(EDITOR_NORMAL);
-        let cursor_color = self.map_color(EDITOR_CURSOR);
+        // Use palette indices from CP_MEMO
+        // 1 = Normal text, 2 = Selected/cursor text
+        let color = self.map_color(1);
+        let cursor_color = self.map_color(2);
 
         // Draw text content
         for y in 0..height {
@@ -815,7 +815,8 @@ impl View for Memo {
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        None  // Memo uses hardcoded blue window colors
+        use crate::core::palette::{palettes, Palette};
+        Some(Palette::from_slice(palettes::CP_MEMO))
     }
 }
 
