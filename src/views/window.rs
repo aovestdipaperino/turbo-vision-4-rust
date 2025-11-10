@@ -52,8 +52,8 @@ impl Window {
             bounds,
             title,
             super::frame::FramePaletteType::Editor,
-            Attr::new(TvColor::Black, TvColor::LightGray),
-            WindowPaletteType::Gray,
+            Attr::new(TvColor::Yellow, TvColor::Blue),
+            WindowPaletteType::Blue,
         )
     }
 
