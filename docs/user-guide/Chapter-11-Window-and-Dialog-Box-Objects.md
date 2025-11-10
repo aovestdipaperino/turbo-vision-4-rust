@@ -11,11 +11,11 @@ Window objects provide the primary container for user interface elements in Turb
 The `Window` struct is defined in `src/views/window.rs`. When you create a window, it automatically constructs and manages a `Frame` object that provides the title bar, borders, and window controls.
 
 ```rust
-// Create a window with title and bounds
-let mut window = Window::new(
-    Rect::new(5, 5, 50, 20),  // Position and size
-    "My Window".to_string()     // Title
-);
+// Create a window with title and bounds using the builder pattern
+let mut window = WindowBuilder::new()
+    .bounds(Rect::new(5, 5, 50, 20))  // Position and size
+    .title("My Window")                // Title
+    .build();
 ```
 
 The window's frame is automatically created and inserted as the first child. The frame handles:
@@ -142,26 +142,28 @@ Dialog boxes are specialized windows designed for modal operation and user input
 Dialog boxes are simpler to construct than regular windows, as they default to fixed size and no window number:
 
 ```rust
-// Create a modal dialog
-let mut dialog = Dialog::new_modal(
-    Rect::new(20, 8, 60, 18),  // Position and size
-    "Settings".to_string()       // Title
-);
+// Create a modal dialog using the builder pattern
+let mut dialog = DialogBuilder::new()
+    .bounds(Rect::new(20, 8, 60, 18))  // Position and size
+    .title("Settings")                  // Title
+    .modal(true)                        // Make it modal
+    .build();
 
 // Add buttons
-dialog.add(Box::new(Button::new(
-    Rect::new(5, 8, 15, 10),
-    "OK".to_string(),
-    CommandId::CM_OK,
-    true  // is_default
-)));
+dialog.add(ButtonBuilder::new()
+    .bounds(Rect::new(5, 8, 15, 10))
+    .title("OK")
+    .command(CommandId::CM_OK)
+    .default(true)  // is_default
+    .build_boxed()
+);
 
-dialog.add(Box::new(Button::new(
-    Rect::new(20, 8, 30, 10),
-    "Cancel".to_string(),
-    CommandId::CM_CANCEL,
-    false
-)));
+dialog.add(ButtonBuilder::new()
+    .bounds(Rect::new(20, 8, 30, 10))
+    .title("Cancel")
+    .command(CommandId::CM_CANCEL)
+    .build_boxed()
+);
 ```
 
 ### Dialog Box Default Attributes
@@ -228,10 +230,11 @@ Dialog boxes are designed to contain control views like buttons, input fields, c
 Controls are added during dialog construction using the `add()` method:
 
 ```rust
-let mut dialog = Dialog::new_modal(
-    Rect::new(20, 8, 60, 18),
-    "User Information".to_string()
-);
+let mut dialog = DialogBuilder::new()
+    .bounds(Rect::new(20, 8, 60, 18))
+    .title("User Information")
+    .modal(true)
+    .build();
 
 // Add label
 dialog.add(Box::new(Label::new(
@@ -246,12 +249,13 @@ dialog.add(Box::new(InputLine::new(
 )));
 
 // Add button
-dialog.add(Box::new(Button::new(
-    Rect::new(15, 8, 25, 10),
-    "OK".to_string(),
-    CommandId::CM_OK,
-    true  // is_default
-)));
+dialog.add(ButtonBuilder::new()
+    .bounds(Rect::new(15, 8, 25, 10))
+    .title("OK")
+    .command(CommandId::CM_OK)
+    .default(true)  // is_default
+    .build_boxed()
+);
 ```
 
 Controls are added in the order they should appear in the tab order (focus order).
@@ -362,11 +366,12 @@ Button configurations:
 File dialog boxes allow users to browse and select files. The `FileDialog` struct provides file selection functionality:
 
 ```rust
-let mut file_dialog = FileDialog::new(
-    Rect::new(10, 5, 70, 20),
-    "Open File".to_string(),
-    "/home/user/documents".to_string()  // starting directory
-);
+let mut file_dialog = FileDialogBuilder::new()
+    .bounds(Rect::new(10, 5, 70, 20))
+    .title("Open File")
+    .initial_dir(PathBuf::from("/home/user/documents"))  // starting directory
+    .wildcard("*")
+    .build();
 
 match file_dialog.execute(&mut app) {
     CommandId::CM_OK => {
@@ -440,7 +445,11 @@ Windows use absolute screen coordinates. When you add a child to a window, the w
 let button_bounds = Rect::new(5, 2, 15, 4);  // Relative position
 
 // Window's add() method converts to absolute coordinates
-window.add(Box::new(Button::new(button_bounds, ...)));
+window.add(ButtonBuilder::new()
+    .bounds(button_bounds)
+    .title("OK")
+    .command(CM_OK)
+    .build_boxed());
 ```
 
 The conversion happens in `Group::add()` (src/views/group.rs:59-78).

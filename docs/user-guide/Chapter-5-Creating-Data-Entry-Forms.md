@@ -43,12 +43,15 @@ const CM_FIND_ORDER_WINDOW: u16 = 206;
 Then create a function to build the order dialog:
 
 ```rust
-use turbo_vision::views::dialog::Dialog;
+use turbo_vision::views::dialog::DialogBuilder;
 use turbo_vision::core::geometry::Rect;
 
 fn create_order_dialog() -> Dialog {
-    let bounds = Rect::new(0, 0, 60, 17);
-    let mut dialog = Dialog::new(bounds, "Orders");
+    // Create dialog using builder pattern
+    let mut dialog = DialogBuilder::new()
+        .bounds(Rect::new(0, 0, 60, 17))
+        .title("Orders")
+        .build();
 
     // Center the dialog on the desktop
     dialog.set_centered(true);
@@ -153,12 +156,12 @@ Here's how to create a complete order dialog with various controls:
 ```rust
 use std::rc::Rc;
 use std::cell::RefCell;
-use turbo_vision::views::input_line::InputLine;
-use turbo_vision::views::label::Label;
-use turbo_vision::views::button::Button;
-use turbo_vision::views::checkbox::CheckBox;
-use turbo_vision::views::radiobutton::RadioButton;
-use turbo_vision::views::static_text::StaticText;
+use turbo_vision::views::input_line::InputLineBuilder;
+use turbo_vision::views::label::LabelBuilder;
+use turbo_vision::views::button::ButtonBuilder;
+use turbo_vision::views::checkbox::CheckBoxBuilder;
+use turbo_vision::views::radiobutton::RadioButtonBuilder;
+use turbo_vision::views::static_text::StaticTextBuilder;
 
 // Data storage for the order dialog
 struct OrderData {
@@ -178,14 +181,20 @@ impl OrderData {
             stock_num: Rc::new(RefCell::new(String::new())),
             quantity: Rc::new(RefCell::new(String::new())),
             payment_method: Vec::new(),
-            received: CheckBox::new(Rect::new(0, 0, 1, 1), "Placeholder"),
+            received: CheckBoxBuilder::new()
+                .bounds(Rect::new(0, 0, 1, 1))
+                .label("Placeholder")
+                .build(),
         }
     }
 }
 
 fn create_order_dialog() -> (Dialog, OrderData) {
-    let bounds = Rect::new(0, 0, 60, 17);
-    let mut dialog = Dialog::new(bounds, "Orders");
+    // Create dialog using builder pattern
+    let mut dialog = DialogBuilder::new()
+        .bounds(Rect::new(0, 0, 60, 17))
+        .title("Orders")
+        .build();
     dialog.set_centered(true);
 
     let mut data = OrderData::new();
@@ -193,48 +202,79 @@ fn create_order_dialog() -> (Dialog, OrderData) {
 
     // Order number field
     let mut r = Rect::new(13, y, 23, y + 1);
-    let order_input = InputLine::new(r, 8, data.order_num.clone());
-    dialog.add(Box::new(order_input));
+    let order_input = InputLineBuilder::new()
+        .bounds(r)
+        .data(data.order_num.clone())
+        .max_length(8)
+        .build_boxed();
+    dialog.add(order_input);
 
     r = Rect::new(2, y, 12, y + 1);
-    let label = Label::new(r, "~O~rder #:");
-    dialog.add(Box::new(label));
+    let label = LabelBuilder::new()
+        .bounds(r)
+        .text("~O~rder #:")
+        .build_boxed();
+    dialog.add(label);
 
     // Date field
     r = Rect::new(43, y, 53, y + 1);
-    let date_input = InputLine::new(r, 8, data.order_date.clone());
-    dialog.add(Box::new(date_input));
+    let date_input = InputLineBuilder::new()
+        .bounds(r)
+        .data(data.order_date.clone())
+        .max_length(8)
+        .build_boxed();
+    dialog.add(date_input);
 
     r = Rect::new(26, y, 41, y + 1);
-    let label = Label::new(r, "~D~ate of order:");
-    dialog.add(Box::new(label));
+    let label = LabelBuilder::new()
+        .bounds(r)
+        .text("~D~ate of order:")
+        .build_boxed();
+    dialog.add(label);
 
     y += 2;
 
     // Stock number field
     r = Rect::new(13, y, 23, y + 1);
-    let stock_input = InputLine::new(r, 8, data.stock_num.clone());
-    dialog.add(Box::new(stock_input));
+    let stock_input = InputLineBuilder::new()
+        .bounds(r)
+        .data(data.stock_num.clone())
+        .max_length(8)
+        .build_boxed();
+    dialog.add(stock_input);
 
     r = Rect::new(2, y, 12, y + 1);
-    let label = Label::new(r, "~S~tock #:");
-    dialog.add(Box::new(label));
+    let label = LabelBuilder::new()
+        .bounds(r)
+        .text("~S~tock #:")
+        .build_boxed();
+    dialog.add(label);
 
     // Quantity field
     r = Rect::new(46, y, 53, y + 1);
-    let qty_input = InputLine::new(r, 5, data.quantity.clone());
-    dialog.add(Box::new(qty_input));
+    let qty_input = InputLineBuilder::new()
+        .bounds(r)
+        .data(data.quantity.clone())
+        .max_length(5)
+        .build_boxed();
+    dialog.add(qty_input);
 
     r = Rect::new(26, y, 44, y + 1);
-    let label = Label::new(r, "~Q~uantity ordered:");
-    dialog.add(Box::new(label));
+    let label = LabelBuilder::new()
+        .bounds(r)
+        .text("~Q~uantity ordered:")
+        .build_boxed();
+    dialog.add(label);
 
     y += 2;
 
     // Payment method label
     r = Rect::new(2, y, 21, y + 1);
-    let label = Label::new(r, "~P~ayment method:");
-    dialog.add(Box::new(label));
+    let label = LabelBuilder::new()
+        .bounds(r)
+        .text("~P~ayment method:")
+        .build_boxed();
+    dialog.add(label);
 
     y += 1;
 
@@ -245,8 +285,12 @@ fn create_order_dialog() -> (Dialog, OrderData) {
 
     for option in &payment_options {
         r = Rect::new(x, y, x + option.len() as i32 + 4, y + 1);
-        let radio = RadioButton::new(r, option, payment_group);
-        dialog.add(Box::new(radio));
+        let radio = RadioButtonBuilder::new()
+            .bounds(r)
+            .label(option)
+            .group_id(payment_group)
+            .build_boxed();
+        dialog.add(radio);
         x += option.len() as i32 + 4;
     }
 
@@ -254,15 +298,21 @@ fn create_order_dialog() -> (Dialog, OrderData) {
 
     // Received checkbox
     r = Rect::new(22, y, 37, y + 1);
-    let received = CheckBox::new(r, "~R~eceived");
-    dialog.add(Box::new(received));
+    let received = CheckBoxBuilder::new()
+        .bounds(r)
+        .label("~R~eceived")
+        .build_boxed();
+    dialog.add(received);
 
     y += 2;
 
     // Notes label
     r = Rect::new(2, y, 9, y + 1);
-    let label = Label::new(r, "Notes:");
-    dialog.add(Box::new(label));
+    let label = LabelBuilder::new()
+        .bounds(r)
+        .text("Notes:")
+        .build_boxed();
+    dialog.add(label);
 
     y += 1;
 
@@ -271,31 +321,56 @@ fn create_order_dialog() -> (Dialog, OrderData) {
     // but you could use a larger InputLine or implement a custom view
     r = Rect::new(3, y, 57, y + 3);
     let notes_data = Rc::new(RefCell::new(String::new()));
-    let notes_input = InputLine::new(r, 255, notes_data);
-    dialog.add(Box::new(notes_input));
+    let notes_input = InputLineBuilder::new()
+        .bounds(r)
+        .data(notes_data)
+        .max_length(255)
+        .build_boxed();
+    dialog.add(notes_input);
 
     y += 4;
 
     // Buttons at the bottom
     r = Rect::new(2, y, 12, y + 2);
-    let btn_new = Button::new(r, "  ~N~ew  ", CM_ORDER_NEW, false);
-    dialog.add(Box::new(btn_new));
+    let btn_new = ButtonBuilder::new()
+        .bounds(r)
+        .title("  ~N~ew  ")
+        .command(CM_ORDER_NEW)
+        .build_boxed();
+    dialog.add(btn_new);
 
     r = Rect::new(13, y, 23, y + 2);
-    let btn_save = Button::new(r, "  ~S~ave  ", CM_ORDER_SAVE, true);
-    dialog.add(Box::new(btn_save));
+    let btn_save = ButtonBuilder::new()
+        .bounds(r)
+        .title("  ~S~ave  ")
+        .command(CM_ORDER_SAVE)
+        .default(true)
+        .build_boxed();
+    dialog.add(btn_save);
 
     r = Rect::new(24, y, 34, y + 2);
-    let btn_revert = Button::new(r, " Re~v~ert ", CM_ORDER_CANCEL, false);
-    dialog.add(Box::new(btn_revert));
+    let btn_revert = ButtonBuilder::new()
+        .bounds(r)
+        .title(" Re~v~ert ")
+        .command(CM_ORDER_CANCEL)
+        .build_boxed();
+    dialog.add(btn_revert);
 
     r = Rect::new(35, y, 45, y + 2);
-    let btn_next = Button::new(r, "  N~e~xt  ", CM_ORDER_NEXT, false);
-    dialog.add(Box::new(btn_next));
+    let btn_next = ButtonBuilder::new()
+        .bounds(r)
+        .title("  N~e~xt  ")
+        .command(CM_ORDER_NEXT)
+        .build_boxed();
+    dialog.add(btn_next);
 
     r = Rect::new(46, y, 56, y + 2);
-    let btn_prev = Button::new(r, "  ~P~rev  ", CM_ORDER_PREV, false);
-    dialog.add(Box::new(btn_prev));
+    let btn_prev = ButtonBuilder::new()
+        .bounds(r)
+        .title("  ~P~rev  ")
+        .command(CM_ORDER_PREV)
+        .build_boxed();
+    dialog.add(btn_prev);
 
     // Set initial focus to first input field
     dialog.set_initial_focus();
@@ -306,13 +381,15 @@ fn create_order_dialog() -> (Dialog, OrderData) {
 
 **Important Notes**:
 
-1. **Tab Order**: The order in which you add controls is very important, because it determines the tab order for the dialog box. Tab order indicates where the input focus goes when the user presses Tab.
+1. **Builder Pattern**: All controls now use the builder pattern for consistent, type-safe construction. This makes the code more readable and extensible.
 
-2. **Shared Data**: Input fields use `Rc<RefCell<String>>` to share data between the dialog and your application. This allows you to read and write values even while the dialog is displayed.
+2. **Tab Order**: The order in which you add controls is very important, because it determines the tab order for the dialog box. Tab order indicates where the input focus goes when the user presses Tab.
 
-3. **Labels and Accelerators**: Labels can include accelerator keys (marked with `~`). When the user presses Alt+key, focus moves to the associated control.
+3. **Shared Data**: Input fields use `Rc<RefCell<String>>` to share data between the dialog and your application. This allows you to read and write values even while the dialog is displayed.
 
-4. **Buttons**: The fourth parameter to `Button::new()` indicates whether it's the default button (activated by pressing Enter).
+4. **Labels and Accelerators**: Labels can include accelerator keys (marked with `~`). When the user presses Alt+key, focus moves to the associated control.
+
+5. **Default Buttons**: Use `.default(true)` in ButtonBuilder to mark a button as the default (activated by pressing Enter).
 
 If you run the application now, you'll find that you have a fully functional data entry dialog. You can type data into the input lines, manipulate the radio buttons and checkboxes, and use Tab to move between fields.
 

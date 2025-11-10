@@ -40,7 +40,7 @@ As a first step, you can add a plain window to the desktop in response to the Ne
 ```rust
 use turbo_vision::prelude::*;
 use turbo_vision::app::Application;
-use turbo_vision::views::window::Window;
+use turbo_vision::views::window::WindowBuilder;
 use turbo_vision::core::geometry::Rect;
 use turbo_vision::core::command::{CM_NEW, CM_QUIT};
 use turbo_vision::core::event::{Event, EventType};
@@ -86,11 +86,14 @@ fn new_window(app: &mut Application) {
     // Define boundaries for the window
     let bounds = Rect::new(0, 0, 60, 20);
 
-    // Construct the window
-    let window = Window::new(bounds, "A Window");
+    // Construct the window using the builder pattern
+    let window = WindowBuilder::new()
+        .bounds(bounds)
+        .title("A Window")
+        .build_boxed();
 
     // Insert window into desktop
-    app.desktop.add(Box::new(window));
+    app.desktop.add(window);
 }
 ```
 
@@ -111,22 +114,33 @@ The `Rect::new(x1, y1, x2, y2)` function creates a rectangle from coordinates `(
 #### 2. Constructing the Window Object
 
 ```rust
-let window = Window::new(bounds, "A Window");
+let window = WindowBuilder::new()
+    .bounds(bounds)
+    .title("A Window")
+    .build_boxed();
 ```
 
-The `Window::new` constructor takes two parameters: the boundaries of the window and a string containing the title for the window. In Rust, we create the window as a local variable on the stack.
+The window builder pattern provides a fluent, type-safe API for constructing windows. You start with `WindowBuilder::new()`, then chain methods to set properties:
+- `.bounds(bounds)` sets the window's screen position and size
+- `.title("A Window")` sets the window title
+- `.build_boxed()` creates the window and wraps it in a `Box` for adding to the desktop
+
+The builder pattern is preferred over direct constructors because it:
+- Makes optional parameters explicit
+- Allows for future extensibility without breaking existing code
+- Provides clear, self-documenting code
 
 Unlike the original Turbo Vision, the Rust implementation doesn't support window numbers (the `wnNoNumber` parameter from the Pascal version is not needed). Window selection is handled entirely through mouse clicks and keyboard navigation.
 
 #### 3. Inserting the Window
 
 ```rust
-app.desktop.add(Box::new(window));
+app.desktop.add(window);
 ```
 
 `add` is a method common to all Turbo Vision groups, and it's the way a group gets control of the objects within it. When you add the window to the desktop, you're telling the desktop that it is supposed to manage that window.
 
-The window must be boxed (wrapped in `Box::new()`) because the desktop stores views as trait objects (`Box<dyn View>`), allowing it to manage different types of views polymorphically.
+The window is already boxed (returned by `.build_boxed()`) because the desktop stores views as trait objects (`Box<dyn View>`), allowing it to manage different types of views polymorphically.
 
 If you run the program now and choose New from the File menu, an empty window with the title 'A Window' appears on the desktop. If you choose New again, another identical window appears in the same place, because `new_window` assigns exact coordinates for the window. Using your mouse, you can select different windows.
 
@@ -169,42 +183,42 @@ The `Dialog` type (which wraps a `Window`) is typically used for modal interacti
 ### Listing 3.2 — Creating a Modal Dialog
 
 ```rust
-use turbo_vision::views::dialog::Dialog;
-use turbo_vision::views::button::Button;
-use turbo_vision::views::static_text::StaticText;
+use turbo_vision::views::dialog::DialogBuilder;
+use turbo_vision::views::button::ButtonBuilder;
+use turbo_vision::views::static_text::StaticTextBuilder;
 use turbo_vision::core::command::{CM_OK, CM_CANCEL};
 
 fn show_dialog(app: &mut Application) {
-    // Create a dialog (40 wide x 10 tall, positioned at 20,8)
-    let mut dialog = Dialog::new(
-        Rect::new(20, 8, 60, 18),
-        "Sample Dialog"
-    );
+    // Create a dialog (40 wide x 10 tall, positioned at 20,8) using the builder pattern
+    let mut dialog = DialogBuilder::new()
+        .bounds(Rect::new(20, 8, 60, 18))
+        .title("Sample Dialog")
+        .modal(true)
+        .build();
 
     // Add a message to the dialog
-    let text = StaticText::new(
-        Rect::new(2, 1, 36, 3),
-        "This is a modal dialog box.\nClick OK to continue."
-    );
-    dialog.add(Box::new(text));
+    let text = StaticTextBuilder::new()
+        .bounds(Rect::new(2, 1, 36, 3))
+        .text("This is a modal dialog box.\nClick OK to continue.")
+        .build_boxed();
+    dialog.add(text);
 
     // Add OK button
-    let ok_button = Button::new(
-        Rect::new(10, 5, 20, 7),
-        "  ~O~K  ",
-        CM_OK,
-        true  // This is the default button
-    );
-    dialog.add(Box::new(ok_button));
+    let ok_button = ButtonBuilder::new()
+        .bounds(Rect::new(10, 5, 20, 7))
+        .title("  ~O~K  ")
+        .command(CM_OK)
+        .default(true)  // This is the default button
+        .build_boxed();
+    dialog.add(ok_button);
 
     // Add Cancel button
-    let cancel_button = Button::new(
-        Rect::new(22, 5, 32, 7),
-        "~C~ancel",
-        CM_CANCEL,
-        false
-    );
-    dialog.add(Box::new(cancel_button));
+    let cancel_button = ButtonBuilder::new()
+        .bounds(Rect::new(22, 5, 32, 7))
+        .title("~C~ancel")
+        .command(CM_CANCEL)
+        .build_boxed();
+    dialog.add(cancel_button);
 
     // Set initial focus
     dialog.set_initial_focus();
@@ -319,38 +333,41 @@ Here's a more complete example that creates a window with multiple child views:
 ### Listing 3.3 — Window with Multiple Views
 
 ```rust
-use turbo_vision::views::window::Window;
-use turbo_vision::views::button::Button;
-use turbo_vision::views::static_text::StaticText;
-use turbo_vision::views::text_viewer::TextViewer;
+use turbo_vision::views::window::WindowBuilder;
+use turbo_vision::views::button::ButtonBuilder;
+use turbo_vision::views::static_text::StaticTextBuilder;
+use turbo_vision::views::text_viewer::TextViewerBuilder;
 
 fn create_custom_window(app: &mut Application) {
-    let bounds = Rect::new(10, 5, 70, 20);
-    let mut window = Window::new(bounds, "Custom Window");
+    // Create window using builder pattern
+    let mut window = WindowBuilder::new()
+        .bounds(Rect::new(10, 5, 70, 20))
+        .title("Custom Window")
+        .build();
 
     // Add a title label
-    let label = StaticText::new(
-        Rect::new(2, 1, 40, 2),
-        "Welcome to Turbo Vision!"
-    );
-    window.add(Box::new(label));
+    let label = StaticTextBuilder::new()
+        .bounds(Rect::new(2, 1, 40, 2))
+        .text("Welcome to Turbo Vision!")
+        .build_boxed();
+    window.add(label);
 
     // Add a text viewer
     let text_content = "This is a text viewer.\nYou can scroll through content here.";
-    let viewer = TextViewer::new(
-        Rect::new(2, 3, 56, 10),
-        text_content
-    );
+    let mut viewer = TextViewerBuilder::new()
+        .bounds(Rect::new(2, 3, 56, 10))
+        .build();
+    viewer.load_text(text_content);
     window.add(Box::new(viewer));
 
     // Add a button
-    let button = Button::new(
-        Rect::new(20, 12, 40, 14),
-        "  ~C~lose  ",
-        CM_CLOSE,
-        true
-    );
-    window.add(Box::new(button));
+    let button = ButtonBuilder::new()
+        .bounds(Rect::new(20, 12, 40, 14))
+        .title("  ~C~lose  ")
+        .command(CM_CLOSE)
+        .default(true)
+        .build_boxed();
+    window.add(button);
 
     // Set initial focus to the first focusable view
     window.set_initial_focus();
@@ -398,7 +415,11 @@ let x = (width as i16 - 60) / 2;
 let y = (height as i16 - 20) / 2;
 let bounds = Rect::new(x, y, x + 60, y + 20);
 
-let window = Window::new(bounds, "Centered Window");
+let window = WindowBuilder::new()
+    .bounds(bounds)
+    .title("Centered Window")
+    .build_boxed();
+app.desktop.add(window);
 ```
 
 ### Cascading Windows
@@ -415,8 +436,11 @@ fn new_cascaded_window(app: &mut Application, window_count: usize) {
         23 + offset
     );
 
-    let window = Window::new(bounds, &format!("Window {}", window_count + 1));
-    app.desktop.add(Box::new(window));
+    let window = WindowBuilder::new()
+        .bounds(bounds)
+        .title(&format!("Window {}", window_count + 1))
+        .build_boxed();
+    app.desktop.add(window);
 }
 ```
 
@@ -501,15 +525,19 @@ Desktop^.Insert(TheWindow);
 
 **Rust Implementation:**
 ```rust
-let window = Window::new(bounds, "A window");
-app.desktop.add(Box::new(window));
+let window = WindowBuilder::new()
+    .bounds(bounds)
+    .title("A window")
+    .build_boxed();
+app.desktop.add(window);
 ```
 
 **Key differences:**
-- Rust uses stack allocation followed by boxing, not heap pointers
-- No separate `Init` method — constructor does all initialization
+- Rust uses the builder pattern for type-safe, fluent construction
+- No separate `Init` method — builder does all configuration
 - No window numbers (simplified interaction model)
 - Rust ownership prevents memory leaks automatically
+- Builder pattern allows for future extensibility without breaking changes
 
 ### Group Management
 

@@ -71,24 +71,24 @@ The new methods and fields you define add functionality to the composed type. Ne
 Creating an instance of a view is accomplished by calling its constructor (typically `new()`) and optionally wrapping it in a `Box` for dynamic dispatch:
 
 ```rust
-// Create a static instance (stack-allocated)
-let button = Button::new(
-    Rect::new(2, 2, 12, 4),
-    "OK",
-    CM_OK,
-    true
-);
+// Create using the builder pattern
+let button = ButtonBuilder::new()
+    .bounds(Rect::new(2, 2, 12, 4))
+    .title("OK")
+    .command(CM_OK)
+    .default(true)
+    .build();
 
-// Create a dynamic instance (heap-allocated for polymorphism)
-let button: Box<dyn View> = Box::new(Button::new(
-    Rect::new(2, 2, 12, 4),
-    "OK",
-    CM_OK,
-    true
-));
+// Create a boxed instance (heap-allocated for polymorphism)
+let button: Box<dyn View> = ButtonBuilder::new()
+    .bounds(Rect::new(2, 2, 12, 4))
+    .title("OK")
+    .command(CM_OK)
+    .default(true)
+    .build_boxed();
 ```
 
-The button would be initialized with certain default field values set by `Button::new()`. Since `Button` implements the `View` trait, it provides all the methods defined in that trait.
+The button would be initialized with certain default field values set by the builder. Since `Button` implements the `View` trait, it provides all the methods defined in that trait.
 
 To make use of the button, you need to know what its methods do. If the required functionality is not defined in `Button`, you need to create a new type that composes `Button` and adds the needed behavior.
 

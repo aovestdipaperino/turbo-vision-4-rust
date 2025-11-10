@@ -816,8 +816,11 @@ To add the counter view to your order dialog, create it during dialog constructi
 
 ```rust
 fn create_order_dialog(order_count: usize) -> Dialog {
-    let bounds = Rect::new(0, 0, 60, 17);
-    let mut dialog = Dialog::new(bounds, "Orders");
+    // Create dialog using the builder pattern
+    let mut dialog = DialogBuilder::new()
+        .bounds(Rect::new(0, 0, 60, 17))
+        .title("Orders")
+        .build();
 
     // Add input controls here...
     // (customer, item number, etc.)

@@ -236,30 +236,32 @@ This method (defined at `src/app/application.rs:76-125`):
 ### Example: Executing a Modal Dialog
 
 ```rust
-use turbo_vision::views::dialog::Dialog;
-use turbo_vision::views::button::Button;
+use turbo_vision::views::dialog::DialogBuilder;
+use turbo_vision::views::button::ButtonBuilder;
 use turbo_vision::core::command::{CM_OK, CM_CANCEL};
 
-// Create a modal dialog
-let mut dialog = Dialog::new(
-    Rect::new(20, 8, 60, 16),
-    "Confirm Action"
-);
+// Create a modal dialog using the builder pattern
+let mut dialog = DialogBuilder::new()
+    .bounds(Rect::new(20, 8, 60, 16))
+    .title("Confirm Action")
+    .modal(true)
+    .build();
 
 // Add buttons
-dialog.add(Box::new(Button::new(
-    Rect::new(10, 5, 20, 7),
-    "  OK  ",
-    CM_OK,
-    true
-)));
+dialog.add(ButtonBuilder::new()
+    .bounds(Rect::new(10, 5, 20, 7))
+    .title("  OK  ")
+    .command(CM_OK)
+    .default(true)
+    .build_boxed()
+);
 
-dialog.add(Box::new(Button::new(
-    Rect::new(22, 5, 32, 7),
-    "Cancel",
-    CM_CANCEL,
-    false
-)));
+dialog.add(ButtonBuilder::new()
+    .bounds(Rect::new(22, 5, 32, 7))
+    .title("Cancel")
+    .command(CM_CANCEL)
+    .build_boxed()
+);
 
 // Execute modally and get result
 let result = app.exec_view(Box::new(dialog));

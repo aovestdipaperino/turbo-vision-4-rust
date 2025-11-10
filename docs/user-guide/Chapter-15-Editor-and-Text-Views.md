@@ -482,12 +482,11 @@ use turbo_vision::core::geometry::Rect;
 fn main() -> std::io::Result<()> {
     let mut app = Application::new()?;
 
-    // Create window
-    let mut window = Window::new(
-        Rect::new(5, 2, 75, 22),
-        "Editor Demo",
-        1,
-    );
+    // Create window using the builder pattern
+    let mut window = WindowBuilder::new()
+        .bounds(Rect::new(5, 2, 75, 22))
+        .title("Editor Demo")
+        .build();
 
     // Create editor with all features
     let mut editor = Editor::new(Rect::new(1, 1, 68, 18))

@@ -15,14 +15,20 @@ The `set_params` method takes care of setting all the parameters for the scroll 
 The Rust implementation provides two constructors for scroll bars:
 
 ```rust
-use turbo_vision::views::ScrollBar;
+use turbo_vision::views::scrollbar::ScrollBarBuilder;
 use turbo_vision::core::geometry::Rect;
 
-// Create a vertical scroll bar
-let vscroll = ScrollBar::new_vertical(Rect::new(39, 1, 40, 21));
+// Create a vertical scroll bar using the builder pattern
+let vscroll = ScrollBarBuilder::new()
+    .bounds(Rect::new(39, 1, 40, 21))
+    .vertical()
+    .build();
 
 // Create a horizontal scroll bar
-let hscroll = ScrollBar::new_horizontal(Rect::new(1, 21, 39, 22));
+let hscroll = ScrollBarBuilder::new()
+    .bounds(Rect::new(1, 21, 39, 22))
+    .horizontal()
+    .build();
 ```
 
 ### Setting Scroll Bar Parameters
@@ -90,14 +96,14 @@ Check boxes allow the user to toggle individual boolean options. Each check box 
 #### Creating a CheckBox
 
 ```rust
-use turbo_vision::views::CheckBox;
+use turbo_vision::views::checkbox::CheckBoxBuilder;
 use turbo_vision::core::geometry::Rect;
 
-// Create a checkbox at position (3, 5) with width 20
-let checkbox = CheckBox::new(
-    Rect::new(3, 5, 20, 6),
-    "Enable feature"
-);
+// Create a checkbox at position (3, 5) using the builder pattern
+let checkbox = CheckBoxBuilder::new()
+    .bounds(Rect::new(3, 5, 20, 6))
+    .label("Enable feature")
+    .build();
 ```
 
 Check boxes display as:
@@ -133,27 +139,27 @@ Radio buttons provide mutually exclusive selection within a group. Only one radi
 #### Creating Radio Buttons
 
 ```rust
-use turbo_vision::views::RadioButton;
+use turbo_vision::views::radiobutton::RadioButtonBuilder;
 use turbo_vision::core::geometry::Rect;
 
-// Create radio buttons in the same group (group_id = 1)
-let radio1 = RadioButton::new(
-    Rect::new(3, 5, 20, 6),
-    "Option 1",
-    1  // group_id
-);
+// Create radio buttons in the same group (group_id = 1) using the builder pattern
+let radio1 = RadioButtonBuilder::new()
+    .bounds(Rect::new(3, 5, 20, 6))
+    .label("Option 1")
+    .group_id(1)  // group_id
+    .build();
 
-let radio2 = RadioButton::new(
-    Rect::new(3, 6, 20, 7),
-    "Option 2",
-    1  // group_id
-);
+let radio2 = RadioButtonBuilder::new()
+    .bounds(Rect::new(3, 6, 20, 7))
+    .label("Option 2")
+    .group_id(1)  // group_id
+    .build();
 
-let radio3 = RadioButton::new(
-    Rect::new(3, 7, 20, 8),
-    "Option 3",
-    1  // group_id
-);
+let radio3 = RadioButtonBuilder::new()
+    .bounds(Rect::new(3, 7, 20, 8))
+    .label("Option 3")
+    .group_id(1)  // group_id
+    .build();
 ```
 
 Radio buttons display as:
@@ -256,15 +262,15 @@ The `ListBox` type (see `src/views/listbox.rs`) is a useful implementation of `L
 #### Creating a ListBox
 
 ```rust
-use turbo_vision::views::ListBox;
+use turbo_vision::views::listbox::ListBoxBuilder;
 use turbo_vision::core::geometry::Rect;
 use turbo_vision::core::command::CM_OK;
 
-// Create a list box that generates CM_OK when an item is selected
-let listbox = ListBox::new(
-    Rect::new(5, 5, 34, 11),
-    CM_OK
-);
+// Create a list box that generates CM_OK when an item is selected using the builder pattern
+let listbox = ListBoxBuilder::new()
+    .bounds(Rect::new(5, 5, 34, 11))
+    .on_select_command(CM_OK)
+    .build();
 ```
 
 #### Populating the List

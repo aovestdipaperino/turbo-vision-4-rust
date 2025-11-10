@@ -201,7 +201,11 @@ Rust's ownership system makes these concepts explicit and enforced at compile ti
 When a view is added to a group, ownership transfers:
 
 ```rust
-let button = Box::new(Button::new(bounds, "OK".to_string(), CM_OK));
+let button = ButtonBuilder::new()
+    .bounds(bounds)
+    .title("OK")
+    .command(CM_OK)
+    .build_boxed();
 group.add(button);  // Ownership transfers to group
 // button is no longer accessible here
 ```
@@ -588,12 +592,12 @@ impl Application {
 
         // Recreate windows
         for window_state in state.windows {
-            let window = Window::new(
-                window_state.bounds,
-                window_state.title,
-            );
+            let window = WindowBuilder::new()
+                .bounds(window_state.bounds)
+                .title(window_state.title)
+                .build_boxed();
             // Restore window state...
-            self.desktop.add(Box::new(window));
+            self.desktop.add(window);
         }
 
         Ok(())

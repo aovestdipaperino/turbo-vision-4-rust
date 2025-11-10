@@ -242,45 +242,68 @@ Dialog boxes are constructed programmatically with full type safety:
 
 ```rust
 use turbo_vision::views::dialog::Dialog;
-use turbo_vision::views::button::Button;
-use turbo_vision::views::static_text::StaticText;
-use turbo_vision::views::input_line::InputLine;
+use turbo_vision::views::dialog::DialogBuilder;
+use turbo_vision::views::button::ButtonBuilder;
+use turbo_vision::views::static_text::StaticTextBuilder;
+use turbo_vision::views::input_line::InputLineBuilder;
 use turbo_vision::core::geometry::Rect;
+use std::rc::Rc;
+use std::cell::RefCell;
 
 fn create_login_dialog() -> Dialog {
-    let bounds = Rect::new(0, 0, 50, 14);
-    let mut dialog = Dialog::new(bounds, "Login");
+    let mut dialog = DialogBuilder::new()
+        .bounds(Rect::new(0, 0, 50, 14))
+        .title("Login")
+        .build();
     dialog.set_centered(true);
 
     // Add static text label
-    let label_bounds = Rect::new(3, 2, 13, 3);
-    let label = StaticText::new(label_bounds, "Username:");
-    dialog.add(Box::new(label));
+    let label = StaticTextBuilder::new()
+        .bounds(Rect::new(3, 2, 13, 3))
+        .text("Username:")
+        .build_boxed();
+    dialog.add(label);
 
     // Add input field
-    let input_bounds = Rect::new(14, 2, 45, 3);
-    let username_input = InputLine::new(input_bounds, 30, Some(1));
-    dialog.add(Box::new(username_input));
+    let username_data = Rc::new(RefCell::new(String::new()));
+    let username_input = InputLineBuilder::new()
+        .bounds(Rect::new(14, 2, 45, 3))
+        .data(username_data)
+        .max_length(30)
+        .build_boxed();
+    dialog.add(username_input);
 
     // Add password label
-    let pwd_label_bounds = Rect::new(3, 4, 13, 5);
-    let pwd_label = StaticText::new(pwd_label_bounds, "Password:");
-    dialog.add(Box::new(pwd_label));
+    let pwd_label = StaticTextBuilder::new()
+        .bounds(Rect::new(3, 4, 13, 5))
+        .text("Password:")
+        .build_boxed();
+    dialog.add(pwd_label);
 
     // Add password input
-    let pwd_input_bounds = Rect::new(14, 4, 45, 5);
-    let mut pwd_input = InputLine::new(pwd_input_bounds, 30, Some(2));
-    pwd_input.set_password(true);
-    dialog.add(Box::new(pwd_input));
+    let password_data = Rc::new(RefCell::new(String::new()));
+    let pwd_input = InputLineBuilder::new()
+        .bounds(Rect::new(14, 4, 45, 5))
+        .data(password_data)
+        .max_length(30)
+        .build_boxed();
+    dialog.add(pwd_input);
 
     // Add buttons
-    let ok_bounds = Rect::new(15, 10, 25, 12);
-    let ok_button = Button::new(ok_bounds, "O~k~", CM_OK, true);
-    dialog.add(Box::new(ok_button));
+    let ok_button = ButtonBuilder::new()
+        .bounds(Rect::new(15, 10, 25, 12))
+        .title("O~k~")
+        .command(CM_OK)
+        .default(true)
+        .build_boxed();
+    dialog.add(ok_button);
 
-    let cancel_bounds = Rect::new(27, 10, 37, 12);
-    let cancel_button = Button::new(cancel_bounds, "Cancel", CM_CANCEL, false);
-    dialog.add(Box::new(cancel_button));
+    let cancel_button = ButtonBuilder::new()
+        .bounds(Rect::new(27, 10, 37, 12))
+        .title("Cancel")
+        .command(CM_CANCEL)
+        .build_boxed();
+    dialog.add(cancel_button);
 
     dialog
 }

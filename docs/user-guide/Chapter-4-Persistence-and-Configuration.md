@@ -263,37 +263,41 @@ A dialog box is created by:
 Here's an example of creating an "About" dialog:
 
 ```rust
-use turbo_vision::views::dialog::Dialog;
-use turbo_vision::views::button::Button;
-use turbo_vision::views::static_text::StaticText;
+use turbo_vision::views::dialog::DialogBuilder;
+use turbo_vision::views::button::ButtonBuilder;
+use turbo_vision::views::static_text::StaticTextBuilder;
 use turbo_vision::core::geometry::Rect;
 
 fn create_about_dialog() -> Dialog {
-    // Create the dialog with title
-    let bounds = Rect::new(0, 0, 40, 11);
-    let mut dialog = Dialog::new(bounds, "About Tutorial");
+    // Create the dialog with title using the builder pattern
+    let mut dialog = DialogBuilder::new()
+        .bounds(Rect::new(0, 0, 40, 11))
+        .title("About Tutorial")
+        .build();
     dialog.set_centered(true);  // Center on screen
 
     // Add static text
-    let text_bounds = Rect::new(4, 2, 36, 4);
-    let text = StaticText::new(
-        text_bounds,
-        "Turbo Vision\nTutorial program"
-    );
-    dialog.add(Box::new(text));
+    let text = StaticTextBuilder::new()
+        .bounds(Rect::new(4, 2, 36, 4))
+        .text("Turbo Vision\nTutorial program")
+        .build_boxed();
+    dialog.add(text);
 
     // Add copyright text
-    let copy_bounds = Rect::new(4, 5, 36, 7);
-    let copyright = StaticText::new(
-        copy_bounds,
-        "Copyright 1992-2025\nBorland International / Rust Port"
-    );
-    dialog.add(Box::new(copyright));
+    let copyright = StaticTextBuilder::new()
+        .bounds(Rect::new(4, 5, 36, 7))
+        .text("Copyright 1992-2025\nBorland International / Rust Port")
+        .build_boxed();
+    dialog.add(copyright);
 
     // Add OK button
-    let btn_bounds = Rect::new(15, 8, 25, 10);
-    let ok_button = Button::new(btn_bounds, "O~k~", CM_OK, true);  // true = default
-    dialog.add(Box::new(ok_button));
+    let ok_button = ButtonBuilder::new()
+        .bounds(Rect::new(15, 8, 25, 10))
+        .title("O~k~")
+        .command(CM_OK)
+        .default(true)  // true = default
+        .build_boxed();
+    dialog.add(ok_button);
 
     dialog
 }
