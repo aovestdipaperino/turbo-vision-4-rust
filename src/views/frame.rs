@@ -19,6 +19,9 @@ pub struct Frame {
     palette_type: FramePaletteType,
     /// State flags (active, dragging, etc.) - matches Borland's TView state
     state: StateFlags,
+    /// Whether the frame is resizable (matches Borland's wfGrow flag)
+    /// Resizable frames use single-line bottom corners and show resize handle
+    resizable: bool,
     owner: Option<*const dyn View>,
 }
 
@@ -31,16 +34,17 @@ pub enum FramePaletteType {
 }
 
 impl Frame {
-    pub fn new(bounds: Rect, title: &str) -> Self {
-        Self::with_palette(bounds, title, FramePaletteType::Dialog)
+    pub fn new(bounds: Rect, title: &str, resizable: bool) -> Self {
+        Self::with_palette(bounds, title, FramePaletteType::Dialog, resizable)
     }
 
-    pub fn with_palette(bounds: Rect, title: &str, palette_type: FramePaletteType) -> Self {
+    pub fn with_palette(bounds: Rect, title: &str, palette_type: FramePaletteType, resizable: bool) -> Self {
         Self {
             bounds,
             title: title.to_string(),
             palette_type,
             state: SF_ACTIVE,  // Default to active
+            resizable,
             owner: None,
         }
     }
@@ -164,13 +168,33 @@ impl View for Frame {
             write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y + y as i16, &side_buf);
         }
 
-        // Bottom border - using double-line box drawing
+        // Bottom border - using single-line for resizable, double-line for non-resizable
+        // Matches Borland: resizable windows (wfGrow flag) use single-line bottom corners
+        // to visually distinguish them and accommodate the resize handle
         let mut bottom_buf = DrawBuffer::new(width);
-        bottom_buf.put_char(0, '╚', frame_attr);  // Double bottom-left corner
-        bottom_buf.put_char(width - 1, '╝', frame_attr);  // Double bottom-right corner
+        if self.resizable {
+            // Resizable: single-line bottom corners (matches Borland TWindow with wfGrow)
+            bottom_buf.put_char(0, '└', frame_attr);  // Single bottom-left corner
+            bottom_buf.put_char(width - 1, '┘', frame_attr);  // Single bottom-right corner
+        } else {
+            // Non-resizable: double-line bottom corners (matches Borland TDialog without wfGrow)
+            bottom_buf.put_char(0, '╚', frame_attr);  // Double bottom-left corner
+            bottom_buf.put_char(width - 1, '╝', frame_attr);  // Double bottom-right corner
+        }
         for i in 1..width - 1 {
             bottom_buf.put_char(i, '═', frame_attr);  // Double horizontal line
         }
+
+        // Add resize handle for resizable windows when active
+        // Matches Borland: dragIcon "~��~" at width-2 when (state & sfActive) && (flags & wfGrow)
+        // See tframe.cc:142-144
+        let is_active = (self.state & SF_ACTIVE) != 0;
+        if self.resizable && is_active && width >= 4 {
+            // Resize handle at bottom-right corner (width-2 position)
+            // Using ◢ (U+25E2) as resize indicator
+            bottom_buf.put_char(width - 2, '◢', frame_attr);
+        }
+
         write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y + height as i16 - 1, &bottom_buf);
     }
 
