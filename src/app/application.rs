@@ -125,6 +125,12 @@ impl Application {
         self.desktop.set_bounds(desktop_bounds);
     }
 
+    /// Request a full redraw on the next frame
+    /// Call this after changing the palette or other global settings
+    pub fn needs_redraw(&mut self) {
+        self.needs_redraw = true;
+    }
+
     /// Get an event (with drawing)
     /// Matches Borland: TProgram::getEvent() (tprogram.cc:105-174)
     /// This is called by modal views' execute() methods.
