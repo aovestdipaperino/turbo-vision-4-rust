@@ -19,12 +19,57 @@ use super::help_file::HelpFile;
 use std::rc::Rc;
 use std::cell::RefCell;
 
+/// Wrapper that allows HelpViewer to be shared between window and HelpWindow
+struct SharedHelpViewer(Rc<RefCell<HelpViewer>>);
+
+impl View for SharedHelpViewer {
+    fn bounds(&self) -> Rect {
+        self.0.borrow().bounds()
+    }
+
+    fn set_bounds(&mut self, bounds: Rect) {
+        self.0.borrow_mut().set_bounds(bounds);
+    }
+
+    fn draw(&mut self, terminal: &mut Terminal) {
+        self.0.borrow_mut().draw(terminal);
+    }
+
+    fn handle_event(&mut self, event: &mut Event) {
+        self.0.borrow_mut().handle_event(event);
+    }
+
+    fn can_focus(&self) -> bool {
+        self.0.borrow().can_focus()
+    }
+
+    fn state(&self) -> StateFlags {
+        self.0.borrow().state()
+    }
+
+    fn set_state(&mut self, state: StateFlags) {
+        self.0.borrow_mut().set_state(state);
+    }
+
+    fn get_palette(&self) -> Option<crate::core::palette::Palette> {
+        self.0.borrow().get_palette()
+    }
+
+    fn get_owner_type(&self) -> super::view::OwnerType {
+        self.0.borrow().get_owner_type()
+    }
+
+    fn set_owner_type(&mut self, owner_type: super::view::OwnerType) {
+        self.0.borrow_mut().set_owner_type(owner_type);
+    }
+}
+
 /// HelpWindow - Window containing help viewer
 ///
-/// Matches Borland: THelpWindow
+/// Matches Borland: THelpWindow (parent-child hierarchy)
 pub struct HelpWindow {
     window: Window,
-    viewer: HelpViewer,
+    viewer: Rc<RefCell<HelpViewer>>,  // Shared reference for API access
     help_file: Rc<RefCell<HelpFile>>,
     /// Topic history for back/forward navigation
     history: Vec<String>,
@@ -34,12 +79,19 @@ pub struct HelpWindow {
 
 impl HelpWindow {
     /// Create a new help window
+    ///
+    /// Matches Borland: THelpWindow constructor creates TWindow and inserts THelp Viewer as child
     pub fn new(bounds: Rect, title: &str, help_file: Rc<RefCell<HelpFile>>) -> Self {
-        let window = Window::new(bounds, title);
+        let mut window = Window::new(bounds, title);
 
         // Viewer fills the window interior
         let viewer_bounds = Rect::new(1, 1, bounds.width() - 2, bounds.height() - 2);
-        let viewer = HelpViewer::new(viewer_bounds).with_scrollbar();
+        let viewer = Rc::new(RefCell::new(
+            HelpViewer::new(viewer_bounds).with_scrollbar()
+        ));
+
+        // Insert viewer as a child of window (matches Borland's window->insert(viewer))
+        window.add(Box::new(SharedHelpViewer(Rc::clone(&viewer))));
 
         Self {
             window,
@@ -55,7 +107,7 @@ impl HelpWindow {
     pub fn show_topic(&mut self, topic_id: &str) -> bool {
         let help = self.help_file.borrow();
         if let Some(topic) = help.get_topic(topic_id) {
-            self.viewer.set_topic(topic);
+            self.viewer.borrow_mut().set_topic(topic);
             true
         } else {
             false
@@ -66,23 +118,18 @@ impl HelpWindow {
     pub fn show_default_topic(&mut self) {
         let help = self.help_file.borrow();
         if let Some(topic) = help.get_default_topic() {
-            self.viewer.set_topic(topic);
+            self.viewer.borrow_mut().set_topic(topic);
         }
     }
 
     /// Get the current topic ID
     pub fn current_topic(&self) -> Option<String> {
-        self.viewer.current_topic().map(|s| s.to_string())
+        self.viewer.borrow().current_topic().map(|s| s.to_string())
     }
 
-    /// Get mutable reference to the viewer
-    pub fn viewer_mut(&mut self) -> &mut HelpViewer {
-        &mut self.viewer
-    }
-
-    /// Get reference to the viewer
-    pub fn viewer(&self) -> &HelpViewer {
-        &self.viewer
+    /// Get a cloned Rc to the viewer for advanced access
+    pub fn viewer_rc(&self) -> Rc<RefCell<HelpViewer>> {
+        Rc::clone(&self.viewer)
     }
 
     /// Get reference to the help file
@@ -107,7 +154,7 @@ impl HelpWindow {
         }
 
         // Add current topic to history before switching
-        if let Some(current) = self.viewer.current_topic() {
+        if let Some(current) = self.viewer.borrow().current_topic() {
             self.history.push(current.to_string());
         }
 
@@ -193,12 +240,12 @@ impl View for HelpWindow {
         self.window.set_bounds(bounds);
         // Update viewer bounds to match window interior
         let viewer_bounds = Rect::new(1, 1, bounds.width() - 2, bounds.height() - 2);
-        self.viewer.set_bounds(viewer_bounds);
+        self.viewer.borrow_mut().set_bounds(viewer_bounds);
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
+        // Window draws itself and all children (including viewer)
         self.window.draw(terminal);
-        self.viewer.draw(terminal);
     }
 
     fn handle_event(&mut self, event: &mut Event) {
@@ -209,10 +256,7 @@ impl View for HelpWindow {
             return;
         }
 
-        // Viewer handles most events (scrolling)
-        self.viewer.handle_event(event);
-
-        // Window handles frame events (resize, move, etc.)
+        // Window handles events and dispatches to children (including viewer)
         self.window.handle_event(event);
     }
 
@@ -226,7 +270,7 @@ impl View for HelpWindow {
 
     fn set_state(&mut self, state: StateFlags) {
         self.window.set_state(state);
-        self.viewer.set_state(state);
+        self.viewer.borrow_mut().set_state(state);
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {

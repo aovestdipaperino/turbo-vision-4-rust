@@ -69,11 +69,13 @@ pub const FRAME_ICON: u8 = 3; // Close icon and dragging state (LightGreen on Li
 pub const WINDOW_BACKGROUND: u8 = 1; // Window interior/background color (maps differently per window type)
 pub const BLUE_WINDOW_BACKGROUND: u8 = 5; // Blue window interior (Yellow on Blue)
 
-// Editor palette indices (direct app palette indices for editor components inside windows)
-// Note: Editor views return None for get_palette(), so these map directly to app palette
-pub const EDITOR_NORMAL: u8 = 9; // Normal editor text (White on Blue) - app palette position 9 = 0x1F
-pub const EDITOR_SELECTED: u8 = 57; // Selected text (Black on Cyan) - app palette position 57 = 0x30
-pub const EDITOR_CURSOR: u8 = 57; // Cursor (Black on Cyan) - app palette position 57 = 0x30
+// Editor palette indices (cpEditor palette-relative indices)
+// Editor now uses CP_EDITOR palette [6, 7] with proper parent-child hierarchy
+// Index 1 → CP_EDITOR[0] = 6 → App palette position 6 (Normal text)
+// Index 2 → CP_EDITOR[1] = 7 → App palette position 7 (Selected text)
+pub const EDITOR_NORMAL: u8 = 1; // Normal editor text - cpEditor position 1 → app palette 6
+pub const EDITOR_SELECTED: u8 = 2; // Selected text - cpEditor position 2 → app palette 7
+pub const EDITOR_CURSOR: u8 = 2; // Cursor - same as selected
 
 /// 16-color palette matching Turbo Vision
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

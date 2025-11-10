@@ -114,6 +114,10 @@ impl View for BroadcastButton {
     fn can_focus(&self) -> bool {
         true
     }
+
+    fn get_palette(&self) -> Option<turbo_vision::core::palette::Palette> {
+        None
+    }
 }
 
 fn main() -> turbo_vision::core::error::Result<()> {

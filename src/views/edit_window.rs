@@ -15,60 +15,130 @@ use crate::terminal::Terminal;
 use super::window::Window;
 use super::editor::Editor;
 use super::view::View;
+use std::rc::Rc;
+use std::cell::RefCell;
+
+/// Wrapper that allows Editor to be shared between window and EditWindow
+struct SharedEditor(Rc<RefCell<Editor>>);
+
+impl View for SharedEditor {
+    fn bounds(&self) -> Rect {
+        self.0.borrow().bounds()
+    }
+
+    fn set_bounds(&mut self, bounds: Rect) {
+        self.0.borrow_mut().set_bounds(bounds);
+    }
+
+    fn draw(&mut self, terminal: &mut Terminal) {
+        self.0.borrow_mut().draw(terminal);
+    }
+
+    fn handle_event(&mut self, event: &mut Event) {
+        self.0.borrow_mut().handle_event(event);
+    }
+
+    fn can_focus(&self) -> bool {
+        self.0.borrow().can_focus()
+    }
+
+    fn set_focus(&mut self, focused: bool) {
+        self.0.borrow_mut().set_focus(focused);
+    }
+
+    fn is_focused(&self) -> bool {
+        self.0.borrow().is_focused()
+    }
+
+    fn options(&self) -> u16 {
+        self.0.borrow().options()
+    }
+
+    fn set_options(&mut self, options: u16) {
+        self.0.borrow_mut().set_options(options);
+    }
+
+    fn state(&self) -> StateFlags {
+        self.0.borrow().state()
+    }
+
+    fn set_state(&mut self, state: StateFlags) {
+        self.0.borrow_mut().set_state(state);
+    }
+
+    fn update_cursor(&self, terminal: &mut Terminal) {
+        self.0.borrow().update_cursor(terminal);
+    }
+
+    fn get_palette(&self) -> Option<crate::core::palette::Palette> {
+        self.0.borrow().get_palette()
+    }
+
+    fn get_owner_type(&self) -> super::view::OwnerType {
+        self.0.borrow().get_owner_type()
+    }
+
+    fn set_owner_type(&mut self, owner_type: super::view::OwnerType) {
+        self.0.borrow_mut().set_owner_type(owner_type);
+    }
+}
 
 /// EditWindow - Window containing an Editor
 ///
-/// Matches Borland: TEditWindow
+/// Matches Borland: TEditWindow (parent-child hierarchy)
+/// The Editor is inserted as a child of the Window, matching Borland's structure.
 pub struct EditWindow {
     window: Window,
-    editor: Editor,
+    editor: Rc<RefCell<Editor>>,  // Shared reference for API access
 }
 
 impl EditWindow {
     /// Create a new edit window
+    ///
+    /// Matches Borland: TEditWindow constructor creates TWindow and inserts TEditor as child
     pub fn new(bounds: Rect, title: &str) -> Self {
-        let window = Window::new(bounds, title);
+        let mut window = Window::new(bounds, title);
 
         // Editor fills the window interior
         let editor_bounds = Rect::new(1, 1, bounds.width() - 1, bounds.height() - 1);
-        let editor = Editor::new(editor_bounds).with_scrollbars_and_indicator();
+        let editor = Rc::new(RefCell::new(
+            Editor::new(editor_bounds).with_scrollbars_and_indicator()
+        ));
+
+        // Insert editor as a child of window (matches Borland's window->insert(editor))
+        window.add(Box::new(SharedEditor(Rc::clone(&editor))));
 
         Self { window, editor }
     }
 
     /// Load a file into the editor
     pub fn load_file(&mut self, path: impl AsRef<std::path::Path>) -> std::io::Result<()> {
-        self.editor.load_file(path)
+        self.editor.borrow_mut().load_file(path)
     }
 
     /// Save the editor content
     pub fn save_file(&mut self) -> std::io::Result<()> {
-        self.editor.save_file()
+        self.editor.borrow_mut().save_file()
     }
 
     /// Save as a different file
     pub fn save_as(&mut self, path: impl AsRef<std::path::Path>) -> std::io::Result<()> {
-        self.editor.save_as(path)
+        self.editor.borrow_mut().save_as(path)
     }
 
     /// Get the editor's filename
-    pub fn get_filename(&self) -> Option<&str> {
-        self.editor.get_filename()
+    pub fn get_filename(&self) -> Option<String> {
+        self.editor.borrow().get_filename().map(|s| s.to_string())
     }
 
     /// Check if editor is modified
     pub fn is_modified(&self) -> bool {
-        self.editor.is_modified()
+        self.editor.borrow().is_modified()
     }
 
-    /// Get mutable reference to the editor
-    pub fn editor_mut(&mut self) -> &mut Editor {
-        &mut self.editor
-    }
-
-    /// Get reference to the editor
-    pub fn editor(&self) -> &Editor {
-        &self.editor
+    /// Get a cloned Rc to the editor for advanced access
+    pub fn editor_rc(&self) -> Rc<RefCell<Editor>> {
+        Rc::clone(&self.editor)
     }
 }
 
@@ -81,20 +151,16 @@ impl View for EditWindow {
         self.window.set_bounds(bounds);
         // Update editor bounds to match window interior
         let editor_bounds = Rect::new(1, 1, bounds.width() - 1, bounds.height() - 1);
-        self.editor.set_bounds(editor_bounds);
+        self.editor.borrow_mut().set_bounds(editor_bounds);
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
+        // Window draws itself and all children (including editor)
         self.window.draw(terminal);
-        self.editor.draw(terminal);
     }
 
     fn handle_event(&mut self, event: &mut Event) {
-        // Editor handles most events
-        self.editor.handle_event(event);
-
-        // Window handles frame events (resize, move, etc.)
-        // Only if event wasn't handled by editor
+        // Window handles events and dispatches to children
         self.window.handle_event(event);
     }
 
@@ -108,7 +174,6 @@ impl View for EditWindow {
 
     fn set_state(&mut self, state: StateFlags) {
         self.window.set_state(state);
-        self.editor.set_state(state);
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
@@ -145,7 +210,7 @@ mod tests {
         let path = file.path().to_str().unwrap();
         window.load_file(path).unwrap();
 
-        assert_eq!(window.get_filename(), Some(path));
+        assert_eq!(window.get_filename(), Some(path.to_string()));
         assert!(!window.is_modified());
 
         // Save as
@@ -153,19 +218,18 @@ mod tests {
         let path2 = file2.path().to_str().unwrap();
         window.save_as(path2).unwrap();
 
-        assert_eq!(window.get_filename(), Some(path2));
+        assert_eq!(window.get_filename(), Some(path2.to_string()));
     }
 
     #[test]
     fn test_edit_window_editor_access() {
         let bounds = Rect::new(0, 0, 80, 25);
-        let mut window = EditWindow::new(bounds, "Test Editor");
+        let window = EditWindow::new(bounds, "Test Editor");
 
-        // Test mutable access
-        window.editor_mut().set_text("Hello, World!");
-
-        // Test immutable access
-        assert_eq!(window.editor().get_text(), "Hello, World!");
+        // Test access via Rc
+        let editor = window.editor_rc();
+        editor.borrow_mut().set_text("Hello, World!");
+        assert_eq!(editor.borrow().get_text(), "Hello, World!");
     }
 }
 

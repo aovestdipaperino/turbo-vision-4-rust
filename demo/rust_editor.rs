@@ -97,11 +97,12 @@ fn main() -> turbo_vision::core::error::Result<()> {
     );
     app.set_status_line(status_line);
 
-    // Show About dialog on startup
-    show_about_dialog(&mut app);
-
     // Editor bounds for when user creates a new window
     let editor_bounds = Rect::new(1, 1, width as i16 - 1, height as i16 - 2);
+
+    // Create initial editor window on startup
+    let editor_window = create_editor_window(editor_bounds, &mut editor_state, None);
+    app.desktop.add(Box::new(editor_window));
 
     // Event loop
     app.running = true;
@@ -370,6 +371,14 @@ impl View for SharedEditor {
     fn get_palette(&self) -> Option<turbo_vision::core::palette::Palette> {
         self.0.borrow().get_palette()
     }
+
+    fn get_owner_type(&self) -> turbo_vision::views::view::OwnerType {
+        self.0.borrow().get_owner_type()
+    }
+
+    fn set_owner_type(&mut self, owner_type: turbo_vision::views::view::OwnerType) {
+        self.0.borrow_mut().set_owner_type(owner_type);
+    }
 }
 
 fn prompt_save_if_dirty(app: &mut Application, state: &mut EditorState, has_window: bool) -> bool {
@@ -503,10 +512,6 @@ fn analyze_with_rust_analyzer(app: &mut Application, state: &EditorState) {
 
 fn show_message(app: &mut Application, _title: &str, message: &str) {
     message_box_ok(app, message);
-}
-
-fn show_about_dialog(app: &mut Application) {
-    message_box_ok(app, "Lonbard Turbo Rust");
 }
 
 fn show_error(app: &mut Application, _title: &str, message: &str) {

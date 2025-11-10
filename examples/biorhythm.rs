@@ -300,6 +300,10 @@ impl View for BiorhythmChart {
 
     fn handle_event(&mut self, _event: &mut Event) {}
     fn update_cursor(&self, _terminal: &mut Terminal) {}
+
+    fn get_palette(&self) -> Option<turbo_vision::core::palette::Palette> {
+        None
+    }
 }
 
 fn create_biorhythm_dialog(prev_day: &str, prev_month: &str, prev_year: &str, _screen_width: u16, _screen_height: u16) -> (turbo_vision::views::dialog::Dialog, Rc<RefCell<String>>, Rc<RefCell<String>>, Rc<RefCell<String>>) {
