@@ -17,6 +17,7 @@ Cargo.lock
 
 # log files
 mouse_test.txt
+event_test.txt
 
 # OS files
 .DS_Store
