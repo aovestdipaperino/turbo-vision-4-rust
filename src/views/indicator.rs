@@ -80,3 +80,35 @@ impl View for Indicator {
         None  // Indicator uses hardcoded dialog colors
     }
 }
+
+/// Builder for creating indicators with a fluent API.
+pub struct IndicatorBuilder {
+    bounds: Option<Rect>,
+}
+
+impl IndicatorBuilder {
+    pub fn new() -> Self {
+        Self { bounds: None }
+    }
+
+    #[must_use]
+    pub fn bounds(mut self, bounds: Rect) -> Self {
+        self.bounds = Some(bounds);
+        self
+    }
+
+    pub fn build(self) -> Indicator {
+        let bounds = self.bounds.expect("Indicator bounds must be set");
+        Indicator::new(bounds)
+    }
+
+    pub fn build_boxed(self) -> Box<Indicator> {
+        Box::new(self.build())
+    }
+}
+
+impl Default for IndicatorBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}

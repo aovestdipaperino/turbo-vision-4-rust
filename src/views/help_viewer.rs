@@ -241,6 +241,50 @@ impl View for HelpViewer {
     }
 }
 
+/// Builder for creating help viewers with a fluent API.
+pub struct HelpViewerBuilder {
+    bounds: Option<Rect>,
+    with_scrollbar: bool,
+}
+
+impl HelpViewerBuilder {
+    pub fn new() -> Self {
+        Self { bounds: None, with_scrollbar: false }
+    }
+
+    #[must_use]
+    pub fn bounds(mut self, bounds: Rect) -> Self {
+        self.bounds = Some(bounds);
+        self
+    }
+
+    #[must_use]
+    pub fn with_scrollbar(mut self, with_scrollbar: bool) -> Self {
+        self.with_scrollbar = with_scrollbar;
+        self
+    }
+
+    pub fn build(self) -> HelpViewer {
+        let bounds = self.bounds.expect("HelpViewer bounds must be set");
+        let viewer = HelpViewer::new(bounds);
+        if self.with_scrollbar {
+            viewer.with_scrollbar()
+        } else {
+            viewer
+        }
+    }
+
+    pub fn build_boxed(self) -> Box<HelpViewer> {
+        Box::new(self.build())
+    }
+}
+
+impl Default for HelpViewerBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

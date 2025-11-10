@@ -617,6 +617,49 @@ impl View for Group {
     }
 }
 
+/// Builder for creating groups with a fluent API.
+pub struct GroupBuilder {
+    bounds: Option<Rect>,
+    background: Option<Attr>,
+}
+
+impl GroupBuilder {
+    pub fn new() -> Self {
+        Self { bounds: None, background: None }
+    }
+
+    #[must_use]
+    pub fn bounds(mut self, bounds: Rect) -> Self {
+        self.bounds = Some(bounds);
+        self
+    }
+
+    #[must_use]
+    pub fn background(mut self, background: Attr) -> Self {
+        self.background = Some(background);
+        self
+    }
+
+    pub fn build(self) -> Group {
+        let bounds = self.bounds.expect("Group bounds must be set");
+        if let Some(bg) = self.background {
+            Group::with_background(bounds, bg)
+        } else {
+            Group::new(bounds)
+        }
+    }
+
+    pub fn build_boxed(self) -> Box<Group> {
+        Box::new(self.build())
+    }
+}
+
+impl Default for GroupBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

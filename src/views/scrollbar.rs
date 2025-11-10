@@ -584,3 +584,149 @@ impl Default for ScrollBarBuilder {
     }
 
 }
+
+/// Builder for creating scrollbars with a fluent API.
+///
+/// # Examples
+///
+/// ```ignore
+/// use turbo_vision::views::scrollbar::ScrollBarBuilder;
+/// use turbo_vision::core::geometry::Rect;
+///
+/// // Create a vertical scrollbar
+/// let scrollbar = ScrollBarBuilder::new()
+///     .bounds(Rect::new(78, 1, 79, 20))
+///     .vertical()
+///     .params(0, 0, 100, 10, 1)
+///     .build();
+///
+/// // Create a horizontal scrollbar
+/// let scrollbar = ScrollBarBuilder::new()
+///     .bounds(Rect::new(1, 23, 78, 24))
+///     .horizontal()
+///     .build();
+/// ```
+pub struct ScrollBarBuilder {
+    bounds: Option<Rect>,
+    is_vertical: bool,
+    value: i32,
+    min_val: i32,
+    max_val: i32,
+    pg_step: i32,
+    ar_step: i32,
+}
+
+impl ScrollBarBuilder {
+    /// Creates a new ScrollBarBuilder with default values (vertical orientation).
+    pub fn new() -> Self {
+        Self {
+            bounds: None,
+            is_vertical: true,
+            value: 0,
+            min_val: 0,
+            max_val: 0,
+            pg_step: 1,
+            ar_step: 1,
+        }
+    }
+
+    /// Sets the scrollbar bounds (required).
+    #[must_use]
+    pub fn bounds(mut self, bounds: Rect) -> Self {
+        self.bounds = Some(bounds);
+        self
+    }
+
+    /// Sets the scrollbar to vertical orientation.
+    #[must_use]
+    pub fn vertical(mut self) -> Self {
+        self.is_vertical = true;
+        self
+    }
+
+    /// Sets the scrollbar to horizontal orientation.
+    #[must_use]
+    pub fn horizontal(mut self) -> Self {
+        self.is_vertical = false;
+        self
+    }
+
+    /// Sets the scrollbar parameters.
+    #[must_use]
+    pub fn params(mut self, value: i32, min_val: i32, max_val: i32, pg_step: i32, ar_step: i32) -> Self {
+        self.value = value;
+        self.min_val = min_val;
+        self.max_val = max_val;
+        self.pg_step = pg_step;
+        self.ar_step = ar_step;
+        self
+    }
+
+    /// Sets the initial value.
+    #[must_use]
+    pub fn value(mut self, value: i32) -> Self {
+        self.value = value;
+        self
+    }
+
+    /// Sets the range (min and max values).
+    #[must_use]
+    pub fn range(mut self, min_val: i32, max_val: i32) -> Self {
+        self.min_val = min_val;
+        self.max_val = max_val;
+        self
+    }
+
+    /// Sets the page step.
+    #[must_use]
+    pub fn page_step(mut self, pg_step: i32) -> Self {
+        self.pg_step = pg_step;
+        self
+    }
+
+    /// Sets the arrow step.
+    #[must_use]
+    pub fn arrow_step(mut self, ar_step: i32) -> Self {
+        self.ar_step = ar_step;
+        self
+    }
+
+    /// Builds the ScrollBar.
+    ///
+    /// # Panics
+    ///
+    /// Panics if required fields (bounds) are not set.
+    pub fn build(self) -> ScrollBar {
+        let bounds = self.bounds.expect("ScrollBar bounds must be set");
+
+        let chars = if self.is_vertical {
+            VSCROLL_CHARS
+        } else {
+            HSCROLL_CHARS
+        };
+
+        ScrollBar {
+            bounds,
+            value: self.value.max(self.min_val).min(self.max_val.max(self.min_val)),
+            min_val: self.min_val,
+            max_val: self.max_val.max(self.min_val),
+            pg_step: self.pg_step,
+            ar_step: self.ar_step,
+            chars,
+            is_vertical: self.is_vertical,
+            owner: None,
+            owner_type: super::view::OwnerType::Window,
+        }
+    }
+
+    /// Builds the ScrollBar as a Box.
+    pub fn build_boxed(self) -> Box<ScrollBar> {
+        Box::new(self.build())
+    }
+}
+
+impl Default for ScrollBarBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}

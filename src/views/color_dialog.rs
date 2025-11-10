@@ -145,3 +145,88 @@ impl View for ColorDialog {
         self.dialog.set_state(state);
     }
 }
+
+/// Builder for creating color dialogs with a fluent API.
+///
+/// # Examples
+///
+/// ```ignore
+/// use turbo_vision::views::color_dialog::ColorDialogBuilder;
+/// use turbo_vision::core::geometry::Rect;
+/// use turbo_vision::core::palette::Attr;
+/// use turbo_vision::core::palette::TvColor;
+///
+/// // Create a color dialog with default colors
+/// let dialog = ColorDialogBuilder::new()
+///     .bounds(Rect::new(10, 5, 60, 20))
+///     .title("Select Colors")
+///     .build();
+///
+/// // Create a color dialog with initial attribute
+/// let initial = Attr::new(TvColor::White, TvColor::Blue);
+/// let dialog = ColorDialogBuilder::new()
+///     .bounds(Rect::new(10, 5, 60, 20))
+///     .title("Choose Colors")
+///     .initial_attr(initial)
+///     .build();
+/// ```
+pub struct ColorDialogBuilder {
+    bounds: Option<Rect>,
+    title: Option<String>,
+    initial_attr: Attr,
+}
+
+impl ColorDialogBuilder {
+    /// Creates a new ColorDialogBuilder with default values.
+    pub fn new() -> Self {
+        use crate::core::palette::TvColor;
+        Self {
+            bounds: None,
+            title: None,
+            initial_attr: Attr::new(TvColor::White, TvColor::Black),
+        }
+    }
+
+    /// Sets the color dialog bounds (required).
+    #[must_use]
+    pub fn bounds(mut self, bounds: Rect) -> Self {
+        self.bounds = Some(bounds);
+        self
+    }
+
+    /// Sets the dialog title (required).
+    #[must_use]
+    pub fn title(mut self, title: impl Into<String>) -> Self {
+        self.title = Some(title.into());
+        self
+    }
+
+    /// Sets the initial color attribute (default: White on Black).
+    #[must_use]
+    pub fn initial_attr(mut self, attr: Attr) -> Self {
+        self.initial_attr = attr;
+        self
+    }
+
+    /// Builds the ColorDialog.
+    ///
+    /// # Panics
+    ///
+    /// Panics if required fields (bounds, title) are not set.
+    pub fn build(self) -> ColorDialog {
+        let bounds = self.bounds.expect("ColorDialog bounds must be set");
+        let title = self.title.expect("ColorDialog title must be set");
+        ColorDialog::new(bounds, &title, self.initial_attr)
+    }
+
+    /// Builds the ColorDialog as a Box.
+    pub fn build_boxed(self) -> Box<ColorDialog> {
+        Box::new(self.build())
+    }
+}
+
+impl Default for ColorDialogBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
