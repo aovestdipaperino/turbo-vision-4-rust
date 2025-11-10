@@ -168,6 +168,11 @@ impl View for Scroller {
     fn get_owner(&self) -> Option<*const dyn View> {
         self.owner
     }
+
+    fn get_palette(&self) -> Option<crate::core::palette::Palette> {
+        use crate::core::palette::{palettes, Palette};
+        Some(Palette::from_slice(palettes::CP_SCROLLER))
+    }
 }
 
 /// Builder for creating scrollers with a fluent API.
