@@ -365,9 +365,7 @@ pub trait View {
     /// # Returns
     /// * `Some(Palette)` - This view has a palette for color remapping
     /// * `None` - This view has no palette (transparent to color mapping)
-    fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        None // Default: no palette
-    }
+    fn get_palette(&self) -> Option<crate::core::palette::Palette>;
 
     /// Map a logical color index to an actual color attribute
     /// Matches Borland: TView::mapColor(uchar index)

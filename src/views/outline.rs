@@ -383,7 +383,8 @@ impl<T: 'static> View for OutlineViewer<T> {
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        None  // OutlineViewer uses hardcoded listbox colors
+        use crate::core::palette::{palettes, Palette};
+        Some(Palette::from_slice(palettes::CP_LISTBOX))
     }
 }
 

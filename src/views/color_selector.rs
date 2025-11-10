@@ -173,6 +173,10 @@ impl View for ColorSelector {
     fn set_state(&mut self, state: StateFlags) {
         self.state = state;
     }
+
+    fn get_palette(&self) -> Option<crate::core::palette::Palette> {
+        None  // TColorSelector has no palette override
+    }
 }
 
 /// Builder for creating color selectors with a fluent API.

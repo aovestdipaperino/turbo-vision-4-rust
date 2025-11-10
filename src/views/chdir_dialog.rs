@@ -106,6 +106,10 @@ impl View for ChDirDialog {
     fn set_state(&mut self, state: crate::core::state::StateFlags) {
         self.file_dialog.set_state(state);
     }
+
+    fn get_palette(&self) -> Option<crate::core::palette::Palette> {
+        self.file_dialog.get_palette()
+    }
 }
 
 /// Builder for creating change directory dialogs with a fluent API.

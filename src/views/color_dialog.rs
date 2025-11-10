@@ -144,6 +144,10 @@ impl View for ColorDialog {
     fn set_state(&mut self, state: crate::core::state::StateFlags) {
         self.dialog.set_state(state);
     }
+
+    fn get_palette(&self) -> Option<crate::core::palette::Palette> {
+        self.dialog.get_palette()
+    }
 }
 
 /// Builder for creating color dialogs with a fluent API.

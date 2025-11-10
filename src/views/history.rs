@@ -133,7 +133,8 @@ impl View for History {
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        None  // History uses hardcoded button colors
+        use crate::core::palette::{palettes, Palette};
+        Some(Palette::from_slice(palettes::CP_HISTORY))
     }
 }
 

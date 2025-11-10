@@ -624,4 +624,33 @@ pub mod palettes {
     pub const CP_HELP_VIEWER: &[u8] = &[
         6, 7, 8,  // 1-3: Normal text, Focused text, Cross-reference links
     ];
+
+    // Editor palette (TEditor view)
+    // Borland: cpEditor = "\x06\x07" (6, 7)
+    // Same as CP_SCROLLER - editors use window background colors
+    #[rustfmt::skip]
+    pub const CP_EDITOR: &[u8] = &[
+        6, 7,  // 1-2: Normal text, Selected text
+    ];
+
+    // History Viewer palette (THistoryViewer)
+    // Borland: cpHistoryViewer = "\x06\x06\x07\x06\x06" (6, 6, 7, 6, 6)
+    #[rustfmt::skip]
+    pub const CP_HISTORY_VIEWER: &[u8] = &[
+        6, 6, 7, 6, 6,  // 1-5: Normal, Normal bg, Selected, Divider bg, Arrows
+    ];
+
+    // History dropdown button palette (THistory)
+    // Borland: cpHistory = "\x16\x17" (22, 23)
+    #[rustfmt::skip]
+    pub const CP_HISTORY: &[u8] = &[
+        22, 23,  // 1-2: Normal button, Arrow icon
+    ];
+
+    // Background palette (TBackground)
+    // Borland: cpBackground = "\x01" (1)
+    #[rustfmt::skip]
+    pub const CP_BACKGROUND: &[u8] = &[
+        1,  // 1: Background color (maps to app palette position 1)
+    ];
 }

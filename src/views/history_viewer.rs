@@ -159,7 +159,8 @@ impl View for HistoryViewer {
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        None  // HistoryViewer uses hardcoded listbox colors
+        use crate::core::palette::{palettes, Palette};
+        Some(Palette::from_slice(palettes::CP_HISTORY_VIEWER))
     }
 }
 

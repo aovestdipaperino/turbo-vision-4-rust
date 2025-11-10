@@ -341,7 +341,8 @@ impl View for FileList {
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        None  // FileList uses hardcoded listbox colors
+        use crate::core::palette::{palettes, Palette};
+        Some(Palette::from_slice(palettes::CP_LISTBOX))
     }
 }
 

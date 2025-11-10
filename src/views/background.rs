@@ -60,6 +60,11 @@ impl View for Background {
     fn get_owner(&self) -> Option<*const dyn View> {
         self.owner
     }
+
+    fn get_palette(&self) -> Option<crate::core::palette::Palette> {
+        use crate::core::palette::{palettes, Palette};
+        Some(Palette::from_slice(palettes::CP_BACKGROUND))
+    }
 }
 
 /// Builder for creating backgrounds with a fluent API.

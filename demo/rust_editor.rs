@@ -375,8 +375,53 @@ fn create_editor_window(
         state.filename = Some(path);
     }
 
-    // Add to desktop (matches Borland: desktop->insert(new TEditWindow(...)))
-    app.desktop.add(Box::new(edit_window));
+    fn set_bounds(&mut self, bounds: Rect) {
+        self.0.borrow_mut().set_bounds(bounds);
+    }
+
+    fn draw(&mut self, terminal: &mut turbo_vision::terminal::Terminal) {
+        self.0.borrow_mut().draw(terminal);
+    }
+
+    fn handle_event(&mut self, event: &mut turbo_vision::core::event::Event) {
+        self.0.borrow_mut().handle_event(event);
+    }
+
+    fn can_focus(&self) -> bool {
+        self.0.borrow().can_focus()
+    }
+
+    fn set_focus(&mut self, focused: bool) {
+        self.0.borrow_mut().set_focus(focused);
+    }
+
+    fn is_focused(&self) -> bool {
+        self.0.borrow().is_focused()
+    }
+
+    fn options(&self) -> u16 {
+        self.0.borrow().options()
+    }
+
+    fn set_options(&mut self, options: u16) {
+        self.0.borrow_mut().set_options(options);
+    }
+
+    fn state(&self) -> turbo_vision::core::state::StateFlags {
+        self.0.borrow().state()
+    }
+
+    fn set_state(&mut self, state: turbo_vision::core::state::StateFlags) {
+        self.0.borrow_mut().set_state(state);
+    }
+
+    fn update_cursor(&self, terminal: &mut turbo_vision::terminal::Terminal) {
+        self.0.borrow().update_cursor(terminal);
+    }
+
+    fn get_palette(&self) -> Option<turbo_vision::core::palette::Palette> {
+        self.0.borrow().get_palette()
+    }
 }
 
 fn prompt_save_if_dirty(app: &mut Application, state: &mut EditorState, has_window: bool) -> bool {

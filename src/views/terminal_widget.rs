@@ -424,6 +424,11 @@ impl View for TerminalWidget {
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
     }
+
+    fn get_palette(&self) -> Option<crate::core::palette::Palette> {
+        use crate::core::palette::{palettes, Palette};
+        Some(Palette::from_slice(palettes::CP_SCROLLER))
+    }
 }
 
 /// Builder for creating terminal widgets with a fluent API.
