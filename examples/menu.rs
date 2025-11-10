@@ -7,7 +7,10 @@
 
 use turbo_vision::app::Application;
 use turbo_vision::core::command::{CM_NEW, CM_OK, CM_OPEN, CM_QUIT, CM_SAVE};
-use turbo_vision::core::event::{EventType, KB_F10, MB_RIGHT_BUTTON};
+use turbo_vision::core::event::{
+    Event, EventType, KB_ALT_X, KB_CTRL_C, KB_CTRL_N, KB_CTRL_O, KB_CTRL_S, KB_CTRL_V,
+    KB_CTRL_X, KB_F10, MB_RIGHT_BUTTON,
+};
 use turbo_vision::core::geometry::{Point, Rect};
 use turbo_vision::core::menu_data::{Menu, MenuItem};
 use turbo_vision::views::button::ButtonBuilder;
@@ -15,7 +18,7 @@ use turbo_vision::views::dialog::DialogBuilder;
 use turbo_vision::views::menu_bar::{MenuBar, SubMenu};
 use turbo_vision::views::menu_box::MenuBox;
 use turbo_vision::views::static_text::StaticTextBuilder;
-use turbo_vision::views::status_line::{StatusItem, StatusLineBuilder};
+use turbo_vision::views::status_line::{StatusItem, StatusLine};
 use turbo_vision::views::View;
 
 // Custom command IDs for this example
@@ -23,7 +26,6 @@ const CMD_ABOUT: u16 = 100;
 const CMD_CUT: u16 = 200;
 const CMD_COPY: u16 = 201;
 const CMD_PASTE: u16 = 202;
-//const CMD_PREFERENCES: u16 = 203;
 const CMD_GENERAL_PREFS: u16 = 204;
 const CMD_APPEARANCE_PREFS: u16 = 205;
 const CMD_SHORTCUTS_PREFS: u16 = 206;
@@ -105,14 +107,16 @@ fn setup_menu_bar(app: &mut Application, width: u16) {
     app.set_menu_bar(menu_bar);
 }
 
-    // Create status line
-    let status_line = StatusLineBuilder::new()
-        .bounds(Rect::new(0, height as i16 - 1, width as i16, height as i16))
-        .items(vec![
-            StatusItem::new("~F10~ Menu", KB_F10, CM_QUIT),
+/// Create and configure the status line at the bottom of the screen
+fn setup_status_line(app: &mut Application, width: u16, height: u16) {
+    let status_line = StatusLine::new(
+        Rect::new(0, height as i16 - 1, width as i16, height as i16),
+        vec![
+            StatusItem::new("~F10~ Menu", KB_F10, 0),
+            StatusItem::new("~F1~ Help", 0, 0),
             StatusItem::new("~Right-Click~ Popup", 0, 0),
-        ])
-        .build();
+        ],
+    );
     app.set_status_line(status_line);
 }
 
@@ -313,8 +317,8 @@ fn show_message(app: &mut Application, title: &str, message: &str) {
         .title(title)
         .build();
 
-    // Text positioned relative to dialog interior (coordinates are relative)
-    let text_width = dialog_width - 4; // Leave margin
+    // Add centered message text (coordinates are relative to dialog interior)
+    let text_width = dialog_width - 4;
     let text = StaticTextBuilder::new()
         .bounds(Rect::new(2, 1, text_width, 2))
         .text(message)
@@ -324,7 +328,7 @@ fn show_message(app: &mut Application, title: &str, message: &str) {
 
     // Add centered OK button
     let button_width = 10;
-    let button_x = (dialog_width - 2 - button_width) / 2; // -2 for frame
+    let button_x = (dialog_width - 2 - button_width) / 2; // -2 for dialog frame
     let button = ButtonBuilder::new()
         .bounds(Rect::new(button_x, 3, button_x + button_width, 5))
         .title("  ~O~K  ")
@@ -356,8 +360,8 @@ fn show_about(app: &mut Application) {
         .title("Turbo Vision for Rust")
         .build();
 
-    // Text positioned relative to dialog interior (coordinates are relative)
-    let text_width = dialog_width - 4; // Leave margin
+    // Add centered about text
+    let text_width = dialog_width - 4;
     let text = StaticTextBuilder::new()
         .bounds(Rect::new(2, 1, text_width, 7))
         .text("Welcome To Turbo Vision for Rust!\n\nExtended Menu Example\n\nFeatures:\n- Menu bar with nested submenus\n- Right-click popup/context menus")
@@ -367,7 +371,7 @@ fn show_about(app: &mut Application) {
 
     // Add centered OK button
     let button_width = 10;
-    let button_x = (dialog_width - 2 - button_width) / 2; // -2 for frame
+    let button_x = (dialog_width - 2 - button_width) / 2;
     let button = ButtonBuilder::new()
         .bounds(Rect::new(button_x, 8, button_x + button_width, 10))
         .title("  ~O~K  ")
