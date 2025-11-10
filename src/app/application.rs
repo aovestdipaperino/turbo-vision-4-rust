@@ -131,6 +131,46 @@ impl Application {
         self.needs_redraw = true;
     }
 
+    /// Set a custom application palette and automatically trigger redraw if changed
+    /// Pass None to reset to the default Borland palette
+    ///
+    /// This is a convenience method that combines palette setting with automatic redraw.
+    /// It only triggers a redraw if the palette actually changes.
+    ///
+    /// # Example
+    /// ```rust,no_run
+    /// use turbo_vision::app::Application;
+    ///
+    /// let mut app = Application::new()?;
+    /// // Set a custom dark theme palette
+    /// let dark_palette = vec![/* 63 color bytes */];
+    /// app.set_palette(Some(dark_palette));
+    /// // Redraw is triggered automatically
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn set_palette(&mut self, palette: Option<Vec<u8>>) {
+        use crate::core::palette::palettes;
+
+        // Get the current palette to check if it's actually changing
+        let current_palette = palettes::get_app_palette();
+        let is_changing = match &palette {
+            Some(new_palette) => new_palette != &current_palette,
+            None => {
+                // Check if we're currently using a custom palette
+                // by comparing with the default (CP_APP_COLOR)
+                current_palette != palettes::CP_APP_COLOR
+            }
+        };
+
+        // Set the new palette
+        palettes::set_custom_palette(palette);
+
+        // Trigger redraw only if the palette actually changed
+        if is_changing {
+            self.needs_redraw = true;
+        }
+    }
+
     /// Get an event (with drawing)
     /// Matches Borland: TProgram::getEvent() (tprogram.cc:105-174)
     /// This is called by modal views' execute() methods.

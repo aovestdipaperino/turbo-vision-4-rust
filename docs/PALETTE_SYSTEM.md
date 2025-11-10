@@ -344,6 +344,143 @@ The palette system includes comprehensive regression tests:
 - Tests cover both Dialog-context and top-level views
 - All tests ensure color stability across changes
 
+## Runtime Palette Customization
+
+The palette system supports runtime customization of the entire application palette, allowing you to create custom themes:
+
+### Using `Application::set_palette()`
+
+The `Application::set_palette()` method provides a convenient way to change the application palette with automatic redrawing:
+
+```rust
+use turbo_vision::app::Application;
+
+let mut app = Application::new()?;
+
+// Create a custom dark theme palette (63 bytes)
+// Each byte encodes: (foreground << 4) | background
+let dark_palette = vec![
+    0x08, 0x0F, 0x08, 0x0E, 0x0B, 0x0A, 0x0C, 0x01, // Desktop
+    0xF1, 0xE1, 0xF3, 0xF3, 0xF1, 0x08, 0x00,       // Menu
+    // ... 63 bytes total
+];
+
+// Set the custom palette (redraw happens automatically!)
+app.set_palette(Some(dark_palette));
+
+// Reset to default Borland palette
+app.set_palette(None);
+```
+
+### How It Works
+
+1. **Automatic Redraw**: `set_palette()` automatically calls `needs_redraw()` when the palette changes
+2. **Change Detection**: Only triggers redraw if the palette actually differs from the current one
+3. **Thread-Local Storage**: Custom palette is stored in a thread-local `RefCell<Option<Vec<u8>>>`
+4. **Transparent Remapping**: All views automatically use the new palette through `map_color()`
+
+### Custom Palette Format
+
+The application palette (`CP_APP_COLOR`) is a 63-byte array where each byte encodes a color attribute:
+
+```
+Byte format: 0xBF
+  B = Background color (high nibble, 0-F)
+  F = Foreground color (low nibble, 0-F)
+
+Color values:
+  0=Black, 1=Blue, 2=Green, 3=Cyan, 4=Red, 5=Magenta, 6=Brown, 7=LightGray
+  8=DarkGray, 9=LightBlue, A=LightGreen, B=LightCyan, C=LightRed,
+  D=LightMagenta, E=Yellow, F=White
+```
+
+### Palette Layout (indices 1-63)
+
+```
+ 1-8:   Desktop colors
+ 9-15:  Menu and StatusLine
+16-23:  Cyan Window theme
+24-31:  Gray Window theme
+32-63:  Dialog and control colors
+```
+
+### Example: Creating Themes
+
+See `examples/palette_themes_demo.rs` for a complete example with multiple themes:
+
+```rust
+// Dark theme with dark backgrounds
+let dark_palette = vec![
+    0x08, 0x0F, 0x08, 0x0E, 0x0B, 0x0A, 0x0C, 0x01,
+    0xF1, 0xE1, 0xF3, 0xF3, 0xF1, 0x08, 0x00,
+    // ... rest of palette
+];
+
+// High-contrast theme (black on white, white on black)
+let contrast_palette = vec![
+    0x0F, 0xF0, 0x0F, 0xE0, 0xF0, 0xE0, 0xF0, 0xF0,
+    0x0F, 0xE0, 0x0F, 0x0F, 0x0F, 0x0F, 0x00,
+    // ... rest of palette
+];
+
+// Switch between themes
+match theme_choice {
+    ThemeChoice::Dark => app.set_palette(Some(dark_palette)),
+    ThemeChoice::Contrast => app.set_palette(Some(contrast_palette)),
+    ThemeChoice::Default => app.set_palette(None),
+}
+```
+
+### Implementation Details
+
+The `set_palette()` method in `Application`:
+
+```rust
+pub fn set_palette(&mut self, palette: Option<Vec<u8>>) {
+    use crate::core::palette::palettes;
+
+    // Get current palette to check if it's actually changing
+    let current_palette = palettes::get_app_palette();
+    let is_changing = match &palette {
+        Some(new_palette) => new_palette != &current_palette,
+        None => current_palette != palettes::CP_APP_COLOR,
+    };
+
+    // Set the new palette
+    palettes::set_custom_palette(palette);
+
+    // Trigger redraw only if the palette actually changed
+    if is_changing {
+        self.needs_redraw = true;
+    }
+}
+```
+
+### Low-Level API
+
+For advanced use cases, you can use the low-level palette API:
+
+```rust
+use turbo_vision::core::palette::palettes;
+
+// Set palette manually (no automatic redraw)
+palettes::set_custom_palette(Some(custom_palette));
+
+// Get current palette (custom or default)
+let current = palettes::get_app_palette();
+
+// Manually trigger redraw
+app.needs_redraw();
+```
+
+### Testing and Validation
+
+The palette system includes comprehensive regression tests:
+- 9 palette regression tests in `tests/palette_regression_tests.rs`
+- Tests verify Borland-accurate colors for all UI components
+- Tests cover both Dialog-context and top-level views
+- All tests ensure color stability across changes
+
 ## Future Enhancements
 
 If dynamic palette chains are needed, safe alternatives include:

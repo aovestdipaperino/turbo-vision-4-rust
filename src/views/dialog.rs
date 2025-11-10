@@ -216,8 +216,11 @@ impl View for Dialog {
                     event.clear();
                 }
                 _ => {
-                    // Other commands - don't end the modal loop
-                    // Just let the command propagate
+                    // Other commands (including custom button commands)
+                    // End the modal loop with the command so it can be processed by the caller
+                    // Matches Borland: buttons with custom commands close the dialog
+                    self.window.end_modal(event.command);
+                    event.clear();
                 }
             }
         }
@@ -286,6 +289,10 @@ impl View for Dialog {
 
     fn constrain_to_parent_bounds(&mut self) {
         self.window.constrain_to_limits();
+    }
+
+    fn get_end_state(&self) -> crate::core::command::CommandId {
+        self.window.get_end_state()
     }
 }
 

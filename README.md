@@ -94,12 +94,30 @@ The color palette system accurately replicates Borland Turbo Vision's behavior:
 - **Context-Aware Remapping**: Views automatically remap colors based on their container (Dialog, Window, or Desktop)
 - **Owner Type Support**: Each view tracks its owner type for correct palette inheritance
 - **Borland-Accurate Colors**: All UI elements (menus, buttons, labels, dialogs) match original Borland colors
+- **Runtime Customization**: Change the entire application palette at runtime with `app.set_palette()` for custom themes
 - **Regression Testing**: 9 comprehensive palette tests ensure color stability across changes
 
 The palette system uses a three-level mapping chain:
 1. View palette (e.g., Button, Label) → indices 1-31
 2. Container palette (Dialog/Window) → remaps to indices 32-63
 3. Application palette → final RGB colors
+
+### Custom Palettes and Theming
+
+You can customize the entire application palette at runtime to create custom themes:
+
+```rust
+// Create a custom palette (63 bytes, each encoding foreground << 4 | background)
+let dark_palette = vec![/* 63 color bytes */];
+
+// Set the palette - redraw happens automatically!
+app.set_palette(Some(dark_palette));
+
+// Reset to default Borland palette
+app.set_palette(None);
+```
+
+See `examples/palette_themes_demo.rs` for a complete example with multiple themes.
 
 ## Module Overview
 
@@ -184,16 +202,16 @@ This implementation closely follows Borland Turbo Vision's architecture, adapted
 ===============================================================================
  Language            Files        Lines         Code     Comments       Blanks
 ===============================================================================
- Rust                  107        28497        21387         2740         4370
- |- Markdown            81         2858          204         2221          433
- (Total)                          31355        21591         4961         4803
+ Rust                  108        31215        23546         2848         4821
+ |- Markdown            82         3504          209         2752          543
+ (Total)                          34719        23755         5600         5364
 ===============================================================================
 ```
 
 Generated with [tokei](https://github.com/XAMPPRocky/tokei) - includes inline documentation
 
-**194 tests** - all passing ✅
-- 185 unit tests
+**198 tests** - all passing ✅
+- 189 unit tests
 - 9 palette regression tests
 
 ## License
