@@ -13,7 +13,6 @@
 use crate::core::geometry::Rect;
 use crate::core::event::{Event, EventType, KB_ENTER, KB_LEFT, KB_RIGHT};
 use crate::core::state::StateFlags;
-use crate::core::palette::{Attr, TvColor};
 use crate::core::draw::DrawBuffer;
 use crate::terminal::Terminal;
 use super::view::{View, write_line_to_terminal};
@@ -297,15 +296,16 @@ impl<T: 'static> View for OutlineViewer<T> {
         let width = self.bounds.width() as usize;
         let height = self.bounds.height() as usize;
 
+        use crate::core::palette::colors::{LISTBOX_FOCUSED, LISTBOX_NORMAL, LISTBOX_SELECTED_FOCUSED, LISTBOX_SELECTED};
         let color_normal = if self.is_focused() {
-            Attr::new(TvColor::Black, TvColor::White)
+            LISTBOX_FOCUSED
         } else {
-            Attr::new(TvColor::Black, TvColor::LightGray)
+            LISTBOX_NORMAL
         };
         let color_selected = if self.is_focused() {
-            Attr::new(TvColor::White, TvColor::Cyan)
+            LISTBOX_SELECTED_FOCUSED
         } else {
-            Attr::new(TvColor::White, TvColor::Blue)
+            LISTBOX_SELECTED
         };
 
         // Draw visible items

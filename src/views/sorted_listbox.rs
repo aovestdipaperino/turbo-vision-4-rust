@@ -246,7 +246,7 @@ impl View for SortedListBox {
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        use crate::core::palette::{Attr, TvColor};
+        
         use crate::core::draw::DrawBuffer;
         use super::view::write_line_to_terminal;
 
@@ -254,14 +254,14 @@ impl View for SortedListBox {
         let height = self.bounds.height() as usize;
 
         let color_normal = if self.is_focused() {
-            Attr::new(TvColor::Black, TvColor::White)
+            crate::core::palette::colors::LISTBOX_FOCUSED
         } else {
-            Attr::new(TvColor::Black, TvColor::LightGray)
+            crate::core::palette::colors::LISTBOX_NORMAL
         };
         let color_selected = if self.is_focused() {
-            Attr::new(TvColor::White, TvColor::Cyan)
+            crate::core::palette::colors::LISTBOX_SELECTED_FOCUSED
         } else {
-            Attr::new(TvColor::White, TvColor::Blue)
+            crate::core::palette::colors::LISTBOX_SELECTED
         };
 
         // Draw visible items

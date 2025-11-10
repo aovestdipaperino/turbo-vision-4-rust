@@ -14,9 +14,6 @@
 
 use crate::core::palette::Attr;
 
-#[cfg(test)]
-use crate::core::palette::TvColor;
-
 /// Token types for syntax highlighting
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TokenType {
