@@ -282,32 +282,22 @@ fn create_status_line(width: u16, height: u16) -> StatusLine {
 }
 
 fn show_about_dialog(app: &mut Application) {
-    // Center the dialog on screen (80x25 terminal)
-    // Dialog size: 32 wide x 11 tall (fits content properly)
-    let dialog_width = 32i16;
-    let dialog_height = 11i16;
-    let (term_width, term_height) = app.terminal.size();
-    let x = (term_width as i16 - dialog_width) / 2;
-    let y = (term_height as i16 - dialog_height) / 2;
-
     let mut dialog = DialogBuilder::new()
-        .bounds(Rect::new(x, y, x + dialog_width, y + dialog_height))
+        .bounds(Rect::new(20, 7, 60, 16))
         .title("About")
         .build();
 
-    // Text content (5 lines, centered with margins)
     dialog.add(Box::new(StaticTextBuilder::new()
-        .bounds(Rect::new(3, 1, 29, 6))
+        .bounds(Rect::new(2, 2, 36, 7))
         .text("Turbo Vision Demo\n\
-               Version 1.0\n\
-               \n\
-               A demonstration of the\n\
-               Turbo Vision framework")
+         Version 1.0\n\
+         \n\
+         A demonstration of the\n\
+         Turbo Vision framework")
         .build()));
 
-    // OK button (centered horizontally, below text)
     dialog.add(Box::new(ButtonBuilder::new()
-        .bounds(Rect::new(11, 7, 21, 9))
+        .bounds(Rect::new(14, 5, 24, 7))
         .title("  OK  ")
         .command(CM_OK)
         .default(true)
@@ -414,8 +404,7 @@ fn show_ascii_table(app: &mut Application) {
     let (width, height) = app.terminal.size();
 
     // Create a window in the center of the screen
-    // 5 columns narrower than original (was 76, now 71)
-    let win_width = 71i16;
+    let win_width = 76i16;
     let win_height = 22i16;
     let win_x = (width as i16 - win_width) / 2;
     let win_y = (height as i16 - win_height - 2) / 2; // -2 for menu and status
@@ -425,8 +414,8 @@ fn show_ascii_table(app: &mut Application) {
         .title("ASCII Table")
         .build();
 
-    // ASCII table fills the interior (coordinates relative to window interior, which starts at 0,0)
-    let ascii_table = AsciiTable::new(Rect::new(0, 0, win_width - 2, win_height - 2));
+    // ASCII table fills the interior
+    let ascii_table = AsciiTable::new(Rect::new(1, 1, win_width - 2, win_height - 2));
 
     window.add(Box::new(ascii_table));
     app.desktop.add(Box::new(window));
@@ -1324,16 +1313,15 @@ impl View for PuzzleView {
 
 fn show_puzzle_placeholder(app: &mut Application) {
     // Create non-resizable window using builder pattern
-    // Window: 20 wide x 6 tall
+    // Size increased by 1 row and 1 column: was 20x6, now 21x7
     let mut window = WindowBuilder::new()
-        .bounds(Rect::new(1, 1, 21, 7))
+        .bounds(Rect::new(1, 1, 22, 8))
         .title("Puzzle")
         .resizable(false)  // Non-resizable (like TDialog)
         .build();
 
-    // Puzzle view fills interior (window 20x6 - frame 2x2 = interior 18x4)
-    // Coordinates relative to window interior (starts at 0,0)
-    let puzzle_view = PuzzleView::new(Rect::new(0, 0, 18, 4));
+    // Puzzle view size also increased: was 17x4, now 18x5
+    let puzzle_view = PuzzleView::new(Rect::new(1, 1, 19, 6));
     window.add(Box::new(puzzle_view));
 
     app.desktop.add(Box::new(window));
@@ -1566,18 +1554,11 @@ fn main() -> turbo_vision::core::error::Result<()> {
         message,
     );
 
-    // Main event loop
-    app.running = true;
-
-    // Draw desktop first, then show about dialog on top
-    app.draw();
-    clock.draw(&mut app.terminal);
-    message_view.draw(&mut app.terminal);
-    app.terminal.flush()?;
-
-    // Show about dialog on startup (after desktop is drawn)
+    // Show about dialog on startup
     show_about_dialog(&mut app);
 
+    // Main event loop
+    app.running = true;
     while app.running {
         app.draw();
 
