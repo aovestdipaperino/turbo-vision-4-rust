@@ -13,7 +13,7 @@ use turbo_vision::core::event::{EventType, KB_ESC_ESC, KB_TAB};
 use turbo_vision::core::geometry::Rect;
 use turbo_vision::views::dir_listbox::DirListBox;
 use turbo_vision::views::file_list::FileList;
-use turbo_vision::views::static_text::StaticText;
+use turbo_vision::views::static_text::StaticTextBuilder;
 use turbo_vision::views::view::View;
 
 fn main() -> turbo_vision::core::error::Result<()> {
@@ -45,10 +45,6 @@ fn main() -> turbo_vision::core::error::Result<()> {
         terminal_size.1 as i16 - 1,
         terminal_size.0 as i16,
         terminal_size.1 as i16,
-    );
-    let mut status = StaticText::new(
-        status_bounds,
-        " File Browser | TAB: Switch panels | Enter: Navigate | ESC ESC: Exit",
     );
     let mut status = StaticTextBuilder::new()
         .bounds(status_bounds)

@@ -16,13 +16,16 @@ use turbo_vision::core::state::StateFlags;
 use turbo_vision::terminal::Terminal;
 use turbo_vision::views::view::write_line_to_terminal;
 use turbo_vision::views::{
-    button::Button,
-    dialog::Dialog,
-    file_dialog::FileDialog,
+    button::ButtonBuilder,
+    dialog::DialogBuilder,
+    file_dialog::FileDialogBuilder,
+    input_line::InputLineBuilder,
+    label::LabelBuilder,
+    listbox::ListBoxBuilder,
     menu_bar::{MenuBar, SubMenu},
-    static_text::StaticText,
+    static_text::StaticTextBuilder,
     status_line::{StatusItem, StatusLine},
-    window::Window,
+    window::WindowBuilder,
     View,
 };
 
@@ -275,23 +278,26 @@ fn create_status_line(width: u16, height: u16) -> StatusLine {
 }
 
 fn show_about_dialog(app: &mut Application) {
-    let mut dialog = Dialog::new(Rect::new(20, 7, 60, 16), "About");
+    let mut dialog = DialogBuilder::new()
+        .bounds(Rect::new(20, 7, 60, 16))
+        .title("About")
+        .build();
 
-    dialog.add(Box::new(StaticText::new(
-        Rect::new(2, 2, 36, 7),
-        "Turbo Vision Demo\n\
+    dialog.add(Box::new(StaticTextBuilder::new()
+        .bounds(Rect::new(2, 2, 36, 7))
+        .text("Turbo Vision Demo\n\
          Version 1.0\n\
          \n\
          A demonstration of the\n\
-         Turbo Vision framework",
-    )));
+         Turbo Vision framework")
+        .build()));
 
-    dialog.add(Box::new(Button::new(
-        Rect::new(14, 5, 24, 7),
-        "  OK  ",
-        CM_OK,
-        true,
-    )));
+    dialog.add(Box::new(ButtonBuilder::new()
+        .bounds(Rect::new(14, 5, 24, 7))
+        .title("  OK  ")
+        .command(CM_OK)
+        .default(true)
+        .build()));
 
     dialog.set_initial_focus();
     dialog.execute(app);
@@ -395,10 +401,10 @@ fn show_ascii_table(app: &mut Application) {
     let win_x = (width as i16 - win_width) / 2;
     let win_y = (height as i16 - win_height - 2) / 2; // -2 for menu and status
 
-    let mut window = Window::new(
-        Rect::new(win_x, win_y, win_x + win_width, win_y + win_height),
-        "ASCII Table",
-    );
+    let mut window = WindowBuilder::new()
+        .bounds(Rect::new(win_x, win_y, win_x + win_width, win_y + win_height))
+        .title("ASCII Table")
+        .build();
 
     // ASCII table fills the interior
     let ascii_table = AsciiTable::new(Rect::new(1, 1, win_width - 2, win_height - 2));
@@ -682,10 +688,10 @@ fn show_calculator_placeholder(app: &mut Application) {
     let dialog_width = 6 + display_len;
     let dialog_height = 15; // Back to original height
 
-    let mut dialog = Dialog::new(
-        Rect::new(5, 3, 5 + dialog_width as i16, 3 + dialog_height as i16),
-        "Calculator",
-    );
+    let mut dialog = DialogBuilder::new()
+        .bounds(Rect::new(5, 3, 5 + dialog_width as i16, 3 + dialog_height as i16))
+        .title("Calculator")
+        .build();
 
     // Add display at top - moved 1 row up and 1 to the left
     let display = CalcDisplay::new(Rect::new(2, 1, 2 + display_len as i16, 2));
@@ -701,12 +707,12 @@ fn show_calculator_placeholder(app: &mut Application) {
         // Moved 1 row up and 1 to the left
         let x = (i % 4) * 6 + 2;
         let y = (i / 4) * 2 + 3;
-        let mut button = Button::new(
-            Rect::new(x, y, x + 6, y + 2),
-            button_labels[i as usize],
-            CM_CALC_BUTTON + i as u16,
-            false,
-        );
+        let mut button = ButtonBuilder::new()
+            .bounds(Rect::new(x, y, x + 6, y + 2))
+            .title(button_labels[i as usize])
+            .command(CM_CALC_BUTTON + i as u16)
+            .default(false)
+            .build();
         // Make button broadcast and non-selectable
         // Matches Borland: bfBroadcast flag and ofSelectable cleared (calculat.cc:54-55)
         button.set_broadcast(true);
@@ -1014,7 +1020,10 @@ impl View for CalendarView {
 }
 
 fn show_calendar_placeholder(app: &mut Application) {
-    let mut window = Window::new(Rect::new(1, 1, 24, 11), "Calendar");
+    let mut window = WindowBuilder::new()
+        .bounds(Rect::new(1, 1, 24, 11))
+        .title("Calendar")
+        .build();
 
     let calendar_view = CalendarView::new(Rect::new(0, 0, 22, 10));
     window.add(Box::new(calendar_view));
@@ -1295,8 +1304,6 @@ impl View for PuzzleView {
 }
 
 fn show_puzzle_placeholder(app: &mut Application) {
-    use turbo_vision::views::window::WindowBuilder;
-
     // Create non-resizable window using builder pattern
     // Size increased by 1 row and 1 column: was 20x6, now 21x7
     let mut window = WindowBuilder::new()
@@ -1321,18 +1328,16 @@ fn show_open_file_dialog(app: &mut Application) {
     let dialog_x = (width as i16 - dialog_width) / 2;
     let dialog_y = (height as i16 - dialog_height - 2) / 2;
 
-    let mut file_dialog = FileDialog::new(
-        Rect::new(
+    let mut file_dialog = FileDialogBuilder::new()
+        .bounds(Rect::new(
             dialog_x,
             dialog_y,
             dialog_x + dialog_width,
             dialog_y + dialog_height,
-        ),
-        "Open File",
-        "*.*",
-        None,
-    )
-    .build(); // Build the dialog UI
+        ))
+        .title("Open File")
+        .wildcard("*.*")
+        .build();
 
     if let Some(path) = file_dialog.execute(app) {
         // Show selected file in a message (in a real app, would open the file)
@@ -1348,7 +1353,6 @@ fn show_chdir_dialog(app: &mut Application) {
     use std::path::PathBuf;
     use std::rc::Rc;
     //use turbo_vision::core::command::CM_CANCEL;
-    use turbo_vision::views::{input_line::InputLine, label::Label, listbox::ListBox};
 
     let (width, height) = app.terminal.size();
 
@@ -1358,37 +1362,47 @@ fn show_chdir_dialog(app: &mut Application) {
     let dialog_x = (width as i16 - dialog_width) / 2;
     let dialog_y = (height as i16 - dialog_height - 2) / 2;
 
-    let mut dialog = Dialog::new(
-        Rect::new(
+    let mut dialog = DialogBuilder::new()
+        .bounds(Rect::new(
             dialog_x,
             dialog_y,
             dialog_x + dialog_width,
             dialog_y + dialog_height,
-        ),
-        "Change Directory",
-    );
+        ))
+        .title("Change Directory")
+        .build();
 
     // Directory name input - Matches Borland: TRect( 3, 3, 30, 4 )
     let dir_data = Rc::new(RefCell::new(String::new()));
     let current_dir = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
     *dir_data.borrow_mut() = current_dir.display().to_string();
 
-    let dir_label = Label::new(Rect::new(2, 2, 18, 3), "Directory ~n~ame");
+    let dir_label = LabelBuilder::new()
+        .bounds(Rect::new(2, 2, 18, 3))
+        .text("Directory ~n~ame")
+        .build();
     dialog.add(Box::new(dir_label));
 
-    let dir_input = InputLine::new(Rect::new(3, 3, dialog_width - 16, 4), 255, dir_data.clone());
+    let dir_input = InputLineBuilder::new()
+        .bounds(Rect::new(3, 3, dialog_width - 16, 4))
+        .data(dir_data.clone())
+        .max_length(255)
+        .build();
     dialog.add(Box::new(dir_input));
 
     // Directory tree label - Matches Borland: TRect( 2, 5, ... )
-    let tree_label = Label::new(Rect::new(2, 5, 18, 6), "Directory ~t~ree");
+    let tree_label = LabelBuilder::new()
+        .bounds(Rect::new(2, 5, 18, 6))
+        .text("Directory ~t~ree")
+        .build();
     dialog.add(Box::new(tree_label));
 
     // Directory tree listbox - Matches Borland: TRect( 3, 6, 32, 16 )
     const CMD_DIR_SELECTED: u16 = 300;
-    let mut dir_list = ListBox::new(
-        Rect::new(3, 6, dialog_width - 16, dialog_height - 3),
-        CMD_DIR_SELECTED,
-    );
+    let mut dir_list = ListBoxBuilder::new()
+        .bounds(Rect::new(3, 6, dialog_width - 16, dialog_height - 3))
+        .on_select_command(CMD_DIR_SELECTED)
+        .build();
 
     // Build directory tree
     let mut dir_items = Vec::new();
@@ -1423,32 +1437,32 @@ fn show_chdir_dialog(app: &mut Application) {
     let button_x = dialog_width - 13;
 
     // OK button - Matches Borland: TRect( 35, 6, 45, 8 )
-    let ok_button = Button::new(
-        Rect::new(button_x, 6, button_x + 10, 8),
-        "  ~O~K  ",
-        CM_OK,
-        true,
-    );
+    let ok_button = ButtonBuilder::new()
+        .bounds(Rect::new(button_x, 6, button_x + 10, 8))
+        .title("  ~O~K  ")
+        .command(CM_OK)
+        .default(true)
+        .build();
     dialog.add(Box::new(ok_button));
 
     // ChDir button - Matches Borland: TRect( 35, 9, 45, 11 )
     const CM_CHDIR: u16 = 301;
-    let chdir_button = Button::new(
-        Rect::new(button_x, 9, button_x + 10, 11),
-        " ~C~hdir ",
-        CM_CHDIR,
-        false,
-    );
+    let chdir_button = ButtonBuilder::new()
+        .bounds(Rect::new(button_x, 9, button_x + 10, 11))
+        .title(" ~C~hdir ")
+        .command(CM_CHDIR)
+        .default(false)
+        .build();
     dialog.add(Box::new(chdir_button));
 
     // Revert button - Matches Borland: TRect( 35, 12, 45, 14 )
     const CM_REVERT: u16 = 302;
-    let revert_button = Button::new(
-        Rect::new(button_x, 12, button_x + 10, 14),
-        " ~R~evert",
-        CM_REVERT,
-        false,
-    );
+    let revert_button = ButtonBuilder::new()
+        .bounds(Rect::new(button_x, 12, button_x + 10, 14))
+        .title(" ~R~evert")
+        .command(CM_REVERT)
+        .default(false)
+        .build();
     dialog.add(Box::new(revert_button));
 
     dialog.set_initial_focus();

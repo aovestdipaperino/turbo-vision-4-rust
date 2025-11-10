@@ -15,7 +15,7 @@ use turbo_vision::views::dialog::DialogBuilder;
 use turbo_vision::views::menu_bar::{MenuBar, SubMenu};
 use turbo_vision::views::menu_box::MenuBox;
 use turbo_vision::views::static_text::StaticTextBuilder;
-use turbo_vision::views::status_line::{StatusItem, StatusLine};
+use turbo_vision::views::status_line::{StatusItem, StatusLineBuilder};
 use turbo_vision::views::View;
 
 // Custom command IDs for this example
@@ -105,16 +105,14 @@ fn setup_menu_bar(app: &mut Application, width: u16) {
     app.set_menu_bar(menu_bar);
 }
 
-/// Create and configure the status line at the bottom of the screen
-fn setup_status_line(app: &mut Application, width: u16, height: u16) {
-    let status_line = StatusLine::new(
-        Rect::new(0, height as i16 - 1, width as i16, height as i16),
-        vec![
-            StatusItem::new("~F10~ Menu", KB_F10, 0),
-            StatusItem::new("~F1~ Help", 0, 0),
+    // Create status line
+    let status_line = StatusLineBuilder::new()
+        .bounds(Rect::new(0, height as i16 - 1, width as i16, height as i16))
+        .items(vec![
+            StatusItem::new("~F10~ Menu", KB_F10, CM_QUIT),
             StatusItem::new("~Right-Click~ Popup", 0, 0),
-        ],
-    );
+        ])
+        .build();
     app.set_status_line(status_line);
 }
 
@@ -122,15 +120,16 @@ fn setup_status_line(app: &mut Application, width: u16, height: u16) {
 fn setup_welcome_message(app: &mut Application, width: u16, height: u16) {
     let msg_width = 60;
     let msg_x = (width as i16 - msg_width) / 2;
-    let msg = StaticText::new_centered(
-        Rect::new(
+    let msg = StaticTextBuilder::new()
+        .bounds(Rect::new(
             msg_x,
             height as i16 / 2,
             msg_x + msg_width,
             height as i16 / 2 + 4,
-        ),
-        "Extended Menu Example\n\nTry the menu bar with submenus\nor right-click for a popup menu!",
-    );
+        ))
+        .text("Extended Menu Example\n\nTry the menu bar with submenus\nor right-click for a popup menu!")
+        .centered(true)
+        .build();
     app.desktop.add(Box::new(msg));
 }
 
@@ -304,30 +303,34 @@ fn show_message(app: &mut Application, title: &str, message: &str) {
     let dialog_x = (term_width as i16 - dialog_width) / 2;
     let dialog_y = (term_height as i16 - dialog_height) / 2;
 
-    let mut dialog = Dialog::new(
-        Rect::new(
+    let mut dialog = DialogBuilder::new()
+        .bounds(Rect::new(
             dialog_x,
             dialog_y,
             dialog_x + dialog_width,
             dialog_y + dialog_height,
-        ),
-        title,
-    );
+        ))
+        .title(title)
+        .build();
 
     // Text positioned relative to dialog interior (coordinates are relative)
     let text_width = dialog_width - 4; // Leave margin
-    let text = StaticText::new_centered(Rect::new(2, 1, text_width, 2), message);
+    let text = StaticTextBuilder::new()
+        .bounds(Rect::new(2, 1, text_width, 2))
+        .text(message)
+        .centered(true)
+        .build();
     dialog.add(Box::new(text));
 
     // Add centered OK button
     let button_width = 10;
     let button_x = (dialog_width - 2 - button_width) / 2; // -2 for frame
-    let button = Button::new(
-        Rect::new(button_x, 3, button_x + button_width, 5),
-        "  ~O~K  ",
-        CM_OK,
-        true,
-    );
+    let button = ButtonBuilder::new()
+        .bounds(Rect::new(button_x, 3, button_x + button_width, 5))
+        .title("  ~O~K  ")
+        .command(CM_OK)
+        .default(true)
+        .build();
     dialog.add(Box::new(button));
     dialog.set_initial_focus();
 
@@ -343,33 +346,34 @@ fn show_about(app: &mut Application) {
     let dialog_x = (term_width as i16 - dialog_width) / 2;
     let dialog_y = (term_height as i16 - dialog_height) / 2;
 
-    let mut dialog = Dialog::new(
-        Rect::new(
+    let mut dialog = DialogBuilder::new()
+        .bounds(Rect::new(
             dialog_x,
             dialog_y,
             dialog_x + dialog_width,
             dialog_y + dialog_height,
-        ),
-        "Turbo Vision for Rust",
-    );
+        ))
+        .title("Turbo Vision for Rust")
+        .build();
 
     // Text positioned relative to dialog interior (coordinates are relative)
     let text_width = dialog_width - 4; // Leave margin
-    let text = StaticText::new_centered(
-        Rect::new(2, 1, text_width, 7),
-        "Welcome To Turbo Vision for Rust!\n\nExtended Menu Example\n\nFeatures:\n- Menu bar with nested submenus\n- Right-click popup/context menus",
-    );
+    let text = StaticTextBuilder::new()
+        .bounds(Rect::new(2, 1, text_width, 7))
+        .text("Welcome To Turbo Vision for Rust!\n\nExtended Menu Example\n\nFeatures:\n- Menu bar with nested submenus\n- Right-click popup/context menus")
+        .centered(true)
+        .build();
     dialog.add(Box::new(text));
 
     // Add centered OK button
     let button_width = 10;
     let button_x = (dialog_width - 2 - button_width) / 2; // -2 for frame
-    let button = Button::new(
-        Rect::new(button_x, 8, button_x + button_width, 10),
-        "  ~O~K  ",
-        CM_OK,
-        true,
-    );
+    let button = ButtonBuilder::new()
+        .bounds(Rect::new(button_x, 8, button_x + button_width, 10))
+        .title("  ~O~K  ")
+        .command(CM_OK)
+        .default(true)
+        .build();
     dialog.add(Box::new(button));
     dialog.set_initial_focus();
 
