@@ -5,6 +5,68 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.1] - 2025-11-10
+
+### Added
+- **Runtime Palette Customization**
+  - New `Application::set_palette()` method for changing application palette at runtime
+  - Automatically triggers redraw when palette actually changes
+  - Change detection avoids unnecessary redraws
+  - Simplifies theme switching API - one method call instead of two
+  - Example usage: `app.set_palette(Some(dark_palette))` - redraw is automatic
+  - Thread-local storage for custom palettes via `palettes::set_custom_palette()`
+
+- **Palette Themes Demo** (examples/palette_themes_demo.rs - 214 lines)
+  - Interactive demonstration of 4 different color themes
+  - Default theme: Classic Borland Turbo Vision colors
+  - Dark theme: Dark backgrounds with bright text for low-light environments
+  - High-Contrast theme: Black/white for maximum visibility and accessibility
+  - Solarized theme: Earth tones inspired by the Solarized color scheme
+  - Shows how to create custom palettes with 63-byte color arrays
+  - Demonstrates automatic redraw on palette change
+
+### Fixed
+- **Dialog Command Handling** (src/views/dialog.rs)
+  - Fixed: Dialogs now properly handle custom button commands
+  - Previously only CM_OK, CM_YES, CM_NO, CM_CANCEL closed dialogs
+  - Now all commands (including custom ones) call `end_modal()`
+  - Enables theme switching buttons and other custom commands to work correctly
+
+- **Syntax Highlighting Import** (src/views/syntax.rs)
+  - Fixed unused import warning for TvColor
+  - Made TvColor import conditional with `#[cfg(test)]`
+  - Only used in test code, not production
+
+### Changed
+- **Documentation Updates**
+  - README.md: Added "Runtime Customization" bullet to palette features
+  - README.md: New "Custom Palettes and Theming" section with code example
+  - README.md: Updated tokei statistics (108 files, 31,215 lines, 23,546 code)
+  - README.md: Updated test count (198 tests, up from 194)
+  - docs/PALETTE_SYSTEM.md: New "Runtime Palette Customization" section (137 lines)
+  - docs/PALETTE_SYSTEM.md: Documents `Application::set_palette()` API with examples
+  - docs/PALETTE_SYSTEM.md: Explains custom palette format (63 bytes, fg<<4|bg encoding)
+  - docs/PALETTE_SYSTEM.md: Palette layout reference and theme creation examples
+
+### Technical Details
+**Color Mapping Flow**:
+1. User calls `app.set_palette(Some(palette))`
+2. Method compares new palette with current palette
+3. If different, calls `palettes::set_custom_palette(palette)`
+4. Sets `needs_redraw` flag to trigger full redraw
+5. Next frame, all views remap colors through new palette
+
+**Implementation Benefits**:
+- Simple API: One method call instead of two (set + redraw)
+- Efficient: Only redraws when palette actually changes
+- Safe: No redundant redraws on same palette
+- Automatic: Users don't need to remember `needs_redraw()`
+
+**Custom Palette Format**:
+- 63-byte array where each byte encodes: `(foreground << 4) | background`
+- Color values: 0=Black, 1=Blue, 2=Green, 3=Cyan, 4=Red, 5=Magenta, 6=Brown, 7=LightGray, 8=DarkGray, 9=LightBlue, A=LightGreen, B=LightCyan, C=LightRed, D=LightMagenta, E=Yellow, F=White
+- Layout: 1-8 Desktop, 9-15 Menu/StatusLine, 16-23 Cyan Window, 24-31 Gray Window, 32-63 Dialog/Controls
+
 ## [0.10.0] - 2025-11-09
 
 ### Fixed
