@@ -154,7 +154,7 @@ impl HelpWindow {
         }
 
         // Add current topic to history before switching
-        if let Some(current) = self.viewer.current_topic() {
+        if let Some(current) = self.viewer.borrow().current_topic() {
             self.history.push(current.to_string());
         }
 
@@ -271,10 +271,6 @@ impl View for HelpWindow {
     fn set_state(&mut self, state: StateFlags) {
         self.window.set_state(state);
         self.viewer.borrow_mut().set_state(state);
-    }
-
-    fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        self.window.get_palette()
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {

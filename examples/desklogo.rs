@@ -111,6 +111,10 @@ impl View for LogoBackground {
 
     fn handle_event(&mut self, _event: &mut Event) {}
     fn update_cursor(&self, _terminal: &mut Terminal) {}
+
+    fn get_palette(&self) -> Option<turbo_vision::core::palette::Palette> {
+        None
+    }
 }
 
 fn create_menu_bar(width: u16) -> MenuBar {

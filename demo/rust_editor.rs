@@ -106,11 +106,12 @@ fn main() -> turbo_vision::core::error::Result<()> {
     let status_line = init_status_line(Rect::new(0, height as i16 - 1, width as i16, height as i16));
     app.set_status_line(status_line);
 
-    // Create initial editor window on startup (matching Borland TEditWindow)
-    // Use RELATIVE coordinates since it will be added to desktop
-    // Desktop starts at row 1 (menu bar), so window at relative (5, 1) becomes absolute (5, 2)
-    let window_bounds = Rect::new(5, 1, width as i16 - 5, height as i16 - 4);
-    create_editor_window(&mut app, &mut editor_state, window_bounds, None);
+    // Editor bounds for when user creates a new window
+    let editor_bounds = Rect::new(1, 1, width as i16 - 1, height as i16 - 2);
+
+    // Create initial editor window on startup
+    let editor_window = create_editor_window(editor_bounds, &mut editor_state, None);
+    app.desktop.add(Box::new(editor_window));
 
     // Event loop
     app.running = true;
@@ -421,6 +422,14 @@ fn create_editor_window(
 
     fn get_palette(&self) -> Option<turbo_vision::core::palette::Palette> {
         self.0.borrow().get_palette()
+    }
+
+    fn get_owner_type(&self) -> turbo_vision::views::view::OwnerType {
+        self.0.borrow().get_owner_type()
+    }
+
+    fn set_owner_type(&mut self, owner_type: turbo_vision::views::view::OwnerType) {
+        self.0.borrow_mut().set_owner_type(owner_type);
     }
 }
 

@@ -108,6 +108,7 @@ pub struct Editor {
     // Syntax highlighting
     highlighter: Option<Box<dyn SyntaxHighlighter>>,
     owner: Option<*const dyn View>,
+    owner_type: super::view::OwnerType,
 }
 
 impl Editor {
@@ -135,6 +136,7 @@ impl Editor {
             filename: None,
             highlighter: None,
             owner: None,
+            owner_type: super::view::OwnerType::None,
         }
     }
 
@@ -1364,7 +1366,17 @@ impl View for Editor {
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
         use crate::core::palette::{palettes, Palette};
+        // Editor uses cpEditor palette for proper color remapping through window hierarchy
+        // Matches Borland: cpEditor = [6, 7] for normal and selected text
         Some(Palette::from_slice(palettes::CP_EDITOR))
+    }
+
+    fn get_owner_type(&self) -> super::view::OwnerType {
+        self.owner_type
+    }
+
+    fn set_owner_type(&mut self, owner_type: super::view::OwnerType) {
+        self.owner_type = owner_type;
     }
 }
 

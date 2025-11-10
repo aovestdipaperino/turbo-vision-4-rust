@@ -175,7 +175,9 @@ impl View for ColorSelector {
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        None  // TColorSelector has no palette override
+        // TColorSelector has no palette (returns empty palette in Borland)
+        // Returning None achieves the same effect - skip to parent's palette
+        None
     }
 }
 

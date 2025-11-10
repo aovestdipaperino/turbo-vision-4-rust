@@ -20,72 +20,6 @@ use super::view::View;
 use std::rc::Rc;
 use std::cell::RefCell;
 
-/// Wrapper that allows ScrollBar to be a child view
-struct SharedScrollBar(Rc<RefCell<ScrollBar>>);
-
-impl View for SharedScrollBar {
-    fn bounds(&self) -> Rect {
-        self.0.borrow().bounds()
-    }
-
-    fn set_bounds(&mut self, bounds: Rect) {
-        self.0.borrow_mut().set_bounds(bounds);
-    }
-
-    fn draw(&mut self, terminal: &mut Terminal) {
-        self.0.borrow_mut().draw(terminal);
-    }
-
-    fn handle_event(&mut self, event: &mut Event) {
-        self.0.borrow_mut().handle_event(event);
-    }
-
-    fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        self.0.borrow().get_palette()
-    }
-
-    fn get_owner_type(&self) -> super::view::OwnerType {
-        self.0.borrow().get_owner_type()
-    }
-
-    fn set_owner_type(&mut self, owner_type: super::view::OwnerType) {
-        self.0.borrow_mut().set_owner_type(owner_type);
-    }
-}
-
-/// Wrapper that allows Indicator to be a child view
-struct SharedIndicator(Rc<RefCell<Indicator>>);
-
-impl View for SharedIndicator {
-    fn bounds(&self) -> Rect {
-        self.0.borrow().bounds()
-    }
-
-    fn set_bounds(&mut self, bounds: Rect) {
-        self.0.borrow_mut().set_bounds(bounds);
-    }
-
-    fn draw(&mut self, terminal: &mut Terminal) {
-        self.0.borrow_mut().draw(terminal);
-    }
-
-    fn handle_event(&mut self, _event: &mut Event) {
-        // Indicator doesn't handle events
-    }
-
-    fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        self.0.borrow().get_palette()
-    }
-
-    fn get_owner_type(&self) -> super::view::OwnerType {
-        self.0.borrow().get_owner_type()
-    }
-
-    fn set_owner_type(&mut self, owner_type: super::view::OwnerType) {
-        self.0.borrow_mut().set_owner_type(owner_type);
-    }
-}
-
 /// Wrapper that allows Editor to be shared between window and EditWindow
 struct SharedEditor(Rc<RefCell<Editor>>);
 
@@ -158,28 +92,23 @@ impl View for SharedEditor {
 pub struct EditWindow {
     window: Window,
     editor: Rc<RefCell<Editor>>,  // Shared reference for API access
-    #[allow(dead_code)] // Used for initialization, stored for lifetime management
-    h_scrollbar: Rc<RefCell<ScrollBar>>,
-    #[allow(dead_code)] // Used for initialization, stored for lifetime management
-    v_scrollbar: Rc<RefCell<ScrollBar>>,
-    #[allow(dead_code)] // Used for initialization, stored for lifetime management
-    indicator: Rc<RefCell<Indicator>>,
-    // Indices in window.frame_children for direct updates
-    h_scrollbar_idx: usize,
-    v_scrollbar_idx: usize,
-    indicator_idx: usize,
 }
 
 impl EditWindow {
     /// Create a new edit window
     ///
-    /// Matches Borland: TEditWindow constructor creates TWindow and inserts scrollbars+editor as children
+    /// Matches Borland: TEditWindow constructor creates TWindow and inserts TEditor as child
     pub fn new(bounds: Rect, title: &str) -> Self {
         let mut window = Window::new(bounds, title);
 
-        // Calculate window size (matching Borland's size.x, size.y)
-        let window_width = bounds.width();
-        let window_height = bounds.height();
+        // Editor fills the window interior
+        let editor_bounds = Rect::new(1, 1, bounds.width() - 1, bounds.height() - 1);
+        let editor = Rc::new(RefCell::new(
+            Editor::new(editor_bounds).with_scrollbars_and_indicator()
+        ));
+
+        // Insert editor as a child of window (matches Borland's window->insert(editor))
+        window.add(Box::new(SharedEditor(Rc::clone(&editor))));
 
         // Calculate interior size (relative coordinates)
         let interior_width = window_width - 2;  // Subtract frame
@@ -262,50 +191,6 @@ impl EditWindow {
     pub fn editor_rc(&self) -> Rc<RefCell<Editor>> {
         Rc::clone(&self.editor)
     }
-
-    /// Synchronize frame children (scrollbars, indicator) positions with window bounds
-    /// Called from draw() to ensure positions are always correct, preventing visual lag during resize
-    /// IMPORTANT: Always update positions regardless of size to prevent elements "staying behind"
-    fn sync_frame_children_positions(&mut self) {
-        let bounds = self.window.bounds();
-        let window_width = bounds.width();
-        let window_height = bounds.height();
-
-        // Always update horizontal scrollbar position (even if window is too small to display it properly)
-        // This prevents it from "staying behind" during rapid resizing near minimum size
-        if window_height >= 3 {
-            let h_bounds = Rect::new(
-                bounds.a.x + 18.min(window_width.saturating_sub(2)),
-                bounds.a.y + window_height - 1,
-                bounds.a.x + window_width - 2,
-                bounds.a.y + window_height,
-            );
-            self.window.update_frame_child(self.h_scrollbar_idx, h_bounds);
-        }
-
-        // Always update vertical scrollbar position
-        if window_width >= 3 && window_height >= 4 {
-            let v_bounds = Rect::new(
-                bounds.a.x + window_width - 1,
-                bounds.a.y + 1,
-                bounds.a.x + window_width,
-                bounds.a.y + window_height - 2,
-            );
-            self.window.update_frame_child(self.v_scrollbar_idx, v_bounds);
-        }
-
-        // Always update indicator position (even if window is too small)
-        if window_height >= 3 {
-            let ind_bounds = Rect::new(
-                bounds.a.x + 2,
-                bounds.a.y + window_height - 1,
-                bounds.a.x + 16.min(window_width - 2),
-                bounds.a.y + window_height,
-            );
-            self.window.update_frame_child(self.indicator_idx, ind_bounds);
-            // Note: Indicator value (cursor position) is updated by the Editor itself
-        }
-    }
 }
 
 impl View for EditWindow {
@@ -316,115 +201,18 @@ impl View for EditWindow {
     fn set_bounds(&mut self, bounds: Rect) {
         // Window handles updating all children (including scrollbars, indicator, and editor)
         self.window.set_bounds(bounds);
-
-        // Recalculate scrollbar positions based on NEW window size
-        let window_width = bounds.width();
-        let window_height = bounds.height();
-
-        // Update scrollbar bounds to new window edges
-        let h_bounds = Rect::new(
-            bounds.a.x + 18,
-            bounds.a.y + window_height - 1,
-            bounds.a.x + window_width - 2,
-            bounds.a.y + window_height,
-        );
-        self.window.update_frame_child(self.h_scrollbar_idx, h_bounds);
-
-        let v_bounds = Rect::new(
-            bounds.a.x + window_width - 1,
-            bounds.a.y + 1,
-            bounds.a.x + window_width,
-            bounds.a.y + window_height - 2,
-        );
-        self.window.update_frame_child(self.v_scrollbar_idx, v_bounds);
-
-        let ind_bounds = Rect::new(
-            bounds.a.x + 2,
-            bounds.a.y + window_height - 1,
-            bounds.a.x + 16,
-            bounds.a.y + window_height,
-        );
-        self.window.update_frame_child(self.indicator_idx, ind_bounds);
+        // Update editor bounds to match window interior
+        let editor_bounds = Rect::new(1, 1, bounds.width() - 1, bounds.height() - 1);
+        self.editor.borrow_mut().set_bounds(editor_bounds);
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        // IMPORTANT: Update frame children positions BEFORE drawing to prevent visual lag
-        // During rapid resizing, this ensures scrollbars are always at correct positions
-        self.sync_frame_children_positions();
-
-        // Draw frame and interior first
-        self.window.frame_mut().draw(terminal);
-        self.window.interior_mut().draw(terminal);
-
-        // Check if scrollbars are needed based on content size
-        let editor = self.editor.borrow();
-        let needs_h_scrollbar = editor.needs_horizontal_scrollbar();
-        let needs_v_scrollbar = editor.needs_vertical_scrollbar();
-        drop(editor); // Release borrow before drawing
-
-        // Conditionally draw scrollbars only if needed
-        if needs_h_scrollbar {
-            if let Some(child) = self.window.get_frame_child_mut(self.h_scrollbar_idx) {
-                child.draw(terminal);
-            }
-        }
-        if needs_v_scrollbar {
-            if let Some(child) = self.window.get_frame_child_mut(self.v_scrollbar_idx) {
-                child.draw(terminal);
-            }
-        }
-        // Always draw indicator
-        if let Some(child) = self.window.get_frame_child_mut(self.indicator_idx) {
-            child.draw(terminal);
-        }
-
-        // Draw shadow if enabled
-        if self.window.has_shadow() {
-            self.window.draw_shadow(terminal);
-        }
+        // Window draws itself and all children (including editor)
+        self.window.draw(terminal);
     }
 
     fn handle_event(&mut self, event: &mut Event) {
-        // Save old bounds before Window processes the event
-        let old_bounds = self.window.bounds();
-
-        // Pass events to scrollbars first (if they're visible and the event hasn't been handled)
-        if event.what != EventType::Nothing {
-            let editor = self.editor.borrow();
-            let needs_h_scrollbar = editor.needs_horizontal_scrollbar();
-            let needs_v_scrollbar = editor.needs_vertical_scrollbar();
-            drop(editor);
-
-            let mut scrollbar_handled = false;
-
-            // Let horizontal scrollbar handle event if visible
-            if needs_h_scrollbar {
-                if let Some(child) = self.window.get_frame_child_mut(self.h_scrollbar_idx) {
-                    child.handle_event(event);
-                    if event.what == EventType::Nothing {
-                        scrollbar_handled = true;
-                    }
-                }
-            }
-
-            // Let vertical scrollbar handle event if visible (and not already handled)
-            if !scrollbar_handled && needs_v_scrollbar {
-                if let Some(child) = self.window.get_frame_child_mut(self.v_scrollbar_idx) {
-                    child.handle_event(event);
-                    if event.what == EventType::Nothing {
-                        scrollbar_handled = true;
-                    }
-                }
-            }
-
-            // If scrollbar handled the event, sync editor delta from scrollbar values
-            if scrollbar_handled {
-                self.editor.borrow_mut().sync_from_scrollbars();
-                return;
-            }
-        }
-
-        // Let Window handle the event (drag, resize, etc.)
+        // Window handles events and dispatches to children
         self.window.handle_event(event);
 
         // Check if bounds changed (resize or move)
@@ -465,10 +253,6 @@ impl View for EditWindow {
 
     fn set_state(&mut self, state: StateFlags) {
         self.window.set_state(state);
-    }
-
-    fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        self.window.get_palette()
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
@@ -525,46 +309,6 @@ mod tests {
         let editor = window.editor_rc();
         editor.borrow_mut().set_text("Hello, World!");
         assert_eq!(editor.borrow().get_text(), "Hello, World!");
-    }
-}
-
-/// Builder for creating edit windows with a fluent API.
-pub struct EditWindowBuilder {
-    bounds: Option<Rect>,
-    title: Option<String>,
-}
-
-impl EditWindowBuilder {
-    pub fn new() -> Self {
-        Self { bounds: None, title: None }
-    }
-
-    #[must_use]
-    pub fn bounds(mut self, bounds: Rect) -> Self {
-        self.bounds = Some(bounds);
-        self
-    }
-
-    #[must_use]
-    pub fn title(mut self, title: impl Into<String>) -> Self {
-        self.title = Some(title.into());
-        self
-    }
-
-    pub fn build(self) -> EditWindow {
-        let bounds = self.bounds.expect("EditWindow bounds must be set");
-        let title = self.title.expect("EditWindow title must be set");
-        EditWindow::new(bounds, &title)
-    }
-
-    pub fn build_boxed(self) -> Box<EditWindow> {
-        Box::new(self.build())
-    }
-}
-
-impl Default for EditWindowBuilder {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
