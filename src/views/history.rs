@@ -14,7 +14,6 @@
 
 use crate::core::geometry::{Point, Rect};
 use crate::core::event::{Event, EventType, MB_LEFT_BUTTON};
-use crate::core::palette::{Attr, TvColor};
 use crate::core::draw::DrawBuffer;
 use crate::core::state::StateFlags;
 use crate::core::history::HistoryManager;
@@ -88,10 +87,11 @@ impl View for History {
         // Draw down arrow: ▼ (or use 'v' for ASCII-only)
         let arrow = if self.has_items() { "▼" } else { " " };
 
+        use crate::core::palette::colors::{BUTTON_SELECTED, BUTTON_NORMAL};
         let color = if self.is_focused() {
-            Attr::new(TvColor::White, TvColor::Green)
+            BUTTON_SELECTED
         } else {
-            Attr::new(TvColor::Black, TvColor::Green)
+            BUTTON_NORMAL
         };
 
         buf.move_str(0, arrow, color);

@@ -4,7 +4,6 @@
 
 use crate::core::geometry::Rect;
 use crate::core::event::Event;
-use crate::core::palette::{Attr, TvColor};
 use crate::terminal::Terminal;
 use super::view::View;
 use super::group::Group;
@@ -26,7 +25,7 @@ impl Desktop {
         let width = bounds.width();
         let height = bounds.height();
         let background_bounds = Rect::new(0, 0, width, height);
-        let background = Box::new(Background::new(background_bounds, '░', Attr::new(TvColor::LightGray, TvColor::DarkGray)));
+        let background = Box::new(Background::new(background_bounds, '░', crate::core::palette::colors::DESKTOP));
         children.add(background);
 
         Self {

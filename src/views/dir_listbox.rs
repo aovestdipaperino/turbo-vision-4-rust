@@ -25,7 +25,6 @@
 use crate::core::geometry::Rect;
 use crate::core::event::{Event, EventType, KB_ENTER};
 use crate::core::state::StateFlags;
-use crate::core::palette::{Attr, TvColor};
 use crate::terminal::Terminal;
 use super::view::View;
 use super::list_viewer::{ListViewer, ListViewerState};
@@ -294,16 +293,18 @@ impl View for DirListBox {
             let item_idx = self.list_state.top_item + y;
 
             let (text, color) = if item_idx < self.entries.len() {
+                use crate::core::palette::colors::{LISTBOX_FOCUSED, LISTBOX_NORMAL};
                 let text = self.get_text(item_idx, width);
                 let is_focused = self.is_focused() && Some(item_idx) == self.list_state.focused;
                 let color = if is_focused {
-                    Attr::new(TvColor::Black, TvColor::White)
+                    LISTBOX_FOCUSED
                 } else {
-                    Attr::new(TvColor::Black, TvColor::LightGray)
+                    LISTBOX_NORMAL
                 };
                 (text, color)
             } else {
-                (String::new(), Attr::new(TvColor::Black, TvColor::LightGray))
+                use crate::core::palette::colors::LISTBOX_NORMAL;
+                (String::new(), LISTBOX_NORMAL)
             };
 
             let padded = format!("{:width$}", text, width = width);

@@ -58,6 +58,23 @@ pub const STATUSLINE_SHORTCUT: u8 = 2; // Shortcut letter
 pub const STATUSLINE_SELECTED: u8 = 3; // Selected item
 pub const STATUSLINE_SELECTED_SHORTCUT: u8 = 4; // Selected shortcut
 
+// Frame palette indices (maps to Window/Dialog palette based on frame type)
+// Borland: cFrame values use these palette indices
+pub const FRAME_INACTIVE: u8 = 1; // Inactive frame (both fg and bg)
+pub const FRAME_ACTIVE_BORDER: u8 = 2; // Active frame border (White on LightGray for dialog)
+pub const FRAME_TITLE: u8 = 2; // Frame title (White on LightGray for dialog)
+pub const FRAME_ICON: u8 = 3; // Close icon and dragging state (LightGreen on LightGray)
+
+// Window interior palette indices
+pub const WINDOW_BACKGROUND: u8 = 1; // Window interior/background color (maps differently per window type)
+pub const BLUE_WINDOW_BACKGROUND: u8 = 5; // Blue window interior (Yellow on Blue)
+
+// Editor palette indices (direct app palette indices for editor components inside windows)
+// Note: Editor views return None for get_palette(), so these map directly to app palette
+pub const EDITOR_NORMAL: u8 = 9; // Normal editor text (White on Blue) - app palette position 9 = 0x1F
+pub const EDITOR_SELECTED: u8 = 57; // Selected text (Black on Cyan) - app palette position 57 = 0x30
+pub const EDITOR_CURSOR: u8 = 57; // Cursor (Black on Cyan) - app palette position 57 = 0x30
+
 /// 16-color palette matching Turbo Vision
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
@@ -364,6 +381,19 @@ pub mod colors {
     pub const SCROLLER_SELECTED: Attr = Attr::new(TvColor::White, TvColor::Blue);
 
     pub const DESKTOP: Attr = Attr::new(TvColor::LightGray, TvColor::DarkGray);
+
+    // Syntax highlighting colors (editor-specific, all use Blue background)
+    pub const SYNTAX_NORMAL: Attr = Attr::new(TvColor::LightGray, TvColor::Blue);
+    pub const SYNTAX_KEYWORD: Attr = Attr::new(TvColor::Yellow, TvColor::Blue);
+    pub const SYNTAX_STRING: Attr = Attr::new(TvColor::LightRed, TvColor::Blue);
+    pub const SYNTAX_COMMENT: Attr = Attr::new(TvColor::LightCyan, TvColor::Blue);
+    pub const SYNTAX_NUMBER: Attr = Attr::new(TvColor::LightMagenta, TvColor::Blue);
+    pub const SYNTAX_OPERATOR: Attr = Attr::new(TvColor::White, TvColor::Blue);
+    pub const SYNTAX_IDENTIFIER: Attr = Attr::new(TvColor::LightGray, TvColor::Blue);
+    pub const SYNTAX_TYPE: Attr = Attr::new(TvColor::LightGreen, TvColor::Blue);
+    pub const SYNTAX_PREPROCESSOR: Attr = Attr::new(TvColor::LightCyan, TvColor::Blue);
+    pub const SYNTAX_FUNCTION: Attr = Attr::new(TvColor::Cyan, TvColor::Blue);
+    pub const SYNTAX_SPECIAL: Attr = Attr::new(TvColor::White, TvColor::Blue);
 
     // Help system colors
     pub const HELP_NORMAL: Attr = Attr::new(TvColor::Black, TvColor::LightGray);

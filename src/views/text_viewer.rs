@@ -5,7 +5,6 @@
 use crate::core::geometry::{Point, Rect};
 use crate::core::event::{Event, EventType, KB_UP, KB_DOWN, KB_LEFT, KB_RIGHT, KB_PGUP, KB_PGDN, KB_HOME, KB_END};
 use crate::core::draw::DrawBuffer;
-use crate::core::palette::{Attr, TvColor};
 use crate::terminal::Terminal;
 use super::view::{View, write_line_to_terminal};
 use super::scrollbar::ScrollBar;
@@ -239,11 +238,12 @@ impl View for TextViewer {
         };
 
         for y in 0..height {
+            use crate::core::palette::colors::DIALOG_NORMAL;
             let line_idx = (self.delta.y + y as i16) as usize;
             let mut buf = DrawBuffer::new(width);
 
             // Fill with spaces
-            buf.move_char(0, ' ', Attr::new(TvColor::Black, TvColor::LightGray), width);
+            buf.move_char(0, ' ', DIALOG_NORMAL, width);
 
             if line_idx < self.lines.len() {
                 let line = &self.lines[line_idx];
@@ -252,7 +252,7 @@ impl View for TextViewer {
                 // Draw line number if enabled
                 if self.show_line_numbers {
                     let line_num = format!("{:4} ", line_idx + 1);
-                    buf.move_str(0, &line_num, Attr::new(TvColor::White, TvColor::LightGray));
+                    buf.move_str(0, &line_num, DIALOG_NORMAL);
                     x_offset = line_num_width;
                 }
 
@@ -262,7 +262,7 @@ impl View for TextViewer {
                     let visible_width = width - x_offset;
                     let end_col = min(start_col + visible_width, line.len());
                     let visible_text = &line[start_col..end_col];
-                    buf.move_str(x_offset, visible_text, Attr::new(TvColor::Black, TvColor::LightGray));
+                    buf.move_str(x_offset, visible_text, DIALOG_NORMAL);
                 }
             }
 

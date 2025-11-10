@@ -5,7 +5,6 @@
 use crate::core::geometry::{Point, Rect};
 use crate::core::event::{Event, EventType, KB_UP, KB_DOWN, KB_LEFT, KB_RIGHT, KB_PGUP, KB_PGDN, KB_HOME, KB_END, KB_ENTER, KB_BACKSPACE, KB_DEL, KB_TAB};
 use crate::core::draw::DrawBuffer;
-use crate::core::palette::{Attr, TvColor};
 use crate::core::clipboard;
 use crate::core::state::StateFlags;
 use crate::terminal::Terminal;
@@ -1083,11 +1082,15 @@ impl View for Editor {
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
+        use crate::core::palette::{EDITOR_NORMAL, EDITOR_SELECTED, EDITOR_CURSOR};
+
         let content_area = self.get_content_area();
         let width = content_area.width() as usize;
         let height = content_area.height() as usize;
 
-        let default_color = Attr::new(TvColor::White, TvColor::Blue);
+        let default_color = self.map_color(EDITOR_NORMAL);
+        let selected_color = self.map_color(EDITOR_SELECTED);
+        let cursor_color = self.map_color(EDITOR_CURSOR);
 
         for y in 0..height {
             let line_idx = (self.delta.y + y as i16) as usize;
@@ -1173,7 +1176,7 @@ impl View for Editor {
                     if self.is_position_selected(line_y, col) {
                         // Highlight this character as selected
                         if x < buf.data.len() {
-                            buf.data[x].attr = Attr::new(TvColor::Black, TvColor::Cyan);
+                            buf.data[x].attr = selected_color;
                         }
                     }
                 }
@@ -1203,7 +1206,7 @@ impl View for Editor {
                     ' '
                 };
 
-                let cursor_attr = Attr::new(TvColor::Black, TvColor::Cyan);
+                let cursor_attr = cursor_color;
                 terminal.write_cell(
                     cursor_screen_x as u16,
                     cursor_screen_y as u16,

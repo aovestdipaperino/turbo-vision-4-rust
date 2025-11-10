@@ -18,7 +18,6 @@
 use crate::core::geometry::Rect;
 use crate::core::event::{Event, EventType};
 use crate::core::state::StateFlags;
-use crate::core::palette::{Attr, TvColor};
 use crate::terminal::Terminal;
 use super::view::View;
 use super::list_viewer::{ListViewer, ListViewerState};
@@ -285,13 +284,13 @@ impl View for FileList {
                 let text = self.get_text(item_idx, width);
                 let is_focused = self.is_focused() && Some(item_idx) == self.list_state.focused;
                 let color = if is_focused {
-                    Attr::new(TvColor::Black, TvColor::White)
+                    crate::core::palette::colors::LISTBOX_FOCUSED
                 } else {
-                    Attr::new(TvColor::Black, TvColor::LightGray)
+                    crate::core::palette::colors::LISTBOX_NORMAL
                 };
                 (text, color)
             } else {
-                (String::new(), Attr::new(TvColor::Black, TvColor::LightGray))
+                (String::new(), crate::core::palette::colors::LISTBOX_NORMAL)
             };
 
             let padded = format!("{:width$}", text, width = width);

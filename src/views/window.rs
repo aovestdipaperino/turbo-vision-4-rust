@@ -8,7 +8,6 @@ use super::view::View;
 use crate::core::command::{CM_CANCEL, CM_CLOSE};
 use crate::core::event::{Event, EventType};
 use crate::core::geometry::{Point, Rect};
-use crate::core::palette::{Attr, TvColor};
 use crate::core::state::{StateFlags, SF_DRAGGING, SF_MODAL, SF_RESIZING, SF_SHADOW};
 use crate::terminal::Terminal;
 
@@ -51,11 +50,18 @@ impl Window {
     /// Matches Borland: TWindow constructor sets palette(wpBlueWindow)
     /// For TDialog (gray palette), use new_for_dialog() instead
     pub fn new(bounds: Rect, title: &str) -> Self {
+        use crate::core::palette::{palettes, Palette, Attr, BLUE_WINDOW_BACKGROUND};
+
+        // Map interior color through blue window palette
+        let palette = Palette::from_slice(palettes::CP_BLUE_WINDOW);
+        let app_index = palette.get(BLUE_WINDOW_BACKGROUND as usize);
+        let interior_color = Attr::from_u8(palettes::CP_APP_COLOR[app_index as usize - 1]);
+
         Self::new_with_palette(
             bounds,
             title,
             super::frame::FramePaletteType::Editor,
-            Attr::new(TvColor::Yellow, TvColor::Blue),
+            interior_color,
             WindowPaletteType::Blue,
             true, // resizable
         )
@@ -64,11 +70,18 @@ impl Window {
     /// Create a window for TDialog with gray palette
     /// Matches Borland: TDialog overrides TWindow palette to use cpGrayDialog
     pub(crate) fn new_for_dialog(bounds: Rect, title: &str) -> Self {
+        use crate::core::palette::{palettes, Palette, Attr, WINDOW_BACKGROUND};
+
+        // Map interior color through dialog palette
+        let palette = Palette::from_slice(palettes::CP_GRAY_DIALOG);
+        let app_index = palette.get(WINDOW_BACKGROUND as usize);
+        let interior_color = Attr::from_u8(palettes::CP_APP_COLOR[app_index as usize - 1]);
+
         Self::new_with_palette(
             bounds,
             title,
             super::frame::FramePaletteType::Dialog,
-            Attr::new(TvColor::Black, TvColor::LightGray),
+            interior_color,
             WindowPaletteType::Dialog,
             false, // not resizable (TDialog doesn't have wfGrow)
         )
@@ -705,14 +718,21 @@ impl WindowBuilder {
     ///
     /// Panics if required fields (bounds, title) are not set.
     pub fn build(self) -> Window {
+        use crate::core::palette::{palettes, Palette, Attr, BLUE_WINDOW_BACKGROUND};
+
         let bounds = self.bounds.expect("Window bounds must be set");
         let title = self.title.expect("Window title must be set");
+
+        // Map interior color through blue window palette
+        let palette = Palette::from_slice(palettes::CP_BLUE_WINDOW);
+        let app_index = palette.get(BLUE_WINDOW_BACKGROUND as usize);
+        let interior_color = Attr::from_u8(palettes::CP_APP_COLOR[app_index as usize - 1]);
 
         Window::new_with_palette(
             bounds,
             &title,
             super::frame::FramePaletteType::Editor,
-            Attr::new(TvColor::Yellow, TvColor::Blue),
+            interior_color,
             WindowPaletteType::Blue,
             self.resizable,
         )

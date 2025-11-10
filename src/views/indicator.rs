@@ -5,7 +5,6 @@
 use crate::core::geometry::{Point, Rect};
 use crate::core::event::Event;
 use crate::core::draw::DrawBuffer;
-use crate::core::palette::{Attr, TvColor};
 use crate::terminal::Terminal;
 use super::view::{View, write_line_to_terminal};
 
@@ -55,11 +54,12 @@ impl View for Indicator {
         };
 
         // Right-align the indicator
+        use crate::core::palette::colors::DIALOG_FRAME;
         let text_len = text.len().min(width);
         let start_pos = width.saturating_sub(text_len);
 
-        buf.move_char(0, ' ', Attr::new(TvColor::White, TvColor::LightGray), width);
-        buf.move_str(start_pos, &text, Attr::new(TvColor::White, TvColor::LightGray));
+        buf.move_char(0, ' ', DIALOG_FRAME, width);
+        buf.move_str(start_pos, &text, DIALOG_FRAME);
 
         write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y, &buf);
     }

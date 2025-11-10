@@ -12,7 +12,7 @@
 // - Token struct - Represents a highlighted span (start, end, type)
 // - Built-in highlighters for common languages
 
-use crate::core::palette::{Attr, TvColor};
+use crate::core::palette::Attr;
 
 /// Token types for syntax highlighting
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -44,18 +44,19 @@ pub enum TokenType {
 impl TokenType {
     /// Get the default color attribute for a token type
     pub fn default_color(&self) -> Attr {
+        use crate::core::palette::colors::*;
         match self {
-            TokenType::Normal => Attr::new(TvColor::LightGray, TvColor::Blue),
-            TokenType::Keyword => Attr::new(TvColor::Yellow, TvColor::Blue),
-            TokenType::String => Attr::new(TvColor::LightRed, TvColor::Blue),
-            TokenType::Comment => Attr::new(TvColor::LightCyan, TvColor::Blue),
-            TokenType::Number => Attr::new(TvColor::LightMagenta, TvColor::Blue),
-            TokenType::Operator => Attr::new(TvColor::White, TvColor::Blue),
-            TokenType::Identifier => Attr::new(TvColor::LightGray, TvColor::Blue),
-            TokenType::Type => Attr::new(TvColor::LightGreen, TvColor::Blue),
-            TokenType::Preprocessor => Attr::new(TvColor::LightCyan, TvColor::Blue),
-            TokenType::Function => Attr::new(TvColor::Cyan, TvColor::Blue),
-            TokenType::Special => Attr::new(TvColor::White, TvColor::Blue),
+            TokenType::Normal => SYNTAX_NORMAL,
+            TokenType::Keyword => SYNTAX_KEYWORD,
+            TokenType::String => SYNTAX_STRING,
+            TokenType::Comment => SYNTAX_COMMENT,
+            TokenType::Number => SYNTAX_NUMBER,
+            TokenType::Operator => SYNTAX_OPERATOR,
+            TokenType::Identifier => SYNTAX_IDENTIFIER,
+            TokenType::Type => SYNTAX_TYPE,
+            TokenType::Preprocessor => SYNTAX_PREPROCESSOR,
+            TokenType::Function => SYNTAX_FUNCTION,
+            TokenType::Special => SYNTAX_SPECIAL,
         }
     }
 }

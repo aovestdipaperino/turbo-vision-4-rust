@@ -13,7 +13,6 @@ use super::view::{write_line_to_terminal, View};
 use crate::core::draw::DrawBuffer;
 use crate::core::event::{Event, EventType, KB_DOWN, KB_END, KB_HOME, KB_PGDN, KB_PGUP, KB_UP};
 use crate::core::geometry::{Point, Rect};
-use crate::core::palette::{Attr, TvColor};
 use crate::core::state::{StateFlags, SF_FOCUSED};
 use crate::terminal::Terminal;
 
@@ -151,10 +150,11 @@ impl View for HelpViewer {
         };
 
         // Determine color based on focus
+        use crate::core::palette::colors::{LISTBOX_FOCUSED, LISTBOX_NORMAL};
         let color = if self.state & SF_FOCUSED != 0 {
-            Attr::new(TvColor::Black, TvColor::White)
+            LISTBOX_FOCUSED
         } else {
-            Attr::new(TvColor::Black, TvColor::LightGray)
+            LISTBOX_NORMAL
         };
 
         for row in 0..self.bounds.height() {
