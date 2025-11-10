@@ -107,3 +107,86 @@ impl View for ChDirDialog {
         self.file_dialog.set_state(state);
     }
 }
+
+/// Builder for creating change directory dialogs with a fluent API.
+///
+/// # Examples
+///
+/// ```ignore
+/// use turbo_vision::views::chdir_dialog::ChDirDialogBuilder;
+/// use turbo_vision::core::geometry::Rect;
+/// use std::path::PathBuf;
+///
+/// // Create a basic change directory dialog
+/// let dialog = ChDirDialogBuilder::new()
+///     .bounds(Rect::new(10, 5, 70, 20))
+///     .title("Change Directory")
+///     .build();
+///
+/// // Create a dialog with initial directory
+/// let dialog = ChDirDialogBuilder::new()
+///     .bounds(Rect::new(10, 5, 70, 20))
+///     .title("Select Directory")
+///     .initial_dir(PathBuf::from("/home/user"))
+///     .build();
+/// ```
+pub struct ChDirDialogBuilder {
+    bounds: Option<Rect>,
+    title: Option<String>,
+    initial_dir: Option<PathBuf>,
+}
+
+impl ChDirDialogBuilder {
+    /// Creates a new ChDirDialogBuilder with default values.
+    pub fn new() -> Self {
+        Self {
+            bounds: None,
+            title: None,
+            initial_dir: None,
+        }
+    }
+
+    /// Sets the dialog bounds (required).
+    #[must_use]
+    pub fn bounds(mut self, bounds: Rect) -> Self {
+        self.bounds = Some(bounds);
+        self
+    }
+
+    /// Sets the dialog title (required).
+    #[must_use]
+    pub fn title(mut self, title: impl Into<String>) -> Self {
+        self.title = Some(title.into());
+        self
+    }
+
+    /// Sets the initial directory (optional).
+    /// If not set, uses the current working directory.
+    #[must_use]
+    pub fn initial_dir(mut self, dir: PathBuf) -> Self {
+        self.initial_dir = Some(dir);
+        self
+    }
+
+    /// Builds the ChDirDialog.
+    ///
+    /// # Panics
+    ///
+    /// Panics if required fields (bounds, title) are not set.
+    pub fn build(self) -> ChDirDialog {
+        let bounds = self.bounds.expect("ChDirDialog bounds must be set");
+        let title = self.title.expect("ChDirDialog title must be set");
+        ChDirDialog::new(bounds, &title, self.initial_dir)
+    }
+
+    /// Builds the ChDirDialog as a Box.
+    pub fn build_boxed(self) -> Box<ChDirDialog> {
+        Box::new(self.build())
+    }
+}
+
+impl Default for ChDirDialogBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}

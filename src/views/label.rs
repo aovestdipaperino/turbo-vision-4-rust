@@ -92,3 +92,54 @@ impl View for Label {
         Some(Palette::from_slice(palettes::CP_LABEL))
     }
 }
+
+/// Builder for creating labels with a fluent API.
+pub struct LabelBuilder {
+    bounds: Option<Rect>,
+    text: Option<String>,
+    link: Option<usize>,
+}
+
+impl LabelBuilder {
+    pub fn new() -> Self {
+        Self { bounds: None, text: None, link: None }
+    }
+
+    #[must_use]
+    pub fn bounds(mut self, bounds: Rect) -> Self {
+        self.bounds = Some(bounds);
+        self
+    }
+
+    #[must_use]
+    pub fn text(mut self, text: impl Into<String>) -> Self {
+        self.text = Some(text.into());
+        self
+    }
+
+    #[must_use]
+    pub fn link(mut self, link: usize) -> Self {
+        self.link = Some(link);
+        self
+    }
+
+    pub fn build(self) -> Label {
+        let bounds = self.bounds.expect("Label bounds must be set");
+        let text = self.text.expect("Label text must be set");
+        let mut label = Label::new(bounds, &text);
+        if let Some(link) = self.link {
+            label.link = Some(link);
+        }
+        label
+    }
+
+    pub fn build_boxed(self) -> Box<Label> {
+        Box::new(self.build())
+    }
+}
+
+impl Default for LabelBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}

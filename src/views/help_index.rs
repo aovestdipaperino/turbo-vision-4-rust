@@ -200,3 +200,51 @@ impl View for HelpIndex {
         self.dialog.set_state(state);
     }
 }
+
+/// Builder for creating help index dialogs with a fluent API.
+pub struct HelpIndexBuilder {
+    bounds: Option<Rect>,
+    title: Option<String>,
+    help_file: Option<Rc<RefCell<HelpFile>>>,
+}
+
+impl HelpIndexBuilder {
+    pub fn new() -> Self {
+        Self { bounds: None, title: None, help_file: None }
+    }
+
+    #[must_use]
+    pub fn bounds(mut self, bounds: Rect) -> Self {
+        self.bounds = Some(bounds);
+        self
+    }
+
+    #[must_use]
+    pub fn title(mut self, title: impl Into<String>) -> Self {
+        self.title = Some(title.into());
+        self
+    }
+
+    #[must_use]
+    pub fn help_file(mut self, help_file: Rc<RefCell<HelpFile>>) -> Self {
+        self.help_file = Some(help_file);
+        self
+    }
+
+    pub fn build(self) -> HelpIndex {
+        let bounds = self.bounds.expect("HelpIndex bounds must be set");
+        let title = self.title.expect("HelpIndex title must be set");
+        let help_file = self.help_file.expect("HelpIndex help_file must be set");
+        HelpIndex::new(bounds, &title, help_file)
+    }
+
+    pub fn build_boxed(self) -> Box<HelpIndex> {
+        Box::new(self.build())
+    }
+}
+
+impl Default for HelpIndexBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}

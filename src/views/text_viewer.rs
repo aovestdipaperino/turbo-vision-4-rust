@@ -382,3 +382,65 @@ impl View for TextViewer {
         None  // TextViewer uses hardcoded dialog colors
     }
 }
+
+/// Builder for creating text viewers with a fluent API.
+pub struct TextViewerBuilder {
+    bounds: Option<Rect>,
+    with_scrollbars: bool,
+    with_indicator: bool,
+    show_line_numbers: bool,
+}
+
+impl TextViewerBuilder {
+    pub fn new() -> Self {
+        Self {
+            bounds: None,
+            with_scrollbars: false,
+            with_indicator: false,
+            show_line_numbers: false,
+        }
+    }
+
+    #[must_use]
+    pub fn bounds(mut self, bounds: Rect) -> Self {
+        self.bounds = Some(bounds);
+        self
+    }
+
+    #[must_use]
+    pub fn with_scrollbars(mut self, with_scrollbars: bool) -> Self {
+        self.with_scrollbars = with_scrollbars;
+        self
+    }
+
+    #[must_use]
+    pub fn with_indicator(mut self, with_indicator: bool) -> Self {
+        self.with_indicator = with_indicator;
+        self
+    }
+
+    #[must_use]
+    pub fn show_line_numbers(mut self, show_line_numbers: bool) -> Self {
+        self.show_line_numbers = show_line_numbers;
+        self
+    }
+
+    pub fn build(self) -> TextViewer {
+        let bounds = self.bounds.expect("TextViewer bounds must be set");
+        let mut viewer = TextViewer::new(bounds)
+            .with_scrollbars(self.with_scrollbars)
+            .with_indicator(self.with_indicator);
+        viewer.set_show_line_numbers(self.show_line_numbers);
+        viewer
+    }
+
+    pub fn build_boxed(self) -> Box<TextViewer> {
+        Box::new(self.build())
+    }
+}
+
+impl Default for TextViewerBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}

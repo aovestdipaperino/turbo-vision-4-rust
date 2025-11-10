@@ -927,3 +927,73 @@ mod tests {
         assert_eq!(memo.get_text(), "Hello");
     }
 }
+
+/// Builder for creating memos with a fluent API.
+pub struct MemoBuilder {
+    bounds: Option<Rect>,
+    with_scrollbars: bool,
+    max_length: Option<usize>,
+    read_only: bool,
+    tab_size: usize,
+}
+
+impl MemoBuilder {
+    pub fn new() -> Self {
+        Self {
+            bounds: None,
+            with_scrollbars: false,
+            max_length: None,
+            read_only: false,
+            tab_size: 4,
+        }
+    }
+
+    #[must_use]
+    pub fn bounds(mut self, bounds: Rect) -> Self {
+        self.bounds = Some(bounds);
+        self
+    }
+
+    #[must_use]
+    pub fn with_scrollbars(mut self, with_scrollbars: bool) -> Self {
+        self.with_scrollbars = with_scrollbars;
+        self
+    }
+
+    #[must_use]
+    pub fn max_length(mut self, max_length: usize) -> Self {
+        self.max_length = Some(max_length);
+        self
+    }
+
+    #[must_use]
+    pub fn read_only(mut self, read_only: bool) -> Self {
+        self.read_only = read_only;
+        self
+    }
+
+    #[must_use]
+    pub fn tab_size(mut self, tab_size: usize) -> Self {
+        self.tab_size = tab_size;
+        self
+    }
+
+    pub fn build(self) -> Memo {
+        let bounds = self.bounds.expect("Memo bounds must be set");
+        let mut memo = Memo::new(bounds).with_scrollbars(self.with_scrollbars);
+        memo.set_max_length(self.max_length);
+        memo.set_read_only(self.read_only);
+        memo.set_tab_size(self.tab_size);
+        memo
+    }
+
+    pub fn build_boxed(self) -> Box<Memo> {
+        Box::new(self.build())
+    }
+}
+
+impl Default for MemoBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}

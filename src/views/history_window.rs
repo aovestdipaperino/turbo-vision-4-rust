@@ -139,3 +139,50 @@ mod tests {
         assert!(viewer_height >= 1 && viewer_height <= 11, "viewer height was {}", viewer_height);
     }
 }
+
+/// Builder for creating history windows with a fluent API.
+pub struct HistoryWindowBuilder {
+    pos: Option<Point>,
+    history_id: Option<u16>,
+    width: i16,
+}
+
+impl HistoryWindowBuilder {
+    pub fn new() -> Self {
+        Self { pos: None, history_id: None, width: 30 }
+    }
+
+    #[must_use]
+    pub fn pos(mut self, pos: Point) -> Self {
+        self.pos = Some(pos);
+        self
+    }
+
+    #[must_use]
+    pub fn history_id(mut self, history_id: u16) -> Self {
+        self.history_id = Some(history_id);
+        self
+    }
+
+    #[must_use]
+    pub fn width(mut self, width: i16) -> Self {
+        self.width = width;
+        self
+    }
+
+    pub fn build(self) -> HistoryWindow {
+        let pos = self.pos.expect("HistoryWindow pos must be set");
+        let history_id = self.history_id.expect("HistoryWindow history_id must be set");
+        HistoryWindow::new(pos, history_id, self.width)
+    }
+
+    pub fn build_boxed(self) -> Box<HistoryWindow> {
+        Box::new(self.build())
+    }
+}
+
+impl Default for HistoryWindowBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}

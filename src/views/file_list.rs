@@ -430,3 +430,43 @@ mod tests {
         assert_eq!(dir.size_string(), "<DIR>");
     }
 }
+
+/// Builder for creating file lists with a fluent API.
+pub struct FileListBuilder {
+    bounds: Option<Rect>,
+    path: Option<PathBuf>,
+}
+
+impl FileListBuilder {
+    pub fn new() -> Self {
+        Self { bounds: None, path: None }
+    }
+
+    #[must_use]
+    pub fn bounds(mut self, bounds: Rect) -> Self {
+        self.bounds = Some(bounds);
+        self
+    }
+
+    #[must_use]
+    pub fn path(mut self, path: impl Into<PathBuf>) -> Self {
+        self.path = Some(path.into());
+        self
+    }
+
+    pub fn build(self) -> FileList {
+        let bounds = self.bounds.expect("FileList bounds must be set");
+        let path = self.path.expect("FileList path must be set");
+        FileList::new(bounds, &path)
+    }
+
+    pub fn build_boxed(self) -> Box<FileList> {
+        Box::new(self.build())
+    }
+}
+
+impl Default for FileListBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}

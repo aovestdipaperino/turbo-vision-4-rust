@@ -413,3 +413,43 @@ mod tests {
         }
     }
 }
+
+/// Builder for creating directory list boxes with a fluent API.
+pub struct DirListBoxBuilder {
+    bounds: Option<Rect>,
+    path: Option<PathBuf>,
+}
+
+impl DirListBoxBuilder {
+    pub fn new() -> Self {
+        Self { bounds: None, path: None }
+    }
+
+    #[must_use]
+    pub fn bounds(mut self, bounds: Rect) -> Self {
+        self.bounds = Some(bounds);
+        self
+    }
+
+    #[must_use]
+    pub fn path(mut self, path: impl Into<PathBuf>) -> Self {
+        self.path = Some(path.into());
+        self
+    }
+
+    pub fn build(self) -> DirListBox {
+        let bounds = self.bounds.expect("DirListBox bounds must be set");
+        let path = self.path.expect("DirListBox path must be set");
+        DirListBox::new(bounds, &path)
+    }
+
+    pub fn build_boxed(self) -> Box<DirListBox> {
+        Box::new(self.build())
+    }
+}
+
+impl Default for DirListBoxBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}

@@ -105,3 +105,91 @@ impl View for StaticText {
         Some(Palette::from_slice(palettes::CP_STATIC_TEXT))
     }
 }
+
+/// Builder for creating static text views with a fluent API.
+///
+/// # Examples
+///
+/// ```ignore
+/// use turbo_vision::views::static_text::StaticTextBuilder;
+/// use turbo_vision::core::geometry::Rect;
+///
+/// // Create left-aligned static text
+/// let text = StaticTextBuilder::new()
+///     .bounds(Rect::new(2, 2, 40, 4))
+///     .text("Hello, World!")
+///     .build();
+///
+/// // Create centered static text
+/// let text = StaticTextBuilder::new()
+///     .bounds(Rect::new(2, 6, 40, 8))
+///     .text("Centered Text")
+///     .centered(true)
+///     .build();
+/// ```
+pub struct StaticTextBuilder {
+    bounds: Option<Rect>,
+    text: Option<String>,
+    centered: bool,
+}
+
+impl StaticTextBuilder {
+    /// Creates a new StaticTextBuilder with default values.
+    pub fn new() -> Self {
+        Self {
+            bounds: None,
+            text: None,
+            centered: false,
+        }
+    }
+
+    /// Sets the static text bounds (required).
+    #[must_use]
+    pub fn bounds(mut self, bounds: Rect) -> Self {
+        self.bounds = Some(bounds);
+        self
+    }
+
+    /// Sets the text to display (required).
+    #[must_use]
+    pub fn text(mut self, text: impl Into<String>) -> Self {
+        self.text = Some(text.into());
+        self
+    }
+
+    /// Sets whether the text should be centered (default: false).
+    #[must_use]
+    pub fn centered(mut self, centered: bool) -> Self {
+        self.centered = centered;
+        self
+    }
+
+    /// Builds the StaticText.
+    ///
+    /// # Panics
+    ///
+    /// Panics if required fields (bounds, text) are not set.
+    pub fn build(self) -> StaticText {
+        let bounds = self.bounds.expect("StaticText bounds must be set");
+        let text = self.text.expect("StaticText text must be set");
+
+        StaticText {
+            bounds,
+            text,
+            centered: self.centered,
+            owner: None,
+            owner_type: super::view::OwnerType::Dialog,
+        }
+    }
+
+    /// Builds the StaticText as a Box.
+    pub fn build_boxed(self) -> Box<StaticText> {
+        Box::new(self.build())
+    }
+}
+
+impl Default for StaticTextBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}

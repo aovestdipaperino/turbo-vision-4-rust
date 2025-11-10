@@ -259,6 +259,85 @@ pub fn picture_validator(mask: &str) -> ValidatorRef {
     Rc::new(RefCell::new(PictureValidator::new(mask)))
 }
 
+/// Builder for creating picture validators with a fluent API.
+///
+/// # Examples
+///
+/// ```ignore
+/// use turbo_vision::views::picture_validator::PictureValidatorBuilder;
+///
+/// // Create a phone number validator with auto-formatting
+/// let validator = PictureValidatorBuilder::new()
+///     .mask("(###) ###-####")
+///     .build();
+///
+/// // Create a date validator without auto-formatting
+/// let validator = PictureValidatorBuilder::new()
+///     .mask("##/##/####")
+///     .auto_format(false)
+///     .build();
+/// ```
+pub struct PictureValidatorBuilder {
+    mask: Option<String>,
+    auto_format: bool,
+}
+
+impl PictureValidatorBuilder {
+    /// Creates a new PictureValidatorBuilder with default values.
+    pub fn new() -> Self {
+        Self {
+            mask: None,
+            auto_format: true,
+        }
+    }
+
+    /// Sets the picture mask pattern (required).
+    ///
+    /// Mask characters:
+    /// - `#` : Digit (0-9)
+    /// - `@` : Alpha (A-Z, a-z)
+    /// - `!` : Any character
+    /// - `*` : Optional character marker
+    /// - Other : Literal characters
+    #[must_use]
+    pub fn mask(mut self, mask: impl Into<String>) -> Self {
+        self.mask = Some(mask.into());
+        self
+    }
+
+    /// Sets whether to auto-format input (default: true).
+    #[must_use]
+    pub fn auto_format(mut self, auto_format: bool) -> Self {
+        self.auto_format = auto_format;
+        self
+    }
+
+    /// Builds the PictureValidator.
+    ///
+    /// # Panics
+    ///
+    /// Panics if required fields (mask) are not set.
+    pub fn build(self) -> PictureValidator {
+        let mask = self.mask.expect("PictureValidator mask must be set");
+
+        PictureValidator {
+            mask,
+            auto_format: self.auto_format,
+        }
+    }
+
+    /// Builds the PictureValidator as a ValidatorRef.
+    pub fn build_ref(self) -> ValidatorRef {
+        Rc::new(RefCell::new(self.build()))
+    }
+}
+
+impl Default for PictureValidatorBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -354,5 +433,25 @@ mod tests {
         let validator = PictureValidator::new("(###) ###-####");
         assert!(validator.valid("(555) 123-4567"));
         assert!(!validator.valid("invalid"));
+    }
+
+    #[test]
+    fn test_picture_validator_builder() {
+        let validator = PictureValidatorBuilder::new()
+            .mask("##/##/####")
+            .build();
+
+        assert!(validator.is_valid("12/25/2023"));
+        assert_eq!(validator.mask(), "##/##/####");
+    }
+
+    #[test]
+    fn test_picture_validator_builder_no_format() {
+        let validator = PictureValidatorBuilder::new()
+            .mask("(###) ###-####")
+            .auto_format(false)
+            .build();
+
+        assert!(validator.is_valid("(555) 123-4567"));
     }
 }

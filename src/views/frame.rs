@@ -279,3 +279,94 @@ impl View for Frame {
         None  // Frame uses hardcoded colors based on FramePaletteType
     }
 }
+
+/// Builder for creating frames with a fluent API.
+///
+/// # Examples
+///
+/// ```ignore
+/// use turbo_vision::views::frame::{FrameBuilder, FramePaletteType};
+/// use turbo_vision::core::geometry::Rect;
+///
+/// // Create a basic dialog frame
+/// let frame = FrameBuilder::new()
+///     .bounds(Rect::new(0, 0, 60, 20))
+///     .title("My Dialog")
+///     .build();
+///
+/// // Create a resizable editor frame
+/// let frame = FrameBuilder::new()
+///     .bounds(Rect::new(0, 0, 80, 25))
+///     .title("Editor")
+///     .palette_type(FramePaletteType::Editor)
+///     .resizable(true)
+///     .build();
+/// ```
+pub struct FrameBuilder {
+    bounds: Option<Rect>,
+    title: Option<String>,
+    palette_type: FramePaletteType,
+    resizable: bool,
+}
+
+impl FrameBuilder {
+    /// Creates a new FrameBuilder with default values.
+    pub fn new() -> Self {
+        Self {
+            bounds: None,
+            title: None,
+            palette_type: FramePaletteType::Dialog,
+            resizable: false,
+        }
+    }
+
+    /// Sets the frame bounds (required).
+    #[must_use]
+    pub fn bounds(mut self, bounds: Rect) -> Self {
+        self.bounds = Some(bounds);
+        self
+    }
+
+    /// Sets the frame title (required).
+    #[must_use]
+    pub fn title(mut self, title: impl Into<String>) -> Self {
+        self.title = Some(title.into());
+        self
+    }
+
+    /// Sets the frame palette type (default: Dialog).
+    #[must_use]
+    pub fn palette_type(mut self, palette_type: FramePaletteType) -> Self {
+        self.palette_type = palette_type;
+        self
+    }
+
+    /// Sets whether the frame is resizable (default: false).
+    #[must_use]
+    pub fn resizable(mut self, resizable: bool) -> Self {
+        self.resizable = resizable;
+        self
+    }
+
+    /// Builds the Frame.
+    ///
+    /// # Panics
+    ///
+    /// Panics if required fields (bounds, title) are not set.
+    pub fn build(self) -> Frame {
+        let bounds = self.bounds.expect("Frame bounds must be set");
+        let title = self.title.expect("Frame title must be set");
+        Frame::with_palette(bounds, &title, self.palette_type, self.resizable)
+    }
+
+    /// Builds the Frame as a Box.
+    pub fn build_boxed(self) -> Box<Frame> {
+        Box::new(self.build())
+    }
+}
+
+impl Default for FrameBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}

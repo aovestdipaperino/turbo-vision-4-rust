@@ -172,3 +172,35 @@ impl View for FileEditor {
         self.editor.set_state(state);
     }
 }
+
+/// Builder for creating file editors with a fluent API.
+pub struct FileEditorBuilder {
+    bounds: Option<Rect>,
+}
+
+impl FileEditorBuilder {
+    pub fn new() -> Self {
+        Self { bounds: None }
+    }
+
+    #[must_use]
+    pub fn bounds(mut self, bounds: Rect) -> Self {
+        self.bounds = Some(bounds);
+        self
+    }
+
+    pub fn build(self) -> FileEditor {
+        let bounds = self.bounds.expect("FileEditor bounds must be set");
+        FileEditor::new(bounds)
+    }
+
+    pub fn build_boxed(self) -> Box<FileEditor> {
+        Box::new(self.build())
+    }
+}
+
+impl Default for FileEditorBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}

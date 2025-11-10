@@ -266,6 +266,45 @@ impl ListViewer for ListBox {
     }
 }
 
+/// Builder for creating listboxes with a fluent API.
+pub struct ListBoxBuilder {
+    bounds: Option<Rect>,
+    on_select_command: CommandId,
+}
+
+impl ListBoxBuilder {
+    pub fn new() -> Self {
+        Self { bounds: None, on_select_command: 0 }
+    }
+
+    #[must_use]
+    pub fn bounds(mut self, bounds: Rect) -> Self {
+        self.bounds = Some(bounds);
+        self
+    }
+
+    #[must_use]
+    pub fn on_select_command(mut self, command: CommandId) -> Self {
+        self.on_select_command = command;
+        self
+    }
+
+    pub fn build(self) -> ListBox {
+        let bounds = self.bounds.expect("ListBox bounds must be set");
+        ListBox::new(bounds, self.on_select_command)
+    }
+
+    pub fn build_boxed(self) -> Box<ListBox> {
+        Box::new(self.build())
+    }
+}
+
+impl Default for ListBoxBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

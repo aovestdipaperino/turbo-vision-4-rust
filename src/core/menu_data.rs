@@ -332,6 +332,132 @@ impl Default for MenuBuilder {
     }
 }
 
+/// Builder for creating regular menu items with a fluent API.
+///
+/// This builder focuses on the Regular variant of MenuItem where most
+/// configuration options exist (enabled state, shortcut display).
+///
+/// # Examples
+///
+/// ```ignore
+/// use turbo_vision::core::menu_data::MenuItemBuilder;
+/// use turbo_vision::core::command::CM_OPEN;
+/// use turbo_vision::core::event::KB_F3;
+///
+/// // Create a simple menu item
+/// let item = MenuItemBuilder::new()
+///     .text("~O~pen")
+///     .command(CM_OPEN)
+///     .key_code(KB_F3)
+///     .build();
+///
+/// // Create a menu item with shortcut display
+/// let item = MenuItemBuilder::new()
+///     .text("~S~ave")
+///     .command(CM_SAVE)
+///     .key_code(KB_F2)
+///     .shortcut("F2")
+///     .build();
+///
+/// // Create a disabled menu item
+/// let item = MenuItemBuilder::new()
+///     .text("~P~rint")
+///     .command(CM_PRINT)
+///     .key_code(KB_CTRL_P)
+///     .enabled(false)
+///     .build();
+/// ```
+pub struct MenuItemBuilder {
+    text: Option<String>,
+    command: Option<CommandId>,
+    key_code: KeyCode,
+    help_ctx: u16,
+    enabled: bool,
+    shortcut: Option<String>,
+}
+
+impl MenuItemBuilder {
+    /// Creates a new MenuItemBuilder with default values.
+    pub fn new() -> Self {
+        Self {
+            text: None,
+            command: None,
+            key_code: 0,
+            help_ctx: 0,
+            enabled: true,
+            shortcut: None,
+        }
+    }
+
+    /// Sets the menu item text (required).
+    /// Use ~x~ to mark the accelerator key.
+    #[must_use]
+    pub fn text(mut self, text: impl Into<String>) -> Self {
+        self.text = Some(text.into());
+        self
+    }
+
+    /// Sets the command to execute (required).
+    #[must_use]
+    pub fn command(mut self, command: CommandId) -> Self {
+        self.command = Some(command);
+        self
+    }
+
+    /// Sets the keyboard shortcut key code.
+    #[must_use]
+    pub fn key_code(mut self, key_code: KeyCode) -> Self {
+        self.key_code = key_code;
+        self
+    }
+
+    /// Sets the help context ID.
+    #[must_use]
+    pub fn help_ctx(mut self, help_ctx: u16) -> Self {
+        self.help_ctx = help_ctx;
+        self
+    }
+
+    /// Sets whether the menu item is enabled (default: true).
+    #[must_use]
+    pub fn enabled(mut self, enabled: bool) -> Self {
+        self.enabled = enabled;
+        self
+    }
+
+    /// Sets the shortcut display text (e.g., "F3", "Ctrl+O").
+    #[must_use]
+    pub fn shortcut(mut self, shortcut: impl Into<String>) -> Self {
+        self.shortcut = Some(shortcut.into());
+        self
+    }
+
+    /// Builds the MenuItem::Regular variant.
+    ///
+    /// # Panics
+    ///
+    /// Panics if required fields (text, command) are not set.
+    pub fn build(self) -> MenuItem {
+        let text = self.text.expect("MenuItem text must be set");
+        let command = self.command.expect("MenuItem command must be set");
+
+        MenuItem::Regular {
+            text,
+            command,
+            key_code: self.key_code,
+            help_ctx: self.help_ctx,
+            enabled: self.enabled,
+            shortcut: self.shortcut,
+        }
+    }
+}
+
+impl Default for MenuItemBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -354,5 +480,42 @@ mod tests {
     fn test_accelerator() {
         let item = MenuItem::new("~O~pen", 100, 0x3D00, 0);
         assert_eq!(item.get_accelerator(), Some('o'));
+    }
+
+    #[test]
+    fn test_menu_item_builder() {
+        let item = MenuItemBuilder::new()
+            .text("~O~pen")
+            .command(100)
+            .key_code(0x3D00)
+            .build();
+
+        assert_eq!(item.text(), "~O~pen");
+        assert_eq!(item.command(), Some(100));
+        assert!(item.is_selectable());
+    }
+
+    #[test]
+    fn test_menu_item_builder_with_shortcut() {
+        let item = MenuItemBuilder::new()
+            .text("~S~ave")
+            .command(101)
+            .key_code(0x3C00)
+            .shortcut("F2")
+            .build();
+
+        assert_eq!(item.shortcut(), Some("F2"));
+    }
+
+    #[test]
+    fn test_menu_item_builder_disabled() {
+        let item = MenuItemBuilder::new()
+            .text("~P~rint")
+            .command(102)
+            .key_code(0)
+            .enabled(false)
+            .build();
+
+        assert!(!item.is_selectable());
     }
 }
