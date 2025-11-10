@@ -48,12 +48,22 @@ impl Desktop {
     pub fn add(&mut self, mut view: Box<dyn View>) -> usize {
         use crate::core::state::{OF_CENTERED, OF_CENTER_X, OF_CENTER_Y};
 
+        // Set owner pointer to Desktop (for drag limits and bounds checking)
+        // Matches Borland: TGroup::insert() sets view->owner = this
+        // Safety: Desktop's address is stable for the lifetime of the view
+        view.set_owner(self as *const dyn View);
+
         // Apply automatic centering if OF_CENTERED flags are set
         // Matches Borland: TView with ofCentered is centered when inserted
         let options = view.options();
         if (options & OF_CENTERED) != 0 || (options & OF_CENTER_X) != 0 || (options & OF_CENTER_Y) != 0 {
             self.center_view(&mut *view, options);
         }
+
+        // Constrain window to Desktop bounds (prevents centering from placing window out of bounds)
+        // This ensures windows with shadows don't extend below status bar
+        // Matches Borland: TView::locate() constrains position to owner bounds
+        view.constrain_to_parent_bounds();
 
         let index = self.children.add(view);
 

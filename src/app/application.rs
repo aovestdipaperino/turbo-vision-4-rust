@@ -58,7 +58,9 @@ impl Application {
         let terminal = Terminal::init()?;
         let (width, height) = terminal.size();
 
-        let desktop = Desktop::new(Rect::new(0, 1, width as i16, height as i16 - 1));
+        // Create Desktop with full screen bounds initially
+        // Will be adjusted when menu_bar/status_line are set
+        let desktop = Desktop::new(Rect::new(0, 0, width as i16, height as i16));
 
         // Initialize global command set
         // Matches Borland's initCommands() (tview.cc:58-68)
@@ -73,6 +75,10 @@ impl Application {
             needs_redraw: true,  // Initial draw needed
         };
 
+        // Set initial Desktop bounds (adjusts for missing menu/status)
+        // Matches Borland: TProgram::initDeskTop() with no menuBar/statusLine
+        app.update_desktop_bounds();
+
         // Initialize Desktop's palette chain now that it's in its final location
         // This sets up the owner chain so views can resolve colors through Desktop's CP_APP_COLOR palette
         app.desktop.init_palette_chain();
@@ -82,10 +88,41 @@ impl Application {
 
     pub fn set_menu_bar(&mut self, menu_bar: MenuBar) {
         self.menu_bar = Some(menu_bar);
+        // Update Desktop bounds to exclude menu bar
+        // Matches Borland: TProgram::initDeskTop() adjusts r.a.y based on menuBar
+        self.update_desktop_bounds();
     }
 
     pub fn set_status_line(&mut self, status_line: StatusLine) {
         self.status_line = Some(status_line);
+        // Update Desktop bounds to exclude status line
+        // Matches Borland: TProgram::initDeskTop() adjusts r.b.y based on statusLine
+        self.update_desktop_bounds();
+    }
+
+    /// Update Desktop bounds to exclude menu bar and status line areas
+    /// Matches Borland: TProgram::initDeskTop() calculates bounds based on menuBar/statusLine
+    fn update_desktop_bounds(&mut self) {
+        let (width, height) = self.terminal.size();
+        let mut desktop_bounds = Rect::new(0, 0, width as i16, height as i16);
+
+        // Adjust top edge for menu bar
+        // Borland: if (menuBar) r.a.y += menuBar->size.y; else r.a.y++;
+        if let Some(ref menu_bar) = self.menu_bar {
+            desktop_bounds.a.y += menu_bar.bounds().height();
+        } else {
+            desktop_bounds.a.y += 1;
+        }
+
+        // Adjust bottom edge for status line
+        // Borland: if (statusLine) r.b.y -= statusLine->size.y; else r.b.y--;
+        if let Some(ref status_line) = self.status_line {
+            desktop_bounds.b.y -= status_line.bounds().height();
+        } else {
+            desktop_bounds.b.y -= 1;
+        }
+
+        self.desktop.set_bounds(desktop_bounds);
     }
 
     /// Get an event (with drawing)

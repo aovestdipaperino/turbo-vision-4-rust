@@ -33,6 +33,9 @@ pub struct Window {
     owner: Option<*const dyn View>,
     /// Palette type (Dialog vs Editor window)
     palette_type: WindowPaletteType,
+    /// Explicit drag limits (for modal dialogs not added to desktop)
+    /// Used when owner is None but we still want to constrain dragging
+    explicit_drag_limits: Option<Rect>,
 }
 
 #[derive(Clone, Copy)]
@@ -101,6 +104,7 @@ impl Window {
             prev_bounds: None,
             owner: None,
             palette_type: window_palette,
+            explicit_drag_limits: None,
         }
     }
 
@@ -142,6 +146,70 @@ impl Window {
         // For now, return a large max (similar to Borland's INT_MAX approach)
         let max = Point::new(999, 999);
         (self.min_size, max)
+    }
+
+    /// Get drag limits from owner (parent bounds) or explicit limits
+    /// Matches Borland: TFrame::dragWindow() gets limits = owner->owner->getExtent()
+    /// Returns parent bounds if owner exists, explicit limits if set, otherwise unrestricted
+    fn get_drag_limits(&self) -> Rect {
+        // First check explicit drag limits (for modal dialogs)
+        if let Some(limits) = self.explicit_drag_limits {
+            return limits;
+        }
+
+        // Then check owner pointer
+        if let Some(owner_ptr) = self.owner {
+            // Safety: owner pointer is valid during the window's lifetime
+            unsafe { (*owner_ptr).bounds() }
+        } else {
+            // No owner - unrestricted movement
+            Rect::new(-999, -999, 9999, 9999)
+        }
+    }
+
+    /// Set explicit drag limits (for modal dialogs not added to desktop)
+    /// This is used when a dialog runs its own event loop without being added to desktop
+    pub fn set_drag_limits(&mut self, limits: Rect) {
+        self.explicit_drag_limits = Some(limits);
+    }
+
+    /// Constrain window bounds to drag limits
+    /// Ensures window is positioned within parent bounds (including shadow)
+    /// Matches Borland: TView position is constrained during locate()
+    pub fn constrain_to_limits(&mut self) {
+        let limits = self.get_drag_limits();
+        let width = self.bounds.width();
+        let height = self.bounds.height();
+
+        // Account for shadow when constraining bottom edge
+        let shadow_offset = if (self.state & SF_SHADOW) != 0 { 1 } else { 0 };
+
+        let mut new_x = self.bounds.a.x;
+        let mut new_y = self.bounds.a.y;
+
+        // Apply all drag mode constraints
+        // dmLimitLoX: keep left edge within bounds
+        new_x = new_x.max(limits.a.x);
+
+        // dmLimitLoY: keep top edge within bounds
+        new_y = new_y.max(limits.a.y);
+
+        // dmLimitHiX: keep right edge within bounds
+        new_x = new_x.min(limits.b.x - width);
+
+        // dmLimitHiY: keep bottom edge (including shadow) within bounds
+        new_y = new_y.min(limits.b.y - height - shadow_offset);
+
+        // Update bounds if position changed
+        if new_x != self.bounds.a.x || new_y != self.bounds.a.y {
+            self.bounds = Rect::new(new_x, new_y, new_x + width, new_y + height);
+
+            // Update frame and interior bounds
+            self.frame.set_bounds(self.bounds);
+            let mut interior_bounds = self.bounds;
+            interior_bounds.grow(-1, -1);
+            self.interior.set_bounds(interior_bounds);
+        }
     }
 
     /// Set the maximum size for zoom operations
@@ -309,15 +377,46 @@ impl View for Window {
                 let offset = self.drag_offset.unwrap();
 
                 // Calculate new position
-                let new_x = mouse_pos.x - offset.x;
-                let new_y = mouse_pos.y - offset.y;
+                let mut new_x = mouse_pos.x - offset.x;
+                let mut new_y = mouse_pos.y - offset.y;
+
+                // Get drag limits from owner (parent bounds)
+                // Matches Borland: TView::moveGrow() constrains position to limits
+                let limits = self.get_drag_limits();
+                let width = self.bounds.width();
+                let height = self.bounds.height();
+
+                // Account for shadow when constraining bottom edge
+                // Shadows take 1 additional row at the bottom
+                let shadow_offset = if (self.state & SF_SHADOW) != 0 { 1 } else { 0 };
+
+                // Apply basic constraints (allows partial off-screen dragging)
+                // Borland: p.x = min(max(p.x, limits.a.x - s.x+1), limits.b.x-1);
+                new_x = new_x.max(limits.a.x - width + 1).min(limits.b.x - 1);
+                new_y = new_y.max(limits.a.y - height + 1).min(limits.b.y - 1);
+
+                // Apply dmLimitLoX constraint - prevent dragging too far left
+                // Borland: if( (mode & dmLimitLoX) != 0 ) p.x = max(p.x, limits.a.x);
+                new_x = new_x.max(limits.a.x);
+
+                // Apply dmLimitLoY constraint (Borland default dragMode)
+                // Prevents window from being dragged above the top edge of limits
+                // Borland: if( (mode & dmLimitLoY) != 0 ) p.y = max(p.y, limits.a.y);
+                new_y = new_y.max(limits.a.y);
+
+                // Apply dmLimitHiX constraint - prevent dragging too far right
+                // Borland: if( (mode & dmLimitHiX) != 0 ) p.x = min(p.x, limits.b.x-s.x);
+                new_x = new_x.min(limits.b.x - width);
+
+                // Apply dmLimitHiY constraint to prevent dragging below bottom edge
+                // Prevents window bottom (including shadow) from extending below status line
+                // Borland: if( (mode & dmLimitHiY) != 0 ) p.y = min(p.y, limits.b.y-s.y);
+                new_y = new_y.min(limits.b.y - height - shadow_offset);
 
                 // Save previous bounds for union rect calculation (Borland's locate pattern)
                 self.prev_bounds = Some(self.bounds);
 
                 // Update bounds (maintaining size)
-                let width = self.bounds.width();
-                let height = self.bounds.height();
                 self.bounds = Rect::new(new_x, new_y, new_x + width, new_y + height);
 
                 // Update frame and interior bounds
@@ -344,8 +443,16 @@ impl View for Window {
 
                 // Apply size constraints (Borland: sizeLimits)
                 let (min, max) = self.size_limits();
-                let final_width = new_width.max(min.x as u16).min(max.x as u16);
-                let final_height = new_height.max(min.y as u16).min(max.y as u16);
+                let mut final_width = new_width.max(min.x as u16).min(max.x as u16);
+                let mut final_height = new_height.max(min.y as u16).min(max.y as u16);
+
+                // Constrain size to not exceed parent bounds
+                // Borland: TView::moveGrow() constrains both position and size to limits
+                let limits = self.get_drag_limits();
+                let max_width = (limits.b.x - self.bounds.a.x).max(0) as u16;
+                let max_height = (limits.b.y - self.bounds.a.y).max(0) as u16;
+                final_width = final_width.min(max_width);
+                final_height = final_height.min(max_height);
 
                 // Save previous bounds for union rect calculation
                 self.prev_bounds = Some(self.bounds);
@@ -515,6 +622,10 @@ impl View for Window {
     fn init_after_add(&mut self) {
         // Initialize interior owner pointer now that Window is in final position
         self.init_interior_owner();
+    }
+
+    fn constrain_to_parent_bounds(&mut self) {
+        self.constrain_to_limits();
     }
 }
 

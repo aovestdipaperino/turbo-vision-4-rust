@@ -92,6 +92,17 @@ impl Dialog {
         let old_state = self.state();
         self.set_state(old_state | SF_MODAL);
 
+        // Set explicit drag limits from desktop bounds
+        // This allows modal dialogs to be constrained even though they're not added to desktop
+        // Matches Borland: TView::dragView() uses owner's bounds as limits
+        let desktop_bounds = app.desktop.get_bounds();
+        self.window.set_drag_limits(desktop_bounds);
+
+        // Constrain dialog position to desktop bounds (including shadow)
+        // This ensures dialog is positioned within valid area when execute() is called
+        // Matches Borland: TView::locate() constrains position to owner bounds
+        self.window.constrain_to_limits();
+
         // Event loop matching Borland's TGroup::execute() (tgroup.cc:182-195)
         // IMPORTANT: We can't just delegate to window.execute() because that would
         // call Group::handle_event(), but we need Dialog::handle_event() to be called
@@ -270,6 +281,10 @@ impl View for Dialog {
         // Initialize Window's interior owner pointer now that Dialog is in final position
         // This completes the palette chain: Button → interior → Window → Desktop
         self.window.init_interior_owner();
+    }
+
+    fn constrain_to_parent_bounds(&mut self) {
+        self.window.constrain_to_limits();
     }
 }
 

@@ -323,6 +323,13 @@ pub trait View {
         // Default: no action needed
     }
 
+    /// Constrain view bounds to parent/owner bounds
+    /// Used after positioning (e.g., centering) to ensure view stays within valid area
+    /// Matches Borland: TView::locate() constrains position to owner bounds
+    fn constrain_to_parent_bounds(&mut self) {
+        // Default: no action needed (only windows need this)
+    }
+
     /// Set the owner (parent) of this view
     /// Matches Borland: TView::owner field
     /// Called by Group when adding a child
