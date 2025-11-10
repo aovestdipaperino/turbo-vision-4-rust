@@ -8,7 +8,7 @@ use turbo_vision::core::command::CM_QUIT;
 use turbo_vision::core::event::{KB_ALT_X, KB_ESC, KB_ESC_ESC};
 use turbo_vision::core::geometry::Rect;
 use turbo_vision::views::label::LabelBuilder;
-use turbo_vision::views::status_line::{StatusItem, StatusLineBuilder};
+use turbo_vision::views::status_line::{StatusItem, StatusLine};
 use turbo_vision::views::window::WindowBuilder;
 
 fn main() -> turbo_vision::core::error::Result<()> {
@@ -18,14 +18,14 @@ fn main() -> turbo_vision::core::error::Result<()> {
 
     // Add minimal status line (no menu bar!)
     let (width, height) = app.terminal.size();
-    let status_line = StatusLineBuilder::new()
-        .bounds(Rect::new(0, height as i16 - 1, width as i16, height as i16))
-        .items(vec![
+    let status_line = StatusLine::new(
+        Rect::new(0, height as i16 - 1, width as i16, height as i16),
+        vec![
             StatusItem::new("~Esc-X~ Exit", KB_ESC, CM_QUIT),
             StatusItem::new("~Alt-X~ Exit", KB_ALT_X, CM_QUIT),
             StatusItem::new("~Esc-Esc~ Exit", KB_ESC_ESC, CM_QUIT),
-        ])
-        .build();
+        ],
+    );
     app.set_status_line(status_line);
 
     // Create a simple information window
