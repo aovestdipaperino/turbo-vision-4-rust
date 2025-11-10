@@ -1,0 +1,26 @@
+
+=== Event Debug Tool ===
+This tool prints all events to help diagnose input issues.
+- Try clicking the mouse
+- Try pressing keys
+- Press Ctrl+C to exit
+========================
+
+[10] MouseMove at (28, 6) buttons=0x00
+[20] MouseMove at (39, 4) buttons=0x00
+[24] Keyboard key_code=0x0020
+[25] Keyboard key_code=0x0020
+[30] MouseMove at (50, 5) buttons=0x00
+[40] MouseMove at (71, 8) buttons=0x00
+[50] MouseMove at (71, 5) buttons=0x00
+[60] MouseMove at (59, 7) buttons=0x00
+[70] MouseMove at (62, 12) buttons=0x00
+[80] MouseMove at (67, 8) buttons=0x00
+[81] Keyboard key_code=0x0020
+[82] Keyboard key_code=0x0020
+[83] Keyboard key_code=0x0070
+[84] Keyboard key_code=0x0064
+[85] Keyboard key_code=0x0065
+[86] Keyboard key_code=0x0003
+
+Total events captured: 86
