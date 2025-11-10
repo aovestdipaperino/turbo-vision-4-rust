@@ -16,7 +16,7 @@ pub const KB_ESC: KeyCode = 0x011B;
 pub const KB_ENTER: KeyCode = 0x1C0D;
 pub const KB_BACKSPACE: KeyCode = 0x0E08;
 pub const KB_TAB: KeyCode = 0x0F09;
-pub const KB_SHIFT_TAB: KeyCode = 0x0F00;  // Shift+Tab for reverse focus
+pub const KB_SHIFT_TAB: KeyCode = 0x0F00; // Shift+Tab for reverse focus
 
 // Function keys
 pub const KB_F1: KeyCode = 0x3B00;
@@ -31,7 +31,7 @@ pub const KB_F9: KeyCode = 0x4300;
 pub const KB_F10: KeyCode = 0x4400;
 pub const KB_F11: KeyCode = 0x8500;
 pub const KB_F12: KeyCode = 0x8600;
-pub const KB_SHIFT_F12: KeyCode = 0x8601;  // Shift+F12 for active view dump
+pub const KB_SHIFT_F12: KeyCode = 0x8601; // Shift+F12 for active view dump
 
 // Arrow keys
 pub const KB_UP: KeyCode = 0x4800;
@@ -49,23 +49,24 @@ pub const KB_DEL: KeyCode = 0x5300;
 // Alt + letter
 pub const KB_ALT_X: KeyCode = 0x2D00;
 pub const KB_ALT_F: KeyCode = 0x2100;
+pub const KB_ALT_E: KeyCode = 0x1200;
 pub const KB_ALT_H: KeyCode = 0x2300;
 pub const KB_ALT_O: KeyCode = 0x1800;
 pub const KB_ALT_A: KeyCode = 0x1E00;
 pub const KB_ALT_F3: KeyCode = 0x6A00;
 
 // ESC + letter (for macOS Alt emulation)
-pub const KB_ESC_F: KeyCode = 0x2101;  // ESC+F
-pub const KB_ESC_H: KeyCode = 0x2301;  // ESC+H
-pub const KB_ESC_X: KeyCode = 0x2D01;  // ESC+X
-pub const KB_ESC_A: KeyCode = 0x1E01;  // ESC+A
-pub const KB_ESC_O: KeyCode = 0x1801;  // ESC+O
-pub const KB_ESC_E: KeyCode = 0x1201;  // ESC+E (Edit menu)
-pub const KB_ESC_S: KeyCode = 0x1F01;  // ESC+S (Search menu)
-pub const KB_ESC_V: KeyCode = 0x2F01;  // ESC+V (View menu)
+pub const KB_ESC_F: KeyCode = 0x2101; // ESC+F
+pub const KB_ESC_H: KeyCode = 0x2301; // ESC+H
+pub const KB_ESC_X: KeyCode = 0x2D01; // ESC+X
+pub const KB_ESC_A: KeyCode = 0x1E01; // ESC+A
+pub const KB_ESC_O: KeyCode = 0x1801; // ESC+O
+pub const KB_ESC_E: KeyCode = 0x1201; // ESC+E (Edit menu)
+pub const KB_ESC_S: KeyCode = 0x1F01; // ESC+S (Search menu)
+pub const KB_ESC_V: KeyCode = 0x2F01; // ESC+V (View menu)
 
 // Double ESC for closing dialogs
-pub const KB_ESC_ESC: KeyCode = 0x011C;  // Double ESC
+pub const KB_ESC_ESC: KeyCode = 0x011C; // Double ESC
 
 /// Event types (matching original Turbo Vision)
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -76,8 +77,8 @@ pub enum EventType {
     MouseUp,
     MouseMove,
     MouseAuto,
-    MouseWheelUp,    // Mouse wheel scrolled up
-    MouseWheelDown,  // Mouse wheel scrolled down
+    MouseWheelUp,   // Mouse wheel scrolled up
+    MouseWheelDown, // Mouse wheel scrolled down
     Command,
     Broadcast,
 }
@@ -105,7 +106,7 @@ pub const MB_RIGHT_BUTTON: u8 = 0x04;
 #[derive(Debug, Clone, Copy)]
 pub struct MouseEvent {
     pub pos: Point,
-    pub buttons: u8,  // button state (bit flags)
+    pub buttons: u8, // button state (bit flags)
     pub double_click: bool,
 }
 
@@ -182,11 +183,7 @@ impl Event {
     pub fn mouse(event_type: EventType, pos: Point, buttons: u8, double_click: bool) -> Self {
         Self {
             what: event_type,
-            mouse: MouseEvent {
-                pos,
-                buttons,
-                double_click,
-            },
+            mouse: MouseEvent { pos, buttons, double_click },
             ..Self::nothing()
         }
     }
@@ -231,21 +228,9 @@ impl fmt::Display for Event {
                 self.mouse.buttons,
                 if self.mouse.double_click { ", double_click" } else { "" }
             ),
-            EventType::MouseUp => write!(
-                f,
-                "Event::MouseUp({}, buttons={:#04x})",
-                self.mouse.pos, self.mouse.buttons
-            ),
-            EventType::MouseMove => write!(
-                f,
-                "Event::MouseMove({}, buttons={:#04x})",
-                self.mouse.pos, self.mouse.buttons
-            ),
-            EventType::MouseAuto => write!(
-                f,
-                "Event::MouseAuto({}, buttons={:#04x})",
-                self.mouse.pos, self.mouse.buttons
-            ),
+            EventType::MouseUp => write!(f, "Event::MouseUp({}, buttons={:#04x})", self.mouse.pos, self.mouse.buttons),
+            EventType::MouseMove => write!(f, "Event::MouseMove({}, buttons={:#04x})", self.mouse.pos, self.mouse.buttons),
+            EventType::MouseAuto => write!(f, "Event::MouseAuto({}, buttons={:#04x})", self.mouse.pos, self.mouse.buttons),
             EventType::MouseWheelUp => write!(f, "Event::MouseWheelUp({})", self.mouse.pos),
             EventType::MouseWheelDown => write!(f, "Event::MouseWheelDown({})", self.mouse.pos),
             EventType::Command => write!(f, "Event::Command({:#06x})", self.command),
@@ -286,7 +271,7 @@ impl EscSequenceTracker {
             // First ESC - wait for next character
             self.last_esc_time = Some(now);
             self.waiting_for_char = true;
-            return 0;  // Don't generate event yet
+            return 0; // Don't generate event yet
         }
 
         // If we're waiting for a character after ESC
@@ -335,7 +320,7 @@ fn crossterm_to_keycode(key: KeyEvent) -> KeyCode {
                 // Ctrl + letter produces ASCII control codes (0x01-0x1A for A-Z)
                 let c_lower = c.to_ascii_lowercase();
                 if c_lower >= 'a' && c_lower <= 'z' {
-                    return (c_lower as u16) - ('a' as u16) + 1;  // Ctrl+A = 0x01, Ctrl+B = 0x02, etc.
+                    return (c_lower as u16) - ('a' as u16) + 1; // Ctrl+A = 0x01, Ctrl+B = 0x02, etc.
                 }
             }
 
@@ -344,6 +329,7 @@ fn crossterm_to_keycode(key: KeyEvent) -> KeyCode {
                 // Alt + letter
                 match c.to_ascii_lowercase() {
                     'a' => return KB_ALT_A,
+                    'e' => return KB_ALT_E,
                     'f' => return KB_ALT_F,
                     'h' => return KB_ALT_H,
                     'o' => return KB_ALT_O,
@@ -363,7 +349,7 @@ fn crossterm_to_keycode(key: KeyEvent) -> KeyCode {
                 KB_TAB
             }
         }
-        CKC::BackTab => KB_SHIFT_TAB,  // Some terminals send BackTab for Shift+Tab
+        CKC::BackTab => KB_SHIFT_TAB, // Some terminals send BackTab for Shift+Tab
         CKC::Esc => KB_ESC,
         CKC::Up => KB_UP,
         CKC::Down => KB_DOWN,

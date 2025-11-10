@@ -8,13 +8,13 @@ use turbo_vision::core::command::{CM_NEW, CM_OK, CM_OPEN, CM_QUIT, CM_SAVE};
 use turbo_vision::core::event::{EventType, KB_F10, MB_RIGHT_BUTTON};
 use turbo_vision::core::geometry::{Point, Rect};
 use turbo_vision::core::menu_data::{Menu, MenuItem};
+use turbo_vision::views::View;
 use turbo_vision::views::button::Button;
 use turbo_vision::views::dialog::Dialog;
 use turbo_vision::views::menu_bar::{MenuBar, SubMenu};
 use turbo_vision::views::menu_box::MenuBox;
 use turbo_vision::views::static_text::StaticText;
 use turbo_vision::views::status_line::{StatusItem, StatusLine};
-use turbo_vision::views::View;
 
 // Custom command IDs for this example
 const CMD_ABOUT: u16 = 100;
@@ -89,7 +89,8 @@ fn main() -> turbo_vision::core::error::Result<()> {
     let status_line = StatusLine::new(
         Rect::new(0, height as i16 - 1, width as i16, height as i16),
         vec![
-            StatusItem::new("~F10~ Menu", KB_F10, CM_QUIT),
+            StatusItem::new("~F10~ Menu", KB_F10, 0),
+            StatusItem::new("~F1~ Help", 0, 0),
             StatusItem::new("~Right-Click~ Popup", 0, 0),
         ],
     );
@@ -99,12 +100,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
     let msg_width = 60;
     let msg_x = (width as i16 - msg_width) / 2;
     let msg = StaticText::new_centered(
-        Rect::new(
-            msg_x,
-            height as i16 / 2,
-            msg_x + msg_width,
-            height as i16 / 2 + 4,
-        ),
+        Rect::new(msg_x, height as i16 / 2, msg_x + msg_width, height as i16 / 2 + 4),
         "Extended Menu Example\n\nTry the menu bar with submenus\nor right-click for a popup menu!",
     );
     app.desktop.add(Box::new(msg));
@@ -146,10 +142,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
         let _ = app.terminal.flush();
 
         // Poll for events
-        if let Ok(Some(mut event)) = app
-            .terminal
-            .poll_event(std::time::Duration::from_millis(50))
-        {
+        if let Ok(Some(mut event)) = app.terminal.poll_event(std::time::Duration::from_millis(50)) {
             // Menu bar handles events first
             if let Some(ref mut menu_bar) = app.menu_bar {
                 menu_bar.handle_event(&mut event);
@@ -279,15 +272,7 @@ fn show_message(app: &mut Application, title: &str, message: &str) {
     let dialog_x = (term_width as i16 - dialog_width) / 2;
     let dialog_y = (term_height as i16 - dialog_height) / 2;
 
-    let mut dialog = Dialog::new(
-        Rect::new(
-            dialog_x,
-            dialog_y,
-            dialog_x + dialog_width,
-            dialog_y + dialog_height,
-        ),
-        title,
-    );
+    let mut dialog = Dialog::new(Rect::new(dialog_x, dialog_y, dialog_x + dialog_width, dialog_y + dialog_height), title);
 
     // Text positioned relative to dialog interior (coordinates are relative)
     let text_width = dialog_width - 4; // Leave margin
@@ -297,12 +282,7 @@ fn show_message(app: &mut Application, title: &str, message: &str) {
     // Center button horizontally
     let button_width = 10;
     let button_x = (dialog_width - 2 - button_width) / 2; // -2 for frame
-    let button = Button::new(
-        Rect::new(button_x, 3, button_x + button_width, 5),
-        "  ~O~K  ",
-        CM_OK,
-        true,
-    );
+    let button = Button::new(Rect::new(button_x, 3, button_x + button_width, 5), "  ~O~K  ", CM_OK, true);
     dialog.add(Box::new(button));
     dialog.set_initial_focus();
 
@@ -320,15 +300,7 @@ fn show_about(app: &mut Application) {
     let dialog_x = (term_width as i16 - dialog_width) / 2;
     let dialog_y = (term_height as i16 - dialog_height) / 2;
 
-    let mut dialog = Dialog::new(
-        Rect::new(
-            dialog_x,
-            dialog_y,
-            dialog_x + dialog_width,
-            dialog_y + dialog_height,
-        ),
-        "Turbo Vision for Rust",
-    );
+    let mut dialog = Dialog::new(Rect::new(dialog_x, dialog_y, dialog_x + dialog_width, dialog_y + dialog_height), "Turbo Vision for Rust");
 
     // Text positioned relative to dialog interior (coordinates are relative)
     let text_width = dialog_width - 4; // Leave margin
@@ -341,12 +313,7 @@ fn show_about(app: &mut Application) {
     // Center button horizontally
     let button_width = 10;
     let button_x = (dialog_width - 2 - button_width) / 2; // -2 for frame
-    let button = Button::new(
-        Rect::new(button_x, 8, button_x + button_width, 10),
-        "  ~O~K  ",
-        CM_OK,
-        true,
-    );
+    let button = Button::new(Rect::new(button_x, 8, button_x + button_width, 10), "  ~O~K  ", CM_OK, true);
     dialog.add(Box::new(button));
     dialog.set_initial_focus();
 
