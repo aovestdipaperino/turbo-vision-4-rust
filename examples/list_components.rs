@@ -15,7 +15,7 @@ use turbo_vision::core::menu_data::MenuBuilder;
 use turbo_vision::views::listbox::ListBox;
 use turbo_vision::views::menu_bar::{MenuBar, SubMenu};
 use turbo_vision::views::menu_box::MenuBox;
-use turbo_vision::views::status_line::{StatusItem, StatusLineBuilder};
+use turbo_vision::views::status_line::{StatusItem, StatusLine};
 use turbo_vision::views::View;
 
 // Custom command IDs
@@ -63,15 +63,15 @@ fn main() -> turbo_vision::core::error::Result<()> {
     ]);
 
     // Create status line
-    let status_line = StatusLineBuilder::new()
-        .bounds(Rect::new(0, height as i16 - 1, width as i16, height as i16))
-        .items(vec![
+    let status_line = StatusLine::new(
+        Rect::new(0, height as i16 - 1, width as i16, height as i16),
+        vec![
             StatusItem::new("~↑~↓~ Navigate", 0, 0),
             StatusItem::new("~Enter~ Select", 0, 0),
             StatusItem::new("~F1~ Popup Menu", 0, CMD_SHOW_MENU),
             StatusItem::new("~F10~ Quit", 0, CM_QUIT),
-        ])
-        .build();
+        ],
+    );
     app.set_status_line(status_line);
 
     // Draw instructions

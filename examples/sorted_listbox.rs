@@ -12,7 +12,7 @@ use turbo_vision::core::command::CM_QUIT;
 use turbo_vision::core::event::EventType;
 use turbo_vision::core::geometry::Rect;
 use turbo_vision::views::sorted_listbox::SortedListBox;
-use turbo_vision::views::status_line::{StatusItem, StatusLineBuilder};
+use turbo_vision::views::status_line::{StatusItem, StatusLine};
 use turbo_vision::views::View;
 
 const CMD_SEARCH_A: u16 = 100;
@@ -44,16 +44,16 @@ fn main() -> turbo_vision::core::error::Result<()> {
     listbox.add_item("Kiwi".to_string());
 
     // Create status line with shortcuts
-    let status_line = StatusLineBuilder::new()
-        .bounds(Rect::new(0, height as i16 - 1, width as i16, height as i16))
-        .items(vec![
+    let status_line = StatusLine::new(
+        Rect::new(0, height as i16 - 1, width as i16, height as i16),
+        vec![
             StatusItem::new("~F1~ Jump to A", 0, CMD_SEARCH_A),
             StatusItem::new("~F2~ Jump to B", 0, CMD_SEARCH_B),
             StatusItem::new("~F3~ Jump to C", 0, CMD_SEARCH_C),
             StatusItem::new("~F4~ Toggle Case", 0, CMD_TOGGLE_CASE),
             StatusItem::new("~F10~ Quit", 0, CM_QUIT),
-        ])
-        .build();
+        ],
+    );
     app.set_status_line(status_line);
 
     // Instructions

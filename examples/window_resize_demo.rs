@@ -26,7 +26,7 @@ use turbo_vision::views::button::ButtonBuilder;
 use turbo_vision::views::dialog::DialogBuilder;
 use turbo_vision::views::menu_bar::{MenuBar, SubMenu};
 use turbo_vision::views::static_text::StaticTextBuilder;
-use turbo_vision::views::status_line::{StatusItem, StatusLineBuilder};
+use turbo_vision::views::status_line::{StatusItem, StatusLine};
 use turbo_vision::views::text_viewer::TextViewer;
 use turbo_vision::views::window::WindowBuilder;
 use turbo_vision::views::View;
@@ -74,13 +74,13 @@ fn main() -> turbo_vision::core::error::Result<()> {
     app.set_menu_bar(menu_bar);
 
     // Create status line
-    let status_line = StatusLineBuilder::new()
-        .bounds(Rect::new(0, height as i16 - 1, width as i16, height as i16))
-        .items(vec![
+    let status_line = StatusLine::new(
+        Rect::new(0, height as i16 - 1, width as i16, height as i16),
+        vec![
             StatusItem::new("~F10~ Exit", KB_F10, CM_QUIT),
             StatusItem::new("~F1~ Help", 0, CMD_HELP),
-        ])
-        .build();
+        ],
+    );
     app.set_status_line(status_line);
 
     // Create window 1 - Instructions
