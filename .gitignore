@@ -15,6 +15,9 @@ Cargo.lock
 *.swo
 *~
 
+# log files
+mouse_test.txt
+
 # OS files
 .DS_Store
 Thumbs.db
