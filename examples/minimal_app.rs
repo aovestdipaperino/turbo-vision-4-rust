@@ -31,7 +31,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
     // Create a simple information window
     let mut window = Window::new(Rect::new(15, 5, 65, 15), "Minimal Application");
 
-    // Add some text
+    // Add some text and make sure user know how to quit
     let label1 = Label::new(Rect::new(2, 2, 46, 2), "Demonstrates a stripped-down application.");
     let label2 = Label::new(Rect::new(2, 3, 46, 3), "No menu bar, just a status line.");
     let label3 = Label::new(Rect::new(2, 5, 46, 5), "To exit: Alt-X, Esc-X, Esc-Esc, F10, Ctrl-C");
