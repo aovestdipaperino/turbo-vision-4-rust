@@ -106,7 +106,7 @@ use turbo_vision::core::geometry::Rect;
 // Create a checkbox at position (3, 5) using the builder pattern
 let checkbox = CheckBoxBuilder::new()
     .bounds(Rect::new(3, 5, 20, 6))
-    .text("Enable feature")
+    .label("Enable feature")
     .build();
 ```
 
@@ -149,20 +149,20 @@ use turbo_vision::core::geometry::Rect;
 // Create radio buttons in the same group (group_id = 1) using the builder pattern
 let radio1 = RadioButtonBuilder::new()
     .bounds(Rect::new(3, 5, 20, 6))
-    .text("Option 1")
-    .group_id(1)
+    .label("Option 1")
+    .group_id(1)  // group_id
     .build();
 
 let radio2 = RadioButtonBuilder::new()
     .bounds(Rect::new(3, 6, 20, 7))
-    .text("Option 2")
-    .group_id(1)
+    .label("Option 2")
+    .group_id(1)  // group_id
     .build();
 
 let radio3 = RadioButtonBuilder::new()
     .bounds(Rect::new(3, 7, 20, 8))
-    .text("Option 3")
-    .group_id(1)
+    .label("Option 3")
+    .group_id(1)  // group_id
     .build();
 ```
 
@@ -273,7 +273,7 @@ use turbo_vision::core::command::CM_OK;
 // Create a list box that generates CM_OK when an item is selected using the builder pattern
 let listbox = ListBoxBuilder::new()
     .bounds(Rect::new(5, 5, 34, 11))
-    .command(CM_OK)
+    .on_select_command(CM_OK)
     .build();
 ```
 
