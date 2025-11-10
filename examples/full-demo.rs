@@ -1303,9 +1303,18 @@ impl View for PuzzleView {
 }
 
 fn show_puzzle_placeholder(app: &mut Application) {
-    let mut window = Window::new(Rect::new(1, 1, 21, 7), "Puzzle");
+    use turbo_vision::views::window::WindowBuilder;
 
-    let puzzle_view = PuzzleView::new(Rect::new(1, 1, 18, 5));
+    // Create non-resizable window using builder pattern
+    // Size increased by 1 row and 1 column: was 20x6, now 21x7
+    let mut window = WindowBuilder::new()
+        .bounds(Rect::new(1, 1, 22, 8))
+        .title("Puzzle")
+        .resizable(false)  // Non-resizable (like TDialog)
+        .build();
+
+    // Puzzle view size also increased: was 17x4, now 18x5
+    let puzzle_view = PuzzleView::new(Rect::new(1, 1, 19, 6));
     window.add(Box::new(puzzle_view));
 
     app.desktop.add(Box::new(window));

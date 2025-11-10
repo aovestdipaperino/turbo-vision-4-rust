@@ -439,12 +439,13 @@ impl View for Group {
         if event.what == EventType::MouseDown || event.what == EventType::MouseMove || event.what == EventType::MouseUp {
             let mouse_pos = event.mouse.pos;
 
-            // For MouseMove and MouseUp, check if the focused child is dragging
+            // For MouseMove and MouseUp, check if the focused child is dragging or resizing
             // If so, send the event to it even if mouse is outside its bounds
-            // This allows dragging beyond window boundaries (matches Borland behavior)
+            // This allows dragging and resizing beyond window boundaries (matches Borland behavior)
             if (event.what == EventType::MouseMove || event.what == EventType::MouseUp) && self.focused < self.children.len() {
-                // Check if focused child is in dragging state (has SF_DRAGGING flag)
-                if (self.children[self.focused].state() & crate::core::state::SF_DRAGGING) != 0 {
+                // Check if focused child is in dragging or resizing state
+                let child_state = self.children[self.focused].state();
+                if (child_state & (crate::core::state::SF_DRAGGING | crate::core::state::SF_RESIZING)) != 0 {
                     self.children[self.focused].handle_event(event);
                     return;
                 }

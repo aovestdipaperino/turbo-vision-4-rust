@@ -207,10 +207,11 @@ impl View for Frame {
 
             // Check if click is on the resize corner (bottom-right, matching Borland tframe.cc:214)
             // Borland: mouse.x >= size.x - 2 && mouse.y >= size.y - 1
-            if mouse_pos.x >= self.bounds.b.x - 2 && mouse_pos.y >= self.bounds.b.y - 1 {
+            // Only allow resize on resizable frames (matches Borland's wfGrow flag check)
+            if self.resizable && mouse_pos.x >= self.bounds.b.x - 2 && mouse_pos.y >= self.bounds.b.y - 1 {
                 // Resize corner - set resizing state
                 self.state |= SF_RESIZING;
-                event.clear(); // Mark event as handled
+                // DON'T clear event - let Window handle it to initialize resize_start_size
                 return;
             }
 
@@ -224,12 +225,12 @@ impl View for Frame {
 
                 // Click on title bar (not close button) - prepare for drag
                 // In Borland, this calls dragWindow() which then calls owner->dragView()
-                // For now, we'll mark this event as consumed and set a flag
-                // The Window needs to track drag state and handle MouseMove events
+                // Set dragging state and let Window handle the MouseDown event
 
                 // Set dragging state
                 self.state |= SF_DRAGGING;
-                event.clear(); // Mark event as handled
+                // DON'T clear event - let Window handle it to initialize drag_offset
+                return;
             }
         } else if event.what == EventType::MouseUp {
             // Handle mouse up on close button FIRST (before drag/resize cleanup)

@@ -54,6 +54,7 @@ impl Window {
             super::frame::FramePaletteType::Editor,
             Attr::new(TvColor::Yellow, TvColor::Blue),
             WindowPaletteType::Blue,
+            true, // resizable
         )
     }
 
@@ -66,6 +67,7 @@ impl Window {
             super::frame::FramePaletteType::Dialog,
             Attr::new(TvColor::Black, TvColor::LightGray),
             WindowPaletteType::Dialog,
+            false, // not resizable (TDialog doesn't have wfGrow)
         )
     }
 
@@ -75,12 +77,10 @@ impl Window {
         frame_palette: super::frame::FramePaletteType,
         interior_color: crate::core::palette::Attr,
         window_palette: WindowPaletteType,
+        resizable: bool,
     ) -> Self {
         use crate::core::state::{OF_SELECTABLE, OF_TILEABLE, OF_TOP_SELECT};
 
-        // Determine if frame should be resizable based on window type
-        // Matches Borland: TWindow has wfGrow flag, TDialog does not
-        let resizable = matches!(window_palette, WindowPaletteType::Blue | WindowPaletteType::Cyan | WindowPaletteType::Gray);
         let frame = Frame::with_palette(bounds, title, frame_palette, resizable);
 
         // Interior bounds are ABSOLUTE (inset by 1 from window bounds for frame)
@@ -281,6 +281,8 @@ impl View for Window {
                     mouse_pos.y - self.bounds.a.y,
                 ));
                 self.state |= SF_DRAGGING;
+                event.clear(); // Mark event as handled
+                return;
             }
         }
 
@@ -295,6 +297,8 @@ impl View for Window {
                     self.bounds.b.y - mouse_pos.y,
                 ));
                 self.state |= SF_RESIZING;
+                event.clear(); // Mark event as handled
+                return;
             }
         }
 
@@ -334,8 +338,9 @@ impl View for Window {
                 let offset = self.resize_start_size.unwrap();
 
                 // Calculate new size (Borland: event.mouse.where += p, then use as size)
-                let new_width = (mouse_pos.x + offset.x - self.bounds.a.x) as u16;
-                let new_height = (mouse_pos.y + offset.y - self.bounds.a.y) as u16;
+                // Ensure positive before casting to u16 to avoid wraparound
+                let new_width = (mouse_pos.x + offset.x - self.bounds.a.x).max(0) as u16;
+                let new_height = (mouse_pos.y + offset.y - self.bounds.a.y).max(0) as u16;
 
                 // Apply size constraints (Borland: sizeLimits)
                 let (min, max) = self.size_limits();
@@ -523,9 +528,17 @@ impl View for Window {
 /// use turbo_vision::core::geometry::Rect;
 /// use turbo_vision::core::command::CM_OK;
 ///
+/// // Create a resizable window (default)
 /// let mut window = WindowBuilder::new()
 ///     .bounds(Rect::new(10, 5, 60, 20))
 ///     .title("My Window")
+///     .build();
+///
+/// // Create a non-resizable window
+/// let mut dialog = WindowBuilder::new()
+///     .bounds(Rect::new(10, 5, 40, 15))
+///     .title("Fixed Size")
+///     .resizable(false)
 ///     .build();
 ///
 /// // Add a button to the window
@@ -539,6 +552,7 @@ impl View for Window {
 pub struct WindowBuilder {
     bounds: Option<Rect>,
     title: Option<String>,
+    resizable: bool,
 }
 
 impl WindowBuilder {
@@ -547,6 +561,7 @@ impl WindowBuilder {
         Self {
             bounds: None,
             title: None,
+            resizable: true, // Default to resizable (matches Borland TWindow with wfGrow)
         }
     }
 
@@ -564,6 +579,15 @@ impl WindowBuilder {
         self
     }
 
+    /// Sets whether the window is resizable (default: true).
+    /// Resizable windows show single-line bottom corners and a resize handle.
+    /// Non-resizable windows show double-line bottom corners (like TDialog).
+    #[must_use]
+    pub fn resizable(mut self, resizable: bool) -> Self {
+        self.resizable = resizable;
+        self
+    }
+
     /// Builds the Window.
     ///
     /// # Panics
@@ -573,7 +597,14 @@ impl WindowBuilder {
         let bounds = self.bounds.expect("Window bounds must be set");
         let title = self.title.expect("Window title must be set");
 
-        Window::new(bounds, &title)
+        Window::new_with_palette(
+            bounds,
+            &title,
+            super::frame::FramePaletteType::Editor,
+            Attr::new(TvColor::Yellow, TvColor::Blue),
+            WindowPaletteType::Blue,
+            self.resizable,
+        )
     }
 }
 
