@@ -36,6 +36,7 @@ pub struct MenuBox {
     menu_state: MenuViewerState,
     state: StateFlags,
     owner: Option<*const dyn View>,
+    mouse_down_in_menu: bool, // Track if MouseDown occurred in this menu
 }
 
 impl MenuBox {
@@ -53,6 +54,7 @@ impl MenuBox {
             menu_state: MenuViewerState::with_menu(menu),
             state: SF_SHADOW, // MenuBox has shadow by default
             owner: None,
+            mouse_down_in_menu: false,
         }
     }
 
@@ -354,6 +356,9 @@ impl View for MenuBox {
                         return;
                     }
 
+                    // Mark that mouse down occurred in this menu
+                    self.mouse_down_in_menu = true;
+
                     // Track which item is under the mouse
                     if let Some(menu) = self.menu_state.get_menu() {
                         for (idx, _item) in menu.items.iter().enumerate() {
@@ -379,16 +384,19 @@ impl View for MenuBox {
                     }
                 }
 
-                // Execute the currently selected item on mouse up
-                if let Some(item) = self.menu_state.get_current_item() {
-                    if let MenuItem::Regular {
-                        command,
-                        enabled: true,
-                        ..
-                    } = item
-                    {
-                        *event = Event::command(*command);
-                        return;
+                // Only execute if there was a corresponding MouseDown in this menu
+                if self.mouse_down_in_menu {
+                    // Execute the currently selected item on mouse up
+                    if let Some(item) = self.menu_state.get_current_item() {
+                        if let MenuItem::Regular {
+                            command,
+                            enabled: true,
+                            ..
+                        } = item
+                        {
+                            *event = Event::command(*command);
+                            return;
+                        }
                     }
                 }
                 event.clear();
