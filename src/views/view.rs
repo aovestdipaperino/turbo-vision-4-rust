@@ -433,7 +433,8 @@ pub trait View {
 
         // Reached root (Application) - color is now an index into app palette
         // Use the application color palette to get the final attribute
-        let app_palette = Palette::from_slice(palettes::CP_APP_COLOR);
+        let app_palette_data = palettes::get_app_palette();
+        let app_palette = Palette::from_slice(&app_palette_data);
         let final_color = app_palette.get(color as usize);
         if final_color == 0 {
             return Attr::from_u8(ERROR_ATTR);

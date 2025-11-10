@@ -452,6 +452,33 @@ impl Default for Palette {
 
 /// Standard palette definitions matching Borland Turbo Vision
 pub mod palettes {
+    use std::cell::RefCell;
+
+    thread_local! {
+        /// Custom application palette that overrides CP_APP_COLOR if set
+        /// This allows runtime palette customization for theming
+        static CUSTOM_APP_PALETTE: RefCell<Option<Vec<u8>>> = RefCell::new(None);
+    }
+
+    /// Set a custom application palette
+    /// Pass None to reset to default CP_APP_COLOR
+    pub fn set_custom_palette(palette: Option<Vec<u8>>) {
+        CUSTOM_APP_PALETTE.with(|p| {
+            *p.borrow_mut() = palette;
+        });
+    }
+
+    /// Get the current application palette (custom or default)
+    pub fn get_app_palette() -> Vec<u8> {
+        CUSTOM_APP_PALETTE.with(|p| {
+            if let Some(custom) = p.borrow().as_ref() {
+                custom.clone()
+            } else {
+                CP_APP_COLOR.to_vec()
+            }
+        })
+    }
+
     // Application color palette - contains actual color attributes (1-indexed)
     // This is the root palette that contains real Attr values encoded as u8
     // From Borland cpColor (program.h):
