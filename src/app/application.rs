@@ -72,7 +72,7 @@ impl Application {
             status_line: None,
             desktop,
             running: false,
-            needs_redraw: true,  // Initial draw needed
+            needs_redraw: true, // Initial draw needed
         };
 
         // Set initial Desktop bounds (adjusts for missing menu/status)
