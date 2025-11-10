@@ -102,7 +102,7 @@ use turbo_vision::core::geometry::Rect;
 // Create a checkbox at position (3, 5) using the builder pattern
 let checkbox = CheckBoxBuilder::new()
     .bounds(Rect::new(3, 5, 20, 6))
-    .label("Enable feature")
+    .text("Enable feature")
     .build();
 ```
 
@@ -145,20 +145,20 @@ use turbo_vision::core::geometry::Rect;
 // Create radio buttons in the same group (group_id = 1) using the builder pattern
 let radio1 = RadioButtonBuilder::new()
     .bounds(Rect::new(3, 5, 20, 6))
-    .label("Option 1")
-    .group_id(1)  // group_id
+    .text("Option 1")
+    .group_id(1)
     .build();
 
 let radio2 = RadioButtonBuilder::new()
     .bounds(Rect::new(3, 6, 20, 7))
-    .label("Option 2")
-    .group_id(1)  // group_id
+    .text("Option 2")
+    .group_id(1)
     .build();
 
 let radio3 = RadioButtonBuilder::new()
     .bounds(Rect::new(3, 7, 20, 8))
-    .label("Option 3")
-    .group_id(1)  // group_id
+    .text("Option 3")
+    .group_id(1)
     .build();
 ```
 
@@ -269,7 +269,7 @@ use turbo_vision::core::command::CM_OK;
 // Create a list box that generates CM_OK when an item is selected using the builder pattern
 let listbox = ListBoxBuilder::new()
     .bounds(Rect::new(5, 5, 34, 11))
-    .on_select_command(CM_OK)
+    .command(CM_OK)
     .build();
 ```
 
@@ -362,7 +362,7 @@ Input line objects support full user editing with the mouse and keyboard, includ
 Input lines use shared data through Rust's `Rc<RefCell<String>>` pattern to allow multiple views to access the same data:
 
 ```rust
-use turbo_vision::views::InputLine;
+use turbo_vision::views::input_line::InputLineBuilder;
 use turbo_vision::core::geometry::Rect;
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -370,12 +370,12 @@ use std::cell::RefCell;
 // Create shared string data
 let data = Rc::new(RefCell::new(String::new()));
 
-// Create input line with max length of 30 characters
-let input = InputLine::new(
-    Rect::new(5, 2, 35, 3),
-    30,
-    data.clone()
-);
+// Create input line with max length of 30 characters using the builder pattern
+let input = InputLineBuilder::new()
+    .bounds(Rect::new(5, 2, 35, 3))
+    .max_length(30)
+    .data(data.clone())
+    .build();
 ```
 
 ### Working with InputLine Text
@@ -412,17 +412,15 @@ Input lines can have validators attached to restrict what the user can type. See
 
 ```rust
 use turbo_vision::views::validator::ValidatorRef;
+use turbo_vision::views::input_line::InputLineBuilder;
 
-// Create input line with validator
-let input = InputLine::with_validator(
-    Rect::new(5, 2, 35, 3),
-    30,
-    data.clone(),
-    validator
-);
-
-// Or set validator after creation
-input.set_validator(validator);
+// Create input line with validator using the builder pattern
+let input = InputLineBuilder::new()
+    .bounds(Rect::new(5, 2, 35, 3))
+    .max_length(30)
+    .data(data.clone())
+    .validator(validator)
+    .build();
 
 // Check if current input is valid
 if input.validate() {

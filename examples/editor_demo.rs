@@ -12,10 +12,10 @@ use turbo_vision::app::Application;
 use turbo_vision::core::geometry::Rect;
 use turbo_vision::core::state::SF_MODAL;
 use turbo_vision::views::{
-    dialog::Dialog,
-    button::Button,
-    static_text::StaticText,
-    window::Window,
+    dialog::DialogBuilder,
+    button::ButtonBuilder,
+    static_text::StaticTextBuilder,
+    window::WindowBuilder,
     editor::Editor,
     syntax::RustHighlighter,
     view::View,
@@ -41,47 +41,47 @@ fn main() -> turbo_vision::core::error::Result<()> {
 }
 
 fn show_menu(app: &mut Application) -> u16 {
-    let mut dialog = Dialog::new(
-        Rect::new(15, 6, 65, 18),
-        "Editor Demonstrations"
-    );
+    let mut dialog = DialogBuilder::new()
+        .bounds(Rect::new(15, 6, 65, 18))
+        .title("Editor Demonstrations")
+        .build();
 
-    let text = StaticText::new(
-        Rect::new(2, 2, 48, 3),
-        "Choose an editor feature to demonstrate:"
-    );
+    let text = StaticTextBuilder::new()
+        .bounds(Rect::new(2, 2, 48, 3))
+        .text("Choose an editor feature to demonstrate:")
+        .build();
     dialog.add(Box::new(text));
 
-    let btn1 = Button::new(
-        Rect::new(5, 4, 45, 6),
-        "1. ~B~asic Editing (undo/redo/clipboard)",
-        1,
-        true
-    );
+    let btn1 = ButtonBuilder::new()
+        .bounds(Rect::new(5, 4, 45, 6))
+        .title("1. ~B~asic Editing (undo/redo/clipboard)")
+        .command(1)
+        .default(true)
+        .build();
     dialog.add(Box::new(btn1));
 
-    let btn2 = Button::new(
-        Rect::new(5, 6, 45, 8),
-        "2. ~S~earch and Replace",
-        2,
-        false
-    );
+    let btn2 = ButtonBuilder::new()
+        .bounds(Rect::new(5, 6, 45, 8))
+        .title("2. ~S~earch and Replace")
+        .command(2)
+        .default(false)
+        .build();
     dialog.add(Box::new(btn2));
 
-    let btn3 = Button::new(
-        Rect::new(5, 8, 45, 10),
-        "3. S~y~ntax Highlighting (Rust)",
-        3,
-        false
-    );
+    let btn3 = ButtonBuilder::new()
+        .bounds(Rect::new(5, 8, 45, 10))
+        .title("3. S~y~ntax Highlighting (Rust)")
+        .command(3)
+        .default(false)
+        .build();
     dialog.add(Box::new(btn3));
 
-    let btn4 = Button::new(
-        Rect::new(5, 10, 45, 12),
-        "4. ~F~ile Operations (load/save)",
-        4,
-        false
-    );
+    let btn4 = ButtonBuilder::new()
+        .bounds(Rect::new(5, 10, 45, 12))
+        .title("4. ~F~ile Operations (load/save)")
+        .command(4)
+        .default(false)
+        .build();
     dialog.add(Box::new(btn4));
 
     dialog.execute(app)
@@ -116,7 +116,10 @@ Make some changes, then use Ctrl+Z to undo.\n\
 Press ESC to exit.";
 
     // Create modal window with editor
-    let mut window = Window::new(Rect::new(5, 3, 75, 22), "Basic Editing Demo");
+    let mut window = WindowBuilder::new()
+        .bounds(Rect::new(5, 3, 75, 22))
+        .title("Basic Editing Demo")
+        .build();
 
     let editor_bounds = Rect::new(1, 1, 69, 18);
     let mut editor = Editor::new(editor_bounds).with_scrollbars_and_indicator();
@@ -163,7 +166,10 @@ in the Editor API but UI controls would need to be added.\n\
 Press ESC to exit.";
 
     // Create modal window with editor
-    let mut window = Window::new(Rect::new(5, 3, 75, 22), "Search and Replace Demo");
+    let mut window = WindowBuilder::new()
+        .bounds(Rect::new(5, 3, 75, 22))
+        .title("Search and Replace Demo")
+        .build();
 
     let editor_bounds = Rect::new(1, 1, 69, 18);
     let mut editor = Editor::new(editor_bounds).with_scrollbars_and_indicator();
@@ -235,7 +241,10 @@ fn main() {
 "#;
 
     // Create modal window with editor
-    let mut window = Window::new(Rect::new(5, 3, 75, 22), "Syntax Highlighting Demo");
+    let mut window = WindowBuilder::new()
+        .bounds(Rect::new(5, 3, 75, 22))
+        .title("Syntax Highlighting Demo")
+        .build();
 
     let editor_bounds = Rect::new(1, 1, 69, 18);
     let mut editor = Editor::new(editor_bounds).with_scrollbars_and_indicator();
@@ -310,7 +319,10 @@ File > Open, File > Save, File > Save As, etc.\n\
 Press ESC to exit.";
 
     // Create modal window with editor
-    let mut window = Window::new(Rect::new(5, 3, 75, 22), "File Operations Demo");
+    let mut window = WindowBuilder::new()
+        .bounds(Rect::new(5, 3, 75, 22))
+        .title("File Operations Demo")
+        .build();
 
     let editor_bounds = Rect::new(1, 1, 69, 18);
     let mut editor = Editor::new(editor_bounds).with_scrollbars_and_indicator();

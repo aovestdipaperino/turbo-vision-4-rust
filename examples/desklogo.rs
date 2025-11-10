@@ -5,9 +5,9 @@
 
 use turbo_vision::app::Application;
 use turbo_vision::views::{
-    dialog::Dialog,
-    button::Button,
-    static_text::StaticText,
+    dialog::DialogBuilder,
+    button::ButtonBuilder,
+    static_text::StaticTextBuilder,
     menu_bar::{MenuBar, SubMenu},
     status_line::{StatusLine, StatusItem},
     View,
@@ -139,28 +139,29 @@ fn create_status_line(width: u16, height: u16) -> StatusLine {
 fn show_about_dialog(app: &mut Application) {
     use turbo_vision::core::state::OF_CENTERED;
 
-    let mut dialog = Dialog::new(
-        Rect::new(0, 0, 35, 12),
-        "About"
-    );
+    let mut dialog = DialogBuilder::new()
+        .bounds(Rect::new(0, 0, 35, 12))
+        .title("About")
+        .build();
     dialog.set_options(dialog.options() | OF_CENTERED);
 
     // Static text with centered content
-    let text = StaticText::new_centered(
-        Rect::new(1, 2, 34, 7),
-        "\nTurbo Vision Example\n\n\
+    let text = StaticTextBuilder::new()
+        .bounds(Rect::new(1, 2, 34, 7))
+        .text("\nTurbo Vision Example\n\n\
          Modifying the desk top\n\n\
-         Borland Technical Support"
-    );
+         Borland Technical Support")
+        .centered(true)
+        .build();
     dialog.add(Box::new(text));
 
     // OK button
-    let ok_button = Button::new(
-        Rect::new(3, 9, 32, 11),
-        "  ~O~K  ",
-        CM_OK,
-        true,
-    );
+    let ok_button = ButtonBuilder::new()
+        .bounds(Rect::new(3, 9, 32, 11))
+        .title("  ~O~K  ")
+        .command(CM_OK)
+        .default(true)
+        .build();
     dialog.add(Box::new(ok_button));
 
     dialog.set_initial_focus();

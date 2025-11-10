@@ -582,20 +582,22 @@ The simplest validator restricts input to a specific set of characters:
 
 ```rust
 use turbo_vision::views::validator::{Validator, FilterValidator};
+use turbo_vision::views::input_line::InputLineBuilder;
 
 // Create an input line for numeric input only
 let quantity_data = Rc::new(RefCell::new(String::new()));
-let mut quantity_input = InputLine::new(
-    Rect::new(46, 4, 53, 5),
-    5,
-    quantity_data.clone()
-);
 
 // Only allow digits
 let validator = FilterValidator::new("0123456789");
-quantity_input.set_validator(Box::new(validator));
 
-dialog.add(Box::new(quantity_input));
+let quantity_input = InputLineBuilder::new()
+    .bounds(Rect::new(46, 4, 53, 5))
+    .max_length(5)
+    .data(quantity_data.clone())
+    .validator(Box::new(validator))
+    .build_boxed();
+
+dialog.add(quantity_input);
 ```
 
 Now the quantity field will only accept numeric digits.
@@ -606,19 +608,21 @@ For numeric fields with specific ranges:
 
 ```rust
 use turbo_vision::views::validator::RangeValidator;
+use turbo_vision::views::input_line::InputLineBuilder;
 
 // Order number must be between 1 and 99999
 let order_data = Rc::new(RefCell::new(String::new()));
-let mut order_input = InputLine::new(
-    Rect::new(13, 2, 23, 3),
-    8,
-    order_data.clone()
-);
 
 let validator = RangeValidator::new(1, 99999);
-order_input.set_validator(Box::new(validator));
 
-dialog.add(Box::new(order_input));
+let order_input = InputLineBuilder::new()
+    .bounds(Rect::new(13, 2, 23, 3))
+    .max_length(8)
+    .data(order_data.clone())
+    .validator(Box::new(validator))
+    .build_boxed();
+
+dialog.add(order_input);
 ```
 
 The `RangeValidator` will:
@@ -632,34 +636,37 @@ For fields that must match a specific format (like dates or product codes):
 
 ```rust
 use turbo_vision::views::picture_validator::PictureValidator;
+use turbo_vision::views::input_line::InputLineBuilder;
 
 // Date field: MM/DD/YY or MM/DD/YYYY
 let date_data = Rc::new(RefCell::new(String::new()));
-let mut date_input = InputLine::new(
-    Rect::new(43, 2, 53, 3),
-    10,
-    date_data.clone()
-);
 
 // Picture: # = digit, {} = optional
 let validator = PictureValidator::new("##/##/{##}##");
-date_input.set_validator(Box::new(validator));
 
-dialog.add(Box::new(date_input));
+let date_input = InputLineBuilder::new()
+    .bounds(Rect::new(43, 2, 53, 3))
+    .max_length(10)
+    .data(date_data.clone())
+    .validator(Box::new(validator))
+    .build_boxed();
+
+dialog.add(date_input);
 
 // Stock number field: AAA-9999 (3 letters, dash, 4 digits)
 let stock_data = Rc::new(RefCell::new(String::new()));
-let mut stock_input = InputLine::new(
-    Rect::new(13, 4, 23, 5),
-    8,
-    stock_data.clone()
-);
 
 // @ = letter, # = digit
 let validator = PictureValidator::new("@@@-####");
-stock_input.set_validator(Box::new(validator));
 
-dialog.add(Box::new(stock_input));
+let stock_input = InputLineBuilder::new()
+    .bounds(Rect::new(13, 4, 23, 5))
+    .max_length(8)
+    .data(stock_data.clone())
+    .validator(Box::new(validator))
+    .build_boxed();
+
+dialog.add(stock_input);
 ```
 
 **Picture Validator Format Characters**:
@@ -680,8 +687,13 @@ Here's a complete order dialog with all validators applied:
 
 ```rust
 fn create_validated_order_dialog() -> (Dialog, OrderData) {
-    let bounds = Rect::new(0, 0, 60, 17);
-    let mut dialog = Dialog::new(bounds, "Orders");
+    use turbo_vision::views::input_line::InputLineBuilder;
+    use turbo_vision::views::label::LabelBuilder;
+
+    let mut dialog = DialogBuilder::new()
+        .bounds(Rect::new(0, 0, 60, 17))
+        .title("Orders")
+        .build();
     dialog.set_centered(true);
 
     let mut data = OrderData::new();
@@ -689,41 +701,73 @@ fn create_validated_order_dialog() -> (Dialog, OrderData) {
 
     // Order number: 1-99999
     let mut r = Rect::new(13, y, 23, y + 1);
-    let mut order_input = InputLine::new(r, 8, data.order_num.clone());
-    order_input.set_validator(Box::new(RangeValidator::new(1, 99999)));
-    dialog.add(Box::new(order_input));
+    let order_input = InputLineBuilder::new()
+        .bounds(r)
+        .max_length(8)
+        .data(data.order_num.clone())
+        .validator(Box::new(RangeValidator::new(1, 99999)))
+        .build_boxed();
+    dialog.add(order_input);
 
     r = Rect::new(2, y, 12, y + 1);
-    dialog.add(Box::new(Label::new(r, "~O~rder #:")));
+    let label = LabelBuilder::new()
+        .bounds(r)
+        .text("~O~rder #:")
+        .build_boxed();
+    dialog.add(label);
 
     // Date: MM/DD/YY or MM/DD/YYYY
     r = Rect::new(43, y, 53, y + 1);
-    let mut date_input = InputLine::new(r, 10, data.order_date.clone());
-    date_input.set_validator(Box::new(PictureValidator::new("##/##/{##}##")));
-    dialog.add(Box::new(date_input));
+    let date_input = InputLineBuilder::new()
+        .bounds(r)
+        .max_length(10)
+        .data(data.order_date.clone())
+        .validator(Box::new(PictureValidator::new("##/##/{##}##")))
+        .build_boxed();
+    dialog.add(date_input);
 
     r = Rect::new(26, y, 41, y + 1);
-    dialog.add(Box::new(Label::new(r, "~D~ate:")));
+    let label = LabelBuilder::new()
+        .bounds(r)
+        .text("~D~ate:")
+        .build_boxed();
+    dialog.add(label);
 
     y += 2;
 
     // Stock number: AAA-9999
     r = Rect::new(13, y, 23, y + 1);
-    let mut stock_input = InputLine::new(r, 8, data.stock_num.clone());
-    stock_input.set_validator(Box::new(PictureValidator::new("@@@-####")));
-    dialog.add(Box::new(stock_input));
+    let stock_input = InputLineBuilder::new()
+        .bounds(r)
+        .max_length(8)
+        .data(data.stock_num.clone())
+        .validator(Box::new(PictureValidator::new("@@@-####")))
+        .build_boxed();
+    dialog.add(stock_input);
 
     r = Rect::new(2, y, 12, y + 1);
-    dialog.add(Box::new(Label::new(r, "~S~tock #:")));
+    let label = LabelBuilder::new()
+        .bounds(r)
+        .text("~S~tock #:")
+        .build_boxed();
+    dialog.add(label);
 
     // Quantity: 1-99999
     r = Rect::new(46, y, 53, y + 1);
-    let mut qty_input = InputLine::new(r, 5, data.quantity.clone());
-    qty_input.set_validator(Box::new(RangeValidator::new(1, 99999)));
-    dialog.add(Box::new(qty_input));
+    let qty_input = InputLineBuilder::new()
+        .bounds(r)
+        .max_length(5)
+        .data(data.quantity.clone())
+        .validator(Box::new(RangeValidator::new(1, 99999)))
+        .build_boxed();
+    dialog.add(qty_input);
 
     r = Rect::new(26, y, 44, y + 1);
-    dialog.add(Box::new(Label::new(r, "~Q~uantity:")));
+    let label = LabelBuilder::new()
+        .bounds(r)
+        .text("~Q~uantity:")
+        .build_boxed();
+    dialog.add(label);
 
     // ... rest of dialog controls ...
 

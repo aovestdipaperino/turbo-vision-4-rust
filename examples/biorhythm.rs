@@ -4,10 +4,10 @@
 
 use turbo_vision::app::Application;
 use turbo_vision::views::{
-    dialog::Dialog,
-    button::Button,
-    static_text::StaticText,
-    input_line::InputLine,
+    dialog::DialogBuilder,
+    button::ButtonBuilder,
+    static_text::StaticTextBuilder,
+    input_line::InputLineBuilder,
     menu_bar::{MenuBar, SubMenu},
     status_line::{StatusLine, StatusItem},
     View,
@@ -302,16 +302,16 @@ impl View for BiorhythmChart {
     fn update_cursor(&self, _terminal: &mut Terminal) {}
 }
 
-fn create_biorhythm_dialog(prev_day: &str, prev_month: &str, prev_year: &str, _screen_width: u16, _screen_height: u16) -> (Dialog, Rc<RefCell<String>>, Rc<RefCell<String>>, Rc<RefCell<String>>) {
+fn create_biorhythm_dialog(prev_day: &str, prev_month: &str, prev_year: &str, _screen_width: u16, _screen_height: u16) -> (turbo_vision::views::dialog::Dialog, Rc<RefCell<String>>, Rc<RefCell<String>>, Rc<RefCell<String>>) {
     // Dialog dimensions: 50 wide, 12 tall
     let dialog_width = 50i16;
     let dialog_height = 12i16;
 
     // Create dialog with dummy position - OF_CENTERED will auto-center it
-    let mut dialog = Dialog::new(
-        Rect::new(0, 0, dialog_width, dialog_height),
-        "Enter Birth Date"
-    );
+    let mut dialog = DialogBuilder::new()
+        .bounds(Rect::new(0, 0, dialog_width, dialog_height))
+        .title("Enter Birth Date")
+        .build();
 
     // Enable automatic centering (matches Borland's ofCentered option)
     dialog.set_options(OF_CENTERED);
@@ -319,15 +319,15 @@ fn create_biorhythm_dialog(prev_day: &str, prev_month: &str, prev_year: &str, _s
     // Get today's date for display
     let (today_year, today_month, today_day) = get_current_date();
 
-    dialog.add(Box::new(StaticText::new(
-        Rect::new(2, 2, 46, 4),
-        &format!("Enter your birth date (Today: {}/{}/{})", today_day, today_month, today_year),
-    )));
+    dialog.add(Box::new(StaticTextBuilder::new()
+        .bounds(Rect::new(2, 2, 46, 4))
+        .text(&format!("Enter your birth date (Today: {}/{}/{})", today_day, today_month, today_year))
+        .build()));
 
     // Labels
-    dialog.add(Box::new(StaticText::new(Rect::new(2, 4, 12, 5), "Day:")));
-    dialog.add(Box::new(StaticText::new(Rect::new(2, 5, 12, 6), "Month:")));
-    dialog.add(Box::new(StaticText::new(Rect::new(2, 6, 12, 7), "Year:")));
+    dialog.add(Box::new(StaticTextBuilder::new().bounds(Rect::new(2, 4, 12, 5)).text("Day:").build()));
+    dialog.add(Box::new(StaticTextBuilder::new().bounds(Rect::new(2, 5, 12, 6)).text("Month:").build()));
+    dialog.add(Box::new(StaticTextBuilder::new().bounds(Rect::new(2, 6, 12, 7)).text("Year:").build()));
 
     // Create shared data for input fields with initial values
     let day_data = Rc::new(RefCell::new(prev_day.to_string()));
@@ -337,25 +337,37 @@ fn create_biorhythm_dialog(prev_day: &str, prev_month: &str, prev_year: &str, _s
     // Input fields with validators
     // Day: 1-31
     let day_validator = Rc::new(RefCell::new(RangeValidator::new(1, 31)));
-    let mut day_input = InputLine::new(Rect::new(12, 4, 18, 5), 2, Rc::clone(&day_data));
+    let mut day_input = InputLineBuilder::new()
+        .bounds(Rect::new(12, 4, 18, 5))
+        .max_length(2)
+        .data(Rc::clone(&day_data))
+        .build();
     day_input.set_validator(day_validator);
     dialog.add(Box::new(day_input));
 
     // Month: 1-12
     let month_validator = Rc::new(RefCell::new(RangeValidator::new(1, 12)));
-    let mut month_input = InputLine::new(Rect::new(12, 5, 18, 6), 2, Rc::clone(&month_data));
+    let mut month_input = InputLineBuilder::new()
+        .bounds(Rect::new(12, 5, 18, 6))
+        .max_length(2)
+        .data(Rc::clone(&month_data))
+        .build();
     month_input.set_validator(month_validator);
     dialog.add(Box::new(month_input));
 
     // Year: 1900-2100
     let year_validator = Rc::new(RefCell::new(RangeValidator::new(1900, 2100)));
-    let mut year_input = InputLine::new(Rect::new(12, 6, 20, 7), 4, Rc::clone(&year_data));
+    let mut year_input = InputLineBuilder::new()
+        .bounds(Rect::new(12, 6, 20, 7))
+        .max_length(4)
+        .data(Rc::clone(&year_data))
+        .build();
     year_input.set_validator(year_validator);
     dialog.add(Box::new(year_input));
 
     // Buttons (child indices 8 and 9)
-    dialog.add(Box::new(Button::new(Rect::new(15, 8, 25, 10), "  OK  ", CM_OK, true)));
-    dialog.add(Box::new(Button::new(Rect::new(27, 8, 37, 10), "Cancel", CM_CANCEL, false)));
+    dialog.add(Box::new(ButtonBuilder::new().bounds(Rect::new(15, 8, 25, 10)).title("  OK  ").command(CM_OK).default(true).build()));
+    dialog.add(Box::new(ButtonBuilder::new().bounds(Rect::new(27, 8, 37, 10)).title("Cancel").command(CM_CANCEL).default(false).build()));
 
     dialog.set_initial_focus();
     (dialog, day_data, month_data, year_data)
@@ -392,22 +404,25 @@ fn validate_birth_date(day_str: &str, month_str: &str, year_str: &str) -> bool {
     calculate_days_alive(year, month, day).is_some()
 }
 
-fn create_about_dialog() -> Dialog {
-    let mut dialog = Dialog::new(Rect::new(18, 6, 62, 17), "About Biorhythm");
+fn create_about_dialog() -> turbo_vision::views::dialog::Dialog {
+    let mut dialog = DialogBuilder::new()
+        .bounds(Rect::new(18, 6, 62, 17))
+        .title("About Biorhythm")
+        .build();
 
-    dialog.add(Box::new(StaticText::new(
-        Rect::new(2, 2, 40, 8),
-        "Biorhythm Calculator v1.0\n\
+    dialog.add(Box::new(StaticTextBuilder::new()
+        .bounds(Rect::new(2, 2, 40, 8))
+        .text("Biorhythm Calculator v1.0\n\
          \n\
          Calculates three cycles:\n\
          • Physical (23 days)\n\
          • Emotional (28 days)\n\
          • Intellectual (33 days)\n\
          \n\
-         Semi-graphical ASCII chart",
-    )));
+         Semi-graphical ASCII chart")
+        .build()));
 
-    dialog.add(Box::new(Button::new(Rect::new(15, 8, 25, 10), "  OK  ", CM_OK, true)));
+    dialog.add(Box::new(ButtonBuilder::new().bounds(Rect::new(15, 8, 25, 10)).title("  OK  ").command(CM_OK).default(true).build()));
     dialog.set_initial_focus();
     dialog
 }
@@ -589,10 +604,10 @@ fn main() -> turbo_vision::core::error::Result<()> {
     }
 
     // Now create and show the main dialog with chart - sized to available space
-    let mut main_dialog = Dialog::new(
-        Rect::new(window_x, window_y, window_x + window_width, window_y + window_height),
-        "Biorhythm Calculator"
-    );
+    let mut main_dialog = DialogBuilder::new()
+        .bounds(Rect::new(window_x, window_y, window_x + window_width, window_y + window_height))
+        .title("Biorhythm Calculator")
+        .build();
 
     // Chart uses interior space (dialog minus frame), with 1-column margins
     let chart_width = window_width - 2;   // Subtract frame (2 chars total)

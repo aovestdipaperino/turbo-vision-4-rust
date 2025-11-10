@@ -73,7 +73,7 @@ Every input line object can have an associated validator. If you don't assign a 
 Normally you construct and assign the validator in a single operation:
 
 ```rust
-use turbo_vision::views::InputLine;
+use turbo_vision::views::input_line::InputLineBuilder;
 use turbo_vision::views::validator::RangeValidator;
 use turbo_vision::core::geometry::Rect;
 use std::rc::Rc;
@@ -82,14 +82,14 @@ use std::cell::RefCell;
 // Create shared data
 let data = Rc::new(RefCell::new(String::new()));
 
-// Create input line with validator
+// Create input line with validator using the builder pattern
 let validator = Rc::new(RefCell::new(RangeValidator::new(100, 999)));
-let input_line = InputLine::with_validator(
-    Rect::new(5, 2, 15, 3),  // bounds
-    3,                        // max length
-    data,
-    validator
-);
+let input_line = InputLineBuilder::new()
+    .bounds(Rect::new(5, 2, 15, 3))
+    .max_length(3)
+    .data(data)
+    .validator(validator)
+    .build();
 ```
 
 You can also set or change the validator after creation:
@@ -226,6 +226,7 @@ Example usage:
 
 ```rust
 use turbo_vision::views::validator::FilterValidator;
+use turbo_vision::views::input_line::InputLineBuilder;
 use std::rc::Rc;
 use std::cell::RefCell;
 
@@ -234,13 +235,13 @@ let validator = Rc::new(RefCell::new(
     FilterValidator::new("0123456789")
 ));
 
-// Attach to an input line
-let input_line = InputLine::with_validator(
-    Rect::new(5, 2, 15, 3),
-    10,
-    data,
-    validator
-);
+// Attach to an input line using the builder pattern
+let input_line = InputLineBuilder::new()
+    .bounds(Rect::new(5, 2, 15, 3))
+    .max_length(10)
+    .data(data)
+    .validator(validator)
+    .build();
 
 // User can only type digits - other characters are rejected
 ```
@@ -276,6 +277,7 @@ Example usage:
 
 ```rust
 use turbo_vision::views::validator::RangeValidator;
+use turbo_vision::views::input_line::InputLineBuilder;
 use std::rc::Rc;
 use std::cell::RefCell;
 
@@ -284,13 +286,13 @@ let validator = Rc::new(RefCell::new(
     RangeValidator::new(0, 100)
 ));
 
-// Attach to input line
-let input_line = InputLine::with_validator(
-    Rect::new(5, 2, 15, 3),
-    3,
-    data,
-    validator
-);
+// Attach to input line using the builder pattern
+let input_line = InputLineBuilder::new()
+    .bounds(Rect::new(5, 2, 15, 3))
+    .max_length(3)
+    .data(data)
+    .validator(validator)
+    .build();
 
 // User can type: 0, 50, 100 (valid)
 // User cannot enter: -1, 101, abc (invalid)
@@ -352,6 +354,7 @@ Example usage:
 
 ```rust
 use turbo_vision::views::lookup_validator::LookupValidator;
+use turbo_vision::views::input_line::InputLineBuilder;
 use std::rc::Rc;
 use std::cell::RefCell;
 
@@ -365,13 +368,13 @@ let validator = Rc::new(RefCell::new(
     ])
 ));
 
-// Attach to input line
-let input_line = InputLine::with_validator(
-    Rect::new(5, 2, 20, 3),
-    20,
-    data,
-    validator
-);
+// Attach to input line using the builder pattern
+let input_line = InputLineBuilder::new()
+    .bounds(Rect::new(5, 2, 20, 3))
+    .max_length(20)
+    .data(data)
+    .validator(validator)
+    .build();
 
 // User can type: "Red", "green", "BLUE" (all valid)
 // User cannot finalize: "Purple", "Orange" (invalid)
@@ -470,6 +473,7 @@ Example usage:
 
 ```rust
 use turbo_vision::views::picture_validator::PictureValidator;
+use turbo_vision::views::input_line::InputLineBuilder;
 use std::rc::Rc;
 use std::cell::RefCell;
 
@@ -478,13 +482,13 @@ let validator = Rc::new(RefCell::new(
     PictureValidator::new("(###) ###-####")
 ));
 
-// Attach to input line
-let input_line = InputLine::with_validator(
-    Rect::new(5, 2, 20, 3),
-    14,  // Length of "(555) 123-4567"
-    data,
-    validator
-);
+// Attach to input line using the builder pattern
+let input_line = InputLineBuilder::new()
+    .bounds(Rect::new(5, 2, 20, 3))
+    .max_length(14)
+    .data(data)
+    .validator(validator)
+    .build();
 
 // As user types "5551234567", it auto-formats to "(555) 123-4567"
 // User can only type digits in # positions

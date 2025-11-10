@@ -9,9 +9,9 @@ use turbo_vision::core::geometry::Rect;
 use turbo_vision::helpers::msgbox::{
     input_box, message_box, MF_CONFIRMATION, MF_INFORMATION, MF_OK_BUTTON, MF_YES_NO_CANCEL,
 };
-use turbo_vision::views::button::Button;
-use turbo_vision::views::static_text::StaticText;
-use turbo_vision::views::window::Window;
+use turbo_vision::views::button::ButtonBuilder;
+use turbo_vision::views::static_text::StaticTextBuilder;
+use turbo_vision::views::window::WindowBuilder;
 use turbo_vision::views::View;
 
 const CM_BEEP: u16 = 100;
@@ -22,47 +22,58 @@ const CM_TITLE: u16 = 103;
 fn main() -> turbo_vision::core::error::Result<()> {
     let mut app = Application::new()?;
 
-    let mut window = Window::new(Rect::new(10, 3, 70, 20), "UI Features Demo");
+    let mut window = WindowBuilder::new()
+        .bounds(Rect::new(10, 3, 70, 20))
+        .title("UI Features Demo")
+        .build();
 
-    window.add(Box::new(StaticText::new(
-        Rect::new(2, 2, 56, 4),
-        "Demonstration of common UI features:",
-    )));
+    window.add(Box::new(
+        StaticTextBuilder::new()
+            .bounds(Rect::new(2, 2, 56, 4))
+            .text("Demonstration of common UI features:")
+            .build(),
+    ));
 
-    window.add(Box::new(Button::new(
-        Rect::new(5, 5, 30, 7),
-        "Beep Sound",
-        CM_BEEP,
-        false,
-    )));
+    window.add(Box::new(
+        ButtonBuilder::new()
+            .bounds(Rect::new(5, 5, 30, 7))
+            .title("Beep Sound")
+            .command(CM_BEEP)
+            .build(),
+    ));
 
-    window.add(Box::new(Button::new(
-        Rect::new(5, 8, 30, 10),
-        "Message Box",
-        CM_MSGBOX,
-        false,
-    )));
+    window.add(Box::new(
+        ButtonBuilder::new()
+            .bounds(Rect::new(5, 8, 30, 10))
+            .title("Message Box")
+            .command(CM_MSGBOX)
+            .build(),
+    ));
 
-    window.add(Box::new(Button::new(
-        Rect::new(32, 5, 52, 7),
-        "Input Box",
-        CM_INPUT,
-        false,
-    )));
+    window.add(Box::new(
+        ButtonBuilder::new()
+            .bounds(Rect::new(32, 5, 52, 7))
+            .title("Input Box")
+            .command(CM_INPUT)
+            .build(),
+    ));
 
-    window.add(Box::new(Button::new(
-        Rect::new(32, 8, 52, 10),
-        "Change Title",
-        CM_TITLE,
-        false,
-    )));
+    window.add(Box::new(
+        ButtonBuilder::new()
+            .bounds(Rect::new(32, 8, 52, 10))
+            .title("Change Title")
+            .command(CM_TITLE)
+            .build(),
+    ));
 
-    window.add(Box::new(Button::new(
-        Rect::new(20, 12, 38, 14),
-        "Quit",
-        CM_QUIT,
-        true,
-    )));
+    window.add(Box::new(
+        ButtonBuilder::new()
+            .bounds(Rect::new(20, 12, 38, 14))
+            .title("Quit")
+            .command(CM_QUIT)
+            .default(true)
+            .build(),
+    ));
 
     app.desktop.add(Box::new(window));
     let _window_index = app.desktop.child_count() - 1;

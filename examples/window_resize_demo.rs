@@ -22,13 +22,13 @@ use turbo_vision::core::command::{CM_QUIT, CM_NEW, CM_OPEN, CM_SAVE};
 use turbo_vision::core::event::{EventType, KB_F10};
 use turbo_vision::core::geometry::Rect;
 use turbo_vision::core::menu_data::{Menu, MenuItem};
-use turbo_vision::views::button::Button;
-use turbo_vision::views::dialog::Dialog;
+use turbo_vision::views::button::ButtonBuilder;
+use turbo_vision::views::dialog::DialogBuilder;
 use turbo_vision::views::menu_bar::{MenuBar, SubMenu};
-use turbo_vision::views::static_text::StaticText;
-use turbo_vision::views::status_line::{StatusItem, StatusLine};
+use turbo_vision::views::static_text::StaticTextBuilder;
+use turbo_vision::views::status_line::{StatusItem, StatusLineBuilder};
 use turbo_vision::views::text_viewer::TextViewer;
-use turbo_vision::views::window::Window;
+use turbo_vision::views::window::WindowBuilder;
 use turbo_vision::views::View;
 
 const CMD_ABOUT: u16 = 100;
@@ -74,20 +74,20 @@ fn main() -> turbo_vision::core::error::Result<()> {
     app.set_menu_bar(menu_bar);
 
     // Create status line
-    let status_line = StatusLine::new(
-        Rect::new(0, height as i16 - 1, width as i16, height as i16),
-        vec![
+    let status_line = StatusLineBuilder::new()
+        .bounds(Rect::new(0, height as i16 - 1, width as i16, height as i16))
+        .items(vec![
             StatusItem::new("~F10~ Exit", KB_F10, CM_QUIT),
             StatusItem::new("~F1~ Help", 0, CMD_HELP),
-        ],
-    );
+        ])
+        .build();
     app.set_status_line(status_line);
 
     // Create window 1 - Instructions
-    let mut window1 = Window::new(
-        Rect::new(2, 2, 50, 18),
-        "Resize & Shortcuts Demo"
-    );
+    let mut window1 = WindowBuilder::new()
+        .bounds(Rect::new(2, 2, 50, 18))
+        .title("Resize & Shortcuts Demo")
+        .build();
 
     let instructions =
         "WINDOW RESIZING:\n\
@@ -115,10 +115,10 @@ fn main() -> turbo_vision::core::error::Result<()> {
     app.desktop.add(Box::new(window1));
 
     // Create window 2 - Menu Shortcuts Info
-    let mut window2 = Window::new(
-        Rect::new(52, 2, 100, 18),
-        "Menu Shortcuts"
-    );
+    let mut window2 = WindowBuilder::new()
+        .bounds(Rect::new(52, 2, 100, 18))
+        .title("Menu Shortcuts")
+        .build();
 
     let shortcuts_info =
         "KEYBOARD SHORTCUTS:\n\
@@ -148,10 +148,10 @@ fn main() -> turbo_vision::core::error::Result<()> {
     app.desktop.add(Box::new(window2));
 
     // Create window 3 - Features
-    let mut window3 = Window::new(
-        Rect::new(26, 10, 76, 24),
-        "Features"
-    );
+    let mut window3 = WindowBuilder::new()
+        .bounds(Rect::new(26, 10, 76, 24))
+        .title("Features")
+        .build();
 
     let features =
         "FEATURES DEMONSTRATED:\n\
@@ -263,25 +263,26 @@ fn show_message(app: &mut Application, title: &str, message: &str) {
     let dialog_x = (term_width as i16 - dialog_width) / 2;
     let dialog_y = (term_height as i16 - dialog_height) / 2;
 
-    let mut dialog = Dialog::new(
-        Rect::new(dialog_x, dialog_y, dialog_x + dialog_width, dialog_y + dialog_height),
-        title
-    );
+    let mut dialog = DialogBuilder::new()
+        .bounds(Rect::new(dialog_x, dialog_y, dialog_x + dialog_width, dialog_y + dialog_height))
+        .title(title)
+        .build();
 
-    let text = StaticText::new_centered(
-        Rect::new(2, 1, dialog_width - 4, 5),
-        message
-    );
+    let text = StaticTextBuilder::new()
+        .bounds(Rect::new(2, 1, dialog_width - 4, 5))
+        .text(message)
+        .centered(true)
+        .build();
     dialog.add(Box::new(text));
 
     let button_width = 10;
     let button_x = (dialog_width - 2 - button_width) / 2;
-    let button = Button::new(
-        Rect::new(button_x, 6, button_x + button_width, 8),
-        "  ~O~K  ",
-        0,
-        true
-    );
+    let button = ButtonBuilder::new()
+        .bounds(Rect::new(button_x, 6, button_x + button_width, 8))
+        .title("  ~O~K  ")
+        .command(0)
+        .default(true)
+        .build();
     dialog.add(Box::new(button));
     dialog.set_initial_focus();
 
@@ -296,10 +297,10 @@ fn show_welcome(app: &mut Application) {
     let dialog_x = (term_width as i16 - dialog_width) / 2;
     let dialog_y = (term_height as i16 - dialog_height) / 2;
 
-    let mut dialog = Dialog::new(
-        Rect::new(dialog_x, dialog_y, dialog_x + dialog_width, dialog_y + dialog_height),
-        "Welcome to Turbo Vision!"
-    );
+    let mut dialog = DialogBuilder::new()
+        .bounds(Rect::new(dialog_x, dialog_y, dialog_x + dialog_width, dialog_y + dialog_height))
+        .title("Welcome to Turbo Vision!")
+        .build();
 
     let welcome_text =
         "Window Resize & Menu Shortcuts Demo\n\
@@ -313,20 +314,21 @@ fn show_welcome(app: &mut Application) {
         \n\
         Try resizing the windows and check out the File menu!";
 
-    let text = StaticText::new_centered(
-        Rect::new(2, 1, dialog_width - 4, 10),
-        welcome_text
-    );
+    let text = StaticTextBuilder::new()
+        .bounds(Rect::new(2, 1, dialog_width - 4, 10))
+        .text(welcome_text)
+        .centered(true)
+        .build();
     dialog.add(Box::new(text));
 
     let button_width = 12;
     let button_x = (dialog_width - 2 - button_width) / 2;
-    let button = Button::new(
-        Rect::new(button_x, 11, button_x + button_width, 13),
-        " ~G~et Started ",
-        0,
-        true
-    );
+    let button = ButtonBuilder::new()
+        .bounds(Rect::new(button_x, 11, button_x + button_width, 13))
+        .title(" ~G~et Started ")
+        .command(0)
+        .default(true)
+        .build();
     dialog.add(Box::new(button));
     dialog.set_initial_focus();
 
@@ -341,10 +343,10 @@ fn show_about(app: &mut Application) {
     let dialog_x = (term_width as i16 - dialog_width) / 2;
     let dialog_y = (term_height as i16 - dialog_height) / 2;
 
-    let mut dialog = Dialog::new(
-        Rect::new(dialog_x, dialog_y, dialog_x + dialog_width, dialog_y + dialog_height),
-        "About"
-    );
+    let mut dialog = DialogBuilder::new()
+        .bounds(Rect::new(dialog_x, dialog_y, dialog_x + dialog_width, dialog_y + dialog_height))
+        .title("About")
+        .build();
 
     let about_text =
         "Turbo Vision for Rust\n\
@@ -358,20 +360,21 @@ fn show_about(app: &mut Application) {
         \n\
         Based on Borland Turbo Vision";
 
-    let text = StaticText::new_centered(
-        Rect::new(2, 1, dialog_width - 4, 9),
-        about_text
-    );
+    let text = StaticTextBuilder::new()
+        .bounds(Rect::new(2, 1, dialog_width - 4, 9))
+        .text(about_text)
+        .centered(true)
+        .build();
     dialog.add(Box::new(text));
 
     let button_width = 10;
     let button_x = (dialog_width - 2 - button_width) / 2;
-    let button = Button::new(
-        Rect::new(button_x, 9, button_x + button_width, 11),
-        "  ~O~K  ",
-        0,
-        true
-    );
+    let button = ButtonBuilder::new()
+        .bounds(Rect::new(button_x, 9, button_x + button_width, 11))
+        .title("  ~O~K  ")
+        .command(0)
+        .default(true)
+        .build();
     dialog.add(Box::new(button));
     dialog.set_initial_focus();
 
@@ -386,10 +389,10 @@ fn show_help(app: &mut Application) {
     let dialog_x = (term_width as i16 - dialog_width) / 2;
     let dialog_y = (term_height as i16 - dialog_height) / 2;
 
-    let mut dialog = Dialog::new(
-        Rect::new(dialog_x, dialog_y, dialog_x + dialog_width, dialog_y + dialog_height),
-        "Help (F1)"
-    );
+    let mut dialog = DialogBuilder::new()
+        .bounds(Rect::new(dialog_x, dialog_y, dialog_x + dialog_width, dialog_y + dialog_height))
+        .title("Help (F1)")
+        .build();
 
     let help_text =
         "WINDOW OPERATIONS:\n\
@@ -408,20 +411,20 @@ fn show_help(app: &mut Application) {
         \n\
         Keyboard shortcuts are shown in menus!";
 
-    let text = StaticText::new(
-        Rect::new(2, 1, dialog_width - 4, 13),
-        help_text
-    );
+    let text = StaticTextBuilder::new()
+        .bounds(Rect::new(2, 1, dialog_width - 4, 13))
+        .text(help_text)
+        .build();
     dialog.add(Box::new(text));
 
     let button_width = 10;
     let button_x = (dialog_width - 2 - button_width) / 2;
-    let button = Button::new(
-        Rect::new(button_x, 13, button_x + button_width, 15),
-        "  ~O~K  ",
-        0,
-        true
-    );
+    let button = ButtonBuilder::new()
+        .bounds(Rect::new(button_x, 13, button_x + button_width, 15))
+        .title("  ~O~K  ")
+        .command(0)
+        .default(true)
+        .build();
     dialog.add(Box::new(button));
     dialog.set_initial_focus();
 
