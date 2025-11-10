@@ -100,9 +100,9 @@ impl Frame {
                     let dragging_attr = Attr::new(TvColor::LightGreen, TvColor::LightGray);
                     (dragging_attr, dragging_attr, dragging_attr)
                 } else {
-                    // Active: White on Blue for frame, LightGreen on LightGray for close icon (matches TDialog), Yellow on Blue for title
+                    // Active: White on Blue for frame, LightGreen on Blue for close icon (icon color matches TDialog), Yellow on Blue for title
                     let frame_attr = Attr::new(TvColor::White, TvColor::Blue);  // Border
-                    let close_icon_attr = Attr::new(TvColor::LightGreen, TvColor::LightGray);  // Close icon (matches TDialog)
+                    let close_icon_attr = Attr::new(TvColor::LightGreen, TvColor::Blue);  // Close icon (LightGreen icon on Blue background)
                     let title_attr = Attr::new(TvColor::Yellow, TvColor::Blue);  // Title
                     (frame_attr, close_icon_attr, title_attr)
                 }
