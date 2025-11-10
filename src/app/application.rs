@@ -4,13 +4,13 @@
 //! Manages the main application window, menu bar, status line, and desktop.
 //! Provides the central event loop and command dispatching system.
 
-use crate::core::geometry::Rect;
-use crate::core::event::{Event, EventType, KB_F10, KB_ALT_X, KB_ESC_X};
-use crate::core::command::{CommandId, CM_QUIT, CM_COMMAND_SET_CHANGED, CM_CANCEL};
+use crate::core::command::{CM_CANCEL, CM_COMMAND_SET_CHANGED, CM_QUIT, CommandId};
 use crate::core::command_set;
 use crate::core::error::Result;
+use crate::core::event::{Event, EventType, KB_ALT_X, KB_ESC, KB_ESC_ESC, KB_ESC_X, KB_F10};
+use crate::core::geometry::Rect;
 use crate::terminal::Terminal;
-use crate::views::{View, menu_bar::MenuBar, status_line::StatusLine, desktop::Desktop};
+use crate::views::{View, desktop::Desktop, menu_bar::MenuBar, status_line::StatusLine};
 use std::time::Duration;
 
 pub struct Application {
@@ -19,9 +19,9 @@ pub struct Application {
     pub status_line: Option<StatusLine>,
     pub desktop: Desktop,
     pub running: bool,
-    needs_redraw: bool,  // Track if full redraw is needed
-    // Note: Command set is now stored in thread-local static (command_set module)
-    // This matches Borland's architecture where TView::curCommandSet is static
+    needs_redraw: bool, // Track if full redraw is needed
+                        // Note: Command set is now stored in thread-local static (command_set module)
+                        // This matches Borland's architecture where TView::curCommandSet is static
 }
 
 impl Application {
@@ -70,7 +70,7 @@ impl Application {
             status_line: None,
             desktop,
             running: false,
-            needs_redraw: true,  // Initial draw needed
+            needs_redraw: true, // Initial draw needed
         };
 
         // Initialize Desktop's palette chain now that it's in its final location
@@ -192,7 +192,7 @@ impl Application {
             // In Rust, views set SF_CLOSED and parent removes them
             let had_closed_windows = self.desktop.remove_closed_windows();
             if had_closed_windows {
-                self.needs_redraw = true;  // Window removal requires full redraw
+                self.needs_redraw = true; // Window removal requires full redraw
             }
 
             // Check for moved windows and redraw affected areas (Borland's drawUnderRect pattern)
@@ -289,10 +289,7 @@ impl Application {
 
         // Handle Ctrl+C, F10, Alt+X, and ESC+X at application level
         if event.what == EventType::Keyboard
-            && (event.key_code == 0x0003
-                || event.key_code == KB_F10
-                || event.key_code == KB_ALT_X
-                || event.key_code == KB_ESC_X)
+            && (event.key_code == 0x0003 || event.key_code == KB_F10 || event.key_code == KB_ALT_X || event.key_code == KB_ESC || event.key_code == KB_ESC_ESC || event.key_code == KB_ESC_X)
         {
             // Treat these as quit command
             *event = Event::command(CM_QUIT);

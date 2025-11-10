@@ -4,12 +4,12 @@
 // instead of TApplication in Borland Turbo Vision.
 
 use turbo_vision::app::Application;
-use turbo_vision::views::status_line::{StatusLine, StatusItem};
-use turbo_vision::views::window::Window;
-use turbo_vision::views::label::Label;
-use turbo_vision::core::geometry::Rect;
-use turbo_vision::core::event::{KB_ESC, KB_ALT_X};
 use turbo_vision::core::command::CM_QUIT;
+use turbo_vision::core::event::{KB_ALT_X, KB_ESC, KB_ESC_ESC};
+use turbo_vision::core::geometry::Rect;
+use turbo_vision::views::label::Label;
+use turbo_vision::views::status_line::{StatusItem, StatusLine};
+use turbo_vision::views::window::Window;
 
 fn main() -> turbo_vision::core::error::Result<()> {
     // Create a minimal application
@@ -21,35 +21,21 @@ fn main() -> turbo_vision::core::error::Result<()> {
     let status_line = StatusLine::new(
         Rect::new(0, height as i16 - 1, width as i16, height as i16),
         vec![
-            StatusItem::new("~Esc~ Exit", KB_ESC, CM_QUIT),
-            StatusItem::new("~Alt-X~ Quit", KB_ALT_X, CM_QUIT),
+            StatusItem::new("~Esc-X~ Exit", KB_ESC, CM_QUIT),
+            StatusItem::new("~Alt-X~ Exit", KB_ALT_X, CM_QUIT),
+            StatusItem::new("~Esc-Esc~ Exit", KB_ESC_ESC, CM_QUIT),
         ],
     );
     app.set_status_line(status_line);
 
     // Create a simple information window
-    let mut window = Window::new(
-        Rect::new(15, 5, 65, 15),
-        "Minimal Application",
-    );
+    let mut window = Window::new(Rect::new(15, 5, 65, 15), "Minimal Application");
 
     // Add some text
-    let label1 = Label::new(
-        Rect::new(2, 2, 46, 3),
-        "This is a minimal application!",
-    );
-    let label2 = Label::new(
-        Rect::new(2, 4, 46, 5),
-        "No menu bar - just status line.",
-    );
-    let label3 = Label::new(
-        Rect::new(2, 6, 46, 7),
-        "Similar to deriving from TProgram",
-    );
-    let label4 = Label::new(
-        Rect::new(2, 7, 46, 8),
-        "instead of TApplication.",
-    );
+    let label1 = Label::new(Rect::new(2, 2, 46, 2), "Demonstrates a stripped-down application.");
+    let label2 = Label::new(Rect::new(2, 3, 46, 3), "No menu bar, just a status line.");
+    let label3 = Label::new(Rect::new(2, 5, 46, 5), "To exit: Alt-X, Esc-X, Esc-Esc, F10, Ctrl-C");
+    let label4 = Label::new(Rect::new(2, 6, 46, 6), "macOS  : Esc-X works if Alt fails");
 
     window.add(Box::new(label1));
     window.add(Box::new(label2));
