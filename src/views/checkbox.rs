@@ -141,6 +141,92 @@ impl Cluster for CheckBox {
     }
 }
 
+/// Builder for creating checkboxes with a fluent API.
+///
+/// # Examples
+///
+/// ```ignore
+/// use turbo_vision::views::checkbox::CheckBoxBuilder;
+/// use turbo_vision::core::geometry::Rect;
+///
+/// // Create an unchecked checkbox
+/// let checkbox = CheckBoxBuilder::new()
+///     .bounds(Rect::new(3, 5, 30, 6))
+///     .label("Enable feature")
+///     .build();
+///
+/// // Create a pre-checked checkbox
+/// let checkbox = CheckBoxBuilder::new()
+///     .bounds(Rect::new(3, 6, 30, 7))
+///     .label("Auto-save")
+///     .checked(true)
+///     .build();
+/// ```
+pub struct CheckBoxBuilder {
+    bounds: Option<Rect>,
+    label: Option<String>,
+    checked: bool,
+}
+
+impl CheckBoxBuilder {
+    /// Creates a new CheckBoxBuilder with default values.
+    pub fn new() -> Self {
+        Self {
+            bounds: None,
+            label: None,
+            checked: false,
+        }
+    }
+
+    /// Sets the checkbox bounds (required).
+    #[must_use]
+    pub fn bounds(mut self, bounds: Rect) -> Self {
+        self.bounds = Some(bounds);
+        self
+    }
+
+    /// Sets the checkbox label (required).
+    #[must_use]
+    pub fn label(mut self, label: impl Into<String>) -> Self {
+        self.label = Some(label.into());
+        self
+    }
+
+    /// Sets whether the checkbox is initially checked (default: false).
+    #[must_use]
+    pub fn checked(mut self, checked: bool) -> Self {
+        self.checked = checked;
+        self
+    }
+
+    /// Builds the CheckBox.
+    ///
+    /// # Panics
+    ///
+    /// Panics if required fields (bounds, label) are not set.
+    pub fn build(self) -> CheckBox {
+        let bounds = self.bounds.expect("CheckBox bounds must be set");
+        let label = self.label.expect("CheckBox label must be set");
+
+        let mut checkbox = CheckBox::new(bounds, &label);
+        if self.checked {
+            checkbox.set_checked(true);
+        }
+        checkbox
+    }
+
+    /// Builds the CheckBox as a Box.
+    pub fn build_boxed(self) -> Box<CheckBox> {
+        Box::new(self.build())
+    }
+}
+
+impl Default for CheckBoxBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -173,5 +259,27 @@ mod tests {
 
         checkbox.set_checked(false);
         assert!(!checkbox.is_checked());
+    }
+
+    #[test]
+    fn test_checkbox_builder() {
+        let checkbox = CheckBoxBuilder::new()
+            .bounds(Rect::new(3, 5, 30, 6))
+            .label("Test Feature")
+            .build();
+
+        assert_eq!(checkbox.label, "Test Feature");
+        assert!(!checkbox.is_checked());
+    }
+
+    #[test]
+    fn test_checkbox_builder_checked() {
+        let checkbox = CheckBoxBuilder::new()
+            .bounds(Rect::new(3, 5, 30, 6))
+            .label("Auto-save")
+            .checked(true)
+            .build();
+
+        assert!(checkbox.is_checked());
     }
 }

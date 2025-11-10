@@ -102,6 +102,84 @@ impl Validator for LookupValidator {
     }
 }
 
+/// Builder for creating lookup validators with a fluent API.
+///
+/// # Examples
+///
+/// ```ignore
+/// use turbo_vision::views::lookup_validator::LookupValidatorBuilder;
+///
+/// // Create a case-sensitive validator
+/// let validator = LookupValidatorBuilder::new()
+///     .values(vec!["Red".to_string(), "Green".to_string(), "Blue".to_string()])
+///     .build();
+///
+/// // Create a case-insensitive validator
+/// let validator = LookupValidatorBuilder::new()
+///     .add_value("Apple")
+///     .add_value("Banana")
+///     .add_value("Orange")
+///     .case_sensitive(false)
+///     .build();
+/// ```
+pub struct LookupValidatorBuilder {
+    valid_values: Vec<String>,
+    case_sensitive: bool,
+}
+
+impl LookupValidatorBuilder {
+    /// Creates a new LookupValidatorBuilder with default values.
+    pub fn new() -> Self {
+        Self {
+            valid_values: Vec::new(),
+            case_sensitive: true,
+        }
+    }
+
+    /// Sets the list of valid values.
+    #[must_use]
+    pub fn values(mut self, valid_values: Vec<String>) -> Self {
+        self.valid_values = valid_values;
+        self
+    }
+
+    /// Adds a single valid value to the list.
+    #[must_use]
+    pub fn add_value(mut self, value: impl Into<String>) -> Self {
+        self.valid_values.push(value.into());
+        self
+    }
+
+    /// Sets whether the validator is case-sensitive (default: true).
+    #[must_use]
+    pub fn case_sensitive(mut self, case_sensitive: bool) -> Self {
+        self.case_sensitive = case_sensitive;
+        self
+    }
+
+    /// Builds the LookupValidator.
+    ///
+    /// # Panics
+    ///
+    /// Panics if no valid values have been added.
+    pub fn build(self) -> LookupValidator {
+        if self.valid_values.is_empty() {
+            panic!("LookupValidator must have at least one valid value");
+        }
+
+        LookupValidator {
+            valid_values: self.valid_values,
+            case_sensitive: self.case_sensitive,
+        }
+    }
+}
+
+impl Default for LookupValidatorBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -253,5 +331,37 @@ mod tests {
         assert!(validator.is_valid_input("0", true));
         assert!(validator.is_valid_input(" ", true));
         assert!(validator.is_valid_input("!", true));
+    }
+
+    #[test]
+    fn test_lookup_validator_builder() {
+        let validator = LookupValidatorBuilder::new()
+            .add_value("Red")
+            .add_value("Green")
+            .add_value("Blue")
+            .build();
+
+        assert!(validator.is_valid("Red"));
+        assert!(validator.is_valid("Green"));
+        assert!(validator.is_valid("Blue"));
+        assert!(!validator.is_valid("Yellow"));
+    }
+
+    #[test]
+    fn test_lookup_validator_builder_case_insensitive() {
+        let validator = LookupValidatorBuilder::new()
+            .values(vec!["One".to_string(), "Two".to_string()])
+            .case_sensitive(false)
+            .build();
+
+        assert!(validator.is_valid("One"));
+        assert!(validator.is_valid("one"));
+        assert!(validator.is_valid("TWO"));
+    }
+
+    #[test]
+    #[should_panic(expected = "must have at least one valid value")]
+    fn test_lookup_validator_builder_empty() {
+        LookupValidatorBuilder::new().build();
     }
 }

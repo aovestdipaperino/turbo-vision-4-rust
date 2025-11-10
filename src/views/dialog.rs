@@ -144,9 +144,6 @@ impl Dialog {
             }
         }
 
-        // Restore previous state (clear modal flag)
-        self.set_state(old_state);
-
         self.result
     }
 }
@@ -164,13 +161,7 @@ impl View for Dialog {
         self.window.draw(terminal);
     }
 
-    fn update_cursor(&self, terminal: &mut Terminal) {
-        self.window.update_cursor(terminal);
-    }
-
     fn handle_event(&mut self, event: &mut Event) {
-        use crate::core::state::SF_MODAL;
-
         // First let the window (and its children) handle the event
         // This is critical: if a focused Memo/Editor handles Enter, it will clear the event
         // Borland's TDialog calls TWindow::handleEvent() FIRST (tdialog.cc line 47)
@@ -179,39 +170,56 @@ impl View for Dialog {
         // Now check if the event is still active after children processed it
         // If a child (like Memo/Editor) handled Enter, event.what will be EventType::None
         // This matches Borland's TDialog architecture (tdialog.cc lines 48-86)
-        match event.what {
-            EventType::Keyboard => {
-                match event.key_code {
-                    KB_ESC_ESC => {
-                        // Double ESC generates cancel command (lines 53-58)
-                        *event = Event::command(CM_CANCEL);
-                    }
-                    KB_ENTER => {
-                        // Enter key activates default button (lines 60-66)
-                        // Borland converts to evBroadcast + cmDefault and re-queues
-                        // We simplify by directly activating the default button
-                        if let Some(cmd) = self.find_default_button_command() {
-                            *event = Event::command(cmd);
-                        } else {
-                            event.clear();
-                        }
-                    }
-                    _ => {}
-                }
+
+        // Handle Keyboard events (if not already handled by children)
+        // Matches Borland: TDialog::handleEvent() (tdialog.cc:48-86)
+        if event.what == EventType::Keyboard {
+            // ESC ESC always closes modal dialogs with CM_CANCEL
+            // Matches Borland: cmCancel on Esc-Esc (tdialog.cc:71-73)
+            if event.key_code == KB_ESC_ESC {
+                *event = Event::command(CM_CANCEL);
+                // Re-process as command (will be handled below)
+                self.handle_event(event);
+                return;
             }
-            EventType::Command => {
-                // Check for commands that should end modal dialogs
-                // Matches Borland: TDialog::handleEvent() (tdialog.cc lines 70-84)
-                // In Borland, ANY command that reaches the dialog (not handled by children)
-                // will end the modal loop. This allows custom command IDs from buttons.
-                if (self.state() & SF_MODAL) != 0 {
-                    // End the modal loop with the command ID as the result
-                    // Borland: endModal(event.message.command); clearEvent(event);
+
+            // Enter key activates default button (if exists and enabled)
+            // Matches Borland: cmDefault broadcast (tdialog.cc:66-70)
+            if event.key_code == KB_ENTER {
+                if let Some(default_command) = self.find_default_button_command() {
+                    *event = Event::command(default_command);
+                    // Re-process as command (will be handled below)
+                    self.handle_event(event);
+                }
+                return;
+            }
+        }
+
+        // Handle command events
+        // Dialogs intercept cmCancel and cmOK/cmYes/cmNo to end the modal loop
+        // Matches Borland: TDialog::handleEvent() checks for these commands
+        if event.what == EventType::Command {
+            use crate::core::command::{CM_CANCEL, CM_OK, CM_YES, CM_NO};
+            match event.command {
+                CM_CANCEL => {
+                    // Cancel button or Esc-Esc pressed
+                    // End the modal loop with CM_CANCEL
+                    // Matches Borland: endModal(cmCancel)
+                    self.window.end_modal(CM_CANCEL);
+                    event.clear();
+                }
+                CM_OK | CM_YES | CM_NO => {
+                    // OK/Yes/No button pressed
+                    // End the modal loop with the command
+                    // Matches Borland: endModal(command)
                     self.window.end_modal(event.command);
                     event.clear();
                 }
+                _ => {
+                    // Other commands - don't end the modal loop
+                    // Just let the command propagate
+                }
             }
-            _ => {}
         }
     }
 
@@ -232,31 +240,24 @@ impl View for Dialog {
     }
 
     fn can_focus(&self) -> bool {
-        // Dialogs can receive focus (delegates to window)
-        self.window.can_focus()
+        // Dialogs can receive focus
+        true
     }
 
     fn set_focus(&mut self, focused: bool) {
-        // Delegate focus to the underlying window
         self.window.set_focus(focused);
     }
 
-    fn get_end_state(&self) -> CommandId {
-        self.window.get_end_state()
+    fn update_cursor(&self, terminal: &mut Terminal) {
+        self.window.update_cursor(terminal);
     }
 
-    fn set_end_state(&mut self, command: CommandId) {
-        self.window.set_end_state(command);
-    }
-
-    /// Validate dialog before closing with given command
-    /// Matches Borland: TDialog::valid(ushort command)
-    /// - cmCancel always allowed (user can always cancel)
-    /// - Other commands validated through window (which validates children)
     fn valid(&mut self, command: CommandId) -> bool {
-        if command == CM_CANCEL {
-            // Can always cancel
-            true
+        // Dialogs validate on OK/Yes (but not Cancel/No)
+        // Matches Borland: TDialog::valid() (tdialog.cc:88-104)
+        if command == CM_CANCEL || command == 13 /* CM_NO */ {
+            // Cancel/No always succeeds without validation
+            return true;
         } else {
             // Validate through window (which will validate all children)
             self.window.valid(command)
@@ -307,5 +308,102 @@ impl Dialog {
             }
         }
         None
+    }
+}
+
+/// Builder for creating dialogs with a fluent API.
+///
+/// # Examples
+///
+/// ```ignore
+/// use turbo_vision::views::dialog::DialogBuilder;
+/// use turbo_vision::views::button::ButtonBuilder;
+/// use turbo_vision::core::geometry::Rect;
+/// use turbo_vision::core::command::CM_OK;
+///
+/// // Create a regular dialog
+/// let mut dialog = DialogBuilder::new()
+///     .bounds(Rect::new(10, 5, 50, 15))
+///     .title("My Dialog")
+///     .build();
+///
+/// // Create a modal dialog (boxed)
+/// let dialog = DialogBuilder::new()
+///     .bounds(Rect::new(10, 5, 50, 15))
+///     .title("Modal Dialog")
+///     .modal(true)
+///     .build_boxed();
+/// ```
+pub struct DialogBuilder {
+    bounds: Option<Rect>,
+    title: Option<String>,
+    modal: bool,
+}
+
+impl DialogBuilder {
+    /// Creates a new DialogBuilder with default values.
+    pub fn new() -> Self {
+        Self {
+            bounds: None,
+            title: None,
+            modal: false,
+        }
+    }
+
+    /// Sets the dialog bounds (required).
+    #[must_use]
+    pub fn bounds(mut self, bounds: Rect) -> Self {
+        self.bounds = Some(bounds);
+        self
+    }
+
+    /// Sets the dialog title (required).
+    #[must_use]
+    pub fn title(mut self, title: impl Into<String>) -> Self {
+        self.title = Some(title.into());
+        self
+    }
+
+    /// Sets whether the dialog should be modal (default: false).
+    /// Modal dialogs are created with SF_MODAL flag set.
+    #[must_use]
+    pub fn modal(mut self, modal: bool) -> Self {
+        self.modal = modal;
+        self
+    }
+
+    /// Builds the Dialog.
+    ///
+    /// # Panics
+    ///
+    /// Panics if required fields (bounds, title) are not set.
+    pub fn build(self) -> Dialog {
+        let bounds = self.bounds.expect("Dialog bounds must be set");
+        let title = self.title.expect("Dialog title must be set");
+
+        let mut dialog = Dialog::new(bounds, &title);
+
+        if self.modal {
+            use crate::core::state::SF_MODAL;
+            let current_state = dialog.state();
+            dialog.set_state(current_state | SF_MODAL);
+        }
+
+        dialog
+    }
+
+    /// Builds the Dialog as a Box (for use with Application::exec_view).
+    ///
+    /// # Panics
+    ///
+    /// Panics if required fields (bounds, title) are not set.
+    pub fn build_boxed(self) -> Box<Dialog> {
+        Box::new(self.build())
+    }
+}
+
+impl Default for DialogBuilder {
+    fn default() -> Self {
+        Self::new()
     }
 }

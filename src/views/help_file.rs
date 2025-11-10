@@ -307,3 +307,35 @@ mod tests {
         assert_eq!(help.get_topic_ids().len(), 3);
     }
 }
+
+/// Builder for creating help files with a fluent API.
+pub struct HelpFileBuilder {
+    path: Option<String>,
+}
+
+impl HelpFileBuilder {
+    pub fn new() -> Self {
+        Self { path: None }
+    }
+
+    #[must_use]
+    pub fn path(mut self, path: impl Into<String>) -> Self {
+        self.path = Some(path.into());
+        self
+    }
+
+    pub fn build(self) -> std::io::Result<HelpFile> {
+        let path = self.path.expect("HelpFile path must be set");
+        HelpFile::new(&path)
+    }
+
+    pub fn build_rc(self) -> std::io::Result<std::rc::Rc<std::cell::RefCell<HelpFile>>> {
+        Ok(std::rc::Rc::new(std::cell::RefCell::new(self.build()?)))
+    }
+}
+
+impl Default for HelpFileBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}

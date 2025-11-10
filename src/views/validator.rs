@@ -229,6 +229,83 @@ impl Validator for RangeValidator {
 /// InputLine will hold an Option<ValidatorRef>
 pub type ValidatorRef = Rc<RefCell<dyn Validator>>;
 
+/// Builder for creating filter validators with a fluent API.
+pub struct FilterValidatorBuilder {
+    valid_chars: Option<String>,
+}
+
+impl FilterValidatorBuilder {
+    pub fn new() -> Self {
+        Self { valid_chars: None }
+    }
+
+    #[must_use]
+    pub fn valid_chars(mut self, chars: impl Into<String>) -> Self {
+        self.valid_chars = Some(chars.into());
+        self
+    }
+
+    pub fn build(self) -> FilterValidator {
+        let valid_chars = self.valid_chars.expect("FilterValidator valid_chars must be set");
+        FilterValidator::new(&valid_chars)
+    }
+
+    pub fn build_ref(self) -> ValidatorRef {
+        Rc::new(RefCell::new(self.build()))
+    }
+}
+
+impl Default for FilterValidatorBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Builder for creating range validators with a fluent API.
+pub struct RangeValidatorBuilder {
+    min: i64,
+    max: i64,
+}
+
+impl RangeValidatorBuilder {
+    pub fn new() -> Self {
+        Self { min: 0, max: 100 }
+    }
+
+    #[must_use]
+    pub fn min(mut self, min: i64) -> Self {
+        self.min = min;
+        self
+    }
+
+    #[must_use]
+    pub fn max(mut self, max: i64) -> Self {
+        self.max = max;
+        self
+    }
+
+    #[must_use]
+    pub fn range(mut self, min: i64, max: i64) -> Self {
+        self.min = min;
+        self.max = max;
+        self
+    }
+
+    pub fn build(self) -> RangeValidator {
+        RangeValidator::new(self.min, self.max)
+    }
+
+    pub fn build_ref(self) -> ValidatorRef {
+        Rc::new(RefCell::new(self.build()))
+    }
+}
+
+impl Default for RangeValidatorBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

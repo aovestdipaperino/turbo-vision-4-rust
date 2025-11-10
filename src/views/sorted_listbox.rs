@@ -346,6 +346,54 @@ impl ListViewer for SortedListBox {
     }
 }
 
+/// Builder for creating sorted listboxes with a fluent API.
+pub struct SortedListBoxBuilder {
+    bounds: Option<Rect>,
+    on_select_command: CommandId,
+    case_sensitive: bool,
+}
+
+impl SortedListBoxBuilder {
+    pub fn new() -> Self {
+        Self { bounds: None, on_select_command: 0, case_sensitive: false }
+    }
+
+    #[must_use]
+    pub fn bounds(mut self, bounds: Rect) -> Self {
+        self.bounds = Some(bounds);
+        self
+    }
+
+    #[must_use]
+    pub fn on_select_command(mut self, command: CommandId) -> Self {
+        self.on_select_command = command;
+        self
+    }
+
+    #[must_use]
+    pub fn case_sensitive(mut self, case_sensitive: bool) -> Self {
+        self.case_sensitive = case_sensitive;
+        self
+    }
+
+    pub fn build(self) -> SortedListBox {
+        let bounds = self.bounds.expect("SortedListBox bounds must be set");
+        let mut listbox = SortedListBox::new(bounds, self.on_select_command);
+        listbox.set_case_sensitive(self.case_sensitive);
+        listbox
+    }
+
+    pub fn build_boxed(self) -> Box<SortedListBox> {
+        Box::new(self.build())
+    }
+}
+
+impl Default for SortedListBoxBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

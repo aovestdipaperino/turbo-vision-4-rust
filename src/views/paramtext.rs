@@ -228,3 +228,43 @@ mod tests {
         );
     }
 }
+
+/// Builder for creating param texts with a fluent API.
+pub struct ParamTextBuilder {
+    bounds: Option<Rect>,
+    template: Option<String>,
+}
+
+impl ParamTextBuilder {
+    pub fn new() -> Self {
+        Self { bounds: None, template: None }
+    }
+
+    #[must_use]
+    pub fn bounds(mut self, bounds: Rect) -> Self {
+        self.bounds = Some(bounds);
+        self
+    }
+
+    #[must_use]
+    pub fn template(mut self, template: impl Into<String>) -> Self {
+        self.template = Some(template.into());
+        self
+    }
+
+    pub fn build(self) -> ParamText {
+        let bounds = self.bounds.expect("ParamText bounds must be set");
+        let template = self.template.expect("ParamText template must be set");
+        ParamText::new(bounds, &template)
+    }
+
+    pub fn build_boxed(self) -> Box<ParamText> {
+        Box::new(self.build())
+    }
+}
+
+impl Default for ParamTextBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}

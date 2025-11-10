@@ -61,3 +61,50 @@ impl View for Background {
         self.owner
     }
 }
+
+/// Builder for creating backgrounds with a fluent API.
+pub struct BackgroundBuilder {
+    bounds: Option<Rect>,
+    pattern: char,
+    attr: Option<Attr>,
+}
+
+impl BackgroundBuilder {
+    pub fn new() -> Self {
+        Self { bounds: None, pattern: '░', attr: None }
+    }
+
+    #[must_use]
+    pub fn bounds(mut self, bounds: Rect) -> Self {
+        self.bounds = Some(bounds);
+        self
+    }
+
+    #[must_use]
+    pub fn pattern(mut self, pattern: char) -> Self {
+        self.pattern = pattern;
+        self
+    }
+
+    #[must_use]
+    pub fn attr(mut self, attr: Attr) -> Self {
+        self.attr = Some(attr);
+        self
+    }
+
+    pub fn build(self) -> Background {
+        let bounds = self.bounds.expect("Background bounds must be set");
+        let attr = self.attr.expect("Background attr must be set");
+        Background::new(bounds, self.pattern, attr)
+    }
+
+    pub fn build_boxed(self) -> Box<Background> {
+        Box::new(self.build())
+    }
+}
+
+impl Default for BackgroundBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}

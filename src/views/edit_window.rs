@@ -164,3 +164,43 @@ mod tests {
         assert_eq!(window.editor().get_text(), "Hello, World!");
     }
 }
+
+/// Builder for creating edit windows with a fluent API.
+pub struct EditWindowBuilder {
+    bounds: Option<Rect>,
+    title: Option<String>,
+}
+
+impl EditWindowBuilder {
+    pub fn new() -> Self {
+        Self { bounds: None, title: None }
+    }
+
+    #[must_use]
+    pub fn bounds(mut self, bounds: Rect) -> Self {
+        self.bounds = Some(bounds);
+        self
+    }
+
+    #[must_use]
+    pub fn title(mut self, title: impl Into<String>) -> Self {
+        self.title = Some(title.into());
+        self
+    }
+
+    pub fn build(self) -> EditWindow {
+        let bounds = self.bounds.expect("EditWindow bounds must be set");
+        let title = self.title.expect("EditWindow title must be set");
+        EditWindow::new(bounds, &title)
+    }
+
+    pub fn build_boxed(self) -> Box<EditWindow> {
+        Box::new(self.build())
+    }
+}
+
+impl Default for EditWindowBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}

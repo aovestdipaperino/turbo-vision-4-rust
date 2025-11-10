@@ -512,3 +512,35 @@ impl View for Desktop {
         Some(Palette::from_slice(palettes::CP_APP_COLOR))
     }
 }
+
+/// Builder for creating desktops with a fluent API.
+pub struct DesktopBuilder {
+    bounds: Option<Rect>,
+}
+
+impl DesktopBuilder {
+    pub fn new() -> Self {
+        Self { bounds: None }
+    }
+
+    #[must_use]
+    pub fn bounds(mut self, bounds: Rect) -> Self {
+        self.bounds = Some(bounds);
+        self
+    }
+
+    pub fn build(self) -> Desktop {
+        let bounds = self.bounds.expect("Desktop bounds must be set");
+        Desktop::new(bounds)
+    }
+
+    pub fn build_boxed(self) -> Box<Desktop> {
+        Box::new(self.build())
+    }
+}
+
+impl Default for DesktopBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}

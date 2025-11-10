@@ -59,6 +59,78 @@ impl StatusItem {
     }
 }
 
+/// Builder for creating status items with a fluent API.
+///
+/// # Examples
+///
+/// ```ignore
+/// use turbo_vision::core::status_data::StatusItemBuilder;
+///
+/// let item = StatusItemBuilder::new()
+///     .text("~F1~ Help")
+///     .key_code(0x3B00)
+///     .command(100)
+///     .build();
+/// ```
+pub struct StatusItemBuilder {
+    text: Option<String>,
+    key_code: KeyCode,
+    command: CommandId,
+}
+
+impl StatusItemBuilder {
+    /// Creates a new StatusItemBuilder with default values.
+    pub fn new() -> Self {
+        Self {
+            text: None,
+            key_code: 0,
+            command: 0,
+        }
+    }
+
+    /// Sets the status item text (required).
+    /// Use ~x~ to mark the accelerator key.
+    #[must_use]
+    pub fn text(mut self, text: impl Into<String>) -> Self {
+        self.text = Some(text.into());
+        self
+    }
+
+    /// Sets the keyboard shortcut key code.
+    #[must_use]
+    pub fn key_code(mut self, key_code: KeyCode) -> Self {
+        self.key_code = key_code;
+        self
+    }
+
+    /// Sets the command to execute.
+    #[must_use]
+    pub fn command(mut self, command: CommandId) -> Self {
+        self.command = command;
+        self
+    }
+
+    /// Builds the StatusItem.
+    ///
+    /// # Panics
+    ///
+    /// Panics if required fields (text) are not set.
+    pub fn build(self) -> StatusItem {
+        let text = self.text.expect("StatusItem text must be set");
+        StatusItem {
+            text,
+            key_code: self.key_code,
+            command: self.command,
+        }
+    }
+}
+
+impl Default for StatusItemBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Status line definition - defines which items are visible for a command set range
 ///
 /// Matches Borland: TStatusDef
@@ -127,6 +199,87 @@ impl StatusDef {
     /// Check if definition has no items
     pub fn is_empty(&self) -> bool {
         self.items.is_empty()
+    }
+}
+
+/// Builder for creating status definitions with a fluent API.
+///
+/// # Examples
+///
+/// ```ignore
+/// use turbo_vision::core::status_data::{StatusDefBuilder, StatusItem};
+///
+/// let def = StatusDefBuilder::new()
+///     .range(0, 100)
+///     .add_item(StatusItem::new("~F1~ Help", 0x3B00, 100))
+///     .add_item(StatusItem::new("~F2~ Save", 0x3C00, 101))
+///     .build();
+/// ```
+pub struct StatusDefBuilder {
+    min: u16,
+    max: u16,
+    items: Vec<StatusItem>,
+}
+
+impl StatusDefBuilder {
+    /// Creates a new StatusDefBuilder with default values (full range: 0-0xFFFF).
+    pub fn new() -> Self {
+        Self {
+            min: 0,
+            max: 0xFFFF,
+            items: Vec::new(),
+        }
+    }
+
+    /// Sets the command range (default: 0-0xFFFF).
+    #[must_use]
+    pub fn range(mut self, min: u16, max: u16) -> Self {
+        self.min = min;
+        self.max = max;
+        self
+    }
+
+    /// Sets the minimum command ID.
+    #[must_use]
+    pub fn min(mut self, min: u16) -> Self {
+        self.min = min;
+        self
+    }
+
+    /// Sets the maximum command ID.
+    #[must_use]
+    pub fn max(mut self, max: u16) -> Self {
+        self.max = max;
+        self
+    }
+
+    /// Adds a status item to the definition.
+    #[must_use]
+    pub fn add_item(mut self, item: StatusItem) -> Self {
+        self.items.push(item);
+        self
+    }
+
+    /// Sets all items at once.
+    #[must_use]
+    pub fn items(mut self, items: Vec<StatusItem>) -> Self {
+        self.items = items;
+        self
+    }
+
+    /// Builds the StatusDef.
+    pub fn build(self) -> StatusDef {
+        StatusDef {
+            min: self.min,
+            max: self.max,
+            items: self.items,
+        }
+    }
+}
+
+impl Default for StatusDefBuilder {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

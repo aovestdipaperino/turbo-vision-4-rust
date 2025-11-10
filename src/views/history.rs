@@ -137,6 +137,46 @@ impl View for History {
     }
 }
 
+/// Builder for creating history buttons with a fluent API.
+pub struct HistoryBuilder {
+    pos: Option<Point>,
+    history_id: Option<u16>,
+}
+
+impl HistoryBuilder {
+    pub fn new() -> Self {
+        Self { pos: None, history_id: None }
+    }
+
+    #[must_use]
+    pub fn pos(mut self, pos: Point) -> Self {
+        self.pos = Some(pos);
+        self
+    }
+
+    #[must_use]
+    pub fn history_id(mut self, history_id: u16) -> Self {
+        self.history_id = Some(history_id);
+        self
+    }
+
+    pub fn build(self) -> History {
+        let pos = self.pos.expect("History pos must be set");
+        let history_id = self.history_id.expect("History history_id must be set");
+        History::new(pos, history_id)
+    }
+
+    pub fn build_boxed(self) -> Box<History> {
+        Box::new(self.build())
+    }
+}
+
+impl Default for HistoryBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

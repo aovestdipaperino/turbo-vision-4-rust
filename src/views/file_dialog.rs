@@ -505,3 +505,98 @@ impl View for FileDialog {
         self.dialog.handle_event(event);
     }
 }
+
+/// Builder for creating file dialogs with a fluent API.
+///
+/// # Examples
+///
+/// ```ignore
+/// use turbo_vision::views::file_dialog::FileDialogBuilder;
+/// use turbo_vision::core::geometry::Rect;
+/// use std::path::PathBuf;
+///
+/// // Create a basic file dialog
+/// let dialog = FileDialogBuilder::new()
+///     .bounds(Rect::new(10, 5, 70, 20))
+///     .title("Open File")
+///     .wildcard("*.rs")
+///     .build();
+///
+/// // Create a file dialog with initial directory
+/// let dialog = FileDialogBuilder::new()
+///     .bounds(Rect::new(10, 5, 70, 20))
+///     .title("Select File")
+///     .wildcard("*")
+///     .initial_dir(PathBuf::from("/home/user/documents"))
+///     .build();
+/// ```
+pub struct FileDialogBuilder {
+    bounds: Option<Rect>,
+    title: Option<String>,
+    wildcard: String,
+    initial_dir: Option<PathBuf>,
+}
+
+impl FileDialogBuilder {
+    /// Creates a new FileDialogBuilder with default values.
+    pub fn new() -> Self {
+        Self {
+            bounds: None,
+            title: None,
+            wildcard: "*".to_string(),
+            initial_dir: None,
+        }
+    }
+
+    /// Sets the file dialog bounds (required).
+    #[must_use]
+    pub fn bounds(mut self, bounds: Rect) -> Self {
+        self.bounds = Some(bounds);
+        self
+    }
+
+    /// Sets the dialog title (required).
+    #[must_use]
+    pub fn title(mut self, title: impl Into<String>) -> Self {
+        self.title = Some(title.into());
+        self
+    }
+
+    /// Sets the wildcard filter (default: "*").
+    /// Examples: "*.rs", "*.toml", "*"
+    #[must_use]
+    pub fn wildcard(mut self, wildcard: impl Into<String>) -> Self {
+        self.wildcard = wildcard.into();
+        self
+    }
+
+    /// Sets the initial directory (optional).
+    /// If not set, uses the current working directory.
+    #[must_use]
+    pub fn initial_dir(mut self, dir: PathBuf) -> Self {
+        self.initial_dir = Some(dir);
+        self
+    }
+
+    /// Builds the FileDialog.
+    ///
+    /// # Panics
+    ///
+    /// Panics if required fields (bounds, title) are not set.
+    pub fn build(self) -> FileDialog {
+        let bounds = self.bounds.expect("FileDialog bounds must be set");
+        let title = self.title.expect("FileDialog title must be set");
+        FileDialog::new(bounds, &title, &self.wildcard, self.initial_dir)
+    }
+
+    /// Builds the FileDialog as a Box.
+    pub fn build_boxed(self) -> Box<FileDialog> {
+        Box::new(self.build())
+    }
+}
+
+impl Default for FileDialogBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}

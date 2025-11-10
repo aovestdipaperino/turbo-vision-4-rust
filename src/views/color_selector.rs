@@ -174,3 +174,44 @@ impl View for ColorSelector {
         self.state = state;
     }
 }
+
+/// Builder for creating color selectors with a fluent API.
+pub struct ColorSelectorBuilder {
+    bounds: Option<Rect>,
+    selected_color: u8,
+}
+
+impl ColorSelectorBuilder {
+    pub fn new() -> Self {
+        Self { bounds: None, selected_color: 7 }
+    }
+
+    #[must_use]
+    pub fn bounds(mut self, bounds: Rect) -> Self {
+        self.bounds = Some(bounds);
+        self
+    }
+
+    #[must_use]
+    pub fn selected_color(mut self, color: u8) -> Self {
+        self.selected_color = color.min(15);
+        self
+    }
+
+    pub fn build(self) -> ColorSelector {
+        let bounds = self.bounds.expect("ColorSelector bounds must be set");
+        let mut selector = ColorSelector::new(bounds);
+        selector.set_selected_color(self.selected_color);
+        selector
+    }
+
+    pub fn build_boxed(self) -> Box<ColorSelector> {
+        Box::new(self.build())
+    }
+}
+
+impl Default for ColorSelectorBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}

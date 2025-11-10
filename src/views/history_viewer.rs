@@ -218,3 +218,43 @@ mod tests {
         assert_eq!(viewer.get_selected_item(), None);
     }
 }
+
+/// Builder for creating history viewers with a fluent API.
+pub struct HistoryViewerBuilder {
+    bounds: Option<Rect>,
+    history_id: Option<u16>,
+}
+
+impl HistoryViewerBuilder {
+    pub fn new() -> Self {
+        Self { bounds: None, history_id: None }
+    }
+
+    #[must_use]
+    pub fn bounds(mut self, bounds: Rect) -> Self {
+        self.bounds = Some(bounds);
+        self
+    }
+
+    #[must_use]
+    pub fn history_id(mut self, history_id: u16) -> Self {
+        self.history_id = Some(history_id);
+        self
+    }
+
+    pub fn build(self) -> HistoryViewer {
+        let bounds = self.bounds.expect("HistoryViewer bounds must be set");
+        let history_id = self.history_id.expect("HistoryViewer history_id must be set");
+        HistoryViewer::new(bounds, history_id)
+    }
+
+    pub fn build_boxed(self) -> Box<HistoryViewer> {
+        Box::new(self.build())
+    }
+}
+
+impl Default for HistoryViewerBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
