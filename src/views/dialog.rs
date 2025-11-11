@@ -62,6 +62,11 @@ impl Dialog {
         self.window.child_at_mut(index)
     }
 
+    /// Set the dialog title
+    pub fn set_title(&mut self, title: &str) {
+        self.window.set_title(title);
+    }
+
     /// Execute the dialog with its own event loop (self-contained pattern)
     ///
     /// **Two execution patterns supported:**
@@ -172,57 +177,73 @@ impl View for Dialog {
         // This matches Borland's TDialog architecture (tdialog.cc lines 48-86)
 
         // Handle Keyboard events (if not already handled by children)
+        // IMPORTANT: Only handle dialog-specific keys when modal!
+        // Non-modal dialogs should let keyboard events pass to parent handlers
         // Matches Borland: TDialog::handleEvent() (tdialog.cc:48-86)
         if event.what == EventType::Keyboard {
-            // ESC ESC always closes modal dialogs with CM_CANCEL
-            // Matches Borland: cmCancel on Esc-Esc (tdialog.cc:71-73)
-            if event.key_code == KB_ESC_ESC {
-                *event = Event::command(CM_CANCEL);
-                // Re-process as command (will be handled below)
-                self.handle_event(event);
-                return;
-            }
+            use crate::core::state::SF_MODAL;
 
-            // Enter key activates default button (if exists and enabled)
-            // Matches Borland: cmDefault broadcast (tdialog.cc:66-70)
-            if event.key_code == KB_ENTER {
-                if let Some(default_command) = self.find_default_button_command() {
-                    *event = Event::command(default_command);
+            // Only intercept keyboard shortcuts if this dialog is modal
+            if self.state() & SF_MODAL != 0 {
+                // ESC ESC always closes modal dialogs with CM_CANCEL
+                // Matches Borland: cmCancel on Esc-Esc (tdialog.cc:71-73)
+                if event.key_code == KB_ESC_ESC {
+                    *event = Event::command(CM_CANCEL);
                     // Re-process as command (will be handled below)
                     self.handle_event(event);
+                    return;
                 }
-                return;
+
+                // Enter key activates default button (if exists and enabled)
+                // Matches Borland: cmDefault broadcast (tdialog.cc:66-70)
+                if event.key_code == KB_ENTER {
+                    if let Some(default_command) = self.find_default_button_command() {
+                        *event = Event::command(default_command);
+                        // Re-process as command (will be handled below)
+                        self.handle_event(event);
+                    }
+                    return;
+                }
             }
+            // If not modal, let keyboard events pass through to default handling
         }
 
         // Handle command events
         // Dialogs intercept cmCancel and cmOK/cmYes/cmNo to end the modal loop
+        // IMPORTANT: Only intercept commands when dialog is actually modal!
+        // Non-modal dialogs (added to desktop) should let commands pass through
         // Matches Borland: TDialog::handleEvent() checks for these commands
         if event.what == EventType::Command {
             use crate::core::command::{CM_CANCEL, CM_OK, CM_YES, CM_NO};
-            match event.command {
-                CM_CANCEL => {
-                    // Cancel button or Esc-Esc pressed
-                    // End the modal loop with CM_CANCEL
-                    // Matches Borland: endModal(cmCancel)
-                    self.window.end_modal(CM_CANCEL);
-                    event.clear();
-                }
-                CM_OK | CM_YES | CM_NO => {
-                    // OK/Yes/No button pressed
-                    // End the modal loop with the command
-                    // Matches Borland: endModal(command)
-                    self.window.end_modal(event.command);
-                    event.clear();
-                }
-                _ => {
-                    // Other commands (including custom button commands)
-                    // End the modal loop with the command so it can be processed by the caller
-                    // Matches Borland: buttons with custom commands close the dialog
-                    self.window.end_modal(event.command);
-                    event.clear();
+            use crate::core::state::SF_MODAL;
+
+            // Only intercept commands if this dialog is modal
+            if self.state() & SF_MODAL != 0 {
+                match event.command {
+                    CM_CANCEL => {
+                        // Cancel button or Esc-Esc pressed
+                        // End the modal loop with CM_CANCEL
+                        // Matches Borland: endModal(cmCancel)
+                        self.window.end_modal(CM_CANCEL);
+                        event.clear();
+                    }
+                    CM_OK | CM_YES | CM_NO => {
+                        // OK/Yes/No button pressed
+                        // End the modal loop with the command
+                        // Matches Borland: endModal(command)
+                        self.window.end_modal(event.command);
+                        event.clear();
+                    }
+                    _ => {
+                        // Other commands (including custom button commands)
+                        // End the modal loop with the command so it can be processed by the caller
+                        // Matches Borland: buttons with custom commands close the dialog
+                        self.window.end_modal(event.command);
+                        event.clear();
+                    }
                 }
             }
+            // If not modal, let commands pass through unchanged
         }
     }
 
@@ -293,6 +314,10 @@ impl View for Dialog {
 
     fn get_end_state(&self) -> crate::core::command::CommandId {
         self.window.get_end_state()
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
     }
 }
 
