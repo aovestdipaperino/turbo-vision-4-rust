@@ -4,18 +4,17 @@
 
 use std::time::SystemTime;
 use turbo_vision::app::Application;
-use turbo_vision::core::command::{
-    CM_CASCADE, CM_CLOSE, CM_NEXT, CM_OK, CM_PREV, CM_QUIT, CM_TILE, CM_ZOOM,
-};
+use turbo_vision::core::command::{CM_CASCADE, CM_CLOSE, CM_NEXT, CM_OK, CM_PREV, CM_QUIT, CM_TILE, CM_ZOOM};
 use turbo_vision::core::draw::DrawBuffer;
-use turbo_vision::core::event::{Event, EventType, KB_F1, KB_F10, KB_F3};
+use turbo_vision::core::event::{Event, EventType, KB_F1, KB_F3, KB_F10};
 use turbo_vision::core::geometry::Rect;
 use turbo_vision::core::menu_data::{Menu, MenuItem};
-use turbo_vision::core::palette::{colors, Attr, TvColor};
+use turbo_vision::core::palette::{Attr, TvColor, colors};
 use turbo_vision::core::state::StateFlags;
 use turbo_vision::terminal::Terminal;
 use turbo_vision::views::view::write_line_to_terminal;
 use turbo_vision::views::{
+    View,
     button::ButtonBuilder,
     dialog::DialogBuilder,
     file_dialog::FileDialogBuilder,
@@ -26,7 +25,6 @@ use turbo_vision::views::{
     static_text::StaticTextBuilder,
     status_line::{StatusItem, StatusLine},
     window::WindowBuilder,
-    View,
 };
 
 // Custom commands
@@ -91,18 +89,11 @@ struct ClockView {
 
 impl ClockView {
     fn new(bounds: Rect) -> Self {
-        Self {
-            bounds,
-            state: 0,
-            owner: None,
-        }
+        Self { bounds, state: 0, owner: None }
     }
 
     fn get_time_string() -> String {
-        let now = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
+        let now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs();
 
         let hours = ((now / 3600) % 24) as u8;
         let minutes = ((now / 60) % 60) as u8;
@@ -282,26 +273,32 @@ fn create_status_line(width: u16, height: u16) -> StatusLine {
 }
 
 fn show_about_dialog(app: &mut Application) {
-    let mut dialog = DialogBuilder::new()
-        .bounds(Rect::new(20, 7, 60, 16))
-        .title("About")
-        .build();
+    // Center the dialog on screen (80x25 terminal)
+    // Dialog size: 32 wide x 11 tall (fits content properly)
+    let dialog_width = 32i16;
+    let dialog_height = 11i16;
+    let (term_width, term_height) = app.terminal.size();
+    let x = (term_width as i16 - dialog_width) / 2;
+    let y = (term_height as i16 - dialog_height) / 2;
 
-    dialog.add(Box::new(StaticTextBuilder::new()
-        .bounds(Rect::new(2, 2, 36, 7))
-        .text("Turbo Vision Demo\n\
-         Version 1.0\n\
-         \n\
-         A demonstration of the\n\
-         Turbo Vision framework")
-        .build()));
+    let mut dialog = DialogBuilder::new().bounds(Rect::new(x, y, x + dialog_width, y + dialog_height)).title("About").build();
 
-    dialog.add(Box::new(ButtonBuilder::new()
-        .bounds(Rect::new(14, 5, 24, 7))
-        .title("  OK  ")
-        .command(CM_OK)
-        .default(true)
-        .build()));
+    // Text content (5 lines, centered with margins)
+    dialog.add(Box::new(
+        StaticTextBuilder::new()
+            .bounds(Rect::new(3, 1, 29, 6))
+            .text(
+                "Turbo Vision Demo\n\
+               Version 1.0\n\
+               \n\
+               A demonstration of the\n\
+               Turbo Vision framework",
+            )
+            .build(),
+    ));
+
+    // OK button (centered horizontally, below text)
+    dialog.add(Box::new(ButtonBuilder::new().bounds(Rect::new(11, 7, 21, 9)).title("  OK  ").command(CM_OK).default(true).build()));
 
     dialog.set_initial_focus();
     dialog.execute(app);
@@ -316,11 +313,7 @@ struct AsciiTable {
 
 impl AsciiTable {
     fn new(bounds: Rect) -> Self {
-        Self {
-            bounds,
-            state: 0,
-            owner: None,
-        }
+        Self { bounds, state: 0, owner: None }
     }
 }
 
@@ -353,11 +346,7 @@ impl View for AsciiTable {
 
             if row == 0 {
                 // Header
-                buf.move_str(
-                    2,
-                    "Char Dec  Hex",
-                    Attr::new(TvColor::Yellow, TvColor::Blue),
-                );
+                buf.move_str(2, "Char Dec  Hex", Attr::new(TvColor::Yellow, TvColor::Blue));
             } else if row > 0 && row <= 56 {
                 // 4 columns of characters (32-255 = 224 chars / 4 = 56 rows)
                 for col in 0..4 {
@@ -375,12 +364,7 @@ impl View for AsciiTable {
                 }
             }
 
-            write_line_to_terminal(
-                terminal,
-                self.bounds.a.x,
-                self.bounds.a.y + row as i16,
-                &buf,
-            );
+            write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y + row as i16, &buf);
         }
     }
 
@@ -404,18 +388,16 @@ fn show_ascii_table(app: &mut Application) {
     let (width, height) = app.terminal.size();
 
     // Create a window in the center of the screen
-    let win_width = 76i16;
+    // 5 columns narrower than original (was 76, now 71)
+    let win_width = 71i16;
     let win_height = 22i16;
     let win_x = (width as i16 - win_width) / 2;
     let win_y = (height as i16 - win_height - 2) / 2; // -2 for menu and status
 
-    let mut window = WindowBuilder::new()
-        .bounds(Rect::new(win_x, win_y, win_x + win_width, win_y + win_height))
-        .title("ASCII Table")
-        .build();
+    let mut window = WindowBuilder::new().bounds(Rect::new(win_x, win_y, win_x + win_width, win_y + win_height)).title("ASCII Table").build();
 
-    // ASCII table fills the interior
-    let ascii_table = AsciiTable::new(Rect::new(1, 1, win_width - 2, win_height - 2));
+    // ASCII table fills the interior (coordinates relative to window interior, which starts at 0,0)
+    let ascii_table = AsciiTable::new(Rect::new(0, 0, win_width - 2, win_height - 2));
 
     window.add(Box::new(ascii_table));
     app.desktop.add(Box::new(window));
@@ -486,11 +468,7 @@ impl CalcDisplay {
 
         // Remove trailing zeros after decimal point
         if self.number.contains('.') {
-            self.number = self
-                .number
-                .trim_end_matches('0')
-                .trim_end_matches('.')
-                .to_string();
+            self.number = self.number.trim_end_matches('0').trim_end_matches('.').to_string();
         }
 
         if self.number.len() > 25 {
@@ -576,10 +554,7 @@ impl CalcDisplay {
     }
 
     fn handle_command(&mut self, command: u16) {
-        let keys = [
-            'C', '\x08', '%', '_', '7', '8', '9', '/', '4', '5', '6', '*', '1', '2', '3', '-', '0',
-            '.', '=', '+',
-        ];
+        let keys = ['C', '\x08', '%', '_', '7', '8', '9', '/', '4', '5', '6', '*', '1', '2', '3', '-', '0', '.', '=', '+'];
         if command >= CM_CALC_BUTTON && command < CM_CALC_BUTTON + 20 {
             let idx = (command - CM_CALC_BUTTON) as usize;
             if idx < keys.len() {
@@ -678,17 +653,13 @@ impl View for CalcDisplay {
     }
 
     fn get_palette(&self) -> Option<turbo_vision::core::palette::Palette> {
-        None  // CalcDisplay uses hardcoded colors
+        None // CalcDisplay uses hardcoded colors
     }
 }
 
 fn show_calculator_placeholder(app: &mut Application) {
     use std::io::Write;
-    let mut log = std::fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open("calc.log")
-        .unwrap();
+    let mut log = std::fs::OpenOptions::new().create(true).append(true).open("calc.log").unwrap();
 
     writeln!(log, "\n=== show_calculator_placeholder START ===").unwrap();
 
@@ -706,10 +677,7 @@ fn show_calculator_placeholder(app: &mut Application) {
     dialog.add(Box::new(display));
 
     // Add buttons in 4x5 grid
-    let button_labels = [
-        "C", "<-", "%", "+-", "7", "8", "9", "/", "4", "5", "6", "*", "1", "2", "3", "-", "0", ".",
-        "=", "+",
-    ];
+    let button_labels = ["C", "<-", "%", "+-", "7", "8", "9", "/", "4", "5", "6", "*", "1", "2", "3", "-", "0", ".", "=", "+"];
 
     for i in 0..20 {
         // Moved 1 row up and 1 to the left
@@ -754,10 +722,7 @@ impl CalendarView {
         use std::time::UNIX_EPOCH;
 
         // Get current date
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
+        let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
 
         // Simple date calculation (days since epoch)
         let days_since_epoch = now / 86400;
@@ -789,20 +754,7 @@ impl CalendarView {
             year += 1;
         }
 
-        let days_in_month = [
-            31,
-            if Self::is_leap_year(year) { 29 } else { 28 },
-            31,
-            30,
-            31,
-            30,
-            31,
-            31,
-            30,
-            31,
-            30,
-            31,
-        ];
+        let days_in_month = [31, if Self::is_leap_year(year) { 29 } else { 28 }, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 
         let mut month = 1;
         for &days in &days_in_month {
@@ -850,8 +802,7 @@ impl CalendarView {
 
         let century = y / 100;
         let yr = y % 100;
-        let mut dw =
-            (((26 * m - 2) / 10) + day as i32 + yr + (yr / 4) + (century / 4) - (2 * century)) % 7;
+        let mut dw = (((26 * m - 2) / 10) + day as i32 + yr + (yr / 4) + (century / 4) - (2 * century)) % 7;
 
         if dw < 0 {
             dw += 7;
@@ -936,11 +887,7 @@ impl View for CalendarView {
         let first_day_of_week = Self::day_of_week(1, self.month, self.year);
         let days_in_month = Self::days_in_month(self.month, self.year);
 
-        let mut current = if first_day_of_week == 0 {
-            1
-        } else {
-            1 - first_day_of_week as i32
-        };
+        let mut current = if first_day_of_week == 0 { 1 } else { 1 - first_day_of_week as i32 };
 
         // Lines 2-7: Calendar grid (6 weeks)
         for week in 0..6 {
@@ -952,10 +899,7 @@ impl View for CalendarView {
                     buf.move_str(day_of_week * 3, "   ", color);
                 } else {
                     let day_str = format!("{:2}", current);
-                    let day_color = if self.year == self.cur_year
-                        && self.month == self.cur_month
-                        && current == self.cur_day as i32
-                    {
+                    let day_color = if self.year == self.cur_year && self.month == self.cur_month && current == self.cur_day as i32 {
                         bold_color
                     } else {
                         color
@@ -965,12 +909,7 @@ impl View for CalendarView {
                 current += 1;
             }
 
-            write_line_to_terminal(
-                terminal,
-                self.bounds.a.x,
-                self.bounds.a.y + 2 + week as i16,
-                &buf,
-            );
+            write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y + 2 + week as i16, &buf);
         }
     }
 
@@ -1028,10 +967,7 @@ impl View for CalendarView {
 }
 
 fn show_calendar_placeholder(app: &mut Application) {
-    let mut window = WindowBuilder::new()
-        .bounds(Rect::new(1, 1, 24, 11))
-        .title("Calendar")
-        .build();
+    let mut window = WindowBuilder::new().bounds(Rect::new(1, 1, 24, 11)).title("Calendar").build();
 
     let calendar_view = CalendarView::new(Rect::new(0, 0, 22, 10));
     window.add(Box::new(calendar_view));
@@ -1061,9 +997,7 @@ impl PuzzleView {
         };
 
         // Initialize board with starting position
-        let board_start = [
-            'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', ' ',
-        ];
+        let board_start = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', ' '];
 
         for i in 0..4 {
             for j in 0..4 {
@@ -1083,10 +1017,7 @@ impl PuzzleView {
         self.solved = false;
 
         // Use system time as seed
-        let seed = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_millis() as u64;
+        let seed = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as u64;
 
         let mut rng = seed;
 
@@ -1259,11 +1190,7 @@ impl View for PuzzleView {
                     color_normal
                 } else {
                     let tile_idx = (tile as usize).saturating_sub('A' as usize);
-                    if tile_idx < 15 && map[tile_idx] == 1 {
-                        color_alt
-                    } else {
-                        color_normal
-                    }
+                    if tile_idx < 15 && map[tile_idx] == 1 { color_alt } else { color_normal }
                 };
 
                 buf.move_str(j * 3, &tile_str, color);
@@ -1274,8 +1201,7 @@ impl View for PuzzleView {
     }
 
     fn handle_event(&mut self, event: &mut Event) {
-        if self.solved && (event.what == EventType::Keyboard || event.what == EventType::MouseDown)
-        {
+        if self.solved && (event.what == EventType::Keyboard || event.what == EventType::MouseDown) {
             self.scramble();
             event.what = EventType::Nothing;
             return;
@@ -1313,15 +1239,16 @@ impl View for PuzzleView {
 
 fn show_puzzle_placeholder(app: &mut Application) {
     // Create non-resizable window using builder pattern
-    // Size increased by 1 row and 1 column: was 20x6, now 21x7
+    // Window: 20 wide x 6 tall
     let mut window = WindowBuilder::new()
-        .bounds(Rect::new(1, 1, 22, 8))
+        .bounds(Rect::new(1, 1, 21, 7))
         .title("Puzzle")
-        .resizable(false)  // Non-resizable (like TDialog)
+        .resizable(false) // Non-resizable (like TDialog)
         .build();
 
-    // Puzzle view size also increased: was 17x4, now 18x5
-    let puzzle_view = PuzzleView::new(Rect::new(1, 1, 19, 6));
+    // Puzzle view fills interior (window 20x6 - frame 2x2 = interior 18x4)
+    // Coordinates relative to window interior (starts at 0,0)
+    let puzzle_view = PuzzleView::new(Rect::new(0, 0, 18, 4));
     window.add(Box::new(puzzle_view));
 
     app.desktop.add(Box::new(window));
@@ -1337,12 +1264,7 @@ fn show_open_file_dialog(app: &mut Application) {
     let dialog_y = (height as i16 - dialog_height - 2) / 2;
 
     let mut file_dialog = FileDialogBuilder::new()
-        .bounds(Rect::new(
-            dialog_x,
-            dialog_y,
-            dialog_x + dialog_width,
-            dialog_y + dialog_height,
-        ))
+        .bounds(Rect::new(dialog_x, dialog_y, dialog_x + dialog_width, dialog_y + dialog_height))
         .title("Open File")
         .wildcard("*.*")
         .build();
@@ -1350,7 +1272,7 @@ fn show_open_file_dialog(app: &mut Application) {
     if let Some(path) = file_dialog.execute(app) {
         // Show selected file in a message (in a real app, would open the file)
         let msg = format!("Selected: {}", path.display());
-        use turbo_vision::helpers::msgbox::{message_box, MF_INFORMATION, MF_OK_BUTTON};
+        use turbo_vision::helpers::msgbox::{MF_INFORMATION, MF_OK_BUTTON, message_box};
         message_box(app, &msg, MF_INFORMATION | MF_OK_BUTTON);
     }
 }
@@ -1371,12 +1293,7 @@ fn show_chdir_dialog(app: &mut Application) {
     let dialog_y = (height as i16 - dialog_height - 2) / 2;
 
     let mut dialog = DialogBuilder::new()
-        .bounds(Rect::new(
-            dialog_x,
-            dialog_y,
-            dialog_x + dialog_width,
-            dialog_y + dialog_height,
-        ))
+        .bounds(Rect::new(dialog_x, dialog_y, dialog_x + dialog_width, dialog_y + dialog_height))
         .title("Change Directory")
         .build();
 
@@ -1385,24 +1302,14 @@ fn show_chdir_dialog(app: &mut Application) {
     let current_dir = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
     *dir_data.borrow_mut() = current_dir.display().to_string();
 
-    let dir_label = LabelBuilder::new()
-        .bounds(Rect::new(2, 2, 18, 3))
-        .text("Directory ~n~ame")
-        .build();
+    let dir_label = LabelBuilder::new().bounds(Rect::new(2, 2, 18, 3)).text("Directory ~n~ame").build();
     dialog.add(Box::new(dir_label));
 
-    let dir_input = InputLineBuilder::new()
-        .bounds(Rect::new(3, 3, dialog_width - 16, 4))
-        .data(dir_data.clone())
-        .max_length(255)
-        .build();
+    let dir_input = InputLineBuilder::new().bounds(Rect::new(3, 3, dialog_width - 16, 4)).data(dir_data.clone()).max_length(255).build();
     dialog.add(Box::new(dir_input));
 
     // Directory tree label - Matches Borland: TRect( 2, 5, ... )
-    let tree_label = LabelBuilder::new()
-        .bounds(Rect::new(2, 5, 18, 6))
-        .text("Directory ~t~ree")
-        .build();
+    let tree_label = LabelBuilder::new().bounds(Rect::new(2, 5, 18, 6)).text("Directory ~t~ree").build();
     dialog.add(Box::new(tree_label));
 
     // Directory tree listbox - Matches Borland: TRect( 3, 6, 32, 16 )
@@ -1422,11 +1329,7 @@ fn show_chdir_dialog(app: &mut Application) {
 
         // Add subdirectories
         if let Ok(entries) = fs::read_dir(&current) {
-            let mut dirs: Vec<_> = entries
-                .filter_map(|e| e.ok())
-                .filter(|e| e.path().is_dir())
-                .filter_map(|e| e.file_name().into_string().ok())
-                .collect();
+            let mut dirs: Vec<_> = entries.filter_map(|e| e.ok()).filter(|e| e.path().is_dir()).filter_map(|e| e.file_name().into_string().ok()).collect();
             dirs.sort();
 
             // Format with tree characters (simplified)
@@ -1481,10 +1384,10 @@ fn show_chdir_dialog(app: &mut Application) {
         let new_dir = dir_data.borrow().clone();
         if std::env::set_current_dir(&new_dir).is_ok() {
             let msg = format!("Changed to: {}", new_dir);
-            use turbo_vision::helpers::msgbox::{message_box, MF_INFORMATION, MF_OK_BUTTON};
+            use turbo_vision::helpers::msgbox::{MF_INFORMATION, MF_OK_BUTTON, message_box};
             message_box(app, &msg, MF_INFORMATION | MF_OK_BUTTON);
         } else {
-            use turbo_vision::helpers::msgbox::{message_box, MF_ERROR, MF_OK_BUTTON};
+            use turbo_vision::helpers::msgbox::{MF_ERROR, MF_OK_BUTTON, message_box};
             message_box(app, "Invalid directory", MF_ERROR | MF_OK_BUTTON);
         }
     }
@@ -1494,23 +1397,15 @@ fn main() -> turbo_vision::core::error::Result<()> {
     // Setup panic hook to log crashes
     std::panic::set_hook(Box::new(|panic_info| {
         use std::io::Write;
-        let mut log_file = std::fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open("crash.log")
-            .unwrap();
+        let mut log_file = std::fs::OpenOptions::new().create(true).append(true).open("crash.log").unwrap();
 
-        let timestamp = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
+        let timestamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs();
 
         writeln!(log_file, "\n=== PANIC at timestamp {} ===", timestamp).unwrap();
         writeln!(log_file, "{}", panic_info).unwrap();
 
         if let Some(location) = panic_info.location() {
-            writeln!(log_file, "Location: {}:{}:{}",
-                location.file(), location.line(), location.column()).unwrap();
+            writeln!(log_file, "Location: {}:{}:{}", location.file(), location.line(), location.column()).unwrap();
         }
 
         if let Some(message) = panic_info.payload().downcast_ref::<&str>() {
@@ -1544,21 +1439,20 @@ fn main() -> turbo_vision::core::error::Result<()> {
     // Create heap/message view (right side of status bar) - Matches Borland: tvdemo1.cc:133
     let message = "Hello, World!";
     let msg_width = 13; // Fixed width like Borland's heap view
-    let mut message_view = MessageView::new(
-        Rect::new(
-            width as i16 - msg_width,
-            height as i16 - 1,
-            width as i16,
-            height as i16,
-        ),
-        message,
-    );
-
-    // Show about dialog on startup
-    show_about_dialog(&mut app);
+    let mut message_view = MessageView::new(Rect::new(width as i16 - msg_width, height as i16 - 1, width as i16, height as i16), message);
 
     // Main event loop
     app.running = true;
+
+    // Draw desktop first, then show about dialog on top
+    app.draw();
+    clock.draw(&mut app.terminal);
+    message_view.draw(&mut app.terminal);
+    app.terminal.flush()?;
+
+    // Show about dialog on startup (after desktop is drawn)
+    show_about_dialog(&mut app);
+
     while app.running {
         app.draw();
 
@@ -1569,10 +1463,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
 
         app.terminal.flush()?;
 
-        if let Ok(Some(mut event)) = app
-            .terminal
-            .poll_event(std::time::Duration::from_millis(50))
-        {
+        if let Ok(Some(mut event)) = app.terminal.poll_event(std::time::Duration::from_millis(50)) {
             // Menu bar handles events first
             if let Some(ref mut menu_bar) = app.menu_bar {
                 menu_bar.handle_event(&mut event);
