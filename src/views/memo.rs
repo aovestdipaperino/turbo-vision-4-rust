@@ -36,6 +36,7 @@ pub struct Memo {
     modified: bool,
     tab_size: usize,
     owner: Option<*const dyn View>,
+    owner_type: super::view::OwnerType,
 }
 
 impl Memo {
@@ -55,6 +56,7 @@ impl Memo {
             modified: false,
             tab_size: 4,
             owner: None,
+            owner_type: super::view::OwnerType::None,
         }
     }
 
@@ -817,6 +819,14 @@ impl View for Memo {
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
         use crate::core::palette::{palettes, Palette};
         Some(Palette::from_slice(palettes::CP_MEMO))
+    }
+
+    fn get_owner_type(&self) -> super::view::OwnerType {
+        self.owner_type
+    }
+
+    fn set_owner_type(&mut self, owner_type: super::view::OwnerType) {
+        self.owner_type = owner_type;
     }
 }
 

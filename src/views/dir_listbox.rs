@@ -83,6 +83,7 @@ pub struct DirListBox {
     current_path: PathBuf,
     root_path: PathBuf,
     owner: Option<*const dyn View>,
+    owner_type: super::view::OwnerType,
 }
 
 impl DirListBox {
@@ -96,6 +97,7 @@ impl DirListBox {
             current_path: path.to_path_buf(),
             root_path: Self::find_root(path),
             owner: None,
+            owner_type: super::view::OwnerType::None,
         };
         dlb.rebuild_tree();
         dlb
@@ -357,6 +359,14 @@ impl View for DirListBox {
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
         use crate::core::palette::{palettes, Palette};
         Some(Palette::from_slice(palettes::CP_LISTBOX))
+    }
+
+    fn get_owner_type(&self) -> super::view::OwnerType {
+        self.owner_type
+    }
+
+    fn set_owner_type(&mut self, owner_type: super::view::OwnerType) {
+        self.owner_type = owner_type;
     }
 }
 

@@ -28,6 +28,7 @@ pub struct HelpViewer {
     lines: Vec<String>,
     current_topic: Option<String>,
     owner: Option<*const dyn View>,
+    owner_type: super::view::OwnerType,
 }
 
 impl HelpViewer {
@@ -42,6 +43,7 @@ impl HelpViewer {
             lines: Vec::new(),
             current_topic: None,
             owner: None,
+            owner_type: super::view::OwnerType::None,
         }
     }
 
@@ -238,6 +240,14 @@ impl View for HelpViewer {
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
         use crate::core::palette::{palettes, Palette};
         Some(Palette::from_slice(palettes::CP_HELP_VIEWER))
+    }
+
+    fn get_owner_type(&self) -> super::view::OwnerType {
+        self.owner_type
+    }
+
+    fn set_owner_type(&mut self, owner_type: super::view::OwnerType) {
+        self.owner_type = owner_type;
     }
 }
 

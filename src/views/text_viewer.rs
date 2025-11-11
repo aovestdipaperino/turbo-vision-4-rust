@@ -23,6 +23,7 @@ pub struct TextViewer {
     indicator: Option<Box<Indicator>>,
     show_line_numbers: bool,
     owner: Option<*const dyn View>,
+    owner_type: super::view::OwnerType,
 }
 
 impl TextViewer {
@@ -37,6 +38,7 @@ impl TextViewer {
             indicator: None,
             show_line_numbers: false,
             owner: None,
+            owner_type: super::view::OwnerType::None,
         }
     }
 
@@ -383,6 +385,14 @@ impl View for TextViewer {
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
         use crate::core::palette::{palettes, Palette};
         Some(Palette::from_slice(palettes::CP_SCROLLER))
+    }
+
+    fn get_owner_type(&self) -> super::view::OwnerType {
+        self.owner_type
+    }
+
+    fn set_owner_type(&mut self, owner_type: super::view::OwnerType) {
+        self.owner_type = owner_type;
     }
 }
 

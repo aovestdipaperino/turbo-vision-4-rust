@@ -18,6 +18,7 @@ pub struct Scroller {
     h_scrollbar: Option<Box<ScrollBar>>,
     v_scrollbar: Option<Box<ScrollBar>>,
     owner: Option<*const dyn View>,
+    owner_type: super::view::OwnerType,
 }
 
 impl Scroller {
@@ -29,6 +30,7 @@ impl Scroller {
             h_scrollbar,
             v_scrollbar,
             owner: None,
+            owner_type: super::view::OwnerType::None,
         };
         scroller.update_scrollbars();
         scroller
@@ -172,6 +174,14 @@ impl View for Scroller {
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
         use crate::core::palette::{palettes, Palette};
         Some(Palette::from_slice(palettes::CP_SCROLLER))
+    }
+
+    fn get_owner_type(&self) -> super::view::OwnerType {
+        self.owner_type
+    }
+
+    fn set_owner_type(&mut self, owner_type: super::view::OwnerType) {
+        self.owner_type = owner_type;
     }
 }
 

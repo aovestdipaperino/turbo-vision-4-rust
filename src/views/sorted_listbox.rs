@@ -42,6 +42,7 @@ pub struct SortedListBox {
     _on_select_command: CommandId,
     case_sensitive: bool,
     owner: Option<*const dyn View>,
+    owner_type: super::view::OwnerType,
 }
 
 impl SortedListBox {
@@ -55,6 +56,7 @@ impl SortedListBox {
             _on_select_command: on_select_command,
             case_sensitive: false,
             owner: None,
+            owner_type: super::view::OwnerType::None,
         }
     }
 
@@ -329,6 +331,14 @@ impl View for SortedListBox {
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
         use crate::core::palette::{palettes, Palette};
         Some(Palette::from_slice(palettes::CP_LISTBOX))
+    }
+
+    fn get_owner_type(&self) -> super::view::OwnerType {
+        self.owner_type
+    }
+
+    fn set_owner_type(&mut self, owner_type: super::view::OwnerType) {
+        self.owner_type = owner_type;
     }
 }
 

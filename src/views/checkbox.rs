@@ -38,6 +38,7 @@ pub struct CheckBox {
     cluster_state: ClusterState,
     state: StateFlags,
     owner: Option<*const dyn View>,
+    owner_type: super::view::OwnerType,
 }
 
 impl CheckBox {
@@ -49,6 +50,7 @@ impl CheckBox {
             cluster_state: ClusterState::new(),
             state: 0,
             owner: None,
+            owner_type: super::view::OwnerType::None,
         }
     }
 
@@ -110,6 +112,14 @@ impl View for CheckBox {
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
         use crate::core::palette::{Palette, palettes};
         Some(Palette::from_slice(palettes::CP_CLUSTER))
+    }
+
+    fn get_owner_type(&self) -> super::view::OwnerType {
+        self.owner_type
+    }
+
+    fn set_owner_type(&mut self, owner_type: super::view::OwnerType) {
+        self.owner_type = owner_type;
     }
 }
 

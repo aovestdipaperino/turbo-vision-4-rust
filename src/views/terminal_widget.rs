@@ -63,6 +63,8 @@ pub struct TerminalWidget {
     auto_scroll: bool,
     /// Vertical scrollbar
     v_scrollbar: Option<Box<ScrollBar>>,
+    owner: Option<*const dyn View>,
+    owner_type: super::view::OwnerType,
 }
 
 impl TerminalWidget {
@@ -76,6 +78,8 @@ impl TerminalWidget {
             top_line: 0,
             auto_scroll: true,
             v_scrollbar: None,
+            owner: None,
+            owner_type: super::view::OwnerType::None,
         }
     }
 
@@ -428,6 +432,22 @@ impl View for TerminalWidget {
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
         use crate::core::palette::{palettes, Palette};
         Some(Palette::from_slice(palettes::CP_SCROLLER))
+    }
+
+    fn set_owner(&mut self, owner: *const dyn View) {
+        self.owner = Some(owner);
+    }
+
+    fn get_owner(&self) -> Option<*const dyn View> {
+        self.owner
+    }
+
+    fn get_owner_type(&self) -> super::view::OwnerType {
+        self.owner_type
+    }
+
+    fn set_owner_type(&mut self, owner_type: super::view::OwnerType) {
+        self.owner_type = owner_type;
     }
 }
 
