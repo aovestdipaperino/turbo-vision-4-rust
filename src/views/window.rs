@@ -50,12 +50,20 @@ impl Window {
     /// Matches Borland: TWindow constructor sets palette(wpBlueWindow)
     /// For TDialog (gray palette), use new_for_dialog() instead
     pub fn new(bounds: Rect, title: &str) -> Self {
-        // Don't set interior background - child views (like Editor) fill the interior
-        // In Borland, TWindow interior (TGroup) is transparent - no background drawn
-        Self::new_with_palette_no_bg(
+        use crate::core::palette::{palettes, Palette, Attr, WINDOW_BACKGROUND};
+
+        // Map interior color through blue window palette
+        // This matches the frame color (blue background)
+        let app_palette_data = palettes::get_app_palette();
+        let palette = Palette::from_slice(palettes::CP_BLUE_WINDOW);
+        let app_index = palette.get(WINDOW_BACKGROUND as usize);
+        let interior_color = Attr::from_u8(app_palette_data[app_index as usize - 1]);
+
+        Self::new_with_palette(
             bounds,
             title,
             super::frame::FramePaletteType::Editor,
+            interior_color,
             WindowPaletteType::Blue,
             true, // resizable
         )
@@ -80,45 +88,6 @@ impl Window {
             WindowPaletteType::Dialog,
             false, // not resizable (TDialog doesn't have wfGrow)
         )
-    }
-
-    fn new_with_palette_no_bg(
-        bounds: Rect,
-        title: &str,
-        frame_palette: super::frame::FramePaletteType,
-        window_palette: WindowPaletteType,
-        resizable: bool,
-    ) -> Self {
-        use crate::core::state::{OF_SELECTABLE, OF_TILEABLE, OF_TOP_SELECT};
-
-        let frame = Frame::with_palette(bounds, title, frame_palette, resizable);
-
-        // Interior bounds are ABSOLUTE (inset by 1 from window bounds for frame)
-        let mut interior_bounds = bounds;
-        interior_bounds.grow(-1, -1);
-        // Interior group has no background - child views fill the space
-        let interior = Group::new(interior_bounds);
-
-        let mut window = Self {
-            bounds,
-            frame,
-            interior,
-            state: SF_SHADOW, // Windows have shadows by default
-            options: OF_SELECTABLE | OF_TOP_SELECT | OF_TILEABLE, // Matches Borland: TWindow/TEditWindow flags
-            drag_offset: None,
-            resize_start_size: None,
-            min_size: Point::new(16, 6), // Minimum size: 16 wide, 6 tall (matches Borland's minWinSize)
-            zoom_rect: bounds,           // Initialize to current bounds
-            prev_bounds: None,
-            owner: None,
-            palette_type: window_palette,
-            explicit_drag_limits: None,
-        };
-
-        // Set the interior's owner to the window for palette chain resolution
-        window.interior.set_owner(&window as *const _ as *const dyn View);
-
-        window
     }
 
     fn new_with_palette(
@@ -764,15 +733,16 @@ impl WindowBuilder {
     ///
     /// Panics if required fields (bounds, title) are not set.
     pub fn build(self) -> Window {
-        use crate::core::palette::{palettes, Palette, Attr, BLUE_WINDOW_BACKGROUND};
+        use crate::core::palette::{palettes, Palette, Attr, WINDOW_BACKGROUND};
 
         let bounds = self.bounds.expect("Window bounds must be set");
         let title = self.title.expect("Window title must be set");
 
         // Map interior color through blue window palette
+        // Uses WINDOW_BACKGROUND (index 1) which maps to app palette 8 = LightGray on Blue
         let app_palette_data = palettes::get_app_palette();
         let palette = Palette::from_slice(palettes::CP_BLUE_WINDOW);
-        let app_index = palette.get(BLUE_WINDOW_BACKGROUND as usize);
+        let app_index = palette.get(WINDOW_BACKGROUND as usize);
         let interior_color = Attr::from_u8(app_palette_data[app_index as usize - 1]);
 
         Window::new_with_palette(
