@@ -137,6 +137,7 @@ pub struct OutlineViewer<T> {
     /// Function to convert data to display string
     format_fn: Box<dyn Fn(&T) -> String>,
     owner: Option<*const dyn View>,
+    owner_type: super::view::OwnerType,
 }
 
 impl<T: 'static> OutlineViewer<T> {
@@ -155,6 +156,7 @@ impl<T: 'static> OutlineViewer<T> {
             list_state: ListViewerState::new(),
             format_fn: Box::new(format_fn),
             owner: None,
+            owner_type: super::view::OwnerType::None,
         }
     }
 
@@ -385,6 +387,14 @@ impl<T: 'static> View for OutlineViewer<T> {
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
         use crate::core::palette::{palettes, Palette};
         Some(Palette::from_slice(palettes::CP_LISTBOX))
+    }
+
+    fn get_owner_type(&self) -> super::view::OwnerType {
+        self.owner_type
+    }
+
+    fn set_owner_type(&mut self, owner_type: super::view::OwnerType) {
+        self.owner_type = owner_type;
     }
 }
 

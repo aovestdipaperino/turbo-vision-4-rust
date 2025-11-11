@@ -30,6 +30,7 @@ pub struct History {
     state: StateFlags,
     pub selected_item: Option<String>, // Public so InputLine can read it
     owner: Option<*const dyn View>,
+    owner_type: super::view::OwnerType,
 }
 
 impl History {
@@ -43,6 +44,7 @@ impl History {
             state: 0,
             selected_item: None,
             owner: None,
+            owner_type: super::view::OwnerType::None,
         }
     }
 
@@ -135,6 +137,14 @@ impl View for History {
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
         use crate::core::palette::{palettes, Palette};
         Some(Palette::from_slice(palettes::CP_HISTORY))
+    }
+
+    fn get_owner_type(&self) -> super::view::OwnerType {
+        self.owner_type
+    }
+
+    fn set_owner_type(&mut self, owner_type: super::view::OwnerType) {
+        self.owner_type = owner_type;
     }
 }
 

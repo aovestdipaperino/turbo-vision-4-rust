@@ -15,6 +15,7 @@ pub struct Indicator {
     location: Point,  // Width x Height for window size display
     modified: bool,   // Has the document been modified?
     owner: Option<*const dyn View>,
+    owner_type: super::view::OwnerType,
 }
 
 impl Indicator {
@@ -24,6 +25,7 @@ impl Indicator {
             location: Point::new(1, 1),
             modified: false,
             owner: None,
+            owner_type: super::view::OwnerType::None,
         }
     }
 
@@ -87,6 +89,14 @@ impl View for Indicator {
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
         use crate::core::palette::{palettes, Palette};
         Some(Palette::from_slice(palettes::CP_INDICATOR))
+    }
+
+    fn get_owner_type(&self) -> super::view::OwnerType {
+        self.owner_type
+    }
+
+    fn set_owner_type(&mut self, owner_type: super::view::OwnerType) {
+        self.owner_type = owner_type;
     }
 }
 

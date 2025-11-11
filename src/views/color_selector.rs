@@ -25,6 +25,8 @@ pub struct ColorSelector {
     selected_color: u8,
     /// Whether selecting foreground (true) or background (false)
     _selecting_foreground: bool,
+    owner: Option<*const dyn View>,
+    owner_type: super::view::OwnerType,
 }
 
 impl ColorSelector {
@@ -35,6 +37,8 @@ impl ColorSelector {
             state: 0,
             selected_color: 7, // White
             _selecting_foreground: true,
+            owner: None,
+            owner_type: super::view::OwnerType::None,
         }
     }
 
@@ -178,6 +182,22 @@ impl View for ColorSelector {
         // TColorSelector has no palette (returns empty palette in Borland)
         // Returning None achieves the same effect - skip to parent's palette
         None
+    }
+
+    fn set_owner(&mut self, owner: *const dyn View) {
+        self.owner = Some(owner);
+    }
+
+    fn get_owner(&self) -> Option<*const dyn View> {
+        self.owner
+    }
+
+    fn get_owner_type(&self) -> super::view::OwnerType {
+        self.owner_type
+    }
+
+    fn set_owner_type(&mut self, owner_type: super::view::OwnerType) {
+        self.owner_type = owner_type;
     }
 }
 
