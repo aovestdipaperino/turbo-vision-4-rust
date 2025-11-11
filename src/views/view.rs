@@ -381,7 +381,9 @@ pub trait View {
     fn map_color(&self, color_index: u8) -> crate::core::palette::Attr {
         use crate::core::palette::{palettes, Attr, Palette};
 
-        const ERROR_ATTR: u8 = 0x0F; // White on Black
+        // Borland's errorAttr = 0xCF (Light Red/Magenta background, White foreground)
+        // This bright color makes palette errors immediately visible
+        const ERROR_ATTR: u8 = 0xCF;
 
         if color_index == 0 {
             return Attr::from_u8(ERROR_ATTR);
@@ -392,6 +394,10 @@ pub trait View {
         // First, remap through this view's palette
         if let Some(palette) = self.get_palette() {
             if !palette.is_empty() {
+                // Borland behavior: Check bounds BEFORE remapping
+                if color as usize > palette.len() {
+                    return Attr::from_u8(ERROR_ATTR);
+                }
                 color = palette.get(color as usize);
                 if color == 0 {
                     return Attr::from_u8(ERROR_ATTR);
@@ -423,18 +429,28 @@ pub trait View {
                 OwnerType::Window => {
                     // Remap through blue window palette (standard TWindow)
                     let window_palette = Palette::from_slice(palettes::CP_BLUE_WINDOW);
-                    let remapped = window_palette.get(color as usize);
-                    if remapped > 0 {
-                        color = remapped;
+                    // Borland behavior: Return errorAttr if index exceeds palette size
+                    if color as usize > window_palette.len() {
+                        return Attr::from_u8(ERROR_ATTR);
                     }
+                    let remapped = window_palette.get(color as usize);
+                    if remapped == 0 {
+                        return Attr::from_u8(ERROR_ATTR);
+                    }
+                    color = remapped;
                 }
                 OwnerType::Dialog => {
                     // Remap through dialog palette
                     let dialog_palette = Palette::from_slice(palettes::CP_GRAY_DIALOG);
-                    let remapped = dialog_palette.get(color as usize);
-                    if remapped > 0 {
-                        color = remapped;
+                    // Borland behavior: Return errorAttr if index exceeds palette size
+                    if color as usize > dialog_palette.len() {
+                        return Attr::from_u8(ERROR_ATTR);
                     }
+                    let remapped = dialog_palette.get(color as usize);
+                    if remapped == 0 {
+                        return Attr::from_u8(ERROR_ATTR);
+                    }
+                    color = remapped;
                 }
                 OwnerType::None => {
                     // No remapping - use direct app palette
