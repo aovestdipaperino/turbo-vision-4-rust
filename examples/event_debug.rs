@@ -1,20 +1,32 @@
 // (C) 2025 - Enzo Lombardi
 // Event Debug Tool
-// Prints all events to help diagnose mouse/keyboard issues
+// Prints and log all events to help diagnose mouse/keyboard issues
 
+use std::fs::OpenOptions;
+use std::io::Write;
 use std::time::Duration;
 use turbo_vision::app::Application;
-use turbo_vision::core::event::EventType;
+use turbo_vision::core::event::{EventType, KB_CTRL_C};
 
 fn main() -> turbo_vision::core::error::Result<()> {
     let mut app = Application::new()?;
 
-    eprintln!("\n=== Event Debug Tool ===");
-    eprintln!("This tool prints all events to help diagnose input issues.");
-    eprintln!("- Try clicking the mouse");
-    eprintln!("- Try pressing keys");
-    eprintln!("- Press Ctrl+C to exit");
-    eprintln!("========================\n");
+    let mut log_file = OpenOptions::new().create(true).write(true).truncate(true).open("event_test.txt").expect("Failed to create log file");
+
+    // Macro to log both to stderr and to the log file
+    macro_rules! log {
+        ($($arg:tt)*) => {{
+            eprintln!($($arg)*);
+            writeln!(log_file, $($arg)*).ok();
+        }};
+    }
+
+    log!("\n=== Event Debug Tool ===");
+    log!("This tool prints all events to help diagnose input issues.");
+    log!("- Try clicking the mouse");
+    log!("- Try pressing keys");
+    log!("- Press Ctrl+C to exit");
+    log!("========================\n");
 
     let mut event_count = 0;
     app.running = true;
@@ -25,7 +37,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
 
             match event.what {
                 EventType::MouseDown => {
-                    eprintln!(
+                    log!(
                         "[{}] MouseDown at ({}, {}) buttons=0x{:02x} double={}",
                         event_count,
                         event.mouse.pos.x,
@@ -35,42 +47,33 @@ fn main() -> turbo_vision::core::error::Result<()> {
                     );
                 }
                 EventType::MouseUp => {
-                    eprintln!(
-                        "[{}] MouseUp at ({}, {})",
-                        event_count, event.mouse.pos.x, event.mouse.pos.y
-                    );
+                    log!("[{}] MouseUp at ({}, {})", event_count, event.mouse.pos.x, event.mouse.pos.y);
                 }
                 EventType::MouseMove => {
                     // Only print occasionally to avoid spam
                     if event_count % 10 == 0 {
-                        eprintln!(
-                            "[{}] MouseMove at ({}, {}) buttons=0x{:02x}",
-                            event_count, event.mouse.pos.x, event.mouse.pos.y, event.mouse.buttons
-                        );
+                        log!("[{}] MouseMove at ({}, {}) buttons=0x{:02x}", event_count, event.mouse.pos.x, event.mouse.pos.y, event.mouse.buttons);
                     }
                 }
                 EventType::Keyboard => {
-                    eprintln!(
-                        "[{}] Keyboard key_code=0x{:04x}",
-                        event_count, event.key_code
-                    );
+                    log!("[{}] Keyboard key_code=0x{:04x}", event_count, event.key_code);
 
                     // Exit on Ctrl+C
-                    if event.key_code == 0x0003 {
+                    if event.key_code == KB_CTRL_C {
                         eprintln!("\nCtrl+C detected, exiting...");
                         app.running = false;
                     }
                 }
                 EventType::Command => {
-                    eprintln!("[{}] Command command={}", event_count, event.command);
+                    log!("[{}] Command command={}", event_count, event.command);
                 }
                 _ => {
-                    eprintln!("[{}] Other event type: {:?}", event_count, event.what);
+                    log!("[{}] Other event type: {:?}", event_count, event.what);
                 }
             }
         }
     }
 
-    eprintln!("\nTotal events captured: {}", event_count);
+    log!("\nTotal events captured: {}", event_count);
     Ok(())
 }
