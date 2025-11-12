@@ -139,11 +139,17 @@ This example adds an `About` command handler. When the user chooses **About**, t
 - `event.clear()` marks the event as handled (sets `what` to `EventType::Nothing`)
 - The `message_box` function creates and executes a modal dialog
 
+> **⚠️ Important Note:** This listing shows the **command handling code**, but doesn't yet provide a way for the user to trigger `CM_ABOUT`. The desktop is empty with no menu or buttons. This is intentional — we're focusing on the event handling pattern first. In **Listing 2.2** below, you'll add a menu bar that lets the user actually trigger this command. For now, understand that this code is *ready* to handle `CM_ABOUT` whenever it arrives (which will happen once we add the menu in the next section).
+
 ---
 
 ## Step 4 — Customizing Menus and Status Lines
 
-By default, Turbo Vision applications display an empty desktop. You'll now customize your application by adding a menu bar and status line.
+By default, Turbo Vision applications display an empty desktop. You'll now customize your application by adding a menu bar and status line **that will trigger the `CM_ABOUT` command** we just learned to handle.
+
+This completes the loop:
+- **Listing 2.1** showed how to *handle* commands
+- **Listing 2.2** (below) shows how to *trigger* commands through menus
 
 ### Understanding Menu Data Structures
 
@@ -291,9 +297,12 @@ let status_line = StatusLine::single(vec![
 When you run this version of the program:
 
 - A **menu bar** appears with three main menus: *File*, *Options*, and *Help*
-- Choosing **Help → About** triggers the message box
+- Choosing **Help → About** (or pressing **F1**) triggers the `CM_ABOUT` command
+- The command handler from Listing 2.1 displays the message box
 - The status line shows `Alt+X Exit` at the bottom
 - You can navigate menus with mouse or keyboard (Alt+F, Alt+O, Alt+H)
+
+> **💡 Now It All Makes Sense:** In Listing 2.1, we set up the command handler. In Listing 2.2, we added the menu that triggers it. When you select **Help → About** (or press **F1**), the menu generates a `CM_ABOUT` command event, which flows through the event loop and gets caught by our handler. This is the core pattern of event-driven programming in Turbo Vision!
 
 ---
 
