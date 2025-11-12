@@ -19,6 +19,9 @@ Cargo.lock
 mouse_test.txt
 event_test.txt
 
+# tooling
+sync-fork.ps1
+
 # OS files
 .DS_Store
 Thumbs.db
