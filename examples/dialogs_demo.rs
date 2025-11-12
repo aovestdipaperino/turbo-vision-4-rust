@@ -7,16 +7,8 @@
 // - InputBox (text input)
 
 use turbo_vision::app::Application;
-use turbo_vision::core::command::{CM_YES, CM_NO};
-use turbo_vision::views::msgbox::{
-    message_box_ok,
-    message_box_error,
-    message_box_warning,
-    confirmation_box,
-    confirmation_box_yes_no,
-    confirmation_box_ok_cancel,
-    input_box,
-};
+use turbo_vision::core::command::{CM_NO, CM_YES};
+use turbo_vision::views::msgbox::{confirmation_box, confirmation_box_ok_cancel, confirmation_box_yes_no, input_box, message_box_error, message_box_ok, message_box_warning};
 
 fn main() -> turbo_vision::core::error::Result<()> {
     let mut app = Application::new()?;
@@ -57,7 +49,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
 
     // 7. Input box
     if let Some(name) = input_box(&mut app, "Input Box", "Enter your name:", "", 50) {
-        let greeting = format!("Hello, {}!", name);
+        let greeting = format!("Hello, {name}!");
         message_box_ok(&mut app, &greeting);
     } else {
         message_box_ok(&mut app, "Input cancelled");

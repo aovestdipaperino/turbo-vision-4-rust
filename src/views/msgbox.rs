@@ -2,16 +2,16 @@
 
 //! MsgBox - message box utilities for displaying alerts and confirmations.
 
-use crate::core::command::{CommandId, CM_OK, CM_CANCEL, CM_YES, CM_NO};
-use crate::core::geometry::Rect;
-use crate::app::Application;
-use super::dialog::Dialog;
 use super::button::Button;
-use super::static_text::StaticText;
-use super::label::Label;
+use super::dialog::Dialog;
 use super::input_line::InputLine;
-use std::rc::Rc;
+use super::label::Label;
+use super::static_text::StaticText;
+use crate::app::Application;
+use crate::core::command::{CM_CANCEL, CM_NO, CM_OK, CM_YES, CommandId};
+use crate::core::geometry::Rect;
 use std::cell::RefCell;
+use std::rc::Rc;
 
 // Message box types
 pub const MF_WARNING: u16 = 0x0000;
@@ -171,7 +171,7 @@ pub fn input_box(app: &mut Application, title: &str, label: &str, initial: &str,
     // Calculate dialog size
     let label_len = label.len();
     let width = (label_len + max_length + 12).min(60).max(30);
-    let height = 7;
+    let height = 8;
 
     // Center on screen
     let (screen_w, screen_h) = app.terminal.size();
@@ -203,7 +203,7 @@ pub fn input_box_rect(app: &mut Application, bounds: Rect, title: &str, label: &
     dialog.add(Box::new(InputLine::new(input_bounds, max_length, data.clone())));
 
     // Add OK button
-    let button_y = bounds.height() - 3;
+    let button_y = bounds.height() - 4;
     let ok_x = bounds.width() / 2 - 11;
     let ok_bounds = Rect::new(ok_x, button_y, ok_x + 10, button_y + 2);
     dialog.add(Box::new(Button::new(ok_bounds, "  ~O~K  ", CM_OK, true)));
@@ -217,11 +217,7 @@ pub fn input_box_rect(app: &mut Application, bounds: Rect, title: &str, label: &
 
     let result = dialog.execute(app);
 
-    if result == CM_OK {
-        Some(data.borrow().clone())
-    } else {
-        None
-    }
+    if result == CM_OK { Some(data.borrow().clone()) } else { None }
 }
 
 /// Display a search dialog that prompts the user for search text
@@ -275,11 +271,7 @@ pub fn search_box(app: &mut Application, title: &str) -> Option<String> {
 
     if result == CM_OK {
         let text = data.borrow().clone();
-        if !text.is_empty() {
-            Some(text)
-        } else {
-            None
-        }
+        if !text.is_empty() { Some(text) } else { None }
     } else {
         None
     }
