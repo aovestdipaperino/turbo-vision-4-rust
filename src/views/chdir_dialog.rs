@@ -331,7 +331,7 @@ impl ChDirDialog {
         let dir_input_id = dialog.add(Box::new(dir_input));
 
         // Label "Directory name" - Borland: (2, 2)
-        let label_bounds = Rect::new(2, 2, 20, 3);
+        let label_bounds = Rect::new(2, 2, 20, 2);
         let dir_label = Label::new(label_bounds, "Directory ~n~ame");
         dialog.add(Box::new(dir_label));
 
@@ -366,7 +366,7 @@ impl ChDirDialog {
         let dir_list_id = dialog.add(Box::new(shared_listbox));
 
         // Label "Directory tree" - Borland: (2, 5)
-        let tree_label_bounds = Rect::new(2, 5, 20, 6);
+        let tree_label_bounds = Rect::new(2, 5, 20, 5);
         let tree_label = Label::new(tree_label_bounds, "Directory ~t~ree");
         dialog.add(Box::new(tree_label));
 

@@ -106,8 +106,22 @@ impl Rect {
     }
 
     /// Check if a point is inside the rectangle
+    /// For zero-width or zero-height rectangles (single row/column controls),
+    /// the point must match the exact coordinate
     pub fn contains(&self, p: Point) -> bool {
-        p.x >= self.a.x && p.x < self.b.x && p.y >= self.a.y && p.y < self.b.y
+        let in_x = if self.b.x > self.a.x {
+            p.x >= self.a.x && p.x < self.b.x
+        } else {
+            p.x == self.a.x
+        };
+
+        let in_y = if self.b.y > self.a.y {
+            p.y >= self.a.y && p.y < self.b.y
+        } else {
+            p.y == self.a.y
+        };
+
+        in_x && in_y
     }
 
     /// Check if the rectangle is empty (has zero or negative area)
@@ -205,6 +219,35 @@ mod tests {
         assert!(r.contains(Point::new(0, 0)));
         assert!(!r.contains(Point::new(10, 10)));
         assert!(!r.contains(Point::new(-1, 5)));
+    }
+
+    #[test]
+    fn test_rect_contains_zero_dimensions() {
+        // Zero-height rectangle (single row control like Label or InputLine)
+        let single_row = Rect::new(2, 4, 15, 4);
+        assert!(single_row.contains(Point::new(2, 4)));  // Left edge
+        assert!(single_row.contains(Point::new(10, 4))); // Middle
+        assert!(single_row.contains(Point::new(14, 4))); // Right edge-1
+        assert!(!single_row.contains(Point::new(15, 4))); // Right edge (excluded)
+        assert!(!single_row.contains(Point::new(5, 3))); // Row above
+        assert!(!single_row.contains(Point::new(5, 5))); // Row below
+
+        // Zero-width rectangle (single column)
+        let single_col = Rect::new(5, 2, 5, 10);
+        assert!(single_col.contains(Point::new(5, 2)));  // Top
+        assert!(single_col.contains(Point::new(5, 5)));  // Middle
+        assert!(single_col.contains(Point::new(5, 9)));  // Bottom-1
+        assert!(!single_col.contains(Point::new(5, 10))); // Bottom (excluded)
+        assert!(!single_col.contains(Point::new(4, 5))); // Column left
+        assert!(!single_col.contains(Point::new(6, 5))); // Column right
+
+        // Zero-width and zero-height (single point)
+        let single_point = Rect::new(10, 10, 10, 10);
+        assert!(single_point.contains(Point::new(10, 10)));
+        assert!(!single_point.contains(Point::new(10, 11)));
+        assert!(!single_point.contains(Point::new(11, 10)));
+        assert!(!single_point.contains(Point::new(9, 10)));
+        assert!(!single_point.contains(Point::new(10, 9)));
     }
 
     #[test]

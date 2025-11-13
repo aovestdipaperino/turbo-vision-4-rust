@@ -112,7 +112,7 @@ impl FileDialog {
         let content_width = dialog_width - 14;
 
         // Label for file name input
-        let name_label = Label::new(Rect::new(2, 1, 12, 2), "~N~ame:");
+        let name_label = Label::new(Rect::new(2, 1, 12, 1), "~N~ame:");
         self.dialog.add(Box::new(name_label));
 
         // File name input line
@@ -125,11 +125,11 @@ impl FileDialog {
 
         // Current path label
         let path_str = format!(" {}", self.current_path.display());
-        let path_label = Label::new(Rect::new(2, 3, content_width, 4), &path_str);
+        let path_label = Label::new(Rect::new(2, 3, content_width, 3), &path_str);
         self.dialog.add(Box::new(path_label));
 
         // Label for files list
-        let files_label = Label::new(Rect::new(2, 5, 12, 6), "~F~iles:");
+        let files_label = Label::new(Rect::new(2, 5, 12, 5), "~F~iles:");
         self.dialog.add(Box::new(files_label));
 
         // File list box - leave space on right for buttons
