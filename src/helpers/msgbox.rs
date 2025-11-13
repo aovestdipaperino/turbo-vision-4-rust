@@ -165,7 +165,7 @@ pub fn input_box_rect(app: &mut Application, bounds: Rect, title: &str, label: &
 
     // Add OK button
     let ok_button = Button::new(
-        Rect::new(bounds.width() / 2 - 12, bounds.height() - 3, bounds.width() / 2 - 2, bounds.height() - 1),
+        Rect::new(bounds.width() / 2 - 12, bounds.height() - 4, bounds.width() / 2 - 2, bounds.height() - 2),
         "O~K~",
         CM_OK,
         true, // default button
@@ -174,7 +174,7 @@ pub fn input_box_rect(app: &mut Application, bounds: Rect, title: &str, label: &
 
     // Add Cancel button
     let cancel_button = Button::new(
-        Rect::new(bounds.width() / 2 + 2, bounds.height() - 3, bounds.width() / 2 + 12, bounds.height() - 1),
+        Rect::new(bounds.width() / 2 + 2, bounds.height() - 4, bounds.width() / 2 + 12, bounds.height() - 2),
         "Cancel",
         CM_CANCEL,
         false,
