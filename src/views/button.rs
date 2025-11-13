@@ -74,6 +74,21 @@ impl Button {
             self.options &= !OF_SELECTABLE;
         }
     }
+
+    /// Extract the hotkey character from the button title
+    /// Returns the uppercase character following the first '~', or None if no hotkey
+    fn get_hotkey(&self) -> Option<char> {
+        let mut chars = self.title.chars();
+        while let Some(ch) = chars.next() {
+            if ch == '~' {
+                // Next character is the hotkey
+                if let Some(hotkey) = chars.next() {
+                    return Some(hotkey.to_uppercase().next().unwrap_or(hotkey));
+                }
+            }
+        }
+        None
+    }
 }
 
 impl View for Button {
@@ -200,7 +215,25 @@ impl View for Button {
 
         match event.what {
             EventType::Keyboard => {
-                // Only handle keyboard events if focused
+                // Handle hotkey (works even without focus, matches Borland PostProcess)
+                // Check if the key pressed matches this button's hotkey
+                if let Some(hotkey) = self.get_hotkey() {
+                    // Get the character from the key code (low byte)
+                    let key_char = (event.key_code & 0xFF) as u8 as char;
+                    let key_char_upper = key_char.to_uppercase().next().unwrap_or(key_char);
+
+                    if key_char_upper == hotkey {
+                        // Hotkey matched! Activate button
+                        if self.is_broadcast {
+                            *event = Event::broadcast(self.command);
+                        } else {
+                            *event = Event::command(self.command);
+                        }
+                        return;
+                    }
+                }
+
+                // Handle Enter/Space only if focused
                 if !self.is_focused() {
                     return;
                 }

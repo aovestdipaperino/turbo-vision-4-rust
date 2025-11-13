@@ -434,19 +434,6 @@ impl View for Group {
     fn handle_event(&mut self, event: &mut Event) {
         use crate::core::state::{OF_PRE_PROCESS, OF_POST_PROCESS};
 
-        // Handle Tab key for focus navigation (before three-phase)
-        if event.what == EventType::Keyboard {
-            if event.key_code == KB_TAB {
-                self.select_next();
-                event.clear();
-                return;
-            } else if event.key_code == KB_SHIFT_TAB {
-                self.select_previous();
-                event.clear();
-                return;
-            }
-        }
-
         // Mouse events: positional events (no three-phase processing)
         // Search in REVERSE order (top-most child first) - matches Borland's z-order
         // Matches Borland: TGroup::handleEvent() processes mouse events from front to back
@@ -553,6 +540,20 @@ impl View for Group {
                 if event.what == EventType::Broadcast {
                     // Recursively call handle_event to process the broadcast
                     self.handle_event(event);
+                }
+            }
+
+            // Handle Tab key for focus navigation (after three-phase processing)
+            // Only handle if event wasn't consumed by any child
+            if event.what == EventType::Keyboard {
+                if event.key_code == KB_TAB {
+                    self.select_next();
+                    event.clear();
+                    return;
+                } else if event.key_code == KB_SHIFT_TAB {
+                    self.select_previous();
+                    event.clear();
+                    return;
                 }
             }
         } else {
