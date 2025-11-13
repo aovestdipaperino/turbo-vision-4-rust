@@ -1,42 +1,39 @@
 // (C) 2025 - Enzo Lombardi
 // Outline Demo - demonstrates hierarchical tree view
 
-use turbo_vision::app::Application;
-use turbo_vision::views::window::WindowBuilder;
-use turbo_vision::views::outline::{OutlineViewer, Node};
-use turbo_vision::views::static_text::StaticTextBuilder;
-use turbo_vision::views::View;
-use turbo_vision::core::geometry::Rect;
-use std::rc::Rc;
 use std::cell::RefCell;
+use std::rc::Rc;
 use std::time::Duration;
+use turbo_vision::app::Application;
+use turbo_vision::core::event::KB_CTRL_C;
+use turbo_vision::core::geometry::Rect;
+use turbo_vision::views::View;
+use turbo_vision::views::dialog::DialogBuilder;
+use turbo_vision::views::outline::{Node, OutlineViewer};
+use turbo_vision::views::static_text::StaticTextBuilder;
 
 fn main() -> turbo_vision::core::error::Result<()> {
     let mut app = Application::new()?;
 
-    let mut window = WindowBuilder::new()
-        .bounds(Rect::new(10, 2, 70, 22))
-        .title("File System Tree Demo")
-        .build();
+    let mut dialog = DialogBuilder::new().bounds(Rect::new(10, 2, 78, 22)).title("File System Tree Demo").build();
 
     // Add instructions
-    window.add(Box::new(StaticTextBuilder::new()
-        .bounds(Rect::new(2, 2, 56, 4))
-        .text("Use arrows to navigate, Enter to toggle, → expand, ← collapse")
-        .build()));
+    dialog.add(Box::new(
+        StaticTextBuilder::new()
+            .bounds(Rect::new(2, 2, 64, 4))
+            .text("Use arrows to navigate, Enter to toggle, → expand, ← collapse\nCTRL+C to exit.")
+            .build(),
+    ));
 
     // Create a sample file system tree
     let root = create_file_tree();
 
     // Create outline viewer
-    let mut outline = OutlineViewer::new(
-        Rect::new(2, 4, 56, 16),
-        |name: &String| name.clone()
-    );
+    let mut outline = OutlineViewer::new(Rect::new(2, 5, 64, 17), |name: &String| name.clone());
     outline.add_root(root);
 
-    window.add(Box::new(outline));
-    app.desktop.add(Box::new(window));
+    dialog.add(Box::new(outline));
+    app.desktop.add(Box::new(dialog));
 
     // Simple event loop
     loop {
@@ -47,15 +44,14 @@ fn main() -> turbo_vision::core::error::Result<()> {
             app.desktop.handle_event(&mut event);
 
             // Check for quit command
-            if event.what == turbo_vision::core::event::EventType::Command
-                && event.command == turbo_vision::core::command::CM_QUIT {
+            if event.what == turbo_vision::core::event::EventType::Command && event.command == turbo_vision::core::command::CM_QUIT {
                 break;
             }
 
             // Handle Ctrl+C or F10
             if event.what == turbo_vision::core::event::EventType::Keyboard {
                 let key = event.key_code;
-                if key == 0x0003 || key == turbo_vision::core::event::KB_F10 {
+                if key == KB_CTRL_C || key == turbo_vision::core::event::KB_F10 {
                     break;
                 }
             }
