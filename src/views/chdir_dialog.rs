@@ -278,9 +278,6 @@ impl View for SharedDirListBox {
 pub struct ChDirDialog {
     dialog: Dialog,
     dir_input_data: Rc<RefCell<String>>,
-    dir_listbox: Rc<RefCell<DirListBox>>,
-    v_scrollbar: Rc<RefCell<ScrollBar>>,
-    h_scrollbar: Rc<RefCell<ScrollBar>>,
     history_id: u16,
     #[allow(dead_code)] // Will be used for navigation implementation
     dir_list_id: ViewId,
@@ -399,9 +396,6 @@ impl ChDirDialog {
         Self {
             dialog,
             dir_input_data,
-            dir_listbox,
-            v_scrollbar: v_scrollbar_rc,
-            h_scrollbar: h_scrollbar_rc,
             history_id,
             dir_list_id,
             dir_input_id,

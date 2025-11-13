@@ -176,7 +176,23 @@ impl View for ListBox {
     }
 
     fn handle_event(&mut self, event: &mut Event) {
+        // Handle double-click BEFORE handle_list_event consumes it
+        // This ensures double-click triggers the command even though single-click is handled
+        if event.what == EventType::MouseDown {
+            let mouse_pos = event.mouse.pos;
+
+            // Check if click is within the listbox bounds
+            if self.bounds.contains(mouse_pos) && event.mouse.buttons & MB_LEFT_BUTTON != 0 {
+                // Double-click triggers selection command (matching Borland's TListViewer)
+                if event.mouse.double_click {
+                    *event = Event::command(self.on_select_command);
+                    return;
+                }
+            }
+        }
+
         // First try standard list navigation (from ListViewer trait)
+        // This handles single-click, arrow keys, etc.
         if self.handle_list_event(event) {
             return;
         }
@@ -190,16 +206,8 @@ impl View for ListBox {
                 }
             }
             EventType::MouseDown => {
-                let mouse_pos = event.mouse.pos;
-
-                // Check if click is within the listbox bounds
-                if self.bounds.contains(mouse_pos) && event.mouse.buttons & MB_LEFT_BUTTON != 0 {
-                    // Double-click triggers selection command (matching Borland's TListViewer)
-                    if event.mouse.double_click {
-                        *event = Event::command(self.on_select_command);
-                    }
-                    // Single click is handled by handle_list_event above
-                }
+                // Single click is already handled by handle_list_event above
+                // This code path is for any MouseDown events that weren't handled
             }
             EventType::MouseWheelUp => {
                 let mouse_pos = event.mouse.pos;

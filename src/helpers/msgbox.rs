@@ -50,13 +50,30 @@ pub const MF_OK_CANCEL: u16 = MF_OK_BUTTON | MF_CANCEL_BUTTON;
 pub fn message_box(app: &mut Application, msg: &str, options: u16) -> CommandId {
     let (width, height) = app.terminal.size();
 
-    // Create centered dialog (40x9 as in Borland)
-    let dialog_width = 40i16;
-    let dialog_height = 9i16;
+    // Calculate dialog size based on message content
+    // Split message by newlines to get individual lines
+    let lines: Vec<&str> = msg.split('\n').collect();
+    let num_lines = lines.len() as i16;
+    let max_line_len = lines.iter().map(|l| l.len()).max().unwrap_or(0) as i16;
+
+    // Calculate required dimensions
+    // Width: max_line_length + margins (1 left + 3 right) + borders
+    // Minimum 40 (Borland default), maximum 72 (leave margin on 80-col screen)
+    let dialog_width = (max_line_len + 4).clamp(40, 72);
+
+    // Height: 1 (top margin) + num_lines + 1 (spacing before buttons) + 3 (button area)
+    // Minimum 9 (Borland default), maximum 20 (leave margin on 24-row screen)
+    let dialog_height = (1 + num_lines + 2 + 3).clamp(9, 20);
+
     let dialog_x = (width as i16 - dialog_width) / 2;
     let dialog_y = (height as i16 - dialog_height - 2) / 2; // -2 for menu and status
 
-    let bounds = Rect::new(dialog_x, dialog_y, dialog_x + dialog_width, dialog_y + dialog_height);
+    let bounds = Rect::new(
+        dialog_x,
+        dialog_y,
+        dialog_x + dialog_width,
+        dialog_y + dialog_height,
+    );
 
     message_box_rect(app, bounds, msg, options)
 }
@@ -75,8 +92,8 @@ pub fn message_box_rect(app: &mut Application, bounds: Rect, msg: &str, options:
 
     let mut dialog = Dialog::new(bounds, title);
 
-    // Add static text for message (inset by 3 from left, 2 from top/bottom/right)
-    let text_bounds = Rect::new(3, 2, bounds.width() - 2, bounds.height() - 3);
+    // Add static text for message (inset by 1 from left/top, 2 from right/bottom)
+    let text_bounds = Rect::new(1, 1, bounds.width() - 2, bounds.height() - 3);
     dialog.add(Box::new(StaticText::new(text_bounds, msg)));
 
     // Collect buttons to add
@@ -101,7 +118,7 @@ pub fn message_box_rect(app: &mut Application, bounds: Rect, msg: &str, options:
 
     // Center buttons horizontally
     let mut x = (bounds.width() - total_width) / 2;
-    let y = bounds.height() - 4; // -3 initially
+    let y = bounds.height() - 4; // Position buttons one row lower
 
     for (mut button, _cmd) in buttons {
         // Position button
@@ -129,7 +146,13 @@ pub fn message_box_rect(app: &mut Application, bounds: Rect, msg: &str, options:
 ///     println!("Name entered: {}", text);
 /// }
 /// ```
-pub fn input_box(app: &mut Application, title: &str, label: &str, default: &str, limit: usize) -> (CommandId, String) {
+pub fn input_box(
+    app: &mut Application,
+    title: &str,
+    label: &str,
+    default: &str,
+    limit: usize,
+) -> (CommandId, String) {
     let (width, height) = app.terminal.size();
 
     // Create centered dialog (60x8 as in Borland)
@@ -138,14 +161,26 @@ pub fn input_box(app: &mut Application, title: &str, label: &str, default: &str,
     let dialog_x = (width as i16 - dialog_width) / 2;
     let dialog_y = (height as i16 - dialog_height - 2) / 2;
 
-    let bounds = Rect::new(dialog_x, dialog_y, dialog_x + dialog_width, dialog_y + dialog_height);
+    let bounds = Rect::new(
+        dialog_x,
+        dialog_y,
+        dialog_x + dialog_width,
+        dialog_y + dialog_height,
+    );
 
     input_box_rect(app, bounds, title, label, default, limit)
 }
 
 /// Display an input box in the given rectangle
 /// Matches Borland: inputBoxRect(const TRect &bounds, const char *title, const char *aLabel, char *s, uchar limit)
-pub fn input_box_rect(app: &mut Application, bounds: Rect, title: &str, label: &str, default: &str, limit: usize) -> (CommandId, String) {
+pub fn input_box_rect(
+    app: &mut Application,
+    bounds: Rect,
+    title: &str,
+    label: &str,
+    default: &str,
+    limit: usize,
+) -> (CommandId, String) {
     let mut dialog = Dialog::new(bounds, title);
 
     // Create shared data for the input line
@@ -158,14 +193,23 @@ pub fn input_box_rect(app: &mut Application, bounds: Rect, title: &str, label: &
     }
 
     // Add input line (positioned after label)
-    let input_x = if !label.is_empty() { 4 + label.len() as i16 } else { 3 };
+    let input_x = if !label.is_empty() {
+        4 + label.len() as i16
+    } else {
+        3
+    };
     let input_bounds = Rect::new(input_x, 2, bounds.width() - 3, 3);
     let input = InputLine::new(input_bounds, limit, Rc::clone(&input_data));
     dialog.add(Box::new(input));
 
     // Add OK button
     let ok_button = Button::new(
-        Rect::new(bounds.width() / 2 - 12, bounds.height() - 4, bounds.width() / 2 - 2, bounds.height() - 2),
+        Rect::new(
+            bounds.width() / 2 - 12,
+            bounds.height() - 4,
+            bounds.width() / 2 - 2,
+            bounds.height() - 2,
+        ),
         "O~K~",
         CM_OK,
         true, // default button
@@ -174,7 +218,12 @@ pub fn input_box_rect(app: &mut Application, bounds: Rect, title: &str, label: &
 
     // Add Cancel button
     let cancel_button = Button::new(
-        Rect::new(bounds.width() / 2 + 2, bounds.height() - 4, bounds.width() / 2 + 12, bounds.height() - 2),
+        Rect::new(
+            bounds.width() / 2 + 2,
+            bounds.height() - 4,
+            bounds.width() / 2 + 12,
+            bounds.height() - 2,
+        ),
         "Cancel",
         CM_CANCEL,
         false,

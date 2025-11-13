@@ -1268,8 +1268,11 @@ fn show_open_file_dialog(app: &mut Application) {
         .build();
 
     if let Some(path) = file_dialog.execute(app) {
-        // Show selected file in a message (in a real app, would open the file)
-        let msg = format!("Selected: {}", path.display());
+        // Show selected file in a message box
+        let filename = path.file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("(unknown)");
+        let msg = format!("Selected file:\n{}\n\nFull path:\n{}", filename, path.display());
         use turbo_vision::helpers::msgbox::{MF_INFORMATION, MF_OK_BUTTON, message_box};
         message_box(app, &msg, MF_INFORMATION | MF_OK_BUTTON);
     }

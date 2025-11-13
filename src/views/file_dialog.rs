@@ -129,9 +129,10 @@ impl FileDialog {
         let files_label = Label::new(Rect::new(2, 5, 12, 6), "~F~iles:");
         self.dialog.add(Box::new(files_label));
 
-        // File list box - will be populated after reading directory
+        // File list box - positioned to fill space between label and buttons
+        // Top at row 6, bottom 2 rows above buttons to leave spacing
         let mut file_list = ListBox::new(
-            Rect::new(2, 6, dialog_width - 4, bounds.height() - 6),
+            Rect::new(2, 6, dialog_width - 4, bounds.height() - 4),
             CMD_FILE_SELECTED,
         );
 
@@ -455,14 +456,18 @@ impl FileDialog {
     }
 
     fn matches_wildcard(&self, name: &str) -> bool {
-        if self.wildcard == "*" || self.wildcard.is_empty() {
+        // "*.*" means all files (common DOS/Windows pattern)
+        if self.wildcard == "*.*" || self.wildcard == "*" || self.wildcard.is_empty() {
             return true;
         }
 
         // Simple wildcard matching (*.ext)
         if let Some(ext) = self.wildcard.strip_prefix("*.") {
+            // Check for the special case "*.* " which was already handled above
+            // For "*.rs", check if name ends with ".rs"
             name.ends_with(&format!(".{}", ext))
         } else {
+            // Contains matching (no wildcard, just substring)
             name.contains(&self.wildcard)
         }
     }
@@ -590,7 +595,7 @@ impl FileDialogBuilder {
     pub fn build(self) -> FileDialog {
         let bounds = self.bounds.expect("FileDialog bounds must be set");
         let title = self.title.expect("FileDialog title must be set");
-        FileDialog::new(bounds, &title, &self.wildcard, self.initial_dir)
+        FileDialog::new(bounds, &title, &self.wildcard, self.initial_dir).build()
     }
 
     /// Builds the FileDialog as a Box.
