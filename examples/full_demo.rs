@@ -16,11 +16,9 @@ use turbo_vision::views::view::write_line_to_terminal;
 use turbo_vision::views::{
     View,
     button::ButtonBuilder,
+    chdir_dialog::ChDirDialog,
     dialog::DialogBuilder,
     file_dialog::FileDialogBuilder,
-    input_line::InputLineBuilder,
-    label::LabelBuilder,
-    listbox::ListBoxBuilder,
     menu_bar::{MenuBar, SubMenu},
     static_text::StaticTextBuilder,
     status_line::{StatusItem, StatusLine},
@@ -1278,118 +1276,14 @@ fn show_open_file_dialog(app: &mut Application) {
 }
 
 fn show_chdir_dialog(app: &mut Application) {
-    use std::cell::RefCell;
-    use std::fs;
-    use std::path::PathBuf;
-    use std::rc::Rc;
-    //use turbo_vision::core::command::CM_CANCEL;
+    // Use the standard ChDirDialog
+    let mut chdir_dialog = ChDirDialog::new(None);
 
-    let (width, height) = app.terminal.size();
-
-    // Create dialog - Matches Borland: TRect( 16, 2, 64, 21 )
-    let dialog_width = 48i16;
-    let dialog_height = 19i16;
-    let dialog_x = (width as i16 - dialog_width) / 2;
-    let dialog_y = (height as i16 - dialog_height - 2) / 2;
-
-    let mut dialog = DialogBuilder::new()
-        .bounds(Rect::new(dialog_x, dialog_y, dialog_x + dialog_width, dialog_y + dialog_height))
-        .title("Change Directory")
-        .build();
-
-    // Directory name input - Matches Borland: TRect( 3, 3, 30, 4 )
-    let dir_data = Rc::new(RefCell::new(String::new()));
-    let current_dir = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-    *dir_data.borrow_mut() = current_dir.display().to_string();
-
-    let dir_label = LabelBuilder::new().bounds(Rect::new(2, 2, 18, 3)).text("Directory ~n~ame").build();
-    dialog.add(Box::new(dir_label));
-
-    let dir_input = InputLineBuilder::new().bounds(Rect::new(3, 3, dialog_width - 16, 4)).data(dir_data.clone()).max_length(255).build();
-    dialog.add(Box::new(dir_input));
-
-    // Directory tree label - Matches Borland: TRect( 2, 5, ... )
-    let tree_label = LabelBuilder::new().bounds(Rect::new(2, 5, 18, 6)).text("Directory ~t~ree").build();
-    dialog.add(Box::new(tree_label));
-
-    // Directory tree listbox - Matches Borland: TRect( 3, 6, 32, 16 )
-    const CMD_DIR_SELECTED: u16 = 300;
-    let mut dir_list = ListBoxBuilder::new()
-        .bounds(Rect::new(3, 6, dialog_width - 16, dialog_height - 3))
-        .on_select_command(CMD_DIR_SELECTED)
-        .build();
-
-    // Build directory tree
-    let mut dir_items = Vec::new();
-    if let Ok(current) = std::env::current_dir() {
-        // Add parent directory (..)
-        if current.parent().is_some() {
-            dir_items.push("..".to_string());
-        }
-
-        // Add subdirectories
-        if let Ok(entries) = fs::read_dir(&current) {
-            let mut dirs: Vec<_> = entries.filter_map(|e| e.ok()).filter(|e| e.path().is_dir()).filter_map(|e| e.file_name().into_string().ok()).collect();
-            dirs.sort();
-
-            // Format with tree characters (simplified)
-            for (i, dir_name) in dirs.iter().enumerate() {
-                let is_last = i == dirs.len() - 1;
-                let prefix = if is_last { "└─ " } else { "├─ " };
-                dir_items.push(format!("{}{}", prefix, dir_name));
-            }
-        }
-    }
-
-    dir_list.set_items(dir_items);
-    dialog.add(Box::new(dir_list));
-
-    // Buttons - Matches Borland: positioned on the right side
-    let button_x = dialog_width - 13;
-
-    // OK button - Matches Borland: TRect( 35, 6, 45, 8 )
-    let ok_button = ButtonBuilder::new()
-        .bounds(Rect::new(button_x, 6, button_x + 10, 8))
-        .title("  ~O~K  ")
-        .command(CM_OK)
-        .default(true)
-        .build();
-    dialog.add(Box::new(ok_button));
-
-    // ChDir button - Matches Borland: TRect( 35, 9, 45, 11 )
-    const CM_CHDIR: u16 = 301;
-    let chdir_button = ButtonBuilder::new()
-        .bounds(Rect::new(button_x, 9, button_x + 10, 11))
-        .title(" ~C~hdir ")
-        .command(CM_CHDIR)
-        .default(false)
-        .build();
-    dialog.add(Box::new(chdir_button));
-
-    // Revert button - Matches Borland: TRect( 35, 12, 45, 14 )
-    const CM_REVERT: u16 = 302;
-    let revert_button = ButtonBuilder::new()
-        .bounds(Rect::new(button_x, 12, button_x + 10, 14))
-        .title(" ~R~evert")
-        .command(CM_REVERT)
-        .default(false)
-        .build();
-    dialog.add(Box::new(revert_button));
-
-    dialog.set_initial_focus();
-
-    // Execute dialog
-    let command = dialog.execute(app);
-    if command == CM_OK {
-        let new_dir = dir_data.borrow().clone();
-        if std::env::set_current_dir(&new_dir).is_ok() {
-            let msg = format!("Changed to: {}", new_dir);
-            use turbo_vision::helpers::msgbox::{MF_INFORMATION, MF_OK_BUTTON, message_box};
-            message_box(app, &msg, MF_INFORMATION | MF_OK_BUTTON);
-        } else {
-            use turbo_vision::helpers::msgbox::{MF_ERROR, MF_OK_BUTTON, message_box};
-            message_box(app, "Invalid directory", MF_ERROR | MF_OK_BUTTON);
-        }
+    if let Some(new_dir) = chdir_dialog.execute(app) {
+        // Directory was changed successfully
+        let msg = format!("Changed to: {}", new_dir.display());
+        use turbo_vision::helpers::msgbox::{MF_INFORMATION, MF_OK_BUTTON, message_box};
+        message_box(app, &msg, MF_INFORMATION | MF_OK_BUTTON);
     }
 }
 

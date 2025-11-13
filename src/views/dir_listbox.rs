@@ -17,10 +17,10 @@
 //
 // Display format:
 //   C:\
-//   ├─Users
-//   │ ├─alice
-//   │ └─bob
-//   └─Program Files
+//   ├─ Users
+//   │ ├─ alice
+//   │ └─ bob
+//   └─ Program Files
 
 use crate::core::geometry::Rect;
 use crate::core::event::{Event, EventType, KB_ENTER};
@@ -61,9 +61,9 @@ impl DirEntry {
         // Add branch for current level
         if self.level > 0 {
             if self.is_last {
-                result.push_str("└─");
+                result.push_str("└─ ");
             } else {
-                result.push_str("├─");
+                result.push_str("├─ ");
             }
         }
 
@@ -115,6 +115,11 @@ impl DirListBox {
     /// Get the currently selected directory path
     pub fn current_path(&self) -> &Path {
         &self.current_path
+    }
+
+    /// Get the list viewer state (for scrollbar updates)
+    pub fn list_state(&self) -> &ListViewerState {
+        &self.list_state
     }
 
     /// Get the focused directory entry
@@ -296,24 +301,34 @@ impl View for DirListBox {
 
         self.list_state.set_range(self.entries.len());
 
+        // Use direct Attr colors (matching FileList behavior)
+        // This ensures consistent appearance in both dialogs and standalone usage
+        use crate::core::palette::colors::{LISTBOX_FOCUSED, LISTBOX_NORMAL, LISTBOX_SELECTED};
+
+        let color_normal = if self.is_focused() {
+            LISTBOX_FOCUSED // Black on white when focused
+        } else {
+            LISTBOX_NORMAL // Black on light gray when not focused
+        };
+        let color_selected = LISTBOX_SELECTED; // White on blue for selected item
+
         for y in 0..height {
             let item_idx = self.list_state.top_item + y;
 
             let (text, color) = if item_idx < self.entries.len() {
-                use crate::core::palette::colors::{LISTBOX_FOCUSED, LISTBOX_NORMAL};
                 let text = self.get_text(item_idx, width);
-                let is_focused = self.is_focused() && Some(item_idx) == self.list_state.focused;
-                let color = if is_focused {
-                    LISTBOX_FOCUSED
+                let is_selected = self.is_focused() && Some(item_idx) == self.list_state.focused;
+                let color = if is_selected {
+                    color_selected
                 } else {
-                    LISTBOX_NORMAL
+                    color_normal
                 };
                 (text, color)
             } else {
-                use crate::core::palette::colors::LISTBOX_NORMAL;
-                (String::new(), LISTBOX_NORMAL)
+                (String::new(), color_normal)
             };
 
+            // Pad with spaces to fill width - all chars drawn with same color
             let padded = format!("{:width$}", text, width = width);
 
             for (x, ch) in padded.chars().take(width).enumerate() {
@@ -327,6 +342,19 @@ impl View for DirListBox {
     }
 
     fn handle_event(&mut self, event: &mut Event) {
+        // Handle double-click BEFORE focus check (to allow clicking to focus AND navigate)
+        if event.what == EventType::MouseDown {
+            use crate::core::event::MB_LEFT_BUTTON;
+            if self.bounds.contains(event.mouse.pos) && event.mouse.buttons & MB_LEFT_BUTTON != 0 {
+                if event.mouse.double_click && self.is_focused() {
+                    // Double-click navigates into directory (only when already focused)
+                    let _ = self.enter_focused_dir();
+                    event.clear();
+                    return;
+                }
+            }
+        }
+
         if !self.is_focused() {
             return;
         }
