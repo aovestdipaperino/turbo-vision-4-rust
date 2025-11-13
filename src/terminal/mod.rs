@@ -214,6 +214,12 @@ impl Terminal {
         (self.width, self.height)
     }
 
+    /// Set the ESC timeout in milliseconds
+    /// This controls how long the terminal waits after ESC to detect ESC+letter sequences
+    pub fn set_esc_timeout(&mut self, timeout_ms: u64) {
+        self.esc_tracker.set_timeout(timeout_ms);
+    }
+
     /// Set the bounds of the currently active view (for F11 screen dumps)
     pub fn set_active_view_bounds(&mut self, bounds: crate::core::geometry::Rect) {
         self.active_view_bounds = Some(bounds);

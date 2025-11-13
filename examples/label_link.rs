@@ -8,6 +8,7 @@ use std::rc::Rc;
 use turbo_vision::app::Application;
 use turbo_vision::core::command::{CM_CANCEL, CM_OK};
 use turbo_vision::core::geometry::Rect;
+use turbo_vision::helpers::msgbox::{message_box, MF_INFORMATION, MF_OK_BUTTON};
 use turbo_vision::views::button::ButtonBuilder;
 use turbo_vision::views::dialog::DialogBuilder;
 use turbo_vision::views::input_line::InputLineBuilder;
@@ -17,7 +18,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
     let mut app = Application::new()?;
 
     // Create a dialog demonstrating label links
-    let mut dialog = DialogBuilder::new().bounds(Rect::new(15, 5, 66, 17)).title("Label Link Demo").build();
+    let mut dialog = DialogBuilder::new().bounds(Rect::new(15, 5, 66, 19)).title("Label Link Demo").build();
 
     // Instructions
     dialog.add(Box::new(
@@ -53,6 +54,22 @@ fn main() -> turbo_vision::core::error::Result<()> {
     dialog.set_initial_focus();
 
     let result = dialog.execute(&mut app);
+
+    // Show information box with user's choices if they clicked OK
+    if result == CM_OK {
+        let first = first_name_data.borrow();
+        let last = last_name_data.borrow();
+        let email = email_data.borrow();
+
+        let message = format!(
+            "You entered:\n\nFirst Name: {}\nLast Name: {}\nEmail: {}",
+            if first.is_empty() { "(none)" } else { &first },
+            if last.is_empty() { "(none)" } else { &last },
+            if email.is_empty() { "(none)" } else { &email }
+        );
+
+        message_box(&mut app, &message, MF_INFORMATION | MF_OK_BUTTON);
+    }
 
     println!("Dialog result: {result}");
     println!("First Name: {}", first_name_data.borrow());

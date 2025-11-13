@@ -19,6 +19,7 @@ pub const MF_WARNING: u16 = 0x0000;
 pub const MF_ERROR: u16 = 0x0001;
 pub const MF_INFORMATION: u16 = 0x0002;
 pub const MF_CONFIRMATION: u16 = 0x0003;
+pub const MF_ABOUT: u16 = 0x0004;
 
 // Message box button flags (matches Borland: mfYesButton, mfNoButton, etc.)
 pub const MF_YES_BUTTON: u16 = 0x0100;
@@ -34,7 +35,7 @@ pub const MF_OK_CANCEL: u16 = MF_OK_BUTTON | MF_CANCEL_BUTTON;
 /// Matches Borland: messageBox(const char *msg, ushort aOptions)
 ///
 /// Options is a combination of message box type (lower 4 bits) and button flags:
-/// - Type: MF_WARNING, MF_ERROR, MF_INFORMATION, MF_CONFIRMATION
+/// - Type: MF_WARNING, MF_ERROR, MF_INFORMATION, MF_CONFIRMATION, MF_ABOUT
 /// - Buttons: MF_YES_BUTTON, MF_NO_BUTTON, MF_OK_BUTTON, MF_CANCEL_BUTTON
 ///
 /// Returns the command ID of the button pressed (CM_YES, CM_NO, CM_OK, CM_CANCEL)
@@ -82,11 +83,12 @@ pub fn message_box(app: &mut Application, msg: &str, options: u16) -> CommandId 
 /// Matches Borland: messageBoxRect(const TRect &r, const char *msg, ushort aOptions)
 pub fn message_box_rect(app: &mut Application, bounds: Rect, msg: &str, options: u16) -> CommandId {
     // Get title based on type (lower 4 bits)
-    let title = match options & 0x03 {
-        MF_WARNING => "Warning",
-        MF_ERROR => "Error",
-        MF_INFORMATION => "Information",
-        MF_CONFIRMATION => "Confirm",
+    let title = match options & 0x0F {
+        MF_WARNING => "Warning ⚠️",
+        MF_ERROR => "Error 🛑",
+        MF_INFORMATION => "Information ℹ️",
+        MF_CONFIRMATION => "❔Confirm❔",
+        MF_ABOUT => "About ℹ️",
         _ => "Message",
     };
 

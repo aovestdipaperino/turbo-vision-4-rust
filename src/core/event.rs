@@ -321,15 +321,28 @@ fn char_to_alt_code(c: char) -> Option<KeyCode> {
 }
 
 /// ESC sequence tracker for macOS Alt emulation
-#[derive(Default)]
 pub struct EscSequenceTracker {
     last_esc_time: Option<Instant>,
     waiting_for_char: bool,
+    timeout_ms: u64,
 }
 
 impl EscSequenceTracker {
     pub fn new() -> Self {
-        Self::default()
+        Self::with_timeout(500)
+    }
+
+    pub fn with_timeout(timeout_ms: u64) -> Self {
+        Self {
+            last_esc_time: None,
+            waiting_for_char: false,
+            timeout_ms,
+        }
+    }
+
+    /// Set the ESC timeout in milliseconds
+    pub fn set_timeout(&mut self, timeout_ms: u64) {
+        self.timeout_ms = timeout_ms;
     }
 
     /// Process a key event, handling ESC sequences
@@ -339,9 +352,9 @@ impl EscSequenceTracker {
         if matches!(key.code, CKC::Esc) {
             let now = Instant::now();
 
-            // Check if this is a second ESC within 500ms
+            // Check if this is a second ESC within timeout
             if let Some(last_time) = self.last_esc_time {
-                if now.duration_since(last_time) < Duration::from_millis(500) {
+                if now.duration_since(last_time) < Duration::from_millis(self.timeout_ms) {
                     // Double ESC!
                     self.last_esc_time = None;
                     self.waiting_for_char = false;
@@ -363,7 +376,7 @@ impl EscSequenceTracker {
 
             // Check if within time limit (treat as ALT+letter)
             if let Some(last_time) = esc_time {
-                if Instant::now().duration_since(last_time) <= Duration::from_millis(500) {
+                if Instant::now().duration_since(last_time) <= Duration::from_millis(self.timeout_ms) {
                     // Map ESC+letter to ALT codes (for macOS Alt emulation)
                     // This makes ESC+F identical to Alt+F from the application's perspective
                     if let CKC::Char(c) = key.code {
@@ -380,7 +393,7 @@ impl EscSequenceTracker {
 
         // Check if ESC timeout expired (user pressed ESC but waited too long)
         if let Some(last_time) = self.last_esc_time {
-            if Instant::now().duration_since(last_time) > Duration::from_millis(500) {
+            if Instant::now().duration_since(last_time) > Duration::from_millis(self.timeout_ms) {
                 self.last_esc_time = None;
                 self.waiting_for_char = false;
                 // Too late, treat as single ESC

@@ -409,6 +409,37 @@ impl Application {
         let _ = self.terminal.beep();
     }
 
+    /// Set the ESC timeout in milliseconds
+    ///
+    /// This controls how long the terminal waits after ESC to detect ESC+letter sequences
+    /// for macOS Alt key emulation.
+    ///
+    /// # Arguments
+    /// * `timeout_ms` - Timeout in milliseconds, must be between 250 and 1500
+    ///
+    /// # Errors
+    /// Returns an error if the timeout is not between 250 and 1500 milliseconds
+    ///
+    /// # Examples
+    /// ```rust,no_run
+    /// # use turbo_vision::app::Application;
+    /// # use turbo_vision::core::error::Result;
+    /// # fn main() -> Result<()> {
+    /// let mut app = Application::new()?;
+    /// app.set_esc_timeout(750)?;  // Set to 750ms
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn set_esc_timeout(&mut self, timeout_ms: u64) -> Result<()> {
+        if timeout_ms < 250 || timeout_ms > 1500 {
+            return Err(crate::core::error::TurboVisionError::invalid_input(
+                format!("ESC timeout must be between 250 and 1500 milliseconds, got {}", timeout_ms)
+            ));
+        }
+        self.terminal.set_esc_timeout(timeout_ms);
+        Ok(())
+    }
+
     /// Idle processing - broadcasts command set changes
     /// Matches Borland: TProgram::idle() (tprogram.cc:248-257)
     pub fn idle(&mut self) {
