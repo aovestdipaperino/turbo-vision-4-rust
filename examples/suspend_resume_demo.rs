@@ -1,50 +1,40 @@
 // (C) 2025 - Enzo Lombardi
 // Suspend/Resume Demo - demonstrates terminal suspend/resume functionality
 
+use std::time::Duration;
 use turbo_vision::app::Application;
-use turbo_vision::views::window::WindowBuilder;
-use turbo_vision::views::button::ButtonBuilder;
-use turbo_vision::views::static_text::StaticTextBuilder;
-use turbo_vision::views::View;
-use turbo_vision::helpers::msgbox::{message_box, MF_INFORMATION, MF_OK_BUTTON};
 use turbo_vision::core::command::CM_QUIT;
 use turbo_vision::core::event::EventType;
 use turbo_vision::core::geometry::Rect;
-use std::time::Duration;
+use turbo_vision::helpers::msgbox::{MF_INFORMATION, MF_OK_BUTTON, message_box};
+use turbo_vision::views::View;
+use turbo_vision::views::button::ButtonBuilder;
+use turbo_vision::views::dialog::DialogBuilder;
+use turbo_vision::views::static_text::StaticTextBuilder;
 
-const CM_SUSPEND: u16 = 100;
+const CMD_SUSPEND: u16 = 100;
 
 fn main() -> turbo_vision::core::error::Result<()> {
     let mut app = Application::new()?;
 
-    let mut window = WindowBuilder::new()
-        .bounds(Rect::new(10, 3, 70, 18))
-        .title("Suspend/Resume Demo")
-        .build();
+    let mut dialog = DialogBuilder::new().bounds(Rect::new(10, 3, 65, 18)).title("Suspend/Resume Demo").build();
 
-    window.add(Box::new(StaticTextBuilder::new()
-        .bounds(Rect::new(2, 2, 56, 8))
-        .text("This demo shows suspend/resume functionality.\n\n\
-         Click 'Suspend' to temporarily return to shell.\n\
-         The application will exit raw mode and show your\n\
-         shell prompt. Type 'fg' to resume.")
-        .build()));
+    dialog.add(Box::new(
+        StaticTextBuilder::new()
+            .bounds(Rect::new(2, 2, 53, 8))
+            .text(
+                "Demonstrates the suspend/resume functionality.\n\n\
+                Click 'Suspend' to temporarily return to shell.\n\
+                The application will exit raw mode and show your\n\
+                shell prompt. Press 'Enter' to resume.",
+            )
+            .build(),
+    ));
 
-    window.add(Box::new(ButtonBuilder::new()
-        .bounds(Rect::new(15, 9, 35, 11))
-        .title("Suspend")
-        .command(CM_SUSPEND)
-        .default(false)
-        .build()));
+    dialog.add(Box::new(ButtonBuilder::new().bounds(Rect::new(33, 9, 44, 11)).title("Quit").command(CM_QUIT).default(true).build()));
+    dialog.add(Box::new(ButtonBuilder::new().bounds(Rect::new(11, 9, 22, 11)).title("Suspend").command(CMD_SUSPEND).build()));
 
-    window.add(Box::new(ButtonBuilder::new()
-        .bounds(Rect::new(15, 12, 35, 14))
-        .title("Quit")
-        .command(CM_QUIT)
-        .default(true)
-        .build()));
-
-    app.desktop.add(Box::new(window));
+    app.desktop.add(Box::new(dialog));
 
     loop {
         app.desktop.draw(&mut app.terminal);
@@ -55,12 +45,12 @@ fn main() -> turbo_vision::core::error::Result<()> {
 
             if event.what == EventType::Command {
                 match event.command {
-                    CM_SUSPEND => {
+                    CMD_SUSPEND => {
                         // Suspend the application
                         app.suspend()?;
 
                         // At this point, the terminal is in normal mode
-                        // The user can use the shell, and when they type 'fg',
+                        // The user can use the shell, and when they press 'Enter',
                         // we'll continue here
 
                         // For this demo, we'll immediately resume

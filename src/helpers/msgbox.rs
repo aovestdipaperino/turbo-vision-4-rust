@@ -4,15 +4,15 @@
 //! Matches Borland: msgbox.h functions (messageBox, inputBox)
 
 use crate::app::Application;
+use crate::core::command::{CM_CANCEL, CM_NO, CM_OK, CM_YES, CommandId};
 use crate::core::geometry::Rect;
-use crate::core::command::{CommandId, CM_YES, CM_NO, CM_OK, CM_CANCEL};
-use crate::views::dialog::Dialog;
-use crate::views::button::Button;
-use crate::views::static_text::StaticText;
-use crate::views::input_line::InputLine;
 use crate::views::View;
-use std::rc::Rc;
+use crate::views::button::Button;
+use crate::views::dialog::Dialog;
+use crate::views::input_line::InputLine;
+use crate::views::static_text::StaticText;
 use std::cell::RefCell;
+use std::rc::Rc;
 
 // Message box type flags (matches Borland: mfWarning, mfError, etc.)
 pub const MF_WARNING: u16 = 0x0000;
@@ -54,7 +54,7 @@ pub fn message_box(app: &mut Application, msg: &str, options: u16) -> CommandId 
     let dialog_width = 40i16;
     let dialog_height = 9i16;
     let dialog_x = (width as i16 - dialog_width) / 2;
-    let dialog_y = (height as i16 - dialog_height - 2) / 2;  // -2 for menu and status
+    let dialog_y = (height as i16 - dialog_height - 2) / 2; // -2 for menu and status
 
     let bounds = Rect::new(dialog_x, dialog_y, dialog_x + dialog_width, dialog_y + dialog_height);
 
@@ -101,7 +101,7 @@ pub fn message_box_rect(app: &mut Application, bounds: Rect, msg: &str, options:
 
     // Center buttons horizontally
     let mut x = (bounds.width() - total_width) / 2;
-    let y = bounds.height() - 3;
+    let y = bounds.height() - 4; // -3 initially
 
     for (mut button, _cmd) in buttons {
         // Position button
@@ -168,7 +168,7 @@ pub fn input_box_rect(app: &mut Application, bounds: Rect, title: &str, label: &
         Rect::new(bounds.width() / 2 - 12, bounds.height() - 3, bounds.width() / 2 - 2, bounds.height() - 1),
         "O~K~",
         CM_OK,
-        true  // default button
+        true, // default button
     );
     dialog.add(Box::new(ok_button));
 
@@ -177,7 +177,7 @@ pub fn input_box_rect(app: &mut Application, bounds: Rect, title: &str, label: &
         Rect::new(bounds.width() / 2 + 2, bounds.height() - 3, bounds.width() / 2 + 12, bounds.height() - 1),
         "Cancel",
         CM_CANCEL,
-        false
+        false,
     );
     dialog.add(Box::new(cancel_button));
 
