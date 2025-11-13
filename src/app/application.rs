@@ -7,7 +7,7 @@
 use crate::core::command::{CM_CANCEL, CM_COMMAND_SET_CHANGED, CM_QUIT, CommandId};
 use crate::core::command_set;
 use crate::core::error::Result;
-use crate::core::event::{Event, EventType, KB_ALT_X, KB_ESC, KB_ESC_ESC, KB_ESC_X, KB_F10};
+use crate::core::event::{Event, EventType, KB_ALT_X, KB_ESC, KB_ESC_ESC, KB_F10};
 use crate::core::geometry::Rect;
 use crate::terminal::Terminal;
 use crate::views::{View, desktop::Desktop, menu_bar::MenuBar, status_line::StatusLine};
@@ -370,9 +370,9 @@ impl Application {
             event.clear();
         }
 
-        // Handle Ctrl+C, F10, Alt+X, and ESC+X at application level
+        // Handle Ctrl+C, F10, Alt+X (or ESC+X), and ESC/ESC+ESC at application level
         if event.what == EventType::Keyboard
-            && (event.key_code == 0x0003 || event.key_code == KB_F10 || event.key_code == KB_ALT_X || event.key_code == KB_ESC || event.key_code == KB_ESC_ESC || event.key_code == KB_ESC_X)
+            && (event.key_code == 0x0003 || event.key_code == KB_F10 || event.key_code == KB_ALT_X || event.key_code == KB_ESC || event.key_code == KB_ESC_ESC)
         {
             // Treat these as quit command
             *event = Event::command(CM_QUIT);

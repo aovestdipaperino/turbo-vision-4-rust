@@ -46,13 +46,33 @@ pub const KB_PGDN: KeyCode = 0x5100;
 pub const KB_INS: KeyCode = 0x5200;
 pub const KB_DEL: KeyCode = 0x5300;
 
-// Alt + letter
-pub const KB_ALT_X: KeyCode = 0x2D00;
-pub const KB_ALT_F: KeyCode = 0x2100;
-pub const KB_ALT_E: KeyCode = 0x1200;
-pub const KB_ALT_H: KeyCode = 0x2300;
-pub const KB_ALT_O: KeyCode = 0x1800;
+// Alt + letter (scan codes from PC keyboard)
 pub const KB_ALT_A: KeyCode = 0x1E00;
+pub const KB_ALT_B: KeyCode = 0x3000;
+pub const KB_ALT_C: KeyCode = 0x2E00;
+pub const KB_ALT_D: KeyCode = 0x2000;
+pub const KB_ALT_E: KeyCode = 0x1200;
+pub const KB_ALT_F: KeyCode = 0x2100;
+pub const KB_ALT_G: KeyCode = 0x2200;
+pub const KB_ALT_H: KeyCode = 0x2300;
+pub const KB_ALT_I: KeyCode = 0x1700;
+pub const KB_ALT_J: KeyCode = 0x2400;
+pub const KB_ALT_K: KeyCode = 0x2500;
+pub const KB_ALT_L: KeyCode = 0x2600;
+pub const KB_ALT_M: KeyCode = 0x3200;
+pub const KB_ALT_N: KeyCode = 0x3100;
+pub const KB_ALT_O: KeyCode = 0x1800;
+pub const KB_ALT_P: KeyCode = 0x1900;
+pub const KB_ALT_Q: KeyCode = 0x1000;
+pub const KB_ALT_R: KeyCode = 0x1300;
+pub const KB_ALT_S: KeyCode = 0x1F00;
+pub const KB_ALT_T: KeyCode = 0x1400;
+pub const KB_ALT_U: KeyCode = 0x1600;
+pub const KB_ALT_V: KeyCode = 0x2F00;
+pub const KB_ALT_W: KeyCode = 0x1100;
+pub const KB_ALT_X: KeyCode = 0x2D00;
+pub const KB_ALT_Y: KeyCode = 0x1500;
+pub const KB_ALT_Z: KeyCode = 0x2C00;
 pub const KB_ALT_F3: KeyCode = 0x6A00;
 
 // ESC + letter (for macOS Alt emulation)
@@ -266,6 +286,40 @@ impl fmt::Display for Event {
     }
 }
 
+/// Convert a lowercase letter to its Alt+letter key code
+/// Returns None if the character is not a letter
+fn char_to_alt_code(c: char) -> Option<KeyCode> {
+    match c {
+        'a' => Some(KB_ALT_A),
+        'b' => Some(KB_ALT_B),
+        'c' => Some(KB_ALT_C),
+        'd' => Some(KB_ALT_D),
+        'e' => Some(KB_ALT_E),
+        'f' => Some(KB_ALT_F),
+        'g' => Some(KB_ALT_G),
+        'h' => Some(KB_ALT_H),
+        'i' => Some(KB_ALT_I),
+        'j' => Some(KB_ALT_J),
+        'k' => Some(KB_ALT_K),
+        'l' => Some(KB_ALT_L),
+        'm' => Some(KB_ALT_M),
+        'n' => Some(KB_ALT_N),
+        'o' => Some(KB_ALT_O),
+        'p' => Some(KB_ALT_P),
+        'q' => Some(KB_ALT_Q),
+        'r' => Some(KB_ALT_R),
+        's' => Some(KB_ALT_S),
+        't' => Some(KB_ALT_T),
+        'u' => Some(KB_ALT_U),
+        'v' => Some(KB_ALT_V),
+        'w' => Some(KB_ALT_W),
+        'x' => Some(KB_ALT_X),
+        'y' => Some(KB_ALT_Y),
+        'z' => Some(KB_ALT_Z),
+        _ => None,
+    }
+}
+
 /// ESC sequence tracker for macOS Alt emulation
 #[derive(Default)]
 pub struct EscSequenceTracker {
@@ -304,22 +358,24 @@ impl EscSequenceTracker {
         // If we're waiting for a character after ESC
         if self.waiting_for_char {
             self.waiting_for_char = false;
+            let esc_time = self.last_esc_time;
             self.last_esc_time = None;
 
-            // Map ESC+letter to Alt codes
-            if let CKC::Char(c) = key.code {
-                return match c.to_ascii_lowercase() {
-                    'f' => KB_ESC_F,
-                    'h' => KB_ESC_H,
-                    'x' => KB_ESC_X,
-                    'a' => KB_ESC_A,
-                    'o' => KB_ESC_O,
-                    'e' => KB_ESC_E,
-                    's' => KB_ESC_S,
-                    'v' => KB_ESC_V,
-                    _ => crossterm_to_keycode(key),
-                };
+            // Check if within time limit (treat as ALT+letter)
+            if let Some(last_time) = esc_time {
+                if Instant::now().duration_since(last_time) <= Duration::from_millis(500) {
+                    // Map ESC+letter to ALT codes (for macOS Alt emulation)
+                    // This makes ESC+F identical to Alt+F from the application's perspective
+                    if let CKC::Char(c) = key.code {
+                        if let Some(alt_code) = char_to_alt_code(c.to_ascii_lowercase()) {
+                            return alt_code;
+                        }
+                    }
+                }
             }
+
+            // Timeout expired - process as normal key
+            return crossterm_to_keycode(key);
         }
 
         // Check if ESC timeout expired (user pressed ESC but waited too long)
@@ -354,14 +410,8 @@ fn crossterm_to_keycode(key: KeyEvent) -> KeyCode {
             // Check for Alt modifier
             if key.modifiers.contains(KeyModifiers::ALT) {
                 // Alt + letter
-                match c.to_ascii_lowercase() {
-                    'a' => return KB_ALT_A,
-                    'e' => return KB_ALT_E,
-                    'f' => return KB_ALT_F,
-                    'h' => return KB_ALT_H,
-                    'o' => return KB_ALT_O,
-                    'x' => return KB_ALT_X,
-                    _ => {}
+                if let Some(alt_code) = char_to_alt_code(c.to_ascii_lowercase()) {
+                    return alt_code;
                 }
             }
 

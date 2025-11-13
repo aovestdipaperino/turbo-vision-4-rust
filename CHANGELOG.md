@@ -5,6 +5,48 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.4] - 2025-11-13
+
+### Fixed
+- **ESC + Letter Keyboard Handling for macOS** (src/core/event.rs)
+  - ESC + letter sequences (within 500ms) now produce identical key codes to Alt + letter
+  - Fixes issue where ESC + letter would insert the letter into focused input fields instead of triggering shortcuts
+  - Example: ESC then 'L' now produces KB_ALT_L (0x2600), identical to Alt+L
+  - Prevents InputLine controls from capturing the letter character
+  - Menu shortcuts (ESC+F, ESC+E, etc.) continue to work correctly
+
+### Added
+- **Complete ALT+letter Key Code Support** (src/core/event.rs)
+  - Added KB_ALT_A through KB_ALT_Z constants with proper PC keyboard scan codes
+  - Added `char_to_alt_code()` helper function for letter-to-ALT-code mapping
+  - All 26 letters now have defined ALT key codes for consistent shortcut handling
+
+- **Label Keyboard Shortcut Support** (src/views/label.rs)
+  - Labels now handle keyboard shortcuts matching their `~X~` hotkey markers
+  - Added OF_POST_PROCESS flag to Label for three-phase event processing
+  - Added `get_hotkey()` method to extract shortcut character from label text
+  - Implemented `handle_event()` to detect Alt+letter matches and focus linked controls
+  - Example: Label with "~L~ast Name:" now focuses linked input when Alt+L (or ESC+L) is pressed
+  - Matches Borland TLabel behavior for keyboard-driven form navigation
+
+- **Group Focus Management** (src/views/group.rs)
+  - Added `focus_by_view_id()` method to focus child views by ViewId
+  - Used by Label to transfer focus to linked InputLine controls
+  - Enhanced `set_focus_to()` with can_focus() check for safety
+
+### Changed
+- **Code Cleanup**
+  - Removed redundant KB_ESC_X checks from MenuBar (src/views/menu_bar.rs)
+  - Removed redundant KB_ESC_X checks from Application (src/app/application.rs)
+  - Updated imports to use new KB_ALT_S and KB_ALT_V constants
+  - Menu shortcuts now only check for KB_ALT_X instead of both KB_ALT_X and KB_ESC_X
+
+### Documentation
+- **Project Statistics Update**
+  - Updated README.md tokei statistics: 110 files (up from 108), 32,838 lines (up from 31,264)
+  - Updated README.md test count: 199 tests (up from 198), 190 unit tests (up from 189)
+  - Updated version to 0.10.4
+
 ## [0.10.1] - 2025-11-10
 
 ### Added

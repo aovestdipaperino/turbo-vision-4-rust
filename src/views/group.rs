@@ -106,10 +106,25 @@ impl Group {
     }
 
     pub fn set_focus_to(&mut self, index: usize) {
-        if index < self.children.len() {
+        if index < self.children.len() && self.children[index].can_focus() {
+            self.clear_all_focus();
             self.focused = index;
             self.children[index].set_focus(true);
         }
+    }
+
+    /// Focus a child view by its ViewId
+    /// Returns true if the view was found and focused, false otherwise
+    pub fn focus_by_view_id(&mut self, view_id: ViewId) -> bool {
+        if let Some(index) = self.view_ids.iter().position(|&id| id == view_id) {
+            if self.children[index].can_focus() {
+                self.clear_all_focus();
+                self.focused = index;
+                self.children[index].set_focus(true);
+                return true;
+            }
+        }
+        false
     }
 
     /// Bring a child view to the front (top of z-order)

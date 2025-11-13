@@ -4,7 +4,7 @@
 
 A Rust implementation of the classic Borland Turbo Vision text user interface framework.
 
-**Version 0.10.0 - CODE COMPLETE** ✅
+**Version 0.10.4 - CODE COMPLETE** ✅
 
 Based on
 kloczek Borland Turbo Vision C++ port [here](https://github.com/kloczek/tvision)
@@ -202,16 +202,16 @@ This implementation closely follows Borland Turbo Vision's architecture, adapted
 ===============================================================================
  Language            Files        Lines         Code     Comments       Blanks
 ===============================================================================
- Rust                  108        31264        23572         2865         4827
- |- Markdown            82         3504          209         2752          543
- (Total)                          34768        23781         5617         5370
+ Rust                  110        32838        24699         3080         5059
+ |- Markdown            83         3565          209         2812          544
+ (Total)                          36403        24908         5892         5603
 ===============================================================================
 ```
 
 Generated with [tokei](https://github.com/XAMPPRocky/tokei) - includes inline documentation
 
-**198 tests** - all passing ✅
-- 189 unit tests
+**199 tests** - all passing ✅
+- 190 unit tests
 - 9 palette regression tests
 
 ## License

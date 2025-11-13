@@ -16,8 +16,8 @@ use super::menu_viewer::{MenuViewer, MenuViewerState};
 use super::view::{write_line_to_terminal, View};
 use crate::core::draw::DrawBuffer;
 use crate::core::event::{
-    Event, EventType, KB_ALT_E, KB_ALT_F, KB_ALT_H, KB_ENTER, KB_ESC, KB_ESC_E, KB_ESC_ESC,
-    KB_ESC_F, KB_ESC_H, KB_ESC_S, KB_ESC_V, KB_F1, KB_F10, KB_LEFT, KB_RIGHT, MB_LEFT_BUTTON,
+    Event, EventType, KB_ALT_E, KB_ALT_F, KB_ALT_H, KB_ALT_S, KB_ALT_V, KB_ENTER, KB_ESC,
+    KB_ESC_ESC, KB_F1, KB_F10, KB_LEFT, KB_RIGHT, MB_LEFT_BUTTON,
 };
 use crate::core::geometry::{Point, Rect};
 use crate::core::menu_data::{Menu, MenuItem};
@@ -568,13 +568,13 @@ impl View for MenuBar {
                 // Hot keys to open specific menus
                 if self.active_menu_idx.is_none() {
                     let menu_to_open = match event.key_code {
-                        KB_F10 | KB_ALT_F | KB_ESC_F if !self.submenus.is_empty() => {
+                        KB_F10 | KB_ALT_F if !self.submenus.is_empty() => {
                             Some(0) // F10 or Alt+F opens first menu (File)
                         }
-                        KB_ALT_E | KB_ESC_E if self.submenus.len() > 1 => Some(1),
-                        KB_ESC_S if self.submenus.len() > 2 => Some(2),
-                        KB_ESC_V if self.submenus.len() > 3 => Some(3),
-                        KB_F1 | KB_ALT_H | KB_ESC_H if self.submenus.len() > 1 => {
+                        KB_ALT_E if self.submenus.len() > 1 => Some(1),
+                        KB_ALT_S if self.submenus.len() > 2 => Some(2),
+                        KB_ALT_V if self.submenus.len() > 3 => Some(3),
+                        KB_F1 | KB_ALT_H if self.submenus.len() > 1 => {
                             Some(self.submenus.len() - 1) // F1 or Alt+H opens last menu (Help)
                         }
                         _ => None,
