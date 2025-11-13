@@ -46,6 +46,16 @@ arboard = "3.3"
 [dev-dependencies]
 tempfile = "3.8"
 
+# Profile optimizations for release builds
+[profile.release]
+opt-level = "z"     # Optimize for size instead of speed
+lto = true          # Enable Link Time Optimization
+codegen-units = 1   # Better optimization (slower compile, smaller binary)
+strip = true        # Remove debug symbols and other metadata
+panic = "abort"     # Smaller panic handler (no unwinding)
+
+
+
 # Lint configuration for improved code quality
 [lints.rust]
 # Catch common mistakes and improve clarity
