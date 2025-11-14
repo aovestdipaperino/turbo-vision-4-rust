@@ -1,4 +1,5 @@
 // (C) 2025 - Enzo Lombardi
+// The status line code is in a function
 
 use turbo_vision::core::event::{KB_ALT_X, KB_ESC, KB_ESC_ESC};
 use turbo_vision::prelude::*;

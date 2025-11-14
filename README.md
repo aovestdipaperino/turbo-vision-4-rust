@@ -43,44 +43,30 @@ kloczek port of Borland Turbo Vision C++. All features from the original framewo
 use turbo_vision::prelude::*;
 
 fn main() -> turbo_vision::core::error::Result<()> {
-    // Create application with terminal
-    let mut app = Application::new()?;
     // Create a window
-    let mut window = turbo_vision::views::window::Window::new(Rect::new(10, 5, 50, 15), "My First Window");
-    // Create a button
-    let button = turbo_vision::views::button::Button::new(
-        Rect::new(15, 5, 25, 7),
-        "Click Me",
-        turbo_vision::core::command::CM_OK,
-        false,
-    );
-    // Add the button to the window
-    window.add(Box::new(button));
-    // Add the window to the desktop
-    app.desktop.add(Box::new(window));
-    // Run event loop
+    let mut dialog = turbo_vision::views::dialog::DialogBuilder::new().bounds(Rect::new(10, 5, 50, 15)).title("My First Dialog").build();
+
+    // Create a button and add it to the window
+    let button = turbo_vision::views::button::Button::new(Rect::new(26, 6, 36, 8), "Quit", turbo_vision::core::command::CM_OK, true);
+    dialog.add(Box::new(button));
+
+    // Create the application and add the dialog to its desktop
+    let mut app = Application::new()?;
+    app.desktop.add(Box::new(dialog));
+
+    // Event loop
     app.running = true;
     while app.running {
         app.desktop.draw(&mut app.terminal);
         app.terminal.flush()?;
-        if let Ok(Some(mut event)) = app
-            .terminal
-            .poll_event(std::time::Duration::from_millis(50))
-        {
+        if let Ok(Some(mut event)) = app.terminal.poll_event(std::time::Duration::from_millis(50)) {
             app.desktop.handle_event(&mut event);
-            if event.what == EventType::Command {
-                match event.command {
-                    CM_QUIT => app.running = false,
-                    CM_OK => {
-                        // Handle button click
-                        app.running = false;
-                    }
-                    _ => {}
-                }
+            if event.command == CM_OK {
+                // Handle button click
+                app.running = false;
             }
         }
     }
-    app.terminal.shutdown()?;
     Ok(())
 }
 ```
@@ -139,17 +125,17 @@ cargo build --examples           # Checkout `target/debug/examples`
 cargo run --example full-demo    # Run the comprehensive demo
 ```
 
-Build and run the demo `rust_editor` 
+Build and run the demo `rust_editor`
 
 ```bash
-cargo run --bin rust_editor --release 
+cargo run --bin rust_editor --release
 ```
 
 ### User Guide
-Read [Chapter 1](docs/user-guide/Chapter-1-Stepping-into-Turbo-Vision.md) of the User Guide. The 18 chapters are available in `docs/user-guide/` directory. 
+Read [Chapter 1](docs/user-guide/Chapter-1-Stepping-into-Turbo-Vision.md) of the User Guide. The 18 chapters are available in `docs/user-guide/` directory.
 
 ### References
-Read the [index](docs/DOCUMENTATION_INDEX.md). Other references are available in the `docs/` directory: 
+Read the [index](docs/DOCUMENTATION_INDEX.md). Other references are available in the `docs/` directory:
 
 
 

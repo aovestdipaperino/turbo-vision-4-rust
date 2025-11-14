@@ -1,4 +1,5 @@
 // (C) 2025 - Enzo Lombardi
+// Add actions to the menu bar items
 
 use turbo_vision::core::event::{KB_ALT_X, KB_ESC, KB_ESC_ESC};
 use turbo_vision::prelude::*;
@@ -15,14 +16,13 @@ const CMD_ABOUT: u16 = 100;
 fn main() -> turbo_vision::core::error::Result<()> {
     let mut app = Application::new()?;
 
-    // Add status line
     let status_line = setup_status_line(&app);
     app.set_status_line(status_line);
 
     let menu_bar = setup_menu_bar(&app);
     app.set_menu_bar(menu_bar);
 
-    run_event_loop(&mut app)?;
+    run_event_loop(&mut app);
     Ok(())
 }
 
@@ -33,7 +33,6 @@ fn setup_status_line(app: &Application) -> StatusLine {
     StatusLine::new(
         Rect::new(0, h as i16 - 1, w as i16, h as i16),
         vec![
-            // StatusItem::new("~F10~ Menu", KB_F10, 0),
             StatusItem::new("~Esc-X~ Exit", KB_ESC, CM_QUIT),
             StatusItem::new("~Alt-X~ Exit", KB_ALT_X, CM_QUIT),
             StatusItem::new("~Esc-Esc~ Exit", KB_ESC_ESC, CM_QUIT),
@@ -62,15 +61,20 @@ fn setup_menu_bar(app: &Application) -> MenuBar {
     menu_bar
 }
 
-fn run_event_loop(app: &mut Application) -> turbo_vision::core::error::Result<()> {
+fn run_event_loop(app: &mut Application) {
     app.running = true;
     while app.running {
         redraw_screen(app);
 
         if let Ok(Some(mut event)) = app.terminal.poll_event(std::time::Duration::from_millis(50)) {
-            // (handles menu navigation, Alt+F, F10, etc.)
+            // Handles menu navigation
             if let Some(ref mut menu_bar) = app.menu_bar {
                 menu_bar.handle_event(&mut event);
+            }
+
+            // Handles status line shortcuts
+            if let Some(ref mut status_line) = app.status_line {
+                status_line.handle_event(&mut event);
             }
 
             if event.what == EventType::Command {
@@ -79,8 +83,6 @@ fn run_event_loop(app: &mut Application) -> turbo_vision::core::error::Result<()
             }
         }
     }
-
-    Ok(())
 }
 
 /// Dispatch commands to appropriate handlers

@@ -1,4 +1,5 @@
 // (C) 2025 - Enzo Lombardi
+// Support global shortcuts (press F1 to see it in action)
 
 use turbo_vision::core::event::{KB_ALT_X, KB_CTRL_O, KB_ESC, KB_ESC_ESC, KB_F1};
 use turbo_vision::prelude::*;
@@ -22,7 +23,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
     let menu_bar = setup_menu_bar(&app);
     app.set_menu_bar(menu_bar);
 
-    run_event_loop(&mut app)?;
+    run_event_loop(&mut app);
     Ok(())
 }
 
@@ -62,40 +63,28 @@ fn setup_menu_bar(app: &Application) -> MenuBar {
     menu_bar
 }
 
-fn run_event_loop(app: &mut Application) -> turbo_vision::core::error::Result<()> {
+fn run_event_loop(app: &mut Application) {
     app.running = true;
     while app.running {
         redraw_screen(app);
 
         if let Ok(Some(mut event)) = app.terminal.poll_event(std::time::Duration::from_millis(50)) {
-            // Step 1: Convert global keyboard shortcuts to commands
-            // (Ctrl+N, Ctrl+O, etc. work even when menus are closed)
             handle_global_shortcuts(&mut event);
 
-            // Step 2: Let menu bar process events
-            // (handles menu navigation, Alt+F, F10, etc.)
             if let Some(ref mut menu_bar) = app.menu_bar {
                 menu_bar.handle_event(&mut event);
-
-                // // Check for cascading submenus (e.g., Recent Files, Preferences)
-                // if event.what == EventType::Keyboard || event.what == EventType::MouseUp {
-                //     if let Some(command) = menu_bar.check_cascading_submenu(&mut app.terminal) {
-                //         if command != 0 {
-                //             event = Event::command(command);
-                //         }
-                //     }
-                // }
             }
 
-            // Step 4: Execute commands (redraw first for clean dialog display)
+            if let Some(ref mut status_line) = app.status_line {
+                status_line.handle_event(&mut event);
+            }
+
             if event.what == EventType::Command {
                 redraw_screen(app);
                 handle_command(app, event.command);
             }
         }
     }
-
-    Ok(())
 }
 
 /// Dispatch commands to appropriate handlers
@@ -116,7 +105,6 @@ fn handle_command(app: &mut Application, command: u16) {
     }
 }
 
-/// Redraw all UI components (desktop, menu bar, status line)
 fn redraw_screen(app: &mut Application) {
     app.desktop.draw(&mut app.terminal);
     if let Some(ref mut menu_bar) = app.menu_bar {
@@ -129,7 +117,7 @@ fn redraw_screen(app: &mut Application) {
 }
 
 /// Convert global keyboard shortcuts to command events
-/// These shortcuts work regardless of whether menus are open
+/// These shortcuts work regardless of whether menus are open or not
 fn handle_global_shortcuts(event: &mut Event) {
     if event.what != EventType::Keyboard {
         return;

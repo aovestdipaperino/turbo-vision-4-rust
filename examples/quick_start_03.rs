@@ -1,4 +1,5 @@
 // (C) 2025 - Enzo Lombardi
+// Add a menu bar but no action behind yet
 
 use turbo_vision::core::event::{KB_ALT_X, KB_ESC, KB_ESC_ESC};
 use turbo_vision::prelude::*;
@@ -14,10 +15,10 @@ const CMD_ABOUT: u16 = 100;
 fn main() -> turbo_vision::core::error::Result<()> {
     let mut app = Application::new()?;
 
-    // Add status line
     let status_line = setup_status_line(&app);
     app.set_status_line(status_line);
 
+    // Add a menu bar
     let menu_bar = setup_menu_bar(&app);
     app.set_menu_bar(menu_bar);
 
@@ -32,7 +33,6 @@ fn setup_status_line(app: &Application) -> StatusLine {
     StatusLine::new(
         Rect::new(0, h as i16 - 1, w as i16, h as i16),
         vec![
-            // StatusItem::new("~F10~ Menu", KB_F10, 0),
             StatusItem::new("~Esc-X~ Exit", KB_ESC, CM_QUIT),
             StatusItem::new("~Alt-X~ Exit", KB_ALT_X, CM_QUIT),
             StatusItem::new("~Esc-Esc~ Exit", KB_ESC_ESC, CM_QUIT),
