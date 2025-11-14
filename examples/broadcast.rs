@@ -9,16 +9,16 @@
 // - Click any button: ALL siblings increment their counter EXCEPT the clicked one
 // - This proves Group::broadcast() skips the owner correctly
 
+use std::cell::Cell;
 use turbo_vision::app::Application;
 use turbo_vision::core::command::CommandId;
-use turbo_vision::core::event::{Event, EventType, KB_ESC_ESC};
-use turbo_vision::core::geometry::Rect;
-use turbo_vision::views::group::Group;
-use turbo_vision::views::View;
-use turbo_vision::terminal::Terminal;
-use turbo_vision::core::palette::colors;
 use turbo_vision::core::draw::DrawBuffer;
-use std::cell::Cell;
+use turbo_vision::core::event::{Event, EventType, KB_ALT_X, KB_CTRL_C, KB_ESC_ESC};
+use turbo_vision::core::geometry::Rect;
+use turbo_vision::core::palette::colors;
+use turbo_vision::terminal::Terminal;
+use turbo_vision::views::View;
+use turbo_vision::views::group::Group;
 
 // Custom commands
 const CMD_BROADCAST_TEST: CommandId = 200;
@@ -75,12 +75,7 @@ impl View for BroadcastButton {
                 buf.move_str(0, &text, colors::MENU_NORMAL);
             }
 
-            turbo_vision::views::view::write_line_to_terminal(
-                terminal,
-                self.bounds.a.x,
-                self.bounds.a.y + y as i16,
-                &buf
-            );
+            turbo_vision::views::view::write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y + y as i16, &buf);
         }
     }
 
@@ -90,12 +85,7 @@ impl View for BroadcastButton {
         match event.what {
             EventType::MouseDown => {
                 let mouse_pos = event.mouse.pos;
-                if event.mouse.buttons & MB_LEFT_BUTTON != 0
-                    && mouse_pos.x >= self.bounds.a.x
-                    && mouse_pos.x < self.bounds.b.x
-                    && mouse_pos.y >= self.bounds.a.y
-                    && mouse_pos.y < self.bounds.b.y
-                {
+                if event.mouse.buttons & MB_LEFT_BUTTON != 0 && mouse_pos.x >= self.bounds.a.x && mouse_pos.x < self.bounds.b.x && mouse_pos.y >= self.bounds.a.y && mouse_pos.y < self.bounds.b.y {
                     self.click_count.set(self.click_count.get() + 1);
                     *event = Event::command(self.command);
                 }
@@ -140,13 +130,13 @@ fn main() -> turbo_vision::core::error::Result<()> {
     for row in 0..2 {
         for col in 0..2 {
             let button_id = row * 2 + col;
-            let button_x = 5 + col * (button_width + 5);
+            let button_x = 14 + col * (button_width + 5);
             let button_y = 5 + row * (button_height + 2);
 
             let button = BroadcastButton::new(
                 Rect::new(button_x, button_y, button_x + button_width, button_y + button_height),
                 &format!("Button {}", button_id + 1),
-                CMD_BUTTON_BASE + button_id as u16
+                CMD_BUTTON_BASE + button_id as u16,
             );
             group.add(Box::new(button));
         }
@@ -159,41 +149,28 @@ fn main() -> turbo_vision::core::error::Result<()> {
 
         // Draw title
         let mut title_buf = DrawBuffer::new(group_width as usize);
-        let title = "Broadcast Demo - Click any button (ESC to exit)";
-        title_buf.move_str(
-            (group_width as usize - title.len()) / 2,
-            title,
-            colors::MENU_NORMAL
-        );
-        turbo_vision::views::view::write_line_to_terminal(
-            &mut app.terminal,
-            group_x,
-            group_y - 2,
-            &title_buf
-        );
+        let title = "Broadcast Demo - Click any button";
+        title_buf.move_str((group_width as usize - title.len()) / 2, title, colors::MENU_SELECTED);
+        turbo_vision::views::view::write_line_to_terminal(&mut app.terminal, group_x, group_y - 3, &title_buf);
 
         // Draw info
         let mut info_buf = DrawBuffer::new(group_width as usize);
         let info = "Click button → broadcasts to siblings (owner skipped)";
-        info_buf.move_str(
-            (group_width as usize - info.len()) / 2,
-            info,
-            colors::DIALOG_NORMAL
-        );
-        turbo_vision::views::view::write_line_to_terminal(
-            &mut app.terminal,
-            group_x,
-            group_y - 1,
-            &info_buf
-        );
+        info_buf.move_str((group_width as usize - info.len()) / 2, info, colors::MENU_NORMAL);
+        turbo_vision::views::view::write_line_to_terminal(&mut app.terminal, group_x, group_y - 2, &info_buf);
+
+        let mut info_buf = DrawBuffer::new(group_width as usize);
+        let info = "Exit: ESC-ESC, ALt+X or CTRL+C";
+        info_buf.move_str((group_width as usize - info.len()) / 2, info, colors::MENU_NORMAL);
+        turbo_vision::views::view::write_line_to_terminal(&mut app.terminal, group_x, group_y - 1, &info_buf);
 
         group.draw(&mut app.terminal);
         let _ = app.terminal.flush();
 
         // Poll events
         if let Some(mut event) = app.terminal.poll_event(std::time::Duration::from_millis(50)).ok().flatten() {
-            // Check for ESC
-            if event.what == EventType::Keyboard && event.key_code == KB_ESC_ESC {
+            // Check for ESC ESC, ALT+X or CTRL+C
+            if event.what == EventType::Keyboard && matches!(event.key_code, KB_ESC_ESC | KB_ALT_X | KB_CTRL_C) {
                 break;
             }
 
