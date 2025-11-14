@@ -122,7 +122,7 @@ Press ESC to exit.";
         .build();
 
     let editor_bounds = Rect::new(1, 1, 69, 18);
-    let mut editor = Editor::new(editor_bounds).with_scrollbars_and_indicator();
+    let mut editor = Editor::new(editor_bounds);
     editor.set_text(sample_text);
     editor.set_auto_indent(true);
 
@@ -172,7 +172,7 @@ Press ESC to exit.";
         .build();
 
     let editor_bounds = Rect::new(1, 1, 69, 18);
-    let mut editor = Editor::new(editor_bounds).with_scrollbars_and_indicator();
+    let mut editor = Editor::new(editor_bounds);
     editor.set_text(sample_text);
 
     window.add(Box::new(editor));
@@ -247,7 +247,7 @@ fn main() {
         .build();
 
     let editor_bounds = Rect::new(1, 1, 69, 18);
-    let mut editor = Editor::new(editor_bounds).with_scrollbars_and_indicator();
+    let mut editor = Editor::new(editor_bounds);
     editor.set_text(sample_code);
 
     // Enable Rust syntax highlighting
@@ -325,7 +325,7 @@ Press ESC to exit.";
         .build();
 
     let editor_bounds = Rect::new(1, 1, 69, 18);
-    let mut editor = Editor::new(editor_bounds).with_scrollbars_and_indicator();
+    let mut editor = Editor::new(editor_bounds);
     editor.set_text(sample_text);
 
     window.add(Box::new(editor));
