@@ -561,10 +561,10 @@ impl View for Window {
 
             // Check if this window is modal
             if (self.state & SF_MODAL) != 0 {
-                // Modal window: convert CM_CLOSE to CM_CANCEL
+                // Modal window: end modal loop with CM_CANCEL
                 // Borland: event.message.command = cmCancel; putEvent(event);
-                *event = Event::command(CM_CANCEL);
-                // Don't clear event - let it propagate to dialog's execute loop
+                self.end_modal(CM_CANCEL);
+                event.clear();
             } else {
                 // Non-modal window: close itself (Borland: TWindow::close() calls destroy(this))
                 // In Rust, we mark with SF_CLOSED flag and let app.desktop.remove_closed_windows() handle it
