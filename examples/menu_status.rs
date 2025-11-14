@@ -7,19 +7,16 @@
 
 use turbo_vision::app::Application;
 use turbo_vision::core::command::{CM_NEW, CM_OK, CM_OPEN, CM_QUIT, CM_SAVE};
-use turbo_vision::core::event::{
-    Event, EventType, KB_ALT_X, KB_CTRL_C, KB_CTRL_N, KB_CTRL_O, KB_CTRL_S, KB_CTRL_V,
-    KB_CTRL_X, KB_F10, MB_RIGHT_BUTTON,
-};
+use turbo_vision::core::event::{Event, EventType, KB_ALT_X, KB_CTRL_C, KB_CTRL_N, KB_CTRL_O, KB_CTRL_S, KB_CTRL_V, KB_CTRL_X, KB_F10, MB_RIGHT_BUTTON};
 use turbo_vision::core::geometry::{Point, Rect};
 use turbo_vision::core::menu_data::{Menu, MenuItem};
+use turbo_vision::views::View;
 use turbo_vision::views::button::ButtonBuilder;
 use turbo_vision::views::dialog::DialogBuilder;
 use turbo_vision::views::menu_bar::{MenuBar, SubMenu};
 use turbo_vision::views::menu_box::MenuBox;
 use turbo_vision::views::static_text::StaticTextBuilder;
 use turbo_vision::views::status_line::{StatusItem, StatusLine};
-use turbo_vision::views::View;
 
 // Custom command IDs for this example
 const CMD_ABOUT: u16 = 100;
@@ -125,12 +122,7 @@ fn setup_welcome_message(app: &mut Application, width: u16, height: u16) {
     let msg_width = 60;
     let msg_x = (width as i16 - msg_width) / 2;
     let msg = StaticTextBuilder::new()
-        .bounds(Rect::new(
-            msg_x,
-            height as i16 / 2,
-            msg_x + msg_width,
-            height as i16 / 2 + 4,
-        ))
+        .bounds(Rect::new(msg_x, height as i16 / 2, msg_x + msg_width, height as i16 / 2 + 4))
         .text("Extended Menu Example\n\nTry the menu bar with submenus\nor right-click for a popup menu!")
         .centered(true)
         .build();
@@ -157,10 +149,7 @@ fn run_event_loop(app: &mut Application) -> turbo_vision::core::error::Result<()
         redraw_screen(app);
 
         // Poll for user input
-        if let Ok(Some(mut event)) = app
-            .terminal
-            .poll_event(std::time::Duration::from_millis(50))
-        {
+        if let Ok(Some(mut event)) = app.terminal.poll_event(std::time::Duration::from_millis(50)) {
             // Step 1: Convert global keyboard shortcuts to commands
             // (Ctrl+N, Ctrl+O, etc. work even when menus are closed)
             handle_global_shortcuts(&mut event);
@@ -181,8 +170,7 @@ fn run_event_loop(app: &mut Application) -> turbo_vision::core::error::Result<()
             }
 
             // Step 3: Handle right-click popup menu
-            if event.what == EventType::MouseDown && event.mouse.buttons & MB_RIGHT_BUTTON != 0
-            {
+            if event.what == EventType::MouseDown && event.mouse.buttons & MB_RIGHT_BUTTON != 0 {
                 let command = show_popup_menu(app, event.mouse.pos);
                 if command != 0 {
                     event = Event::command(command);
@@ -201,7 +189,7 @@ fn run_event_loop(app: &mut Application) -> turbo_vision::core::error::Result<()
 }
 
 /// Convert global keyboard shortcuts to command events
-/// These shortcuts work regardless of whether menus are open
+/// These shortcuts work regardless of whether menus are open or not
 fn handle_global_shortcuts(event: &mut Event) {
     if event.what != EventType::Keyboard {
         return;
@@ -308,22 +296,13 @@ fn show_message(app: &mut Application, title: &str, message: &str) {
     let dialog_y = (term_height as i16 - dialog_height) / 2;
 
     let mut dialog = DialogBuilder::new()
-        .bounds(Rect::new(
-            dialog_x,
-            dialog_y,
-            dialog_x + dialog_width,
-            dialog_y + dialog_height,
-        ))
+        .bounds(Rect::new(dialog_x, dialog_y, dialog_x + dialog_width, dialog_y + dialog_height))
         .title(title)
         .build();
 
     // Add centered message text (coordinates are relative to dialog interior)
     let text_width = dialog_width - 4;
-    let text = StaticTextBuilder::new()
-        .bounds(Rect::new(2, 1, text_width, 2))
-        .text(message)
-        .centered(true)
-        .build();
+    let text = StaticTextBuilder::new().bounds(Rect::new(2, 1, text_width, 2)).text(message).centered(true).build();
     dialog.add(Box::new(text));
 
     // Add centered OK button

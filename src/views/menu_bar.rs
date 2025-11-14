@@ -13,11 +13,11 @@
 
 use super::menu_box::MenuBox;
 use super::menu_viewer::{MenuViewer, MenuViewerState};
-use super::view::{write_line_to_terminal, View};
+use super::view::{View, write_line_to_terminal};
 use crate::core::draw::DrawBuffer;
 use crate::core::event::{
-    Event, EventType, KB_ALT_E, KB_ALT_F, KB_ALT_H, KB_ALT_S, KB_ALT_V, KB_ENTER, KB_ESC,
-    KB_ESC_ESC, KB_F1, KB_F10, KB_LEFT, KB_RIGHT, MB_LEFT_BUTTON,
+    Event, EventType, KB_ALT_A, KB_ALT_B, KB_ALT_C, KB_ALT_D, KB_ALT_E, KB_ALT_F, KB_ALT_G, KB_ALT_H, KB_ALT_I, KB_ALT_J, KB_ALT_K, KB_ALT_L, KB_ALT_M, KB_ALT_N, KB_ALT_O, KB_ALT_P, KB_ALT_Q,
+    KB_ALT_R, KB_ALT_S, KB_ALT_T, KB_ALT_U, KB_ALT_V, KB_ALT_W, KB_ALT_X, KB_ALT_Y, KB_ALT_Z, KB_ENTER, KB_ESC, KB_ESC_ESC, KB_F1, KB_F10, KB_LEFT, KB_RIGHT, KeyCode, MB_LEFT_BUTTON,
 };
 use crate::core::geometry::{Point, Rect};
 use crate::core::menu_data::{Menu, MenuItem};
@@ -38,11 +38,33 @@ pub struct SubMenu {
 
 impl SubMenu {
     pub fn new(name: &str, menu: Menu) -> Self {
-        Self {
-            name: name.to_string(),
-            menu,
+        Self { name: name.to_string(), menu }
+    }
+}
+
+/// Extract the hotkey character from a menu name with ~X~ markers
+///
+/// Given a string like "~F~ile" or "~W~indow", returns the character between the tildes.
+/// Returns None if no valid hotkey marker is found.
+///
+/// Examples:
+/// - "~F~ile" -> Some('F')
+/// - "~W~indow" -> Some('W')
+/// - "No hotkey" -> None
+fn extract_hotkey(text: &str) -> Option<char> {
+    let mut chars = text.chars();
+    while let Some(ch) = chars.next() {
+        if ch == '~' {
+            // Found opening ~, next character is the hotkey
+            if let Some(hotkey_ch) = chars.next() {
+                // Verify it's followed by closing ~
+                if chars.next() == Some('~') {
+                    return Some(hotkey_ch);
+                }
+            }
         }
     }
+    None
 }
 
 /// MenuBar - Horizontal menu bar at top of screen
@@ -51,9 +73,9 @@ impl SubMenu {
 pub struct MenuBar {
     bounds: Rect,
     submenus: Vec<SubMenu>,
-    menu_positions: Vec<i16>, // X positions of each menu for dropdown placement
+    menu_positions: Vec<i16>,       // X positions of each menu for dropdown placement
     active_menu_idx: Option<usize>, // Which submenu is currently open
-    menu_state: MenuViewerState, // State for dropdown menu items
+    menu_state: MenuViewerState,    // State for dropdown menu items
     state: StateFlags,
     owner: Option<*const dyn View>,
 }
@@ -80,8 +102,7 @@ impl MenuBar {
     fn open_menu(&mut self, menu_idx: usize) {
         if menu_idx < self.submenus.len() {
             self.active_menu_idx = Some(menu_idx);
-            self.menu_state
-                .set_menu(self.submenus[menu_idx].menu.clone());
+            self.menu_state.set_menu(self.submenus[menu_idx].menu.clone());
         }
     }
 
@@ -89,6 +110,58 @@ impl MenuBar {
     fn close_menu(&mut self) {
         self.active_menu_idx = None;
         self.menu_state = MenuViewerState::new();
+    }
+
+    /// Find a submenu index by matching Alt+Letter hotkey with ~X~ markers in menu names
+    ///
+    /// Scans all submenus for a name containing ~X~ where X matches the Alt+Letter keypress.
+    /// For example, "~F~ile" matches KB_ALT_F, "~W~indow" matches KB_ALT_W, etc.
+    ///
+    /// Returns Some(index) if a matching menu is found, None otherwise.
+    fn find_menu_by_hotkey(&self, key_code: KeyCode) -> Option<usize> {
+        // Map Alt+Letter keycodes to their corresponding character
+        // Use lowercase for comparison since menu hotkeys are case-insensitive
+        let hotkey_char = match key_code {
+            KB_ALT_A => 'a',
+            KB_ALT_B => 'b',
+            KB_ALT_C => 'c',
+            KB_ALT_D => 'd',
+            KB_ALT_E => 'e',
+            KB_ALT_F => 'f',
+            KB_ALT_G => 'g',
+            KB_ALT_H => 'h',
+            KB_ALT_I => 'i',
+            KB_ALT_J => 'j',
+            KB_ALT_K => 'k',
+            KB_ALT_L => 'l',
+            KB_ALT_M => 'm',
+            KB_ALT_N => 'n',
+            KB_ALT_O => 'o',
+            KB_ALT_P => 'p',
+            KB_ALT_Q => 'q',
+            KB_ALT_R => 'r',
+            KB_ALT_S => 's',
+            KB_ALT_T => 't',
+            KB_ALT_U => 'u',
+            KB_ALT_V => 'v',
+            KB_ALT_W => 'w',
+            KB_ALT_X => 'x',
+            KB_ALT_Y => 'y',
+            KB_ALT_Z => 'z',
+            _ => return None, // Not an Alt+Letter key
+        };
+
+        // Search through all submenus for a matching hotkey
+        for (idx, submenu) in self.submenus.iter().enumerate() {
+            // Extract the hotkey character from between ~X~ markers
+            if let Some(menu_hotkey) = extract_hotkey(&submenu.name) {
+                if menu_hotkey.to_ascii_lowercase() == hotkey_char {
+                    return Some(idx);
+                }
+            }
+        }
+
+        None
     }
 
     /// Show a cascading submenu for the currently selected item
@@ -210,12 +283,7 @@ impl MenuBar {
                     }
                     item_buf.put_char(dropdown_width - 1, '┤', normal_attr);
                 }
-                MenuItem::Regular {
-                    text,
-                    enabled,
-                    shortcut,
-                    ..
-                } => {
+                MenuItem::Regular { text, enabled, shortcut, .. } => {
                     let attr = if is_selected && *enabled {
                         selected_attr
                     } else if !enabled {
@@ -273,11 +341,7 @@ impl MenuBar {
                     item_buf.put_char(dropdown_width - 1, '│', normal_attr);
                 }
                 MenuItem::SubMenu { text, .. } => {
-                    let attr = if is_selected {
-                        selected_attr
-                    } else {
-                        normal_attr
-                    };
+                    let attr = if is_selected { selected_attr } else { normal_attr };
 
                     item_buf.put_char(0, '│', normal_attr);
                     for j in 1..dropdown_width - 1 {
@@ -313,12 +377,7 @@ impl MenuBar {
         write_line_to_terminal(terminal, menu_x, menu_y + 1 + dropdown_height, &bottom_buf);
 
         // Draw shadow
-        let shadow_bounds = crate::core::geometry::Rect::new(
-            menu_x,
-            menu_y,
-            menu_x + dropdown_width as i16,
-            menu_y + dropdown_height + 2,
-        );
+        let shadow_bounds = crate::core::geometry::Rect::new(menu_x, menu_y, menu_x + dropdown_width as i16, menu_y + dropdown_height + 2);
         crate::views::view::draw_shadow_bounds(terminal, shadow_bounds);
     }
 }
@@ -350,11 +409,7 @@ impl View for MenuBar {
                 self.menu_positions[i] = x as i16;
             }
 
-            let attr = if self.active_menu_idx == Some(i) {
-                selected_attr
-            } else {
-                normal_attr
-            };
+            let attr = if self.active_menu_idx == Some(i) { selected_attr } else { normal_attr };
 
             // Parse ~X~ for highlighting
             buf.put_char(x, ' ', attr);
@@ -364,11 +419,7 @@ impl View for MenuBar {
             while let Some(ch) = chars.next() {
                 if ch == '~' {
                     // Read all characters until closing ~ in shortcut color
-                    let menu_shortcut_attr = if self.active_menu_idx == Some(i) {
-                        selected_attr
-                    } else {
-                        shortcut_attr
-                    };
+                    let menu_shortcut_attr = if self.active_menu_idx == Some(i) { selected_attr } else { shortcut_attr };
                     while let Some(shortcut_ch) = chars.next() {
                         if shortcut_ch == '~' {
                             break;
@@ -403,8 +454,7 @@ impl View for MenuBar {
                 if mouse_pos.y == self.bounds.a.y {
                     for (i, &menu_x) in self.menu_positions.iter().enumerate() {
                         if i < self.submenus.len() {
-                            let menu_width =
-                                self.submenus[i].name.replace('~', "").len() as i16 + 2;
+                            let menu_width = self.submenus[i].name.replace('~', "").len() as i16 + 2;
                             if mouse_pos.x >= menu_x && mouse_pos.x < menu_x + menu_width {
                                 if self.active_menu_idx == Some(i) {
                                     self.close_menu();
@@ -483,12 +533,7 @@ impl View for MenuBar {
                             let menu_y = self.bounds.a.y + 1;
                             let item_count = menu.items.len();
 
-                            let bounds = Rect::new(
-                                menu_x,
-                                menu_y,
-                                menu_x + 20,
-                                menu_y + 1 + item_count as i16 + 1,
-                            );
+                            let bounds = Rect::new(menu_x, menu_y, menu_x + 20, menu_y + 1 + item_count as i16 + 1);
                             (Some(bounds), item_count)
                         } else {
                             (None, 0)
@@ -502,9 +547,7 @@ impl View for MenuBar {
                             // Check if mouse up is on currently selected item
                             for i in 0..item_count {
                                 let item_rect = self.get_item_rect(i);
-                                if item_rect.contains(mouse_pos)
-                                    && self.menu_state.current == Some(i)
-                                {
+                                if item_rect.contains(mouse_pos) && self.menu_state.current == Some(i) {
                                     // Check if it's a submenu - don't clear so check_cascading_submenu can handle it
                                     if let Some(item) = self.menu_state.get_current_item() {
                                         if matches!(item, MenuItem::SubMenu { .. }) {
@@ -514,19 +557,10 @@ impl View for MenuBar {
                                     }
 
                                     // If it's a regular item, execute it
-                                    let command =
-                                        self.menu_state.get_current_item().and_then(|item| {
-                                            if let MenuItem::Regular {
-                                                command,
-                                                enabled: true,
-                                                ..
-                                            } = item
-                                            {
-                                                Some(*command)
-                                            } else {
-                                                None
-                                            }
-                                        });
+                                    let command = self
+                                        .menu_state
+                                        .get_current_item()
+                                        .and_then(|item| if let MenuItem::Regular { command, enabled: true, .. } = item { Some(*command) } else { None });
 
                                     if let Some(cmd) = command {
                                         self.close_menu();
@@ -553,8 +587,7 @@ impl View for MenuBar {
                     if mouse_pos.y == self.bounds.a.y {
                         for (i, &menu_x) in self.menu_positions.iter().enumerate() {
                             if i < self.submenus.len() && i != menu_idx {
-                                let menu_width =
-                                    self.submenus[i].name.replace('~', "").len() as i16 + 2;
+                                let menu_width = self.submenus[i].name.replace('~', "").len() as i16 + 2;
                                 if mouse_pos.x >= menu_x && mouse_pos.x < menu_x + menu_width {
                                     self.open_menu(i);
                                     break;
@@ -567,17 +600,15 @@ impl View for MenuBar {
             EventType::Keyboard => {
                 // Hot keys to open specific menus
                 if self.active_menu_idx.is_none() {
+                    // Special case: F10 always opens first menu, F1 always opens last (Help)
                     let menu_to_open = match event.key_code {
-                        KB_F10 | KB_ALT_F if !self.submenus.is_empty() => {
-                            Some(0) // F10 or Alt+F opens first menu (File)
+                        KB_F10 if !self.submenus.is_empty() => Some(0),
+                        KB_F1 if !self.submenus.is_empty() => Some(self.submenus.len() - 1),
+                        _ => {
+                            // Dynamically match Alt+Letter based on ~X~ hotkeys in menu names
+                            // This extracts the hotkey character from menu names like "~F~ile", "~W~indow", etc.
+                            self.find_menu_by_hotkey(event.key_code)
                         }
-                        KB_ALT_E if self.submenus.len() > 1 => Some(1),
-                        KB_ALT_S if self.submenus.len() > 2 => Some(2),
-                        KB_ALT_V if self.submenus.len() > 3 => Some(3),
-                        KB_F1 | KB_ALT_H if self.submenus.len() > 1 => {
-                            Some(self.submenus.len() - 1) // F1 or Alt+H opens last menu (Help)
-                        }
-                        _ => None,
                     };
 
                     if let Some(idx) = menu_to_open {
@@ -596,11 +627,7 @@ impl View for MenuBar {
                         }
                         KB_LEFT => {
                             // Previous menu
-                            let prev = if menu_idx > 0 {
-                                menu_idx - 1
-                            } else {
-                                self.submenus.len() - 1
-                            };
+                            let prev = if menu_idx > 0 { menu_idx - 1 } else { self.submenus.len() - 1 };
                             self.open_menu(prev);
                             event.clear();
                         }
@@ -619,18 +646,10 @@ impl View for MenuBar {
                             }
 
                             // Execute current item (if it's a regular item)
-                            let command = self.menu_state.get_current_item().and_then(|item| {
-                                if let MenuItem::Regular {
-                                    command,
-                                    enabled: true,
-                                    ..
-                                } = item
-                                {
-                                    Some(*command)
-                                } else {
-                                    None
-                                }
-                            });
+                            let command = self
+                                .menu_state
+                                .get_current_item()
+                                .and_then(|item| if let MenuItem::Regular { command, enabled: true, .. } = item { Some(*command) } else { None });
 
                             if let Some(cmd) = command {
                                 self.close_menu();
@@ -667,7 +686,7 @@ impl View for MenuBar {
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        use crate::core::palette::{palettes, Palette};
+        use crate::core::palette::{Palette, palettes};
         Some(Palette::from_slice(palettes::CP_MENU_BAR))
     }
 }
