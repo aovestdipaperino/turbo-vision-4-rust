@@ -25,7 +25,7 @@ use turbo_vision::core::command::{
 use turbo_vision::core::event::{EventType, KB_F10};
 use turbo_vision::core::geometry::Rect;
 use turbo_vision::core::menu_data::{Menu, MenuItem};
-use turbo_vision::views::file_dialog::FileDialog;
+use turbo_vision::views::file_dialog::FileDialogBuilder;
 use turbo_vision::views::file_editor::FileEditor;
 use turbo_vision::views::menu_bar::{MenuBar, SubMenu};
 use turbo_vision::views::status_line::{StatusItem, StatusLine};
@@ -427,8 +427,18 @@ fn show_file_open_dialog(app: &mut Application) -> Option<PathBuf> {
     // Start in current directory
     let initial_dir = std::env::current_dir().ok();
 
-    let mut file_dialog = FileDialog::new(bounds, "Open File", "*.rs", initial_dir).build();
-    file_dialog.execute(app)
+    // Use standard FileDialogBuilder API
+    let mut file_dialog = FileDialogBuilder::new()
+        .bounds(bounds)
+        .title("Open File")
+        .wildcard("*.rs");
+
+    if let Some(dir) = initial_dir {
+        file_dialog = file_dialog.initial_dir(dir);
+    }
+
+    let mut dialog = file_dialog.build();
+    dialog.execute(app)
 }
 
 fn save_file(app: &mut Application) {
@@ -478,8 +488,18 @@ fn show_file_save_dialog(app: &mut Application) -> Option<PathBuf> {
     // Start in current directory
     let initial_dir = std::env::current_dir().ok();
 
-    let mut file_dialog = FileDialog::new(bounds, "Save File As", "*.rs", initial_dir).build();
-    file_dialog.execute(app)
+    // Use standard FileDialogBuilder API
+    let mut file_dialog = FileDialogBuilder::new()
+        .bounds(bounds)
+        .title("Save File As")
+        .wildcard("*.rs");
+
+    if let Some(dir) = initial_dir {
+        file_dialog = file_dialog.initial_dir(dir);
+    }
+
+    let mut dialog = file_dialog.build();
+    dialog.execute(app)
 }
 
 fn analyze_with_rust_analyzer(app: &mut Application) {
