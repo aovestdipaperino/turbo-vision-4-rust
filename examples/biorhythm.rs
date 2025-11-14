@@ -408,27 +408,19 @@ fn validate_birth_date(day_str: &str, month_str: &str, year_str: &str) -> bool {
     calculate_days_alive(year, month, day).is_some()
 }
 
-fn create_about_dialog() -> turbo_vision::views::dialog::Dialog {
-    let mut dialog = DialogBuilder::new()
-        .bounds(Rect::new(18, 6, 62, 17))
-        .title("About Biorhythm")
-        .build();
+fn show_about_dialog(app: &mut Application) {
+    use turbo_vision::helpers::msgbox::{message_box, MF_ABOUT, MF_OK_BUTTON};
 
-    dialog.add(Box::new(StaticTextBuilder::new()
-        .bounds(Rect::new(2, 2, 40, 8))
-        .text("Biorhythm Calculator v1.0\n\
-         \n\
-         Calculates three cycles:\n\
-         • Physical (23 days)\n\
-         • Emotional (28 days)\n\
-         • Intellectual (33 days)\n\
-         \n\
-         Semi-graphical ASCII chart")
-        .build()));
+    let message = "Biorhythm Calculator v1.0\n\
+                   \n\
+                   Calculates three cycles:\n\
+                   • Physical (23 days)\n\
+                   • Emotional (28 days)\n\
+                   • Intellectual (33 days)\n\
+                   \n\
+                   Semi-graphical ASCII chart";
 
-    dialog.add(Box::new(ButtonBuilder::new().bounds(Rect::new(15, 8, 25, 10)).title("  OK  ").command(CM_OK).default(true).build()));
-    dialog.set_initial_focus();
-    dialog
+    message_box(app, message, MF_ABOUT | MF_OK_BUTTON);
 }
 
 fn main() -> turbo_vision::core::error::Result<()> {
@@ -776,8 +768,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
                         continue;
                     }
                     CM_ABOUT => {
-                        let mut dialog = create_about_dialog();
-                        dialog.execute(&mut app);
+                        show_about_dialog(&mut app);
                         continue;
                     }
                     CM_CLOSE => {

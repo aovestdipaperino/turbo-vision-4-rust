@@ -6,7 +6,7 @@ use std::time::SystemTime;
 use std::rc::Rc;
 use std::cell::RefCell;
 use turbo_vision::app::Application;
-use turbo_vision::core::command::{CM_CASCADE, CM_CLOSE, CM_NEXT, CM_OK, CM_PREV, CM_QUIT, CM_TILE, CM_ZOOM};
+use turbo_vision::core::command::{CM_CASCADE, CM_CLOSE, CM_NEXT, CM_PREV, CM_QUIT, CM_TILE, CM_ZOOM};
 use turbo_vision::core::draw::DrawBuffer;
 use turbo_vision::core::event::{Event, EventType, KB_F1, KB_F3, KB_F10};
 use turbo_vision::core::geometry::Rect;
@@ -22,7 +22,6 @@ use turbo_vision::views::{
     dialog::DialogBuilder,
     file_dialog::FileDialogBuilder,
     menu_bar::{MenuBar, SubMenu},
-    static_text::StaticTextBuilder,
     status_line::{StatusItem, StatusLine},
     window::WindowBuilder,
 };
@@ -366,35 +365,15 @@ fn create_status_line(width: u16, height: u16) -> StatusLine {
 }
 
 fn show_about_dialog(app: &mut Application) {
-    // Center the dialog on screen (80x25 terminal)
-    // Dialog size: 32 wide x 11 tall (fits content properly)
-    let dialog_width = 32i16;
-    let dialog_height = 11i16;
-    let (term_width, term_height) = app.terminal.size();
-    let x = (term_width as i16 - dialog_width) / 2;
-    let y = (term_height as i16 - dialog_height) / 2;
+    use turbo_vision::helpers::msgbox::{message_box, MF_ABOUT, MF_OK_BUTTON};
 
-    let mut dialog = DialogBuilder::new().bounds(Rect::new(x, y, x + dialog_width, y + dialog_height)).title("About").build();
+    let message = "Turbo Vision Demo\n\
+                   Version 1.0\n\
+                   \n\
+                   A demonstration of the\n\
+                   Turbo Vision framework";
 
-    // Text content (5 lines, centered with margins)
-    dialog.add(Box::new(
-        StaticTextBuilder::new()
-            .bounds(Rect::new(3, 1, 29, 6))
-            .text(
-                "Turbo Vision Demo\n\
-               Version 1.0\n\
-               \n\
-               A demonstration of the\n\
-               Turbo Vision framework",
-            )
-            .build(),
-    ));
-
-    // OK button (centered horizontally, below text)
-    dialog.add(Box::new(ButtonBuilder::new().bounds(Rect::new(11, 7, 21, 9)).title("  OK  ").command(CM_OK).default(true).build()));
-
-    dialog.set_initial_focus();
-    dialog.execute(app);
+    message_box(app, message, MF_ABOUT | MF_OK_BUTTON);
 }
 
 // ASCII Table Window

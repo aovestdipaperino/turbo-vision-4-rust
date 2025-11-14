@@ -336,49 +336,20 @@ fn show_welcome(app: &mut Application) {
 }
 
 fn show_about(app: &mut Application) {
-    let (term_width, term_height) = app.terminal.size();
+    use turbo_vision::helpers::msgbox::{message_box, MF_ABOUT, MF_OK_BUTTON};
 
-    let dialog_width = 55;
-    let dialog_height = 12;
-    let dialog_x = (term_width as i16 - dialog_width) / 2;
-    let dialog_y = (term_height as i16 - dialog_height) / 2;
+    let message = "Turbo Vision for Rust\n\
+                   \n\
+                   Version 0.1.8\n\
+                   \n\
+                   Features:\n\
+                   • Status Line Hot Spots (v0.1.8)\n\
+                   • Window Resize Support (v0.1.6)\n\
+                   • Menu Shortcuts Display (v0.1.7)\n\
+                   \n\
+                   Based on Borland Turbo Vision";
 
-    let mut dialog = DialogBuilder::new()
-        .bounds(Rect::new(dialog_x, dialog_y, dialog_x + dialog_width, dialog_y + dialog_height))
-        .title("About")
-        .build();
-
-    let about_text =
-        "Turbo Vision for Rust\n\
-        \n\
-        Version 0.1.8\n\
-        \n\
-        Features:\n\
-        • Status Line Hot Spots (v0.1.8)\n\
-        • Window Resize Support (v0.1.6)\n\
-        • Menu Shortcuts Display (v0.1.7)\n\
-        \n\
-        Based on Borland Turbo Vision";
-
-    let text = StaticTextBuilder::new()
-        .bounds(Rect::new(2, 1, dialog_width - 4, 9))
-        .text(about_text)
-        .centered(true)
-        .build();
-    dialog.add(Box::new(text));
-
-    let button_width = 10;
-    let button_x = (dialog_width - 2 - button_width) / 2;
-    let button = ButtonBuilder::new()
-        .bounds(Rect::new(button_x, 9, button_x + button_width, 11))
-        .title("  ~O~K  ")
-        .command(0)
-        .default(true)
-        .build();
-    dialog.add(Box::new(button));
-    dialog.set_initial_focus();
-
-    dialog.execute(app);
+    message_box(app, message, MF_ABOUT | MF_OK_BUTTON);
 }
 
 fn show_help(app: &mut Application) {

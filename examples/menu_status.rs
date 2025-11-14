@@ -343,43 +343,15 @@ fn show_message(app: &mut Application, title: &str, message: &str) {
 
 /// Show the About dialog
 fn show_about(app: &mut Application) {
-    let (term_width, term_height) = app.terminal.size();
+    use turbo_vision::helpers::msgbox::{message_box, MF_ABOUT, MF_OK_BUTTON};
 
-    let dialog_width = 56;
-    let dialog_height = 12;
-    let dialog_x = (term_width as i16 - dialog_width) / 2;
-    let dialog_y = (term_height as i16 - dialog_height) / 2;
+    let message = "Welcome To Turbo Vision for Rust!\n\
+                   \n\
+                   Extended Menu Example\n\
+                   \n\
+                   Features:\n\
+                   - Menu bar with nested submenus\n\
+                   - Right-click popup/context menus";
 
-    let mut dialog = DialogBuilder::new()
-        .bounds(Rect::new(
-            dialog_x,
-            dialog_y,
-            dialog_x + dialog_width,
-            dialog_y + dialog_height,
-        ))
-        .title("Turbo Vision for Rust")
-        .build();
-
-    // Add centered about text
-    let text_width = dialog_width - 4;
-    let text = StaticTextBuilder::new()
-        .bounds(Rect::new(2, 1, text_width, 7))
-        .text("Welcome To Turbo Vision for Rust!\n\nExtended Menu Example\n\nFeatures:\n- Menu bar with nested submenus\n- Right-click popup/context menus")
-        .centered(true)
-        .build();
-    dialog.add(Box::new(text));
-
-    // Add centered OK button
-    let button_width = 10;
-    let button_x = (dialog_width - 2 - button_width) / 2;
-    let button = ButtonBuilder::new()
-        .bounds(Rect::new(button_x, 8, button_x + button_width, 10))
-        .title("  ~O~K  ")
-        .command(CM_OK)
-        .default(true)
-        .build();
-    dialog.add(Box::new(button));
-    dialog.set_initial_focus();
-
-    dialog.execute(app);
+    message_box(app, message, MF_ABOUT | MF_OK_BUTTON);
 }
