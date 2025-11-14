@@ -9,7 +9,7 @@
 
 use turbo_vision::app::Application;
 use turbo_vision::core::command::CM_QUIT;
-use turbo_vision::core::event::EventType;
+use turbo_vision::core::event::{EventType, KB_ALT_A, KB_ALT_B, KB_ALT_C, KB_ALT_T, KB_ALT_X};
 use turbo_vision::core::geometry::Rect;
 use turbo_vision::views::sorted_listbox::SortedListBoxBuilder;
 use turbo_vision::views::status_line::{StatusItem, StatusLine};
@@ -50,11 +50,11 @@ fn main() -> turbo_vision::core::error::Result<()> {
     let status_line = StatusLine::new(
         Rect::new(0, height as i16 - 1, width as i16, height as i16),
         vec![
-            StatusItem::new("~Alt+A~ Jump to A", 0, CMD_SEARCH_A),
-            StatusItem::new("~Alt+B~ Jump to B", 0, CMD_SEARCH_B),
-            StatusItem::new("~Alt+C~ Jump to C", 0, CMD_SEARCH_C),
-            StatusItem::new("~Alt+T~ Toggle Case", 0, CMD_TOGGLE_CASE),
-            StatusItem::new("~F10~ Quit", 0, CM_QUIT),
+            StatusItem::new("~Alt+A~ Jump to A", KB_ALT_A, CMD_SEARCH_A),
+            StatusItem::new("~Alt+B~ Jump to B", KB_ALT_B, CMD_SEARCH_B),
+            StatusItem::new("~Alt+C~ Jump to C", KB_ALT_C, CMD_SEARCH_C),
+            StatusItem::new("~Alt+T~ Toggle Case", KB_ALT_T, CMD_TOGGLE_CASE),
+            StatusItem::new("~Alt+X~ Quit", KB_ALT_X, CM_QUIT),
         ],
     );
     app.set_status_line(status_line);
