@@ -424,7 +424,8 @@ Semi-graphical ASCII chart";
 fn main() -> turbo_vision::core::error::Result<()> {
     let mut app = Application::new()?;
 
-    let (width, height) = app.terminal.size();
+    setup_menu_bar(&mut app);
+    setup_status_line(&mut app);
 
     let biorhythm_data = Arc::new(Mutex::new(None)); // Start with no data
 
@@ -433,31 +434,9 @@ fn main() -> turbo_vision::core::error::Result<()> {
     let mut prev_month = String::from("");
     let mut prev_year = String::from("");
 
-    // Menu bar
-    let mut menu_bar = MenuBar::new(Rect::new(0, 0, width as i16, 1));
-    let biorhythm_menu = Menu::from_items(vec![
-        MenuItem::with_shortcut("~C~alculate", CM_BIORHYTHM, 0, "Alt+C", 0),
-        MenuItem::separator(),
-        MenuItem::with_shortcut("E~x~it", CM_QUIT, 0, "Alt+X", 0),
-    ]);
-    let help_menu = Menu::from_items(vec![MenuItem::with_shortcut("~A~bout", CM_ABOUT, 0, "F1", 0)]);
-    menu_bar.add_submenu(SubMenu::new("~B~iorhythm", biorhythm_menu));
-    menu_bar.add_submenu(SubMenu::new("~H~elp", help_menu));
-    app.set_menu_bar(menu_bar);
-
-    // Status line
-    let status_line = StatusLine::new(
-        Rect::new(0, height as i16 - 1, width as i16, height as i16),
-        vec![
-            StatusItem::new("~F1~ Help", KB_F1, CM_ABOUT),
-            StatusItem::new("~F10~ Menu", KB_F10, 0),
-            StatusItem::new("~Alt-X~ Exit", 0x2D00, CM_QUIT),
-        ],
-    );
-    app.set_status_line(status_line);
-
     // Calculate window size: fixed width, maximum height
     // Account for menu bar (1 row), status line (1 row), and shadow (2 cols, 1 row)
+    let (width, height) = app.terminal.size();
     let window_width = 76i16; // Fixed width for optimal chart readability
     let available_width = width as i16;
     let available_height = height as i16 - 2; // Subtract menu bar and status line
@@ -789,4 +768,34 @@ fn handle_global_shortcuts(event: &mut Event) {
     if let Some(cmd) = command {
         *event = Event::command(cmd);
     }
+}
+
+/// Create and configure the menu bar
+fn setup_menu_bar(app: &mut Application) {
+    let (width, _) = app.terminal.size();
+    let mut menu_bar = MenuBar::new(Rect::new(0, 0, width as i16, 1));
+    let biorhythm_menu = Menu::from_items(vec![
+        MenuItem::with_shortcut("~C~alculate", CM_BIORHYTHM, 0, "Alt+C", 0),
+        MenuItem::separator(),
+        MenuItem::with_shortcut("E~x~it", CM_QUIT, 0, "Alt+X", 0),
+    ]);
+    let help_menu = Menu::from_items(vec![MenuItem::with_shortcut("~A~bout", CM_ABOUT, 0, "F1", 0)]);
+    menu_bar.add_submenu(SubMenu::new("~B~iorhythm", biorhythm_menu));
+    menu_bar.add_submenu(SubMenu::new("~H~elp", help_menu));
+    app.set_menu_bar(menu_bar);
+}
+
+/// Create and configure the status line at the bottom of the screen
+fn setup_status_line(app: &mut Application) {
+    let (width, height) = app.terminal.size();
+
+    let status_line = StatusLine::new(
+        Rect::new(0, height as i16 - 1, width as i16, height as i16),
+        vec![
+            StatusItem::new("~F1~ Help", KB_F1, CM_ABOUT),
+            StatusItem::new("~F10~ Menu", KB_F10, 0),
+            StatusItem::new("~Alt-X~ Exit", 0x2D00, CM_QUIT),
+        ],
+    );
+    app.set_status_line(status_line);
 }
