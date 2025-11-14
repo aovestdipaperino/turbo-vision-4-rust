@@ -1318,10 +1318,14 @@ impl View for Editor {
                     event.clear();
                 }
                 key_code => {
-                    if (32..127).contains(&key_code) {
-                        let ch = key_code as u8 as char;
-                        self.insert_char(ch);
-                        event.clear();
+                    // Accept all printable characters including Unicode (è, à, etc.)
+                    // Key codes represent Unicode codepoints, so convert directly to char
+                    if let Some(ch) = char::from_u32(key_code as u32) {
+                        // Only insert if it's a printable character (not control characters)
+                        if !ch.is_control() {
+                            self.insert_char(ch);
+                            event.clear();
+                        }
                     }
                 }
             }

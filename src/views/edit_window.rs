@@ -388,8 +388,10 @@ impl View for EditWindow {
         // Save old bounds before Window processes the event
         let old_bounds = self.window.bounds();
 
-        // Pass events to scrollbars first (if they're visible and the event hasn't been handled)
-        if event.what != EventType::Nothing {
+        // Pass mouse events to scrollbars (if they're visible and the event hasn't been handled)
+        // IMPORTANT: Only mouse events! Keyboard events (UP/DOWN/etc.) should go to the Editor,
+        // not to scrollbars. This allows cursor movement before scrolling.
+        if event.what == EventType::MouseDown || event.what == EventType::MouseMove || event.what == EventType::MouseUp {
             let editor = self.editor.borrow();
             let needs_h_scrollbar = editor.needs_horizontal_scrollbar();
             let needs_v_scrollbar = editor.needs_vertical_scrollbar();
