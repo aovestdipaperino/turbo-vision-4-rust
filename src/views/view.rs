@@ -483,6 +483,38 @@ pub trait View {
     }
 }
 
+/// Trait for views that need idle processing (animations, timers, etc.)
+/// These views have their idle() method called periodically even during modal dialogs,
+/// matching Borland's TProgram::idle() behavior which continues running during execView().
+///
+/// # Examples
+///
+/// ```rust,no_run
+/// use turbo_vision::views::{View, IdleView};
+/// use turbo_vision::terminal::Terminal;
+/// use std::time::Instant;
+///
+/// struct AnimatedWidget {
+///     position: usize,
+///     last_update: Instant,
+///     // ... other View fields
+/// }
+///
+/// impl IdleView for AnimatedWidget {
+///     fn idle(&mut self) {
+///         if self.last_update.elapsed().as_millis() > 100 {
+///             self.position = (self.position + 1) % 10;
+///             self.last_update = Instant::now();
+///         }
+///     }
+/// }
+/// ```
+pub trait IdleView: View {
+    /// Called periodically to update animation state, timers, etc.
+    /// Matches Borland: TProgram::idle() continues running even during modal dialogs
+    fn idle(&mut self);
+}
+
 /// Helper to draw a line to the terminal
 pub fn write_line_to_terminal(terminal: &mut Terminal, x: i16, y: i16, buf: &DrawBuffer) {
     if y < 0 || y >= terminal.size().1 as i16 {

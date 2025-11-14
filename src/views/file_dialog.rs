@@ -189,89 +189,117 @@ impl FileDialog {
             // Draw desktop first (background), then dialog on top
             // This matches Borland's pattern where getEvent() triggers full screen redraw
             app.desktop.draw(&mut app.terminal);
+
+            // Draw menu bar and status line if present (so they appear on top)
+            if let Some(ref mut menu_bar) = app.menu_bar {
+                menu_bar.draw(&mut app.terminal);
+            }
+            if let Some(ref mut status_line) = app.status_line {
+                status_line.draw(&mut app.terminal);
+            }
+
+            // Draw the file dialog on top of desktop/menu/status
             self.dialog.draw(&mut app.terminal);
+
+            // Draw overlay widgets on top of everything (animations, etc.)
+            // These continue to animate even during modal dialogs
+            // Matches Borland: TProgram::idle() continues running during execView()
+            for widget in &mut app.overlay_widgets {
+                widget.draw(&mut app.terminal);
+            }
+
             self.dialog.update_cursor(&mut app.terminal);
             let _ = app.terminal.flush();
 
-            // Get event
-            if let Some(mut event) = app.terminal.poll_event(std::time::Duration::from_millis(50)).ok().flatten() {
-                // Handle double ESC to close
-                if event.what == EventType::Keyboard && event.key_code == crate::core::event::KB_ESC_ESC {
-                    return None;
-                }
+            // Get event with 20ms timeout (matches magiblot's eventTimeoutMs)
+            match app.terminal.poll_event(std::time::Duration::from_millis(20)).ok().flatten() {
+                Some(mut event) => {
+                    // Event received - handle it immediately without calling idle()
+                    // Matches magiblot: idle() is NOT called when events are present
 
-                // Let the dialog (and its children) handle the event first
-                self.dialog.handle_event(&mut event);
-
-                // Check if dialog wants to close (e.g., close button clicked)
-                // Dialog::handle_event() calls end_modal() which sets the end_state
-                // Matches Borland: TDialog::execute() checks endState after handleEvent
-                let end_state = self.dialog.get_end_state();
-                if end_state != 0 {
-                    // Dialog closed via close button or ESC - return None (cancel)
-                    return None;
-                }
-
-                // After event is processed, check if ListBox selection changed
-                // Matches Borland: TFileList::focusItem() broadcasts cmFileFocused when selection changes
-                // We read the ListBox selection after it has processed navigation events
-                self.sync_inputline_with_listbox();
-
-                // Check if dialog should close
-                if event.what == EventType::Command {
-                    match event.command {
-                        CM_OK => {
-                            // Get file name from input field
-                            let file_name = self.file_name_data.borrow().clone();
-                            if !file_name.is_empty() {
-                                // Matches Borland: TFileDialog::valid() checks wildcards and directories
-                                // (tfiledia.cc:98-124)
-
-                                // Check if input contains wildcards
-                                if self.contains_wildcards(&file_name) {
-                                    // Update wildcard filter and reload list
-                                    self.wildcard = file_name.clone();
-                                    self.read_directory();
-                                    self.rebuild_and_redraw(&mut app.terminal);
-                                    // Stay open - don't return
-                                    continue;
-                                }
-
-                                // Check if it's a directory navigation request or file selection
-                                if let Some(path) = self.handle_selection(&file_name, &mut app.terminal) {
-                                    // File selected - return it
-                                    return Some(path);
-                                }
-                                // Directory navigation - continue loop (handle_selection returns None)
-                            }
-                            // If input is empty, do nothing (don't close dialog)
-                            // This effectively disables the OK button when input is empty
-                        }
-                        CM_CANCEL | crate::core::command::CM_CLOSE => {
-                            return None;
-                        }
-                        CMD_FILE_SELECTED => {
-                            // User double-clicked or pressed Enter on a file in the list
-                            // Matches Borland: cmFileDoubleClicked is converted to cmOK,
-                            // which triggers valid() that reads from the input field
-
-                            // The input field has ALREADY been updated by the cmFileFocused broadcast
-                            // when the item was focused (see track_listbox_events)
-                            // So we just read what's already there and handle it
-                            let file_name = self.file_name_data.borrow().clone();
-
-                            if !file_name.is_empty() {
-                                // Handle the selection (navigate dirs or return file)
-                                // Matches Borland: TFileDialog::valid() reads from input field
-                                if let Some(path) = self.handle_selection(&file_name, &mut app.terminal) {
-                                    // File selected - return it
-                                    return Some(path);
-                                }
-                                // Directory navigation - continue loop (valid() returns False)
-                            }
-                        }
-                        _ => {}
+                    // Handle double ESC to close
+                    if event.what == EventType::Keyboard && event.key_code == crate::core::event::KB_ESC_ESC {
+                        return None;
                     }
+
+                    // Let the dialog (and its children) handle the event first
+                    self.dialog.handle_event(&mut event);
+
+                    // Check if dialog wants to close (e.g., close button clicked)
+                    // Dialog::handle_event() calls end_modal() which sets the end_state
+                    // Matches Borland: TDialog::execute() checks endState after handleEvent
+                    let end_state = self.dialog.get_end_state();
+                    if end_state != 0 {
+                        // Dialog closed via close button or ESC - return None (cancel)
+                        return None;
+                    }
+
+                    // After event is processed, check if ListBox selection changed
+                    // Matches Borland: TFileList::focusItem() broadcasts cmFileFocused when selection changes
+                    // We read the ListBox selection after it has processed navigation events
+                    self.sync_inputline_with_listbox();
+
+                    // Check if dialog should close
+                    if event.what == EventType::Command {
+                        match event.command {
+                            CM_OK => {
+                                // Get file name from input field
+                                let file_name = self.file_name_data.borrow().clone();
+                                if !file_name.is_empty() {
+                                    // Matches Borland: TFileDialog::valid() checks wildcards and directories
+                                    // (tfiledia.cc:98-124)
+
+                                    // Check if input contains wildcards
+                                    if self.contains_wildcards(&file_name) {
+                                        // Update wildcard filter and reload list
+                                        self.wildcard = file_name.clone();
+                                        self.read_directory();
+                                        self.rebuild_and_redraw(&mut app.terminal);
+                                        // Stay open - don't return
+                                        continue;
+                                    }
+
+                                    // Check if it's a directory navigation request or file selection
+                                    if let Some(path) = self.handle_selection(&file_name, &mut app.terminal) {
+                                        // File selected - return it
+                                        return Some(path);
+                                    }
+                                    // Directory navigation - continue loop (handle_selection returns None)
+                                }
+                                // If input is empty, do nothing (don't close dialog)
+                                // This effectively disables the OK button when input is empty
+                            }
+                            CM_CANCEL | crate::core::command::CM_CLOSE => {
+                                return None;
+                            }
+                            CMD_FILE_SELECTED => {
+                                // User double-clicked or pressed Enter on a file in the list
+                                // Matches Borland: cmFileDoubleClicked is converted to cmOK,
+                                // which triggers valid() that reads from the input field
+
+                                // The input field has ALREADY been updated by the cmFileFocused broadcast
+                                // when the item was focused (see track_listbox_events)
+                                // So we just read what's already there and handle it
+                                let file_name = self.file_name_data.borrow().clone();
+
+                                if !file_name.is_empty() {
+                                    // Handle the selection (navigate dirs or return file)
+                                    // Matches Borland: TFileDialog::valid() reads from input field
+                                    if let Some(path) = self.handle_selection(&file_name, &mut app.terminal) {
+                                        // File selected - return it
+                                        return Some(path);
+                                    }
+                                    // Directory navigation - continue loop (valid() returns False)
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+                None => {
+                    // Timeout with no events - call idle() to update animations, etc.
+                    // Matches magiblot: idle() only called when truly idle
+                    app.idle();
                 }
             }
         }

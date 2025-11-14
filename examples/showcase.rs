@@ -3,18 +3,20 @@
 // Port of the classic Borland TV demo application
 
 use std::time::SystemTime;
+use std::rc::Rc;
+use std::cell::RefCell;
 use turbo_vision::app::Application;
 use turbo_vision::core::command::{CM_CASCADE, CM_CLOSE, CM_NEXT, CM_OK, CM_PREV, CM_QUIT, CM_TILE, CM_ZOOM};
 use turbo_vision::core::draw::DrawBuffer;
 use turbo_vision::core::event::{Event, EventType, KB_F1, KB_F3, KB_F10};
 use turbo_vision::core::geometry::Rect;
 use turbo_vision::core::menu_data::{Menu, MenuItem};
-use turbo_vision::core::palette::{Attr, TvColor, colors};
+use turbo_vision::core::palette::{Attr, TvColor, colors, Palette};
 use turbo_vision::core::state::StateFlags;
 use turbo_vision::terminal::Terminal;
 use turbo_vision::views::view::write_line_to_terminal;
 use turbo_vision::views::{
-    View,
+    View, IdleView,
     button::ButtonBuilder,
     chdir_dialog::ChDirDialog,
     dialog::DialogBuilder,
@@ -24,6 +26,7 @@ use turbo_vision::views::{
     status_line::{StatusItem, StatusLine},
     window::WindowBuilder,
 };
+use std::time::Instant;
 
 // Custom commands
 const CM_ABOUT: u16 = 100;
@@ -33,6 +36,8 @@ const CM_CALENDAR: u16 = 103;
 const CM_PUZZLE: u16 = 104;
 const CM_OPEN: u16 = 105;
 const CM_CHDIR: u16 = 106;
+const CM_START_CRAB: u16 = 107;
+const CM_PAUSE_CRAB: u16 = 108;
 
 // Calculator button commands
 #[allow(dead_code)]
@@ -149,26 +154,45 @@ impl View for ClockView {
     }
 }
 
-// MessageView - displays static message on status bar
-struct MessageView {
+// Animated Crab Widget for Status Bar
+struct CrabWidget {
     bounds: Rect,
     state: StateFlags,
-    message: String,
-    owner: Option<*const dyn View>,
+    position: usize,      // Current position (0-9)
+    direction: i8,        // 1 for right, -1 for left
+    last_update: Instant,
+    paused: bool,         // Animation paused state
 }
 
-impl MessageView {
-    fn new(bounds: Rect, message: &str) -> Self {
+impl CrabWidget {
+    fn new(x: i16, y: i16) -> Self {
         Self {
-            bounds,
+            bounds: Rect::new(x, y, x + 10, y + 1),
             state: 0,
-            message: message.to_string(),
-            owner: None,
+            position: 0,
+            direction: 1,
+            last_update: Instant::now(),
+            paused: false,
         }
+    }
+
+    fn pause(&mut self) {
+        self.paused = true;
+    }
+
+    fn start(&mut self) {
+        self.paused = false;
+        // Reset timer so animation doesn't jump
+        self.last_update = Instant::now();
+    }
+
+    #[allow(dead_code)]
+    fn is_paused(&self) -> bool {
+        self.paused
     }
 }
 
-impl View for MessageView {
+impl View for CrabWidget {
     fn bounds(&self) -> Rect {
         self.bounds
     }
@@ -186,17 +210,17 @@ impl View for MessageView {
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        let width = self.bounds.width() as usize;
-        let color = colors::STATUS_NORMAL;
+        let mut buf = DrawBuffer::new(10);
+        // Use status line colors (reverse video)
+        let color = Attr::new(TvColor::Black, TvColor::LightGray);
 
-        let mut buf = DrawBuffer::new(width);
-        buf.move_char(0, ' ', color, width);
-
-        if self.message.len() <= width {
-            // Right-align the message
-            let x_pos = width.saturating_sub(self.message.len());
-            buf.move_str(x_pos, &self.message, color);
+        // Fill with spaces
+        for i in 0..10 {
+            buf.move_char(i, ' ', color, 1);
         }
+
+        // Place the crab at current position
+        buf.move_char(self.position, '🦀', color, 1);
 
         write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y, &buf);
     }
@@ -204,16 +228,87 @@ impl View for MessageView {
     fn handle_event(&mut self, _event: &mut Event) {}
     fn update_cursor(&self, _terminal: &mut Terminal) {}
 
-    fn set_owner(&mut self, owner: *const dyn View) {
-        self.owner = Some(owner);
-    }
-
-    fn get_owner(&self) -> Option<*const dyn View> {
-        self.owner
-    }
-
-    fn get_palette(&self) -> Option<turbo_vision::core::palette::Palette> {
+    fn get_palette(&self) -> Option<Palette> {
         None
+    }
+}
+
+impl IdleView for CrabWidget {
+    fn idle(&mut self) {
+        // Don't update animation if paused
+        if self.paused {
+            return;
+        }
+
+        // Update animation every 100ms
+        if self.last_update.elapsed().as_millis() > 100 {
+            // Move the crab
+            if self.direction > 0 {
+                self.position += 1;
+                if self.position >= 9 {
+                    self.direction = -1;
+                }
+            } else {
+                if self.position > 0 {
+                    self.position -= 1;
+                }
+                if self.position == 0 {
+                    self.direction = 1;
+                }
+            }
+            self.last_update = Instant::now();
+        }
+    }
+}
+
+// Wrapper to allow shared ownership of CrabWidget
+struct CrabWidgetWrapper {
+    inner: Rc<RefCell<CrabWidget>>,
+}
+
+impl CrabWidgetWrapper {
+    fn new(inner: Rc<RefCell<CrabWidget>>) -> Self {
+        Self { inner }
+    }
+}
+
+impl View for CrabWidgetWrapper {
+    fn bounds(&self) -> Rect {
+        self.inner.borrow().bounds()
+    }
+
+    fn set_bounds(&mut self, bounds: Rect) {
+        self.inner.borrow_mut().set_bounds(bounds);
+    }
+
+    fn state(&self) -> StateFlags {
+        self.inner.borrow().state()
+    }
+
+    fn set_state(&mut self, state: StateFlags) {
+        self.inner.borrow_mut().set_state(state);
+    }
+
+    fn draw(&mut self, terminal: &mut Terminal) {
+        self.inner.borrow_mut().draw(terminal);
+    }
+
+    fn handle_event(&mut self, event: &mut Event) {
+        self.inner.borrow_mut().handle_event(event);
+    }
+
+    fn update_cursor(&self, terminal: &mut Terminal) {
+        self.inner.borrow().update_cursor(terminal);
+    }
+
+    fn get_palette(&self) -> Option<Palette> {
+        self.inner.borrow().get_palette()
+    }
+}
+
+impl IdleView for CrabWidgetWrapper {
+    fn idle(&mut self) {
+        self.inner.borrow_mut().idle();
     }
 }
 
@@ -1252,7 +1347,10 @@ fn show_puzzle_placeholder(app: &mut Application) {
     app.desktop.add(Box::new(window));
 }
 
-fn show_open_file_dialog(app: &mut Application) {
+fn show_open_file_dialog(app: &mut Application, crab: &Rc<RefCell<CrabWidget>>) {
+    // Pause the crab animation before showing dialog
+    crab.borrow_mut().pause();
+
     let (width, height) = app.terminal.size();
 
     // Create centered file dialog
@@ -1276,6 +1374,12 @@ fn show_open_file_dialog(app: &mut Application) {
         use turbo_vision::helpers::msgbox::{MF_INFORMATION, MF_OK_BUTTON, message_box};
         message_box(app, &msg, MF_INFORMATION | MF_OK_BUTTON);
     }
+
+    // Hide cursor after dialog closes (file dialog may have left it visible)
+    let _ = app.terminal.hide_cursor();
+
+    // Start the crab animation after dialog is closed
+    crab.borrow_mut().start();
 }
 
 fn show_chdir_dialog(app: &mut Application) {
@@ -1333,10 +1437,11 @@ fn main() -> turbo_vision::core::error::Result<()> {
     let clock_width = 9; // "HH:MM:SS" format + space
     let mut clock = ClockView::new(Rect::new(width as i16 - clock_width, 0, width as i16, 1));
 
-    // Create heap/message view (right side of status bar) - Matches Borland: tvdemo1.cc:133
-    let message = "Hello, World!";
-    let msg_width = 13; // Fixed width like Borland's heap view
-    let mut message_view = MessageView::new(Rect::new(width as i16 - msg_width, height as i16 - 1, width as i16, height as i16), message);
+    // Create animated crab widget on the right side of the status bar
+    // Add it as an overlay widget so it continues animating even during modal dialogs
+    // Use Rc<RefCell<>> to allow shared ownership for pause/start control
+    let crab_widget = Rc::new(RefCell::new(CrabWidget::new(width as i16 - 11, height as i16 - 1)));
+    app.add_overlay_widget(Box::new(CrabWidgetWrapper::new(crab_widget.clone())));
 
     // Main event loop
     app.running = true;
@@ -1344,7 +1449,6 @@ fn main() -> turbo_vision::core::error::Result<()> {
     // Draw desktop first, then show about dialog on top
     app.draw();
     clock.draw(&mut app.terminal);
-    message_view.draw(&mut app.terminal);
     app.terminal.flush()?;
 
     // Show about dialog on startup (after desktop is drawn)
@@ -1353,10 +1457,9 @@ fn main() -> turbo_vision::core::error::Result<()> {
     while app.running {
         app.draw();
 
-        // Draw clock and message views on top (like Borland's idle() update)
+        // Draw clock on top (like Borland's idle() update)
         // Matches Borland: tvdemo3.cc:173-174
         clock.draw(&mut app.terminal);
-        message_view.draw(&mut app.terminal);
 
         app.terminal.flush()?;
 
@@ -1385,35 +1488,79 @@ fn main() -> turbo_vision::core::error::Result<()> {
 
             // Handle commands
             if event.what == EventType::Command {
-                match event.command {
-                    CM_QUIT => app.running = false,
-                    CM_ABOUT => show_about_dialog(&mut app),
-                    CM_ASCII_TABLE => show_ascii_table(&mut app),
-                    CM_CALCULATOR => show_calculator_placeholder(&mut app),
-                    CM_CALENDAR => show_calendar_placeholder(&mut app),
-                    CM_PUZZLE => show_puzzle_placeholder(&mut app),
-                    CM_OPEN => show_open_file_dialog(&mut app),
-                    CM_CHDIR => show_chdir_dialog(&mut app),
+                let needs_redraw = match event.command {
+                    CM_QUIT => {
+                        app.running = false;
+                        false
+                    }
+                    CM_ABOUT => {
+                        show_about_dialog(&mut app);
+                        true  // Modal dialog - need to redraw and update cursor
+                    }
+                    CM_ASCII_TABLE => {
+                        show_ascii_table(&mut app);
+                        true  // Modal dialog
+                    }
+                    CM_CALCULATOR => {
+                        show_calculator_placeholder(&mut app);
+                        true  // Modal dialog
+                    }
+                    CM_CALENDAR => {
+                        show_calendar_placeholder(&mut app);
+                        true  // Modal dialog
+                    }
+                    CM_PUZZLE => {
+                        show_puzzle_placeholder(&mut app);
+                        true  // Modal dialog
+                    }
+                    CM_OPEN => {
+                        show_open_file_dialog(&mut app, &crab_widget);
+                        true  // Modal dialog
+                    }
+                    CM_CHDIR => {
+                        show_chdir_dialog(&mut app);
+                        true  // Modal dialog
+                    }
+                    CM_START_CRAB => {
+                        crab_widget.borrow_mut().start();
+                        false
+                    }
+                    CM_PAUSE_CRAB => {
+                        crab_widget.borrow_mut().pause();
+                        false
+                    }
                     CM_NEXT => {
                         // Cycle to next window (bring next window to front)
                         app.desktop.select_next();
+                        false
                     }
                     CM_PREV => {
                         // Cycle to previous window (bring previous window to front)
                         app.desktop.select_prev();
+                        false
                     }
                     CM_TILE => {
                         app.desktop.tile();
+                        false
                     }
                     CM_CASCADE => {
                         app.desktop.cascade();
+                        false
                     }
                     CM_ZOOM => {
                         // Zoom/restore the topmost window
                         // Matches Borland: Desktop handles cmZoom command
                         app.desktop.zoom_top_window();
+                        false
                     }
-                    _ => {}
+                    _ => false
+                };
+
+                // After modal dialogs, redraw to update cursor position
+                if needs_redraw {
+                    app.draw();
+                    clock.draw(&mut app.terminal);
+                    app.terminal.flush()?;
                 }
             }
         }

@@ -129,21 +129,47 @@ impl Dialog {
             // Draw desktop first (clears the background), then draw this dialog on top
             // This is the key: dialogs that aren't on the desktop need to draw themselves
             app.desktop.draw(&mut app.terminal);
+
+            // Draw menu bar and status line if present (so they appear on top)
+            if let Some(ref mut menu_bar) = app.menu_bar {
+                menu_bar.draw(&mut app.terminal);
+            }
+            if let Some(ref mut status_line) = app.status_line {
+                status_line.draw(&mut app.terminal);
+            }
+
+            // Draw the dialog on top of desktop/menu/status
             self.draw(&mut app.terminal);
+
+            // Draw overlay widgets on top of everything (animations, etc.)
+            // These continue to animate even during modal dialogs
+            // Matches Borland: TProgram::idle() continues running during execView()
+            for widget in &mut app.overlay_widgets {
+                widget.draw(&mut app.terminal);
+            }
+
             self.update_cursor(&mut app.terminal);
             let _ = app.terminal.flush();
 
-            // Poll for event
-            if let Some(mut event) = app.terminal.poll_event(Duration::from_millis(50)).ok().flatten() {
-                // Handle the event - this calls Dialog::handle_event()
-                // which will call end_modal if needed
-                self.handle_event(&mut event);
-
-                // If the event was converted to a command (e.g., KB_ENTER -> CM_OK),
-                // we need to process it again so the command handler runs
-                // Matches Borland: putEvent() re-queues the converted event
-                if event.what == EventType::Command {
+            // Poll for event with 20ms timeout (matches magiblot's eventTimeoutMs)
+            // This blocks until an event arrives or timeout occurs
+            match app.terminal.poll_event(Duration::from_millis(20)).ok().flatten() {
+                Some(mut event) => {
+                    // Event received - handle it immediately without calling idle()
+                    // Matches magiblot: idle() is NOT called when events are present
                     self.handle_event(&mut event);
+
+                    // If the event was converted to a command (e.g., KB_ENTER -> CM_OK),
+                    // we need to process it again so the command handler runs
+                    // Matches Borland: putEvent() re-queues the converted event
+                    if event.what == EventType::Command {
+                        self.handle_event(&mut event);
+                    }
+                }
+                None => {
+                    // Timeout with no events - call idle() to update animations, etc.
+                    // Matches magiblot: idle() only called when truly idle
+                    app.idle();
                 }
             }
 

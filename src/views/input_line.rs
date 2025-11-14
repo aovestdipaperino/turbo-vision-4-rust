@@ -425,8 +425,11 @@ impl View for InputLine {
 
             // Show cursor at the position
             let _ = terminal.show_cursor(cursor_x as u16, cursor_y as u16);
+        } else {
+            // Explicitly hide cursor when not focused to prevent it from lingering
+            // after dialogs close. This ensures clean cursor state management.
+            let _ = terminal.hide_cursor();
         }
-        // Note: cursor is already hidden by Group if not focused
     }
 
     fn set_owner(&mut self, owner: *const dyn View) {

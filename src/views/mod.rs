@@ -106,7 +106,7 @@ pub mod color_selector;
 pub mod color_dialog;
 
 #[doc(inline)]
-pub use view::{View, ViewId};
+pub use view::{View, ViewId, IdleView};
 #[doc(inline)]
 pub use list_viewer::{ListViewer, ListViewerState};
 #[doc(inline)]

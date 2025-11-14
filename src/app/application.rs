@@ -10,7 +10,7 @@ use crate::core::error::Result;
 use crate::core::event::{Event, EventType, KB_ALT_X, KB_ESC, KB_ESC_ESC, KB_F10};
 use crate::core::geometry::Rect;
 use crate::terminal::Terminal;
-use crate::views::{View, desktop::Desktop, menu_bar::MenuBar, status_line::StatusLine};
+use crate::views::{View, IdleView, desktop::Desktop, menu_bar::MenuBar, status_line::StatusLine};
 use std::time::Duration;
 
 pub struct Application {
@@ -20,6 +20,10 @@ pub struct Application {
     pub desktop: Desktop,
     pub running: bool,
     needs_redraw: bool, // Track if full redraw is needed
+    /// Overlay widgets that need idle processing and are drawn on top of everything
+    /// These widgets continue to animate even during modal dialogs
+    /// Matches Borland: TProgram::idle() continues running during execView()
+    pub(crate) overlay_widgets: Vec<Box<dyn IdleView>>,
                         // Note: Command set is now stored in thread-local static (command_set module)
                         // This matches Borland's architecture where TView::curCommandSet is static
 }
@@ -73,6 +77,7 @@ impl Application {
             desktop,
             running: false,
             needs_redraw: true, // Initial draw needed
+            overlay_widgets: Vec::new(),
         };
 
         // Set initial Desktop bounds (adjusts for missing menu/status)
@@ -98,6 +103,34 @@ impl Application {
         // Update Desktop bounds to exclude status line
         // Matches Borland: TProgram::initDeskTop() adjusts r.b.y based on statusLine
         self.update_desktop_bounds();
+    }
+
+    /// Add an overlay widget that needs idle processing and is drawn on top of everything
+    /// These widgets continue to animate even during modal dialogs
+    /// Matches Borland: TProgram::idle() continues running during execView()
+    ///
+    /// # Examples
+    /// ```rust,no_run
+    /// use turbo_vision::app::Application;
+    /// # use turbo_vision::views::IdleView;
+    /// # struct AnimatedWidget;
+    /// # impl turbo_vision::views::View for AnimatedWidget {
+    /// #     fn bounds(&self) -> turbo_vision::core::geometry::Rect { unimplemented!() }
+    /// #     fn set_bounds(&mut self, _: turbo_vision::core::geometry::Rect) {}
+    /// #     fn draw(&mut self, _: &mut turbo_vision::terminal::Terminal) {}
+    /// #     fn handle_event(&mut self, _: &mut turbo_vision::core::event::Event) {}
+    /// #     fn update_cursor(&self, _: &mut turbo_vision::terminal::Terminal) {}
+    /// #     fn get_palette(&self) -> Option<turbo_vision::core::palette::Palette> { None }
+    /// # }
+    /// # impl IdleView for AnimatedWidget { fn idle(&mut self) {} }
+    ///
+    /// let mut app = Application::new()?;
+    /// let widget = AnimatedWidget { /* ... */ };
+    /// app.add_overlay_widget(Box::new(widget));
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn add_overlay_widget(&mut self, widget: Box<dyn IdleView>) {
+        self.overlay_widgets.push(widget);
     }
 
     /// Update Desktop bounds to exclude menu bar and status line areas
@@ -172,13 +205,15 @@ impl Application {
     }
 
     /// Get an event (with drawing)
-    /// Matches Borland: TProgram::getEvent() (tprogram.cc:105-174)
+    /// Matches Borland/Magiblot: TProgram::getEvent() (tprogram.cc:105-174)
     /// This is called by modal views' execute() methods.
-    /// It handles idle processing, draws the screen, then polls for an event.
+    ///
+    /// Key behavior (matches magiblot):
+    /// - Draws the screen first
+    /// - Blocks waiting for events (default 20ms timeout)
+    /// - Only calls idle() when there are NO events after timeout
+    /// - This gives true event-driven behavior with minimal CPU usage
     pub fn get_event(&mut self) -> Option<Event> {
-        // Idle processing - broadcast command set changes
-        self.idle();
-
         // Update active view bounds
         self.update_active_view_bounds();
 
@@ -187,8 +222,22 @@ impl Application {
         self.draw();
         let _ = self.terminal.flush();
 
-        // Poll for event
-        self.terminal.poll_event(Duration::from_millis(50)).ok().flatten()
+        // Poll for event with 20ms timeout (matches magiblot's eventTimeoutMs)
+        // This blocks until an event arrives or timeout occurs
+        match self.terminal.poll_event(Duration::from_millis(20)).ok().flatten() {
+            Some(event) => {
+                // Event received - return it immediately without calling idle()
+                // Matches magiblot: idle() is NOT called when events are present
+                Some(event)
+            }
+            None => {
+                // Timeout occurred with no events - now we call idle()
+                // Matches magiblot: idle() only called when truly idle
+                // This is where animations update, command sets broadcast, etc.
+                self.idle();
+                None
+            }
+        }
     }
 
     /// Execute a view (modal or modeless)
@@ -215,10 +264,8 @@ impl Application {
 
         // Modal view - run event loop
         // Matches Borland: TProgram::execView() runs modal loop (tprogram.cc:184-194)
+        // Matches magiblot: Only calls idle() when no events (true event-driven)
         loop {
-            // Idle processing (broadcasts command changes, etc.)
-            self.idle();
-
             // Update active view bounds
             self.update_active_view_bounds();
 
@@ -226,10 +273,16 @@ impl Application {
             self.draw();
             let _ = self.terminal.flush();
 
-            // Poll for event
-            if let Ok(Some(mut event)) = self.terminal.poll_event(Duration::from_millis(50)) {
-                // Handle event through normal chain
-                self.handle_event(&mut event);
+            // Poll for event with 20ms timeout (blocks until event or timeout)
+            match self.terminal.poll_event(Duration::from_millis(20)).ok().flatten() {
+                Some(mut event) => {
+                    // Event received - handle it immediately without calling idle()
+                    self.handle_event(&mut event);
+                }
+                None => {
+                    // Timeout with no events - call idle() to update animations, etc.
+                    self.idle();
+                }
             }
 
             // Check if the modal view wants to close
@@ -258,17 +311,48 @@ impl Application {
         let _ = self.terminal.flush();
 
         while self.running {
-            // Handle events first
-            let had_event = if let Ok(Some(mut event)) = self.terminal.poll_event(Duration::from_millis(50)) {
-                self.handle_event(&mut event);
-                true
-            } else {
-                false
-            };
+            // Optimized drawing strategy (matches Borland's approach):
+            // Draw first, then wait for events
+            // Only redraw when something changed (not every frame)
+            let needs_draw = self.needs_redraw;
 
-            // Idle processing - broadcast command set changes
-            // Matches Borland: TProgram::idle() called during event loop
-            self.idle();
+            if needs_draw {
+                // Explicit redraw requested (window closed, resize, palette change, etc.)
+                self.update_active_view_bounds();
+                self.draw();
+                self.needs_redraw = false;
+                let _ = self.terminal.flush();
+            }
+
+            // Poll for event with 20ms timeout (matches magiblot's eventTimeoutMs)
+            // This blocks until an event arrives or timeout occurs
+            match self.terminal.poll_event(Duration::from_millis(20)).ok().flatten() {
+                Some(mut event) => {
+                    // Event received - handle it immediately without calling idle()
+                    // Matches magiblot: idle() is NOT called when events are present
+                    self.handle_event(&mut event);
+
+                    // Event occurred: do full redraw for content changes
+                    // This could be optimized further by tracking which views changed
+                    self.update_active_view_bounds();
+                    self.draw();
+                    let _ = self.terminal.flush();
+                }
+                None => {
+                    // Timeout with no events - call idle() to update animations, etc.
+                    // Matches magiblot: idle() only called when truly idle
+                    self.idle();
+
+                    // After idle, draw overlay widgets (animations) if any
+                    // Don't redraw everything, just flush overlay widget changes
+                    if !self.overlay_widgets.is_empty() {
+                        for widget in &mut self.overlay_widgets {
+                            widget.draw(&mut self.terminal);
+                        }
+                        let _ = self.terminal.flush();
+                    }
+                }
+            }
 
             // Remove closed windows (those with SF_CLOSED flag)
             // In Borland, views call CLY_destroy() to remove themselves
@@ -282,33 +366,11 @@ impl Application {
             // Matches Borland: TView::locate() checks for movement and calls drawUnderRect
             // This optimized redraw only redraws the union of old + new position
             let had_moved_windows = self.desktop.handle_moved_windows(&mut self.terminal);
-
-            // Update active view bounds for F11 dumps
-            self.update_active_view_bounds();
-
-            // Optimized drawing strategy (matches Borland's approach):
-            // - For moved windows: only redraw union rect (already done in handle_moved_windows)
-            // - For content changes: full redraw when events occur
-            // - No redraw on idle frames (significant performance improvement)
-            //
-            // This prevents redrawing every frame (60 FPS) when nothing is happening
-            // Borland only redraws when views explicitly request it via draw() or on events
-            if self.needs_redraw {
-                // Explicit redraw requested (window closed, resize, etc.)
-                self.draw();
-                self.needs_redraw = false;
-                let _ = self.terminal.flush();
-            } else if had_moved_windows {
+            if had_moved_windows {
                 // Window movement: partial redraw already done via draw_under_rect
                 // Just flush the terminal buffer
                 let _ = self.terminal.flush();
-            } else if had_event {
-                // Event occurred: do full redraw for content changes
-                // This could be optimized further by tracking which views changed
-                self.draw();
-                let _ = self.terminal.flush();
             }
-            // If no event, no movement, no close: no redraw (idle frame)
         }
     }
 
@@ -334,6 +396,12 @@ impl Application {
 
         if let Some(ref mut status_line) = self.status_line {
             status_line.draw(&mut self.terminal);
+        }
+
+        // Draw overlay widgets on top of everything
+        // These continue to animate even during modal dialogs
+        for widget in &mut self.overlay_widgets {
+            widget.draw(&mut self.terminal);
         }
 
         // Update cursor after drawing all views
@@ -443,6 +511,12 @@ impl Application {
     /// Idle processing - broadcasts command set changes
     /// Matches Borland: TProgram::idle() (tprogram.cc:248-257)
     pub fn idle(&mut self) {
+        // Update overlay widgets (animations, etc.)
+        // These continue running even during modal dialogs
+        for widget in &mut self.overlay_widgets {
+            widget.idle();
+        }
+
         // Check if command set changed and broadcast to all views
         if command_set::command_set_changed() {
             let mut event = Event::broadcast(CM_COMMAND_SET_CHANGED);

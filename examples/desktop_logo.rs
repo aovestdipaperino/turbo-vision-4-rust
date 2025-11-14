@@ -9,13 +9,13 @@ use turbo_vision::core::draw::DrawBuffer;
 use turbo_vision::core::event::{Event, EventType};
 use turbo_vision::core::geometry::Rect;
 use turbo_vision::core::menu_data::{Menu, MenuItem};
-use turbo_vision::core::palette::{Attr, TvColor};
+use turbo_vision::core::palette::{Attr, TvColor, Palette};
 use turbo_vision::core::state::StateFlags;
 use turbo_vision::helpers::msgbox::{MF_ABOUT, MF_OK_BUTTON, message_box};
 use turbo_vision::terminal::Terminal;
 use turbo_vision::views::view::write_line_to_terminal;
 use turbo_vision::views::{
-    View,
+    View, IdleView,
     menu_bar::{MenuBar, SubMenu},
     status_line::{StatusItem, StatusLine},
 };
@@ -41,27 +41,6 @@ impl CrabWidget {
             position: 0,
             direction: 1,
             last_update: Instant::now(),
-        }
-    }
-
-    fn idle(&mut self) {
-        // Update animation every 100ms
-        if self.last_update.elapsed().as_millis() > 100 {
-            // Move the crab
-            if self.direction > 0 {
-                self.position += 1;
-                if self.position >= 9 {
-                    self.direction = -1;
-                }
-            } else {
-                if self.position > 0 {
-                    self.position -= 1;
-                }
-                if self.position == 0 {
-                    self.direction = 1;
-                }
-            }
-            self.last_update = Instant::now();
         }
     }
 }
@@ -102,8 +81,31 @@ impl View for CrabWidget {
     fn handle_event(&mut self, _event: &mut Event) {}
     fn update_cursor(&self, _terminal: &mut Terminal) {}
 
-    fn get_palette(&self) -> Option<turbo_vision::core::palette::Palette> {
+    fn get_palette(&self) -> Option<Palette> {
         None
+    }
+}
+
+impl IdleView for CrabWidget {
+    fn idle(&mut self) {
+        // Update animation every 100ms
+        if self.last_update.elapsed().as_millis() > 100 {
+            // Move the crab
+            if self.direction > 0 {
+                self.position += 1;
+                if self.position >= 9 {
+                    self.direction = -1;
+                }
+            } else {
+                if self.position > 0 {
+                    self.position -= 1;
+                }
+                if self.position == 0 {
+                    self.direction = 1;
+                }
+            }
+            self.last_update = Instant::now();
+        }
     }
 }
 
@@ -258,19 +260,14 @@ fn main() -> turbo_vision::core::error::Result<()> {
     app.desktop.add(Box::new(logo_bg));
 
     // Create animated crab widget on the right side of the status bar
-    let mut crab_widget = CrabWidget::new(width as i16 - 11, height as i16 - 1);
+    // Add it as an overlay widget so it continues animating even during modal dialogs
+    let crab_widget = CrabWidget::new(width as i16 - 11, height as i16 - 1);
+    app.add_overlay_widget(Box::new(crab_widget));
 
     // Main event loop
     app.running = true;
     while app.running {
-        // Update crab animation
-        crab_widget.idle();
-
         app.draw();
-
-        // Draw the crab widget on top of everything
-        crab_widget.draw(&mut app.terminal);
-
         app.terminal.flush()?;
 
         if let Ok(Some(mut event)) = app
@@ -308,6 +305,9 @@ fn main() -> turbo_vision::core::error::Result<()> {
                 }
             }
         }
+
+        // Idle processing - updates crab animation and other idle tasks
+        app.idle();
     }
 
     Ok(())
