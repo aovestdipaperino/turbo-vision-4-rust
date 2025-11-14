@@ -21,6 +21,8 @@
 //!
 //! Click the numbered buttons (1-4) to switch between themes, or Q to quit.
 
+use std::cell::RefCell;
+use std::rc::Rc;
 use turbo_vision::app::Application;
 use turbo_vision::core::command::CM_QUIT;
 use turbo_vision::core::geometry::Rect;
@@ -28,10 +30,8 @@ use turbo_vision::views::button::ButtonBuilder;
 use turbo_vision::views::dialog::Dialog;
 use turbo_vision::views::input_line::InputLineBuilder;
 use turbo_vision::views::label::LabelBuilder;
-use turbo_vision::views::memo::MemoBuilder;
 use turbo_vision::views::listbox::ListBox;
-use std::rc::Rc;
-use std::cell::RefCell;
+use turbo_vision::views::memo::MemoBuilder;
 
 // Custom command IDs for theme switching
 const CMD_THEME_DEFAULT: u16 = 1001;
@@ -72,86 +72,51 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn create_theme_dialog(title: &str) -> Dialog {
-    let mut dialog = Dialog::new(Rect::new(8, 2, 72, 21), title);
+    let mut dialog = Dialog::new(Rect::new(8, 2, 72, 26), title);
 
     // Add various components to show theme colors
 
     // Label + Input line
-    let label1 = LabelBuilder::new()
-        .bounds(Rect::new(2, 2, 25, 3))
-        .text("~I~nput Field:")
-        .build();
+    let label1 = LabelBuilder::new().bounds(Rect::new(2, 2, 25, 3)).text("~I~nput Field:").build();
     dialog.add(Box::new(label1));
 
     let input_data = Rc::new(RefCell::new(String::new()));
-    let input = InputLineBuilder::new()
-        .bounds(Rect::new(2, 3, 50, 4))
-        .max_length(50)
-        .data(input_data)
-        .build();
+    let input = InputLineBuilder::new().bounds(Rect::new(2, 3, 59, 4)).max_length(55).data(input_data).build();
     dialog.add(Box::new(input));
 
     // Memo (editor)
-    let label2 = LabelBuilder::new()
-        .bounds(Rect::new(2, 5, 25, 6))
-        .text("~M~emo:")
-        .build();
+    let label2 = LabelBuilder::new().bounds(Rect::new(2, 5, 25, 6)).text("~M~emo:").build();
     dialog.add(Box::new(label2));
 
-    let mut memo = MemoBuilder::new()
-        .bounds(Rect::new(2, 6, 60, 11))
-        .build();
+    let mut memo = MemoBuilder::new().bounds(Rect::new(2, 6, 59, 11)).build();
     memo.set_text("This is a memo field.\nYou can edit text here.\nNotice how colors change with themes!");
     dialog.add(Box::new(memo));
 
     // ListBox
-    let label3 = LabelBuilder::new()
-        .bounds(Rect::new(2, 11, 25, 12))
-        .text("~L~ist:")
-        .build();
+    let label3 = LabelBuilder::new().bounds(Rect::new(2, 12, 25, 13)).text("~L~ist:").build();
     dialog.add(Box::new(label3));
 
-    let mut listbox = ListBox::new(Rect::new(2, 12, 32, 15), 0);
+    let mut listbox = ListBox::new(Rect::new(2, 13, 59, 17), 0);
     listbox.add_item("Normal Item 1".to_string());
     listbox.add_item("Normal Item 2".to_string());
     listbox.add_item("Normal Item 3".to_string());
     dialog.add(Box::new(listbox));
 
     // Buttons to switch themes (arranged in two rows)
-    let btn_default = ButtonBuilder::new()
-        .bounds(Rect::new(2, 15, 17, 17))
-        .title("~1~ Default")
-        .command(CMD_THEME_DEFAULT)
-        .build();
+    let btn_default = ButtonBuilder::new().bounds(Rect::new(2, 18, 2 + 13, 20)).title("~1~ Default").command(CMD_THEME_DEFAULT).build();
     dialog.add(Box::new(btn_default));
 
-    let btn_dark = ButtonBuilder::new()
-        .bounds(Rect::new(18, 15, 31, 17))
-        .title("~2~ Dark")
-        .command(CMD_THEME_DARK)
-        .build();
+    let btn_dark = ButtonBuilder::new().bounds(Rect::new(17, 18, 17 + 13, 20)).title("~2~ Dark").command(CMD_THEME_DARK).build();
     dialog.add(Box::new(btn_dark));
 
-    let btn_contrast = ButtonBuilder::new()
-        .bounds(Rect::new(32, 15, 49, 17))
-        .title("~3~ Contrast")
-        .command(CMD_THEME_CONTRAST)
-        .build();
+    let btn_contrast = ButtonBuilder::new().bounds(Rect::new(32, 18, 32 + 13, 20)).title("~3~ Contrast").command(CMD_THEME_CONTRAST).build();
     dialog.add(Box::new(btn_contrast));
 
-    let btn_solar = ButtonBuilder::new()
-        .bounds(Rect::new(50, 15, 62, 17))
-        .title("~4~ Solarized")
-        .command(CMD_THEME_SOLAR)
-        .build();
+    let btn_solar = ButtonBuilder::new().bounds(Rect::new(47, 18, 47 + 13, 20)).title("~4~ Solarized").command(CMD_THEME_SOLAR).build();
     dialog.add(Box::new(btn_solar));
 
     // Close button
-    let btn_close = ButtonBuilder::new()
-        .bounds(Rect::new(25, 17, 37, 19))
-        .title("~Q~uit")
-        .command(CM_QUIT)
-        .build();
+    let btn_close = ButtonBuilder::new().bounds(Rect::new(47, 20, 47 + 13, 22)).title("~Q~uit").command(CM_QUIT).build();
     dialog.add(Box::new(btn_close));
 
     dialog
