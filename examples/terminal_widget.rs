@@ -1,183 +1,93 @@
 // (C) 2025 - Enzo Lombardi
 // Terminal Widget Demo - demonstrates scrolling output viewer
+//
+// This matches Borland's terminal.cc example structure:
+// - Terminal widget inside a Dialog/Window
+// - With horizontal and vertical scrollbars
+// - Buttons inside the same Dialog/Window
 
-use std::time::{Duration, Instant};
 use turbo_vision::app::Application;
-use turbo_vision::core::command::CM_QUIT;
-use turbo_vision::core::event::EventType;
+use turbo_vision::core::command::{CM_OK, CM_QUIT};
+use turbo_vision::core::event::{EventType, KB_ALT_X};
 use turbo_vision::core::geometry::Rect;
-use turbo_vision::core::palette::Attr;
 use turbo_vision::views::button::ButtonBuilder;
-use turbo_vision::views::static_text::StaticTextBuilder;
+use turbo_vision::views::dialog::DialogBuilder;
+use turbo_vision::views::status_line::{StatusItem, StatusLine};
 use turbo_vision::views::terminal_widget::TerminalWidget;
-use turbo_vision::views::window::WindowBuilder;
 use turbo_vision::views::View;
-
-const CM_ADD_LINE: u16 = 100;
-const CM_ADD_BATCH: u16 = 101;
-const CM_CLEAR: u16 = 102;
 
 fn main() -> turbo_vision::core::error::Result<()> {
     let mut app = Application::new()?;
+    let (width, height) = app.terminal.size();
 
-    // Create terminal widget directly on desktop (not inside window)
-    let mut terminal = TerminalWidget::new(Rect::new(7, 6, 73, 18)).with_scrollbar();
+    // Create status line
+    let status_line = StatusLine::new(
+        Rect::new(0, height as i16 - 1, width as i16, height as i16),
+        vec![
+            StatusItem::new("~Alt+X~ Exit", KB_ALT_X, CM_QUIT),
+        ],
+    );
+    app.set_status_line(status_line);
 
-    // Add some initial content
-    terminal.append_text("Build Output Viewer");
-    terminal.append_text("==================");
-    terminal.append_text("");
-    terminal.append_text("Compiling my_project v0.1.0");
-    terminal.append_line_colored(
-        "   Compiling dep1 v1.0.0".to_string(),
-        Attr::from_u8(0x0E), // Yellow
-    );
-    terminal.append_line_colored(
-        "   Compiling dep2 v2.0.0".to_string(),
-        Attr::from_u8(0x0E), // Yellow
-    );
-    terminal.append_line_colored(
-        "   Compiling dep3 v1.5.0".to_string(),
-        Attr::from_u8(0x0E), // Yellow
-    );
-    terminal.append_text("   Compiling main");
-    terminal.append_line_colored(
-        "    Finished dev [unoptimized + debuginfo] target(s) in 2.34s".to_string(),
-        Attr::from_u8(0x0A), // Green
-    );
-    terminal.append_text("");
-    terminal.append_text("Press buttons to interact...");
-    terminal.append_text("");
-
-    app.desktop.add(Box::new(terminal));
-
-    // Create window with buttons
-    let mut window = WindowBuilder::new()
-        .bounds(Rect::new(5, 2, 75, 22))
-        .title("Terminal Widget Demo")
+    // Create dialog (matches Borland: TDialog(TRect(0,0,60,18),"Dumb terminal"))
+    let mut dialog = DialogBuilder::new()
+        .bounds(Rect::new(10, 3, 70, 21))
+        .title("Dumb Terminal")
         .build();
 
-    window.add(Box::new(StaticTextBuilder::new()
-        .bounds(Rect::new(2, 2, 66, 3))
-        .text("Simulates build output. Use arrows/PgUp/PgDn to scroll. Auto-scrolls when at bottom.")
-        .build()));
+    // Create terminal widget inside dialog (matches Borland: TRect(1,1,57,12))
+    // Note: Borland coordinates are relative to dialog interior
+    let mut terminal = TerminalWidget::new(Rect::new(1, 1, 57, 12)).with_scrollbar();
 
-    // Buttons (positioned below the terminal widget area)
-    window.add(Box::new(ButtonBuilder::new()
-        .bounds(Rect::new(2, 15, 17, 17))
-        .title("Add Line")
-        .command(CM_ADD_LINE)
-        .default(false)
-        .build()));
+    // Add initial content (matches Borland's do_sputn call)
+    terminal.append_text("Hello!");
+    terminal.append_text("That's just a test in the buffer.");
+    terminal.append_text("That's all folks.");
+    terminal.append_text("");
+    terminal.append_text("Use arrow keys or PgUp/PgDn to scroll.");
+    terminal.append_text("Auto-scrolls when at bottom.");
 
-    window.add(Box::new(ButtonBuilder::new()
-        .bounds(Rect::new(18, 15, 36, 17))
-        .title("Add 100 Lines")
-        .command(CM_ADD_BATCH)
-        .default(false)
-        .build()));
+    dialog.add(Box::new(terminal));
 
-    window.add(Box::new(ButtonBuilder::new()
-        .bounds(Rect::new(37, 15, 48, 17))
-        .title("Clear")
-        .command(CM_CLEAR)
-        .default(false)
-        .build()));
-
-    window.add(Box::new(ButtonBuilder::new()
-        .bounds(Rect::new(49, 15, 60, 17))
-        .title("Quit")
-        .command(CM_QUIT)
+    // Add OK button (matches Borland: TRect(25,15,35,17),"O~K~")
+    dialog.add(Box::new(ButtonBuilder::new()
+        .bounds(Rect::new(25, 13, 35, 15))
+        .title("~O~K")
+        .command(CM_OK)
         .default(true)
         .build()));
 
-    app.desktop.add(Box::new(window));
+    app.desktop.add(Box::new(dialog));
 
-    let mut line_counter = 1;
-    let start_time = Instant::now();
-
-    // Event loop
-    loop {
+    // Main event loop
+    app.running = true;
+    while app.running {
         app.desktop.draw(&mut app.terminal);
+
+        if let Some(ref mut status_line) = app.status_line {
+            status_line.draw(&mut app.terminal);
+        }
+
         let _ = app.terminal.flush();
 
         if let Some(mut event) = app
             .terminal
-            .poll_event(Duration::from_millis(50))
+            .poll_event(std::time::Duration::from_millis(50))
             .ok()
             .flatten()
         {
             app.desktop.handle_event(&mut event);
 
-            if event.what == EventType::Command {
-                match event.command {
-                    CM_ADD_LINE => {
-                        // Access terminal widget (first child of desktop)
-                        if let Some(terminal) = app
-                            .desktop
-                            .child_at_mut(0)
-                            .as_any_mut()
-                            .downcast_mut::<TerminalWidget>()
-                        {
-                            let elapsed = start_time.elapsed();
-                            let line = format!(
-                                "[{:>6.2}s] Processing item {}...",
-                                elapsed.as_secs_f32(),
-                                line_counter
-                            );
-                            terminal.append_line(line);
-                            line_counter += 1;
-                        }
-                    }
-                    CM_ADD_BATCH => {
-                        // Access terminal widget
-                        if let Some(terminal) = app
-                            .desktop
-                            .child_at_mut(0)
-                            .as_any_mut()
-                            .downcast_mut::<TerminalWidget>()
-                        {
-                            for i in 0..100 {
-                                let elapsed = start_time.elapsed();
-                                let line = format!(
-                                    "[{:>6.2}s] Batch processing item {}/100",
-                                    elapsed.as_secs_f32(),
-                                    i + 1
-                                );
-                                terminal.append_line(line);
-                            }
-
-                            terminal.append_line_colored(
-                                "Batch processing complete!".to_string(),
-                                Attr::from_u8(0x0A), // Green
-                            );
-                            line_counter += 100;
-                        }
-                    }
-                    CM_CLEAR => {
-                        // Access terminal widget
-                        if let Some(terminal) = app
-                            .desktop
-                            .child_at_mut(0)
-                            .as_any_mut()
-                            .downcast_mut::<TerminalWidget>()
-                        {
-                            terminal.clear();
-                            terminal.append_text("Output cleared.");
-                            terminal.append_text("");
-                            line_counter = 1;
-                        }
-                    }
-                    CM_QUIT => break,
-                    _ => {}
-                }
+            if let Some(ref mut status_line) = app.status_line {
+                status_line.handle_event(&mut event);
             }
 
-            // Handle Ctrl+C or F10
-            if event.what == EventType::Keyboard {
-                let key = event.key_code;
-                if key == 0x0003 || key == turbo_vision::core::event::KB_F10 {
-                    break;
+            if event.what == EventType::Command {
+                match event.command {
+                    CM_OK | CM_QUIT => {
+                        app.running = false;
+                    }
+                    _ => {}
                 }
             }
         }
