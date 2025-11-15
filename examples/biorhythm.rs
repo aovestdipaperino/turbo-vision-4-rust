@@ -332,8 +332,8 @@ fn create_biorhythm_dialog(
 
     dialog.add(Box::new(
         StaticTextBuilder::new()
-            .bounds(Rect::new(2, 2, 46, 4))
-            .text(&format!("Enter your birth date (Today: {}/{}/{})", today_day, today_month, today_year))
+            .bounds(Rect::new(2, 1, 46, 3))
+            .text(&format!("Format: DD/MM/YYYY\nRange : 01/01/1900 - {}/{}/{}", today_day, today_month, today_year))
             .build(),
     ));
 
@@ -413,6 +413,8 @@ fn show_about_dialog(app: &mut Application) {
 
     let message = r"Biorhythm Calculator v1.0
 
+Read docs/BIORHYTHM-CALCULATOR-TUTORIAL.md
+
 Calculates three cycles:
   • Physical (23 days)
   • Emotional (28 days)
@@ -447,9 +449,31 @@ impl BirthDateState {
     }
 }
 
-/// Runs a modal birth date dialog with validation
-/// Returns the command result (CM_OK or CM_CANCEL) and the data from input fields
-fn run_modal_birth_date_dialog(app: &mut Application, state: &BirthDateState) -> (u16, Rc<RefCell<String>>, Rc<RefCell<String>>, Rc<RefCell<String>>) {
+/// Runs a modal birth date dialog with validation and user input handling.
+///
+/// This function manages the entire lifecycle of the birth date input dialog:
+/// - Creates and displays the dialog with input fields
+/// - Handles real-time validation of user input
+/// - Enables/disables the OK button based on validation state
+/// - Processes events until the user confirms or cancels
+/// - Parses the validated input strings into numeric date components
+///
+/// # Returns
+/// - `Some((day, month, year))` if the user confirmed with valid date data
+/// - `None` if the user cancelled or if parsing failed (though parsing failure
+///   should not occur due to the validators)
+///
+/// Note
+/// Initially, run_modal_birth_date_dialog() returned Rc<RefCell<String>>
+/// The Rc<RefCell<String>> wrappers were needed for sharing mutable data between the dialog's
+/// input widgets and our code while the dialog was active.
+/// Once the dialog closes, we no longer need shared ownership.
+/// We just need the final values.
+/// By cloning the strings and parsing them into numbers before returning, we transfer ownership of
+/// simple value types instead of shared references, eliminating the need for reference counting entirely.
+/// In short: Rc<RefCell<T>> enables sharing during the dialog's lifetime, but after the dialog closes,
+/// we only care about the final values, not the shared containers.
+fn run_modal_birth_date_dialog(app: &mut Application, state: &BirthDateState) -> Option<(u32, u32, i32)> {
     use std::time::Duration;
     use turbo_vision::core::command::CM_COMMAND_SET_CHANGED;
     use turbo_vision::core::command_set;
@@ -482,6 +506,7 @@ fn run_modal_birth_date_dialog(app: &mut Application, state: &BirthDateState) ->
 
     let result;
 
+    // Main dialog event loop
     loop {
         // Draw desktop (which includes the dialog as a child)
         app.desktop.draw(&mut app.terminal);
@@ -493,9 +518,6 @@ fn run_modal_birth_date_dialog(app: &mut Application, state: &BirthDateState) ->
 
         // Poll for event
         if let Some(mut event) = app.terminal.poll_event(Duration::from_millis(50)).ok().flatten() {
-            // Convert global keyboard shortcuts to commands
-            handle_global_shortcuts(&mut event);
-
             // Handle the event through the desktop child
             if let Some(dialog_view) = app.desktop.window_at_mut(dialog_index) {
                 dialog_view.handle_event(&mut event);
@@ -526,7 +548,7 @@ fn run_modal_birth_date_dialog(app: &mut Application, state: &BirthDateState) ->
             }
         }
 
-        // Check if dialog should close
+        // Check if dialog should close (returns CM_OK or CM_CANCEL)
         let end_state = if let Some(dialog_view) = app.desktop.window_at_mut(dialog_index) {
             dialog_view.get_end_state()
         } else {
@@ -541,48 +563,69 @@ fn run_modal_birth_date_dialog(app: &mut Application, state: &BirthDateState) ->
     // Remove dialog from desktop
     app.desktop.remove_child(dialog_index);
 
-    // Re-enable CM_OK command
+    // Re-enable CM_OK command for future dialogs
     command_set::enable_command(CM_OK);
 
-    (result, day_data, month_data, year_data)
+    // Process the result: parse strings to numbers if user confirmed
+    if result == CM_OK {
+        let day_str = day_data.borrow();
+        let month_str = month_data.borrow();
+        let year_str = year_data.borrow();
+
+        // Parse the validated input strings into numeric values
+        // This should always succeed thanks to the validators, but we handle it defensively
+        if let (Ok(day), Ok(month), Ok(year)) = (day_str.parse::<u32>(), month_str.parse::<u32>(), year_str.parse::<i32>()) {
+            Some((day, month, year))
+        } else {
+            // Parsing failed - should not happen with proper validators
+            None
+        }
+    } else {
+        // User cancelled
+        None
+    }
 }
 
-/// Process the result of the birth date dialog and update the biorhythm data
-/// Returns true if the date was successfully processed
-fn process_birth_date_result(
-    result: u16,
-    day_data: &Rc<RefCell<String>>,
-    month_data: &Rc<RefCell<String>>,
-    year_data: &Rc<RefCell<String>>,
-    biorhythm_data: &Arc<Mutex<Option<Biorhythm>>>,
-    state: &mut BirthDateState,
-) -> bool {
-    if result != CM_OK {
-        return false;
+/// Processes a validated birth date by calculating the biorhythm and updating application state.
+///
+/// This function receives pre-validated and pre-parsed date components from the dialog,
+/// calculates the number of days since birth, creates a biorhythm instance, and updates
+/// the state for future dialog invocations.
+///
+/// # Arguments
+/// * `date` - Tuple containing (day, month, year) as validated numeric values
+/// * `biorhythm_data` - Shared biorhythm data to update
+/// * `state` - Birth date state to persist for future dialog invocations
+///
+/// # Returns
+/// `true` if the biorhythm was successfully calculated and stored, `false` if the date
+/// is invalid (e.g., in the future or otherwise impossible)
+fn process_birth_date_result(date: (u32, u32, i32), biorhythm_data: &Arc<Mutex<Option<Biorhythm>>>, state: &mut BirthDateState) -> bool {
+    let (day, month, year) = date;
+
+    // Calculate days alive since the birth date
+    if let Some(days_alive) = calculate_days_alive(year, month, day) {
+        // Create and store the biorhythm data
+        *biorhythm_data.lock().unwrap() = Some(Biorhythm::new(days_alive));
+
+        // Update state for next dialog invocation (preserve user's last valid input)
+        state.update(day.to_string(), month.to_string(), year.to_string());
+
+        true
+    } else {
+        // Date is invalid (e.g., in the future)
+        false
     }
-
-    let day_str = day_data.borrow().clone();
-    let month_str = month_data.borrow().clone();
-    let year_str = year_data.borrow().clone();
-
-    if let (Ok(day), Ok(month), Ok(year)) = (day_str.parse::<u32>(), month_str.parse::<u32>(), year_str.parse::<i32>()) {
-        if let Some(days_alive) = calculate_days_alive(year, month, day) {
-            *biorhythm_data.lock().unwrap() = Some(Biorhythm::new(days_alive));
-            // Update state for next time
-            state.update(day_str, month_str, year_str);
-            return true;
-        }
-    }
-
-    false
 }
 
 /// Handle command events - returns true if app should continue running
 fn handle_command_event(command: u16, app: &mut Application, biorhythm_data: &Arc<Mutex<Option<Biorhythm>>>, birth_state: &mut BirthDateState) -> bool {
     match command {
         CM_BIORHYTHM => {
-            let (result, day_data, month_data, year_data) = run_modal_birth_date_dialog(app, birth_state);
-            process_birth_date_result(result, &day_data, &month_data, &year_data, biorhythm_data, birth_state);
+            // Show the birth date dialog and process the result if user confirmed
+            if let Some(date) = run_modal_birth_date_dialog(app, birth_state) {
+                process_birth_date_result(date, biorhythm_data, birth_state);
+            }
             true
         }
         CM_ABOUT => {
@@ -614,7 +657,7 @@ fn handle_global_shortcuts(event: &mut Event) {
 }
 
 /// Create and configure the menu bar
-fn setup_menu_bar(app: &mut Application) {
+fn add_menu_bar(app: &mut Application) {
     let (width, _) = app.terminal.size();
     let mut menu_bar = MenuBar::new(Rect::new(0, 0, width as i16, 1));
     let biorhythm_menu = Menu::from_items(vec![
@@ -629,7 +672,7 @@ fn setup_menu_bar(app: &mut Application) {
 }
 
 /// Create and configure the status line at the bottom of the screen
-fn setup_status_line(app: &mut Application) {
+fn add_status_line(app: &mut Application) {
     let (width, height) = app.terminal.size();
 
     let status_line = StatusLine::new(
@@ -643,35 +686,17 @@ fn setup_status_line(app: &mut Application) {
     app.set_status_line(status_line);
 }
 
-fn main() -> turbo_vision::core::error::Result<()> {
-    let mut app = Application::new()?;
-
-    setup_menu_bar(&mut app);
-    setup_status_line(&mut app);
-
-    let biorhythm_data = Arc::new(Mutex::new(None));
-    let mut birth_state = BirthDateState::new();
-
-    // Show birthdate dialog at startup
-    let (result, day_data, month_data, year_data) = run_modal_birth_date_dialog(&mut app, &birth_state);
-
-    // If user canceled, quit the app
-    if result == CM_CANCEL {
-        return Ok(());
-    }
-
-    // Process the birth date
-    process_birth_date_result(result, &day_data, &month_data, &year_data, &biorhythm_data, &mut birth_state);
-
+///
+fn add_chart(app: &mut Application, biorhythm_data: &Arc<Mutex<Option<Biorhythm>>>) {
     // Calculate window dimensions for the main chart dialog
     let (width, height) = app.terminal.size();
-    let window_width = 76i16;
+    let window_width = 76i16; // TODO should not ba hard coded
     let available_width = width as i16;
-    let available_height = height as i16 - 2; // Subtract menu bar and status line
-    let margin_vertical = 1i16;
-    let window_height = available_height - (margin_vertical * 2) - 1; // -1 for shadow
+    let available_height = height as i16 - 3; // Subtract menu bar, status line and shadow
+    let margin_vertical: i16 = 1;
+    let window_height = available_height - (margin_vertical * 2);
     let window_x = (available_width - (window_width + 2)) / 2;
-    let window_y = 1 + margin_vertical;
+    let window_y = margin_vertical;
 
     // Create and show the main dialog with chart
     let mut main_dialog = DialogBuilder::new()
@@ -684,6 +709,29 @@ fn main() -> turbo_vision::core::error::Result<()> {
     let chart = BiorhythmChart::new(Rect::new(1, 1, chart_width, chart_height), Arc::clone(&biorhythm_data));
     main_dialog.add(Box::new(chart));
     app.desktop.add(Box::new(main_dialog));
+}
+
+fn main() -> turbo_vision::core::error::Result<()> {
+    let mut app = Application::new()?;
+
+    add_menu_bar(&mut app);
+    add_status_line(&mut app);
+
+    let biorhythm_data = Arc::new(Mutex::new(None));
+    let mut birth_state = BirthDateState::new();
+
+    // Show birthdate dialog at startup
+    let date_option = run_modal_birth_date_dialog(&mut app, &birth_state);
+
+    // If user cancelled, quit the app
+    if date_option.is_none() {
+        return Ok(());
+    }
+
+    // Process the birth date (safe to unwrap here since we checked above)
+    process_birth_date_result(date_option.unwrap(), &biorhythm_data, &mut birth_state);
+
+    add_chart(&mut app, &biorhythm_data);
 
     // Main event loop
     app.running = true;
