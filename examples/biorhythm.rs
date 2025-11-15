@@ -13,7 +13,8 @@ use turbo_vision::core::event::{Event, EventType, KB_ALT_C, KB_ALT_X, KB_CTRL_C,
 use turbo_vision::core::geometry::Rect;
 use turbo_vision::core::menu_data::{Menu, MenuItem};
 use turbo_vision::core::palette::{Attr, TvColor, colors};
-use turbo_vision::core::state::*;
+use turbo_vision::core::state::StateFlags;
+use turbo_vision::core::state::{OF_CENTERED, SF_MODAL, SF_VISIBLE};
 use turbo_vision::terminal::Terminal;
 use turbo_vision::views::view::write_line_to_terminal;
 use turbo_vision::views::{
@@ -36,7 +37,7 @@ const PHYSICAL_CYCLE: f64 = 23.0;
 const EMOTIONAL_CYCLE: f64 = 28.0;
 const INTELLECTUAL_CYCLE: f64 = 33.0;
 
-// Simple date calculation functions (no external dependencies)
+/// Simple date calculation functions (no external dependencies)
 fn is_leap_year(year: i32) -> bool {
     (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0)
 }
@@ -349,19 +350,19 @@ fn create_biorhythm_dialog(
     // Input fields with validators
     // Day: 1-31
     let day_validator = Rc::new(RefCell::new(RangeValidator::new(1, 31)));
-    let mut day_input = InputLineBuilder::new().bounds(Rect::new(12, 4, 18, 5)).max_length(2).data(Rc::clone(&day_data)).build();
+    let mut day_input = InputLineBuilder::new().bounds(Rect::new(12, 4, 17, 5)).max_length(2).data(Rc::clone(&day_data)).build();
     day_input.set_validator(day_validator);
     dialog.add(Box::new(day_input));
 
     // Month: 1-12
     let month_validator = Rc::new(RefCell::new(RangeValidator::new(1, 12)));
-    let mut month_input = InputLineBuilder::new().bounds(Rect::new(12, 5, 18, 6)).max_length(2).data(Rc::clone(&month_data)).build();
+    let mut month_input = InputLineBuilder::new().bounds(Rect::new(12, 5, 17, 6)).max_length(2).data(Rc::clone(&month_data)).build();
     month_input.set_validator(month_validator);
     dialog.add(Box::new(month_input));
 
     // Year: 1900-2100
     let year_validator = Rc::new(RefCell::new(RangeValidator::new(1900, 2100)));
-    let mut year_input = InputLineBuilder::new().bounds(Rect::new(12, 6, 20, 7)).max_length(4).data(Rc::clone(&year_data)).build();
+    let mut year_input = InputLineBuilder::new().bounds(Rect::new(12, 6, 17, 7)).max_length(4).data(Rc::clone(&year_data)).build();
     year_input.set_validator(year_validator);
     dialog.add(Box::new(year_input));
 
@@ -393,7 +394,8 @@ fn validate_birth_date(day_str: &str, month_str: &str, year_str: &str) -> bool {
     };
 
     // Check basic ranges
-    if day < 1 || day > 31 || month < 1 || month > 12 || year < 1900 || year > 2100 {
+    // if day < 1 || day > 31 || month < 1 || month > 12 || year < 1900 || year > 2100 {
+    if !(1..=31).contains(&day) || !(1..=12).contains(&month) || !(1900..=2100).contains(&year) {
         return false;
     }
 
@@ -421,41 +423,39 @@ Semi-graphical ASCII chart";
     message_box(app, message, MF_ABOUT | MF_OK_BUTTON);
 }
 
-fn main() -> turbo_vision::core::error::Result<()> {
-    let mut app = Application::new()?;
+/// Stores the previous birth date values for the dialog
+#[derive(Clone)]
+struct BirthDateState {
+    day: String,
+    month: String,
+    year: String,
+}
 
-    setup_menu_bar(&mut app);
-    setup_status_line(&mut app);
+impl BirthDateState {
+    fn new() -> Self {
+        Self {
+            day: String::new(),
+            month: String::new(),
+            year: String::new(),
+        }
+    }
 
-    let biorhythm_data = Arc::new(Mutex::new(None)); // Start with no data
+    fn update(&mut self, day: String, month: String, year: String) {
+        self.day = day;
+        self.month = month;
+        self.year = year;
+    }
+}
 
-    // Store previous birth date values (default: empty - will prompt on startup)
-    let mut prev_day = String::from("");
-    let mut prev_month = String::from("");
-    let mut prev_year = String::from("");
-
-    // Calculate window size: fixed width, maximum height
-    // Account for menu bar (1 row), status line (1 row), and shadow (2 cols, 1 row)
-    let (width, height) = app.terminal.size();
-    let window_width = 76i16; // Fixed width for optimal chart readability
-    let available_width = width as i16;
-    let available_height = height as i16 - 2; // Subtract menu bar and status line
-
-    // Use maximum available height with small top/bottom margins
-    let margin_vertical = 1i16; // Leave 1 row top and bottom
-    let window_height = available_height - (margin_vertical * 2) - 1; // -1 for shadow
-
-    // Center the window horizontally, position vertically with margin
-    let window_x = (available_width - (window_width + 2)) / 2;
-    let window_y = 1 + margin_vertical; // 1 for menu bar + vertical margin
-
-    // Show birthdate dialog at startup
-    // Custom event loop with validation
+/// Runs a modal birth date dialog with validation
+/// Returns the command result (CM_OK or CM_CANCEL) and the data from input fields
+fn run_modal_birth_date_dialog(app: &mut Application, state: &BirthDateState) -> (u16, Rc<RefCell<String>>, Rc<RefCell<String>>, Rc<RefCell<String>>) {
     use std::time::Duration;
     use turbo_vision::core::command::CM_COMMAND_SET_CHANGED;
     use turbo_vision::core::command_set;
 
-    let (mut dialog, day_data, month_data, year_data) = create_biorhythm_dialog(&prev_day, &prev_month, &prev_year, width, height);
+    let (width, height) = app.terminal.size();
+    let (mut dialog, day_data, month_data, year_data) = create_biorhythm_dialog(&state.day, &state.month, &state.year, width, height);
 
     // Set modal flag
     let old_state = dialog.state();
@@ -493,7 +493,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
 
         // Poll for event
         if let Some(mut event) = app.terminal.poll_event(Duration::from_millis(50)).ok().flatten() {
-            // Convert global keyboard shortcuts to commands so that F1, Ctrl+N etc. work even when menus are closed
+            // Convert global keyboard shortcuts to commands
             handle_global_shortcuts(&mut event);
 
             // Handle the event through the desktop child
@@ -544,211 +544,54 @@ fn main() -> turbo_vision::core::error::Result<()> {
     // Re-enable CM_OK command
     command_set::enable_command(CM_OK);
 
-    // If user canceled, quit the app
-    if result == CM_CANCEL {
-        return Ok(());
+    (result, day_data, month_data, year_data)
+}
+
+/// Process the result of the birth date dialog and update the biorhythm data
+/// Returns true if the date was successfully processed
+fn process_birth_date_result(
+    result: u16,
+    day_data: &Rc<RefCell<String>>,
+    month_data: &Rc<RefCell<String>>,
+    year_data: &Rc<RefCell<String>>,
+    biorhythm_data: &Arc<Mutex<Option<Biorhythm>>>,
+    state: &mut BirthDateState,
+) -> bool {
+    if result != CM_OK {
+        return false;
     }
 
-    // User clicked OK - parse and set the birthdate
-    if result == CM_OK {
-        let day_str = day_data.borrow().clone();
-        let month_str = month_data.borrow().clone();
-        let year_str = year_data.borrow().clone();
+    let day_str = day_data.borrow().clone();
+    let month_str = month_data.borrow().clone();
+    let year_str = year_data.borrow().clone();
 
-        if let (Ok(day), Ok(month), Ok(year)) = (day_str.parse::<u32>(), month_str.parse::<u32>(), year_str.parse::<i32>()) {
-            if let Some(days_alive) = calculate_days_alive(year, month, day) {
-                *biorhythm_data.lock().unwrap() = Some(Biorhythm::new(days_alive));
-                // Update previous values for next time
-                prev_day = day_str;
-                prev_month = month_str;
-                prev_year = year_str;
-            }
+    if let (Ok(day), Ok(month), Ok(year)) = (day_str.parse::<u32>(), month_str.parse::<u32>(), year_str.parse::<i32>()) {
+        if let Some(days_alive) = calculate_days_alive(year, month, day) {
+            *biorhythm_data.lock().unwrap() = Some(Biorhythm::new(days_alive));
+            // Update state for next time
+            state.update(day_str, month_str, year_str);
+            return true;
         }
     }
 
-    // Now create and show the main dialog with chart - sized to available space
-    let mut main_dialog = DialogBuilder::new()
-        .bounds(Rect::new(window_x, window_y, window_x + window_width, window_y + window_height))
-        .title("Biorhythm Calculator")
-        .build();
+    false
+}
 
-    // Chart uses interior space (dialog minus frame), with 1-column margins
-    let chart_width = window_width - 2; // Subtract frame (2 chars total)
-    let chart_height = window_height - 2; // Subtract frame (2 chars total)
-    let chart = BiorhythmChart::new(Rect::new(1, 1, chart_width, chart_height), Arc::clone(&biorhythm_data));
-    main_dialog.add(Box::new(chart));
-    app.desktop.add(Box::new(main_dialog));
-
-    // Custom event handler loop
-    app.running = true;
-
-    while app.running {
-        // Draw every frame since chart data can change
-        app.draw();
-        app.terminal.flush()?;
-
-        if let Ok(Some(mut event)) = app.terminal.poll_event(std::time::Duration::from_millis(50)) {
-            // Convert global keyboard shortcuts to commands so that F1, Ctrl+N etc. work even when menus are closed
-            handle_global_shortcuts(&mut event);
-
-            // Let menu bar handle events first (including F10)
-            if let Some(ref mut menu_bar) = app.menu_bar {
-                menu_bar.handle_event(&mut event);
-
-                // Check for cascading submenu
-                if event.what == EventType::Keyboard || event.what == EventType::MouseUp {
-                    if let Some(command) = menu_bar.check_cascading_submenu(&mut app.terminal) {
-                        if command != 0 {
-                            event = Event::command(command);
-                        }
-                    }
-                }
-            }
-
-            // Let status line handle events (keyboard shortcuts)
-            if let Some(ref mut status_line) = app.status_line {
-                status_line.handle_event(&mut event);
-            }
-
-            // Let desktop handle events (window close, etc.)
-            app.desktop.handle_event(&mut event);
-
-            // Handle custom commands after UI components have processed events
-            if event.what == EventType::Command {
-                match event.command {
-                    CM_BIORHYTHM => {
-                        let (mut dialog, day_data, month_data, year_data) = create_biorhythm_dialog(&prev_day, &prev_month, &prev_year, width, height);
-
-                        // Custom event loop with validation
-                        // Set modal flag
-                        let old_state = dialog.state();
-                        dialog.set_state(old_state | SF_MODAL);
-
-                        // Initial validation and command state
-                        let is_valid = validate_birth_date(&day_data.borrow(), &month_data.borrow(), &year_data.borrow());
-
-                        // Enable/disable CM_OK command based on validation
-                        if is_valid {
-                            command_set::enable_command(CM_OK);
-                        } else {
-                            command_set::disable_command(CM_OK);
-                        }
-
-                        // Broadcast the change to update button state
-                        let mut broadcast_event = Event::broadcast(CM_COMMAND_SET_CHANGED);
-                        dialog.handle_event(&mut broadcast_event);
-                        command_set::clear_command_set_changed();
-
-                        // Add dialog to desktop - this will center it automatically via OF_CENTERED
-                        app.desktop.add(Box::new(dialog));
-                        let dialog_index = app.desktop.child_count() - 1;
-
-                        let result;
-
-                        loop {
-                            // Draw desktop (which includes the dialog as a child)
-                            app.desktop.draw(&mut app.terminal);
-                            // Get cursor position from the dialog through desktop
-                            if let Some(dialog_view) = app.desktop.window_at_mut(dialog_index) {
-                                dialog_view.update_cursor(&mut app.terminal);
-                            }
-                            let _ = app.terminal.flush();
-
-                            // Poll for event
-                            if let Some(mut event) = app.terminal.poll_event(Duration::from_millis(50)).ok().flatten() {
-                                // Handle the event through the desktop child
-                                if let Some(dialog_view) = app.desktop.window_at_mut(dialog_index) {
-                                    dialog_view.handle_event(&mut event);
-
-                                    // If event was converted to command, process it again
-                                    if event.what == EventType::Command {
-                                        dialog_view.handle_event(&mut event);
-                                    }
-                                }
-
-                                // After every event, revalidate and update command state
-                                let is_valid = validate_birth_date(&day_data.borrow(), &month_data.borrow(), &year_data.borrow());
-
-                                // Enable/disable CM_OK command and broadcast change
-                                if is_valid {
-                                    command_set::enable_command(CM_OK);
-                                } else {
-                                    command_set::disable_command(CM_OK);
-                                }
-
-                                // Broadcast to update button state if command set changed
-                                if command_set::command_set_changed() {
-                                    let mut broadcast_event = Event::broadcast(CM_COMMAND_SET_CHANGED);
-                                    if let Some(dialog_view) = app.desktop.window_at_mut(dialog_index) {
-                                        dialog_view.handle_event(&mut broadcast_event);
-                                    }
-                                    command_set::clear_command_set_changed();
-                                }
-                            }
-
-                            // Check if dialog should close
-                            let end_state = if let Some(dialog_view) = app.desktop.window_at_mut(dialog_index) {
-                                dialog_view.get_end_state()
-                            } else {
-                                0
-                            };
-                            if end_state != 0 {
-                                result = end_state;
-                                break;
-                            }
-                        }
-
-                        // Remove dialog from desktop
-                        app.desktop.remove_child(dialog_index);
-
-                        // Re-enable CM_OK command
-                        command_set::enable_command(CM_OK);
-
-                        if result == CM_OK {
-                            // Parse the input fields
-                            let day_str = day_data.borrow().clone();
-                            let month_str = month_data.borrow().clone();
-                            let year_str = year_data.borrow().clone();
-
-                            if let (Ok(day), Ok(month), Ok(year)) = (day_str.parse::<u32>(), month_str.parse::<u32>(), year_str.parse::<i32>()) {
-                                if let Some(days_alive) = calculate_days_alive(year, month, day) {
-                                    *biorhythm_data.lock().unwrap() = Some(Biorhythm::new(days_alive));
-                                    // Update previous values for next time
-                                    prev_day = day_str;
-                                    prev_month = month_str;
-                                    prev_year = year_str;
-                                }
-                            }
-                        }
-                        continue;
-                    }
-                    CM_ABOUT => {
-                        show_about_dialog(&mut app);
-                        continue;
-                    }
-                    CM_CLOSE => {
-                        // Main window close button clicked - exit application
-                        app.running = false;
-                    }
-                    CM_QUIT => {
-                        app.running = false;
-                    }
-                    _ => {}
-                }
-            }
+/// Handle command events - returns true if app should continue running
+fn handle_command_event(command: u16, app: &mut Application, biorhythm_data: &Arc<Mutex<Option<Biorhythm>>>, birth_state: &mut BirthDateState) -> bool {
+    match command {
+        CM_BIORHYTHM => {
+            let (result, day_data, month_data, year_data) = run_modal_birth_date_dialog(app, birth_state);
+            process_birth_date_result(result, &day_data, &month_data, &year_data, biorhythm_data, birth_state);
+            true
         }
-
-        app.idle();
-        app.desktop.remove_closed_windows();
-        app.desktop.handle_moved_windows(&mut app.terminal);
-
-        // Exit if all windows are closed
-        if app.desktop.child_count() == 0 {
-            app.running = false;
+        CM_ABOUT => {
+            show_about_dialog(app);
+            true
         }
+        CM_CLOSE | CM_QUIT => false,
+        _ => true,
     }
-
-    Ok(())
 }
 
 /// Convert global keyboard shortcuts to command events
@@ -798,4 +641,99 @@ fn setup_status_line(app: &mut Application) {
         ],
     );
     app.set_status_line(status_line);
+}
+
+fn main() -> turbo_vision::core::error::Result<()> {
+    let mut app = Application::new()?;
+
+    setup_menu_bar(&mut app);
+    setup_status_line(&mut app);
+
+    let biorhythm_data = Arc::new(Mutex::new(None));
+    let mut birth_state = BirthDateState::new();
+
+    // Show birthdate dialog at startup
+    let (result, day_data, month_data, year_data) = run_modal_birth_date_dialog(&mut app, &birth_state);
+
+    // If user canceled, quit the app
+    if result == CM_CANCEL {
+        return Ok(());
+    }
+
+    // Process the birth date
+    process_birth_date_result(result, &day_data, &month_data, &year_data, &biorhythm_data, &mut birth_state);
+
+    // Calculate window dimensions for the main chart dialog
+    let (width, height) = app.terminal.size();
+    let window_width = 76i16;
+    let available_width = width as i16;
+    let available_height = height as i16 - 2; // Subtract menu bar and status line
+    let margin_vertical = 1i16;
+    let window_height = available_height - (margin_vertical * 2) - 1; // -1 for shadow
+    let window_x = (available_width - (window_width + 2)) / 2;
+    let window_y = 1 + margin_vertical;
+
+    // Create and show the main dialog with chart
+    let mut main_dialog = DialogBuilder::new()
+        .bounds(Rect::new(window_x, window_y, window_x + window_width, window_y + window_height))
+        .title("Biorhythm Calculator")
+        .build();
+
+    let chart_width = window_width - 2;
+    let chart_height = window_height - 2;
+    let chart = BiorhythmChart::new(Rect::new(1, 1, chart_width, chart_height), Arc::clone(&biorhythm_data));
+    main_dialog.add(Box::new(chart));
+    app.desktop.add(Box::new(main_dialog));
+
+    // Main event loop
+    app.running = true;
+
+    while app.running {
+        app.draw();
+        app.terminal.flush()?;
+
+        if let Ok(Some(mut event)) = app.terminal.poll_event(std::time::Duration::from_millis(50)) {
+            handle_global_shortcuts(&mut event);
+
+            // Let menu bar handle events first (including F10)
+            if let Some(ref mut menu_bar) = app.menu_bar {
+                menu_bar.handle_event(&mut event);
+
+                // Check for cascading submenu
+                if event.what == EventType::Keyboard || event.what == EventType::MouseUp {
+                    if let Some(command) = menu_bar.check_cascading_submenu(&mut app.terminal) {
+                        if command != 0 {
+                            event = Event::command(command);
+                        }
+                    }
+                }
+            }
+
+            // Let status line handle events
+            if let Some(ref mut status_line) = app.status_line {
+                status_line.handle_event(&mut event);
+            }
+
+            // Let desktop handle events
+            app.desktop.handle_event(&mut event);
+
+            // Handle custom commands
+            if event.what == EventType::Command {
+                if !handle_command_event(event.command, &mut app, &biorhythm_data, &mut birth_state) {
+                    app.running = false;
+                }
+            }
+        }
+
+        app.idle();
+        app.desktop.remove_closed_windows();
+        app.desktop.handle_moved_windows(&mut app.terminal);
+
+        // Exit if all windows are closed
+        if app.desktop.child_count() == 0 {
+            app.running = false;
+        }
+    }
+
+    Ok(())
 }
