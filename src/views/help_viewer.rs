@@ -65,7 +65,7 @@ impl HelpViewer {
         self.current_topic = Some(topic.id.clone());
 
         // Update limits
-        let max_y = if self.lines.len() > self.bounds.height() as usize {
+        let max_y = if self.lines.len() > self.bounds.height_clamped() as usize {
             self.lines.len() as i16 - self.bounds.height()
         } else {
             0
@@ -132,7 +132,7 @@ impl View for HelpViewer {
         }
 
         // Recalculate limits
-        let max_y = if self.lines.len() > self.bounds.height() as usize {
+        let max_y = if self.lines.len() > self.bounds.height_clamped() as usize {
             self.lines.len() as i16 - self.bounds.height()
         } else {
             0
@@ -148,7 +148,7 @@ impl View for HelpViewer {
         let display_width = if self.vscrollbar.is_some() {
             (self.bounds.width() - 1) as usize
         } else {
-            self.bounds.width() as usize
+            self.bounds.width_clamped() as usize
         };
 
         // Determine color based on focus using CP_HELP_VIEWER palette

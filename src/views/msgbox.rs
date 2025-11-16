@@ -83,7 +83,7 @@ pub fn message_box_rect(app: &mut Application, bounds: Rect, message: &str, opti
     // Calculate button positions (one row higher)
     let button_y = bounds.height() - 4;
     let total_width: usize = buttons.iter().map(|(label, _)| label.len() + 2).sum();
-    let mut x = (bounds.width() as usize - total_width) / 2;
+    let mut x = (bounds.width_clamped() as usize - total_width) / 2;
 
     // Add buttons
     let is_default = buttons.len() == 1 || (options & MF_OK_BUTTON != 0);

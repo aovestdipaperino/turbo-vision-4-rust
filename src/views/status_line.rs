@@ -58,7 +58,7 @@ impl StatusLine {
 
     /// Draw the status line with optional selected item highlighting
     fn draw_select(&mut self, terminal: &mut Terminal, selected: Option<usize>) {
-        let width = self.bounds.width() as usize;
+        let width = self.bounds.width_clamped() as usize;
         let mut buf = DrawBuffer::new(width);
 
         // StatusLine palette indices:

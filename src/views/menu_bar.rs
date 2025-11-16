@@ -392,7 +392,7 @@ impl View for MenuBar {
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        let width = self.bounds.width() as usize;
+        let width = self.bounds.width_clamped() as usize;
         let mut buf = DrawBuffer::new(width);
 
         let normal_attr = self.map_color(MENU_NORMAL);

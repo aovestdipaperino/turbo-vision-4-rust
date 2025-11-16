@@ -49,14 +49,14 @@ impl View for StaticText {
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        let width = self.bounds.width() as usize;
+        let width = self.bounds.width_clamped() as usize;
         let lines: Vec<&str> = self.text.split('\n').collect();
 
         // StaticText palette color index 1 = normal text
         let text_attr = self.map_color(STATIC_TEXT_NORMAL);
 
         for (i, line) in lines.iter().enumerate() {
-            if i >= self.bounds.height() as usize {
+            if i >= self.bounds.height_clamped() as usize {
                 break;
             }
             let mut buf = DrawBuffer::new(width);

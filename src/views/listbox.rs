@@ -73,7 +73,7 @@ impl ListBox {
     /// Set the selected item by index
     pub fn set_selection(&mut self, index: usize) {
         if index < self.items.len() {
-            let visible_rows = self.bounds.height() as usize;
+            let visible_rows = self.bounds.height_clamped() as usize;
             self.list_state.focus_item(index, visible_rows);
         }
     }
@@ -88,37 +88,37 @@ impl ListBox {
 
     /// Move selection up (convenience method)
     pub fn select_prev(&mut self) {
-        let visible_rows = self.bounds.height() as usize;
+        let visible_rows = self.bounds.height_clamped() as usize;
         self.list_state.focus_prev(visible_rows);
     }
 
     /// Move selection down (convenience method)
     pub fn select_next(&mut self) {
-        let visible_rows = self.bounds.height() as usize;
+        let visible_rows = self.bounds.height_clamped() as usize;
         self.list_state.focus_next(visible_rows);
     }
 
     /// Select first item (convenience method)
     pub fn select_first(&mut self) {
-        let visible_rows = self.bounds.height() as usize;
+        let visible_rows = self.bounds.height_clamped() as usize;
         self.list_state.focus_first(visible_rows);
     }
 
     /// Select last item (convenience method)
     pub fn select_last(&mut self) {
-        let visible_rows = self.bounds.height() as usize;
+        let visible_rows = self.bounds.height_clamped() as usize;
         self.list_state.focus_last(visible_rows);
     }
 
     /// Page up (convenience method)
     pub fn page_up(&mut self) {
-        let visible_rows = self.bounds.height() as usize;
+        let visible_rows = self.bounds.height_clamped() as usize;
         self.list_state.focus_page_up(visible_rows);
     }
 
     /// Page down (convenience method)
     pub fn page_down(&mut self) {
-        let visible_rows = self.bounds.height() as usize;
+        let visible_rows = self.bounds.height_clamped() as usize;
         self.list_state.focus_page_down(visible_rows);
     }
 }
@@ -133,8 +133,8 @@ impl View for ListBox {
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        let width = self.bounds.width() as usize;
-        let height = self.bounds.height() as usize;
+        let width = self.bounds.width_clamped() as usize;
+        let height = self.bounds.height_clamped() as usize;
 
         // ListBox palette indices:
         // 1: Normal, 2: Focused, 3: Selected, 4: Divider
@@ -194,7 +194,7 @@ impl View for ListBox {
 
                     // Update the selection to the double-clicked item
                     if clicked_item < self.items.len() {
-                        let visible_rows = self.bounds.height() as usize;
+                        let visible_rows = self.bounds.height_clamped() as usize;
                         self.list_state.focus_item(clicked_item, visible_rows);
                     }
 

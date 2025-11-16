@@ -274,8 +274,8 @@ impl View for FileList {
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        let width = self.bounds.width() as usize;
-        let height = self.bounds.height() as usize;
+        let width = self.bounds.width_clamped() as usize;
+        let height = self.bounds.height_clamped() as usize;
 
         self.list_state.set_range(self.files.len());
 

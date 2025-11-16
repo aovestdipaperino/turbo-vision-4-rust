@@ -229,8 +229,8 @@ impl View for TextViewer {
 
     fn draw(&mut self, terminal: &mut Terminal) {
         let content_area = self.get_content_area();
-        let width = content_area.width() as usize;
-        let height = content_area.height() as usize;
+        let width = content_area.width_clamped() as usize;
+        let height = content_area.height_clamped() as usize;
 
         // Line number width (if shown)
         let line_num_width = if self.show_line_numbers {

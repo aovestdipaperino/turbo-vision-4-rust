@@ -123,7 +123,7 @@ impl View for ClockView {
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        let width = self.bounds.width() as usize;
+        let width = self.bounds.width_clamped() as usize;
         let color = colors::MENU_NORMAL;
 
         let mut buf = DrawBuffer::new(width);
@@ -407,8 +407,8 @@ impl View for AsciiTable {
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        let width = self.bounds.width() as usize;
-        let height = self.bounds.height() as usize;
+        let width = self.bounds.width_clamped() as usize;
+        let height = self.bounds.height_clamped() as usize;
 
         // Draw ASCII table (characters 32-255)
         // Format: 4 columns, showing Char Dec Hex
@@ -662,7 +662,7 @@ impl View for CalcDisplay {
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        let width = self.bounds.width() as usize;
+        let width = self.bounds.width_clamped() as usize;
         // Use LightCyan background (closest to RGB(175, 212, 250))
         let color = Attr::new(TvColor::Black, TvColor::LightCyan);
 
@@ -937,7 +937,7 @@ impl View for CalendarView {
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        let width = self.bounds.width() as usize;
+        let width = self.bounds.width_clamped() as usize;
 
         let color = Attr::new(TvColor::Black, TvColor::Cyan);
         let bold_color = Attr::new(TvColor::Yellow, TvColor::Cyan);
@@ -1231,7 +1231,7 @@ impl View for PuzzleView {
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        let width = self.bounds.width() as usize;
+        let width = self.bounds.width_clamped() as usize;
 
         // Color map for alternating tile colors
         let map = [0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1];

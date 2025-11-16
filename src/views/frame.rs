@@ -102,8 +102,14 @@ impl View for Frame {
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        let width = self.bounds.width() as usize;
-        let height = self.bounds.height() as usize;
+        let width = self.bounds.width_clamped() as usize;
+        let height = self.bounds.height_clamped() as usize;
+
+        // Don't render frames that are too small
+        // Minimum: 2x2 (for top-left, top-right, bottom-left, bottom-right corners)
+        if width < 2 || height < 2 {
+            return;
+        }
 
         // Get frame colors from palette mapping (matches Borland's getColor())
         let (frame_attr, close_icon_attr, title_attr) = self.get_frame_colors();

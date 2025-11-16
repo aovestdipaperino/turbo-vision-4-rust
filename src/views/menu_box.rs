@@ -141,8 +141,8 @@ impl View for MenuBox {
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        let width = self.bounds.width() as usize;
-        let height = self.bounds.height() as usize;
+        let width = self.bounds.width_clamped() as usize;
+        let height = self.bounds.height_clamped() as usize;
 
         if height < 2 || width < 4 {
             return; // Too small to draw

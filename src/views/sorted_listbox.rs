@@ -102,7 +102,7 @@ impl SortedListBox {
     /// Set the selected item by index
     pub fn set_selection(&mut self, index: usize) {
         if index < self.items.len() {
-            let visible_rows = self.bounds.height() as usize;
+            let visible_rows = self.bounds.height_clamped() as usize;
             self.list_state.focus_item(index, visible_rows);
         }
     }
@@ -252,8 +252,8 @@ impl View for SortedListBox {
         use crate::core::draw::DrawBuffer;
         use super::view::write_line_to_terminal;
 
-        let width = self.bounds.width() as usize;
-        let height = self.bounds.height() as usize;
+        let width = self.bounds.width_clamped() as usize;
+        let height = self.bounds.height_clamped() as usize;
 
         let color_normal = if self.is_focused() {
             crate::core::palette::colors::LISTBOX_FOCUSED

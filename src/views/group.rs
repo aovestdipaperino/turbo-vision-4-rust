@@ -412,8 +412,8 @@ impl View for Group {
     fn draw(&mut self, terminal: &mut Terminal) {
         // Draw background if specified
         if let Some(bg_attr) = self.background {
-            let width = self.bounds.width() as usize;
-            let height = self.bounds.height() as usize;
+            let width = self.bounds.width_clamped() as usize;
+            let height = self.bounds.height_clamped() as usize;
 
             for y in 0..height {
                 let mut buf = DrawBuffer::new(width);

@@ -188,7 +188,7 @@ pub trait Cluster: View {
         use crate::views::view::write_line_to_terminal;
 
         let bounds = self.bounds();
-        let width = bounds.width() as usize;
+        let width = bounds.width_clamped() as usize;
         let mut buffer = DrawBuffer::new(width);
 
         let (color, hotkey_color) = self.get_colors();
