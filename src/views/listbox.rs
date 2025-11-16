@@ -185,6 +185,20 @@ impl View for ListBox {
             if self.bounds.contains(mouse_pos) && event.mouse.buttons & MB_LEFT_BUTTON != 0 {
                 // Double-click triggers selection command (matching Borland's TListViewer)
                 if event.mouse.double_click {
+                    // CRITICAL: Update selection to the double-clicked item BEFORE converting to command
+                    // Without this, the selection would still point to the previously selected item,
+                    // causing FileDialog to act on the wrong file/directory (e.g., double-clicking a
+                    // folder would close the dialog instead of navigating into it)
+                    let relative_y = (mouse_pos.y - self.bounds.a.y) as usize;
+                    let clicked_item = self.list_state.top_item + relative_y;
+
+                    // Update the selection to the double-clicked item
+                    if clicked_item < self.items.len() {
+                        let visible_rows = self.bounds.height() as usize;
+                        self.list_state.focus_item(clicked_item, visible_rows);
+                    }
+
+                    // Now convert to command with the correct item selected
                     *event = Event::command(self.on_select_command);
                     return;
                 }

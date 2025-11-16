@@ -409,14 +409,20 @@ impl FileDialog {
     fn update_ok_button_state(&mut self) {
         use crate::core::state::SF_DISABLED;
 
-        // Check if input field is empty
-        let is_empty = self.file_name_data.borrow().is_empty();
+        let file_name = self.file_name_data.borrow().clone();
+
+        // OK button should only be enabled when a regular file is selected
+        // Disable for: empty input, directories ([dirname]), parent (..), or dir/wildcard paths (dirname/*.rs)
+        let should_disable = file_name.is_empty()
+            || file_name == ".."
+            || file_name.starts_with('[') && file_name.ends_with(']')
+            || file_name.contains('/');
 
         // Get the OK button and update its disabled state
         // Matches Borland's TView::setState(sfDisabled, enable) pattern
         if CHILD_OK_BUTTON < self.dialog.child_count() {
             let ok_button = self.dialog.child_at_mut(CHILD_OK_BUTTON);
-            ok_button.set_state_flag(SF_DISABLED, is_empty);
+            ok_button.set_state_flag(SF_DISABLED, should_disable);
         }
     }
 
