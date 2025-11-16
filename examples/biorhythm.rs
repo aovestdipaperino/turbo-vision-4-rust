@@ -311,7 +311,7 @@ fn get_current_date() -> (u32, u32, u32) {
 }
 
 /// Calculate days alive since the birth date. No need to validate.
-fn calculate_days_alive(birth_date: &BirthDate) -> Option<u32> {
+fn is_in_future(birth_date: &BirthDate) -> Option<u32> {
     let (today_year, today_month, today_day) = get_current_date();
     let birth_days = days_since_epoch(birth_date.year, birth_date.month, birth_date.day);
     let today_days = days_since_epoch(today_year, today_month, today_day);
@@ -398,7 +398,7 @@ fn validate_birth_date(birth_date: &BirthDate) -> bool {
     }
 
     // Calculate days alive and confirms the birth date in not set in the future
-    calculate_days_alive(birth_date).is_some()
+    is_in_future(birth_date).is_some()
 }
 
 fn show_about_dialog(app: &mut Application) {
@@ -619,7 +619,7 @@ fn run_modal_birth_date_dialog(app: &mut Application, state: &BirthDate) -> Opti
 /// is invalid (e.g., in the future or otherwise impossible)
 fn process_birth_date_result(biorhythm_data: &Arc<Mutex<Option<Biorhythm>>>, state: &BirthDate) -> bool {
     // Calculate days alive and confirms the birth date in not in the future
-    if let Some(days_alive) = calculate_days_alive(&state) {
+    if let Some(days_alive) = is_in_future(&state) {
         // Create and store the biorhythm data
         *biorhythm_data.lock().expect("Biorhythm mutex poisoned") = Some(Biorhythm::new(days_alive));
         true
