@@ -45,7 +45,7 @@ impl View for Indicator {
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        let width = self.bounds.width() as usize;
+        let width = self.bounds.width_clamped() as usize;
         let mut buf = DrawBuffer::new(width);
 
         // Use palette indices from CP_INDICATOR

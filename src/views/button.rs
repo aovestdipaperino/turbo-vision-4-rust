@@ -101,8 +101,15 @@ impl View for Button {
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        let width = self.bounds.width() as usize;
-        let height = self.bounds.height() as usize;
+        let width = self.bounds.width_clamped() as usize;
+        let height = self.bounds.height_clamped() as usize;
+
+        // Don't render buttons that are too small
+        // Minimum width: 4 (at least 2 chars for content + 1 for right shadow + 1 for spacing)
+        // Minimum height: 2 (at least 1 line for content + 1 for bottom shadow)
+        if width < 4 || height < 2 {
+            return;
+        }
 
         let is_disabled = self.is_disabled();
         let is_focused = self.is_focused();
@@ -664,5 +671,40 @@ mod tests {
             .bounds(Rect::new(0, 0, 10, 2))
             .title("Test")
             .build();
+    }
+
+    #[test]
+    fn test_button_with_small_dimensions_doesnt_panic() {
+        // REGRESSION TEST: Buttons with small/negative dimensions should not panic
+        // This tests the fix for issue #53 where shrinking windows caused panics
+        //
+        // We can't actually call draw() in unit tests (no TTY), but we can verify
+        // that the dimension clamping logic works correctly.
+
+        const TEST_CMD: u16 = 511;
+
+        // Test various small dimensions - should not panic on creation
+        let test_cases = vec![
+            Rect::new(0, 0, 0, 0),   // Zero dimensions
+            Rect::new(0, 0, 1, 1),   // Too small (min is 4x2)
+            Rect::new(0, 0, 2, 1),   // Width too small
+            Rect::new(0, 0, 3, 1),   // Width too small
+            Rect::new(0, 0, 4, 1),   // Height too small
+            Rect::new(0, 0, 1, 2),   // Width too small
+            Rect::new(0, 0, 2, 2),   // Width too small
+            Rect::new(0, 0, 3, 2),   // Width too small
+            Rect::new(10, 5, 5, 2),  // Negative width (inverted)
+            Rect::new(5, 10, 2, 5),  // Negative height (inverted)
+        ];
+
+        for rect in test_cases {
+            // Should not panic on creation or bounds queries
+            let button = Button::new(rect, "Test", TEST_CMD, false);
+            let bounds = button.bounds();
+
+            // Verify clamping works
+            assert!(bounds.width_clamped() >= 0);
+            assert!(bounds.height_clamped() >= 0);
+        }
     }
 }

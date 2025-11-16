@@ -114,7 +114,7 @@ impl SharedDirListBox {
             let list_state = listbox.list_state();
             total_items = list_state.range;
             top_item = list_state.top_item;
-            visible_items = listbox.bounds().height() as usize;
+            visible_items = listbox.bounds().height_clamped() as usize;
         }
 
         // Update vertical scrollbar

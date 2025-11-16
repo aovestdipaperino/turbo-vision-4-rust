@@ -565,8 +565,8 @@ impl View for Memo {
 
     fn draw(&mut self, terminal: &mut Terminal) {
         let content_area = self.get_content_area();
-        let width = content_area.width() as usize;
-        let height = content_area.height() as usize;
+        let width = content_area.width_clamped() as usize;
+        let height = content_area.height_clamped() as usize;
 
         // Use palette indices from CP_MEMO
         // 1 = Normal text, 2 = Selected/cursor text

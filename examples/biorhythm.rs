@@ -190,8 +190,8 @@ impl View for BiorhythmChart {
             return;
         }
 
-        let width = self.bounds.width() as usize;
-        let height = self.bounds.height() as usize;
+        let width = self.bounds.width_clamped() as usize;
+        let height = self.bounds.height_clamped() as usize;
 
         if width < 10 || height < 10 {
             return;

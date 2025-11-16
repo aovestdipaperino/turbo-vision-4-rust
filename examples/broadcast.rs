@@ -55,7 +55,7 @@ impl View for BroadcastButton {
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        let width = self.bounds.width() as usize;
+        let width = self.bounds.width_clamped() as usize;
         let height = self.bounds.height();
 
         for y in 0..height {

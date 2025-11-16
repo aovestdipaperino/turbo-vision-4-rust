@@ -84,7 +84,7 @@ impl View for ColorSelector {
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        let width = self.bounds.width() as usize;
+        let width = self.bounds.width_clamped() as usize;
 
         // Draw color grid (16 colors in 2 rows of 8)
         for row in 0..2 {

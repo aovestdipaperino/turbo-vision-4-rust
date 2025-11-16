@@ -139,6 +139,18 @@ impl Rect {
         self.b.y - self.a.y
     }
 
+    /// Get the width as a non-negative value, clamped to 0 if negative
+    /// Use this when converting to usize to avoid panics from negative dimensions
+    pub fn width_clamped(&self) -> i16 {
+        self.width().max(0)
+    }
+
+    /// Get the height as a non-negative value, clamped to 0 if negative
+    /// Use this when converting to usize to avoid panics from negative dimensions
+    pub fn height_clamped(&self) -> i16 {
+        self.height().max(0)
+    }
+
     /// Get the size as a Point
     pub fn size(&self) -> Point {
         Point::new(self.width(), self.height())
@@ -314,5 +326,33 @@ mod tests {
 
         let r2 = Rect::new(0, 0, 80, 25);
         assert_eq!(format!("{}", r2), "[0, 0, 80, 25]");
+    }
+
+    #[test]
+    fn test_width_height_clamped() {
+        // Normal rectangle
+        let r = Rect::new(0, 0, 10, 10);
+        assert_eq!(r.width_clamped(), 10);
+        assert_eq!(r.height_clamped(), 10);
+
+        // Inverted rectangle (negative dimensions)
+        let r2 = Rect::new(10, 10, 5, 5);
+        assert_eq!(r2.width(), -5);  // Raw width is negative
+        assert_eq!(r2.height(), -5); // Raw height is negative
+        assert_eq!(r2.width_clamped(), 0);  // Clamped to 0
+        assert_eq!(r2.height_clamped(), 0); // Clamped to 0
+
+        // Partially inverted
+        let r3 = Rect::new(5, 5, 2, 10);
+        assert_eq!(r3.width(), -3);
+        assert_eq!(r3.height(), 5);
+        assert_eq!(r3.width_clamped(), 0);
+        assert_eq!(r3.height_clamped(), 5);
+
+        // Safe to convert to usize
+        let width_usize = r2.width_clamped() as usize;
+        let height_usize = r2.height_clamped() as usize;
+        assert_eq!(width_usize, 0);
+        assert_eq!(height_usize, 0);
     }
 }

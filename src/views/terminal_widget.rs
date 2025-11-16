@@ -202,7 +202,7 @@ impl TerminalWidget {
 
     /// Get the number of visible rows
     fn get_visible_rows(&self) -> usize {
-        let mut height = self.bounds.height() as usize;
+        let mut height = self.bounds.height_clamped() as usize;
         if self.v_scrollbar.is_some() {
             // Account for scrollbar taking up space
             height = height.saturating_sub(0); // scrollbar doesn't reduce height
@@ -212,7 +212,7 @@ impl TerminalWidget {
 
     /// Get the visible width
     fn get_visible_width(&self) -> usize {
-        let mut width = self.bounds.width() as usize;
+        let mut width = self.bounds.width_clamped() as usize;
         if self.v_scrollbar.is_some() {
             width = width.saturating_sub(1); // scrollbar takes 1 column
         }

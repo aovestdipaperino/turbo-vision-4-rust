@@ -277,7 +277,7 @@ pub trait ListViewer: View {
 
     /// Get the number of visible rows in viewport
     fn visible_rows(&self) -> usize {
-        self.bounds().height() as usize
+        self.bounds().height_clamped() as usize
     }
 
     /// Handle standard list navigation events

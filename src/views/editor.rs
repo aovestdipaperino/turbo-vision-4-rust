@@ -237,13 +237,13 @@ impl Editor {
 
     /// Check if vertical scrollbar is needed
     pub fn needs_vertical_scrollbar(&self) -> bool {
-        let visible_height = self.bounds.height() as usize;
+        let visible_height = self.bounds.height_clamped() as usize;
         self.line_count() > visible_height
     }
 
     /// Check if horizontal scrollbar is needed
     pub fn needs_horizontal_scrollbar(&self) -> bool {
-        let visible_width = self.bounds.width() as usize;
+        let visible_width = self.bounds.width_clamped() as usize;
         self.max_line_width() > visible_width
     }
 
@@ -1162,8 +1162,8 @@ impl View for Editor {
         use crate::core::palette::{EDITOR_NORMAL, EDITOR_SELECTED, EDITOR_CURSOR};
 
         let content_area = self.get_content_area();
-        let width = content_area.width() as usize;
-        let height = content_area.height() as usize;
+        let width = content_area.width_clamped() as usize;
+        let height = content_area.height_clamped() as usize;
 
         let default_color = self.map_color(EDITOR_NORMAL);
         let selected_color = self.map_color(EDITOR_SELECTED);

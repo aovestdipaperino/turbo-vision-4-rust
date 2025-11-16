@@ -83,8 +83,8 @@ impl View for HistoryViewer {
         use crate::core::draw::DrawBuffer;
         use super::view::write_line_to_terminal;
 
-        let width = self.bounds.width() as usize;
-        let height = self.bounds.height() as usize;
+        let width = self.bounds.width_clamped() as usize;
+        let height = self.bounds.height_clamped() as usize;
 
         use crate::core::palette::colors::{LISTBOX_FOCUSED, LISTBOX_NORMAL, LISTBOX_SELECTED_FOCUSED, LISTBOX_SELECTED};
         let color_normal = if self.is_focused() {
@@ -143,7 +143,7 @@ impl View for HistoryViewer {
 
     fn set_list_selection(&mut self, index: usize) {
         if index < self.items.len() {
-            let visible_rows = self.bounds.height() as usize;
+            let visible_rows = self.bounds.height_clamped() as usize;
             self.list_state.focus_item(index, visible_rows);
         }
     }

@@ -139,7 +139,7 @@ impl InputLine {
 
     /// Ensure cursor is visible by adjusting first_pos
     fn make_cursor_visible(&mut self) {
-        let width = self.bounds.width() as usize;
+        let width = self.bounds.width_clamped() as usize;
 
         // If cursor is before the visible area
         if self.cursor_pos < self.first_pos {
@@ -162,7 +162,14 @@ impl View for InputLine {
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        let width = self.bounds.width() as usize;
+        let width = self.bounds.width_clamped() as usize;
+
+        // Don't render input lines that are too small
+        // Minimum width: 1 (at least 1 char visible)
+        if width < 1 {
+            return;
+        }
+
         let mut buf = DrawBuffer::new(width);
 
         // InputLine palette indices:
