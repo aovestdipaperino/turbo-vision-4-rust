@@ -224,7 +224,7 @@ impl View for BiorhythmChart {
 }
 
 // The D, M and Y fields use validator
-fn create_biorhythm_dialog(state: Option<&NaiveDate>) -> (turbo_vision::views::dialog::Dialog, Rc<RefCell<String>>, Rc<RefCell<String>>, Rc<RefCell<String>>) {
+fn create_biorhythm_dialog(birth_date: Option<&NaiveDate>) -> (turbo_vision::views::dialog::Dialog, Rc<RefCell<String>>, Rc<RefCell<String>>, Rc<RefCell<String>>) {
     // Dialog dimensions: 50 wide, 12 tall
     let dialog_width = 50i16;
     let dialog_height = 12i16;
@@ -236,7 +236,6 @@ fn create_biorhythm_dialog(state: Option<&NaiveDate>) -> (turbo_vision::views::d
     dialog.set_options(OF_CENTERED);
 
     // Get today's date for display
-    // let (today_year, today_month, today_day) = get_current_date();
     let (today_year, today_month, today_day) = {
         let today = Local::now().date_naive();
         (today.year(), today.month(), today.day())
@@ -255,7 +254,7 @@ fn create_biorhythm_dialog(state: Option<&NaiveDate>) -> (turbo_vision::views::d
     dialog.add(Box::new(StaticTextBuilder::new().bounds(Rect::new(2, 6, 12, 7)).text("Year:").build()));
 
     // Convert NaiveDate to String components for display
-    let (prev_day, prev_month, prev_year) = if let Some(date) = state {
+    let (prev_day, prev_month, prev_year) = if let Some(date) = birth_date {
         (date.day().to_string(), date.month().to_string(), date.year().to_string())
     } else {
         (String::new(), String::new(), String::new())
@@ -266,8 +265,7 @@ fn create_biorhythm_dialog(state: Option<&NaiveDate>) -> (turbo_vision::views::d
     let month_data = Rc::new(RefCell::new(prev_month));
     let year_data = Rc::new(RefCell::new(prev_year));
 
-    // Input fields with validators
-    // Day: [1-31]
+    // Input fields with validators - Day: [1-31]
     let day_validator = Rc::new(RefCell::new(RangeValidator::new(1, 31)));
     let mut day_input = InputLineBuilder::new().bounds(Rect::new(12, 4, 17, 5)).max_length(2).data(Rc::clone(&day_data)).build();
     day_input.set_validator(day_validator);
@@ -285,7 +283,7 @@ fn create_biorhythm_dialog(state: Option<&NaiveDate>) -> (turbo_vision::views::d
     year_input.set_validator(year_validator);
     dialog.add(Box::new(year_input));
 
-    // Buttons (child indices 8 and 9)
+    // Buttons
     dialog.add(Box::new(ButtonBuilder::new().bounds(Rect::new(15, 8, 25, 10)).title("  OK  ").command(CM_OK).default(true).build()));
     dialog.add(Box::new(
         ButtonBuilder::new().bounds(Rect::new(27, 8, 37, 10)).title("Cancel").command(CM_CANCEL).default(false).build(),
@@ -295,8 +293,7 @@ fn create_biorhythm_dialog(state: Option<&NaiveDate>) -> (turbo_vision::views::d
     (dialog, day_data, month_data, year_data)
 }
 
-/// Goes beyond what the validators can do
-/// Check if the date is not in the future
+/// Goes beyond what the validators can do. Check if the date is not in the future
 fn validate_birth_date(birth_date: &NaiveDate) -> bool {
     let today = Local::now().date_naive();
     *birth_date <= today
@@ -321,7 +318,7 @@ Semi-graphical ASCII chart";
 
 /// Helper function to parse three strings into a NaiveDate
 /// Returns None if parsing fails or date is invalid
-fn parse_birth_state(day_str: &str, month_str: &str, year_str: &str) -> Option<NaiveDate> {
+fn parse_birth_date(day_str: &str, month_str: &str, year_str: &str) -> Option<NaiveDate> {
     if let (Ok(day), Ok(month), Ok(year)) = (day_str.parse::<u32>(), month_str.parse::<u32>(), year_str.parse::<i32>()) {
         NaiveDate::from_ymd_opt(year, month, day)
     } else {
@@ -335,36 +332,41 @@ fn parse_birth_state(day_str: &str, month_str: &str, year_str: &str) -> Option<N
 /// - Creates and displays the dialog with input fields
 /// - Handles real-time validation of user input
 /// - Enables/disables the OK button based on validation state
+/// - Caches the validated date to avoid redundant parsing
 /// - Processes events until the user confirms or cancels
-/// - Parses the validated input strings into a NaiveDate
+///
+/// # Implementation notes
+/// The input fields share their data via Rc<RefCell<String>> wrappers, allowing both
+/// the InputLine widgets and our validation code to access the same values.
+///
+/// To optimize performance, we cache the last successfully validated NaiveDate instead
+/// of re-parsing on every keystroke and again when the user clicks OK. This eliminates
+/// redundant parsing since the shared Rc<RefCell<String>> values remain accessible after
+/// the dialog closes.
 ///
 /// # Returns
 /// - `Some(NaiveDate)` if the user confirmed with valid date data
-/// - `None` if the user cancelled or if parsing failed
-///
-/// Note
-/// The Rc<RefCell<String>> wrappers are needed for sharing mutable data between the dialog's
-/// input widgets and our code while the dialog is active.
-/// Once the dialog closes, we parse the strings into a NaiveDate and return that instead.
-fn run_modal_birth_date_dialog(app: &mut Application, state: Option<&NaiveDate>) -> Option<NaiveDate> {
+/// - `None` if the user cancelled
+fn run_modal_birth_date_dialog(app: &mut Application, birth_date: Option<&NaiveDate>) -> Option<NaiveDate> {
     use std::time::Duration;
     use turbo_vision::core::command::CM_COMMAND_SET_CHANGED;
     use turbo_vision::core::command_set;
 
     // day_data is of type Rc<RefCell<String>>. See the InputLineBuilder() signature
-    let (mut dialog, day_data, month_data, year_data) = create_biorhythm_dialog(state);
+    let (mut dialog, day_data, month_data, year_data) = create_biorhythm_dialog(birth_date);
 
     // Set modal flag
     let old_state = dialog.state();
     dialog.set_state(old_state | SF_MODAL);
 
+    // Cache the last successfully validated date to avoid re-parsing when user clicks OK
+    // This date is updated every time the input changes and validation succeeds
     // Initial validation and command state
-    let is_valid = parse_birth_state(&day_data.borrow(), &month_data.borrow(), &year_data.borrow())
-        .map(|date| validate_birth_date(&date))
-        .unwrap_or(false);
+    let mut last_valid_date = parse_birth_date(&day_data.borrow(), &month_data.borrow(), &year_data.borrow())
+        .filter(|date| validate_birth_date(date));
 
     // Enable/disable CM_OK command based on the previous validation
-    if is_valid {
+    if last_valid_date.is_some() {
         command_set::enable_command(CM_OK);
     } else {
         command_set::disable_command(CM_OK);
@@ -423,12 +425,12 @@ fn run_modal_birth_date_dialog(app: &mut Application, state: Option<&NaiveDate>)
             }
 
             // After every event, revalidate and update command state
-            let is_valid = parse_birth_state(&day_data.borrow(), &month_data.borrow(), &year_data.borrow())
-                .map(|date| validate_birth_date(&date))
-                .unwrap_or(false);
+            // Parse and validate the current input, caching the result if valid
+            last_valid_date = parse_birth_date(&day_data.borrow(), &month_data.borrow(), &year_data.borrow())
+                .filter(|date| validate_birth_date(date));
 
             // Enable/disable CM_OK command and broadcast change
-            if is_valid {
+            if last_valid_date.is_some() {
                 command_set::enable_command(CM_OK);
             } else {
                 command_set::disable_command(CM_OK);
@@ -462,17 +464,11 @@ fn run_modal_birth_date_dialog(app: &mut Application, state: Option<&NaiveDate>)
     // Re-enable CM_OK command for future dialogs
     command_set::enable_command(CM_OK);
 
-    // Process the result: parse strings to NaiveDate if user confirmed
+    // Return the cached validated date if user confirmed, None if cancelled
+    // No need to re-parse: last_valid_date already contains the validated result
     if result == CM_OK {
-        let day_str = day_data.borrow();
-        let month_str = month_data.borrow();
-        let year_str = year_data.borrow();
-
-        // Parse the validated input strings into a NaiveDate
-        // This should always succeed thanks to the validators, but we handle it defensively
-        parse_birth_state(&day_str, &month_str, &year_str)
+        last_valid_date
     } else {
-        // User cancelled
         None
     }
 }
@@ -493,13 +489,13 @@ fn process_birth_date_result(biorhythm_data: &Arc<Mutex<Option<Biorhythm>>>, bir
 }
 
 /// Handle command events - returns true if app should continue running
-fn handle_command_event(command: u16, app: &mut Application, biorhythm_data: &Arc<Mutex<Option<Biorhythm>>>, birth_state: &mut Option<NaiveDate>) -> bool {
+fn handle_command_event(command: u16, app: &mut Application, biorhythm_data: &Arc<Mutex<Option<Biorhythm>>>, birth_date: &mut Option<NaiveDate>) -> bool {
     match command {
         CM_BIORHYTHM => {
             // Show the birth date dialog and process the result if user confirmed
-            if let Some(new_state) = run_modal_birth_date_dialog(app, birth_state.as_ref()) {
-                process_birth_date_result(biorhythm_data, &new_state);
-                *birth_state = Some(new_state);
+            if let Some(new_birth_date) = run_modal_birth_date_dialog(app, birth_date.as_ref()) {
+                process_birth_date_result(biorhythm_data, &new_birth_date);
+                *birth_date = Some(new_birth_date);
             }
             true
         }
@@ -605,7 +601,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
 
     // Process the birth date and update birth_state
     process_birth_date_result(&biorhythm_data, &birth_date);
-    let mut current_birth_state = Some(birth_date);
+    let mut current_birth_date = Some(birth_date);
 
     add_chart(&mut app, &biorhythm_data);
 
@@ -645,7 +641,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
 
             // Handle custom commands
             if event.what == EventType::Command {
-                if !handle_command_event(event.command, &mut app, &biorhythm_data, &mut current_birth_state) {
+                if !handle_command_event(event.command, &mut app, &biorhythm_data, &mut current_birth_date) {
                     app.running = false;
                 }
             }
