@@ -3,7 +3,7 @@
 //! Editor view - advanced multi-line text editor with syntax highlighting support.
 
 use crate::core::geometry::{Point, Rect};
-use crate::core::event::{Event, EventType, KB_UP, KB_DOWN, KB_LEFT, KB_RIGHT, KB_PGUP, KB_PGDN, KB_HOME, KB_END, KB_ENTER, KB_BACKSPACE, KB_DEL, KB_TAB};
+use crate::core::event::{Event, EventType, KB_UP, KB_DOWN, KB_LEFT, KB_RIGHT, KB_PGUP, KB_PGDN, KB_HOME, KB_END, KB_ENTER, KB_BACKSPACE, KB_DEL, KB_TAB, MB_LEFT_BUTTON};
 use crate::core::draw::DrawBuffer;
 use crate::core::clipboard;
 use crate::core::state::StateFlags;
@@ -490,6 +490,54 @@ impl Editor {
         // In the Borland-style architecture, scrollbars are siblings (not children)
         // So the editor's bounds already exclude scrollbar space - just return full bounds
         self.bounds
+    }
+
+    /// Convert mouse position to cursor position (line, column)
+    /// Matches Borland: TEditor::getMousePtr() (teditor.cc:426-433)
+    fn mouse_pos_to_cursor(&self, mouse_pos: Point) -> Point {
+        let content_area = self.get_content_area();
+
+        // Convert absolute mouse position to relative position within editor
+        let mut relative_x = mouse_pos.x - content_area.a.x;
+        let mut relative_y = mouse_pos.y - content_area.a.y;
+
+        // Clamp to content area (matching Borland's max(0, min(mouse.x, size.x - 1)))
+        relative_x = relative_x.max(0).min(content_area.width() - 1);
+        relative_y = relative_y.max(0).min(content_area.height() - 1);
+
+        // Add scroll offset to get document position
+        let doc_y = (relative_y + self.delta.y) as usize;
+        let doc_x = (relative_x + self.delta.x) as usize;
+
+        // Clamp Y to valid line range
+        let line_idx = doc_y.min(self.lines.len().saturating_sub(1));
+
+        // Clamp X to line length (allow position at end of line for cursor placement)
+        let line_char_len = self.lines[line_idx].chars().count();
+        let col = doc_x.min(line_char_len);
+
+        Point::new(col as i16, line_idx as i16)
+    }
+
+    /// Set cursor position and handle selection based on mode
+    /// Matches Borland: TEditor::setCurPtr() (teditor.cc:986-1014)
+    fn set_cursor_with_selection(&mut self, pos: Point, extend_selection: bool) {
+        if !extend_selection {
+            // Simple click - clear selection and move cursor
+            self.selection_start = None;
+            self.cursor = pos;
+        } else {
+            // Drag or shift-click - extend selection
+            if self.selection_start.is_none() {
+                // Start new selection from current cursor
+                self.selection_start = Some(self.cursor);
+            }
+            // Move cursor to new position (selection_start stays anchored)
+            self.cursor = pos;
+        }
+
+        self.clamp_cursor();
+        self.ensure_cursor_visible();
     }
 
     fn max_line_length(&self) -> i16 {
@@ -1249,6 +1297,103 @@ impl View for Editor {
     }
 
     fn handle_event(&mut self, event: &mut Event) {
+        // Handle mouse events (matching Borland TEditor::handleEvent - teditor.cc:454-493)
+        if event.what == EventType::MouseDown {
+            // Only handle mouse events if focused
+            if !self.is_focused() {
+                return;
+            }
+
+            let mouse_pos = event.mouse.pos;
+            let content_area = self.get_content_area();
+
+            // Check if click is within editor bounds
+            if !content_area.contains(mouse_pos) {
+                return;
+            }
+
+            // Convert mouse position to cursor position
+            let cursor_pos = self.mouse_pos_to_cursor(mouse_pos);
+
+            // Check if this is the start of a drag operation
+            // Matches Borland: do { ... } while( mouseEvent(event, evMouseMove + evMouseAuto) )
+            let extend_selection = false;
+
+            // First click sets cursor position
+            self.set_cursor_with_selection(cursor_pos, extend_selection);
+
+            // Now track mouse movement for drag selection
+            // We need to consume the MouseDown event and wait for MouseMove/MouseUp events
+            event.clear();
+
+            // Note: In the Borland implementation, there's a mouseEvent() helper that
+            // waits for the next mouse event in a loop. In our architecture, we handle
+            // this differently - we'll set extend_selection flag after the first click
+            // and subsequent MouseMove events will extend the selection.
+            //
+            // However, to truly match Borland's behavior, we would need to implement
+            // a tracking loop here that actively polls for mouse events. This requires
+            // access to the application's event queue, which we don't have in handle_event.
+            //
+            // For now, we implement a simplified version where:
+            // 1. MouseDown sets cursor position
+            // 2. Subsequent MouseMove events (if button still held) extend selection
+            //
+            // This is a limitation of our current event architecture compared to Borland's.
+
+            return;
+        }
+
+        // Handle mouse move for drag selection
+        if event.what == EventType::MouseMove {
+            // Only track drags if focused and left button is held
+            if !self.is_focused() || (event.mouse.buttons & MB_LEFT_BUTTON == 0) {
+                return;
+            }
+
+            let mouse_pos = event.mouse.pos;
+            let content_area = self.get_content_area();
+
+            // Auto-scroll if mouse is outside editor bounds
+            // Matches Borland: teditor.cc:475-487
+            let mut scroll_delta = self.delta;
+            let mut needs_scroll = false;
+
+            if mouse_pos.x < content_area.a.x {
+                scroll_delta.x = scroll_delta.x.saturating_sub(1);
+                needs_scroll = true;
+            } else if mouse_pos.x >= content_area.b.x {
+                scroll_delta.x += 1;
+                needs_scroll = true;
+            }
+
+            if mouse_pos.y < content_area.a.y {
+                scroll_delta.y = scroll_delta.y.saturating_sub(1);
+                needs_scroll = true;
+            } else if mouse_pos.y >= content_area.b.y {
+                scroll_delta.y += 1;
+                needs_scroll = true;
+            }
+
+            if needs_scroll {
+                // Clamp scroll position
+                let max_x = self.max_line_length().saturating_sub(content_area.width());
+                let max_y = (self.lines.len() as i16).saturating_sub(content_area.height());
+                scroll_delta.x = scroll_delta.x.max(0).min(max_x);
+                scroll_delta.y = scroll_delta.y.max(0).min(max_y);
+
+                self.delta = scroll_delta;
+                self.update_scrollbars();
+            }
+
+            // Convert mouse position to cursor position and extend selection
+            let cursor_pos = self.mouse_pos_to_cursor(mouse_pos);
+            self.set_cursor_with_selection(cursor_pos, true);
+
+            event.clear();
+            return;
+        }
+
         if event.what == EventType::Keyboard {
             // Only handle keyboard events if focused
             if !self.is_focused() {

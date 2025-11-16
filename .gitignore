@@ -1,6 +1,7 @@
 /target
 /local-only
 Cargo.lock
+CLAUDE.md
 
 # Screenshots and temporary files
 *.png

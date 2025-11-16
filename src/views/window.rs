@@ -553,12 +553,9 @@ impl View for Window {
             }
         }
 
-        // Handle CM_CLOSE command (Borland: twindow.cc lines 104-118)
+        // Handle CM_CLOSE command (Borland: twindow.cc lines 104-118, 70-78)
         // Frame generates CM_CLOSE when close button is clicked
-        // Matches Borland: TWindow::handleEvent calls close(), which calls destroy(this)
         if event.what == EventType::Command && event.command == CM_CLOSE {
-            use crate::core::state::SF_CLOSED;
-
             // Check if this window is modal
             if (self.state & SF_MODAL) != 0 {
                 // Modal window: end modal loop with CM_CANCEL
@@ -566,13 +563,19 @@ impl View for Window {
                 self.end_modal(CM_CANCEL);
                 event.clear();
             } else {
-                // Non-modal window: close itself (Borland: TWindow::close() calls destroy(this))
-                // In Rust, we mark with SF_CLOSED flag and let app.desktop.remove_closed_windows() handle it
-                // TODO: Add valid(cmClose) support for validation (e.g., "Save before closing?")
-                self.state |= SF_CLOSED;
-                event.clear();
+                // Non-modal window: Let the event bubble up to the application level
+                // The application will handle validation (showing "Save changes?" dialog)
+                // and removal of the window.
+                //
+                // Note: In Borland, TWindow::close() calls valid(cmClose) and destroys itself.
+                // In our Rust architecture, we can't show dialogs in valid() because we don't
+                // have access to Application/Terminal. So we let CM_CLOSE bubble up to the
+                // application where it can show dialogs and handle the removal.
+                //
+                // DO NOT clear the event - application needs to see it!
+                // DO NOT mark as SF_CLOSED here - application will remove the window after validation
             }
-            return;
+            return; // Don't pass CM_CLOSE to interior
         }
 
         // Then let the interior handle it (if not already handled)
