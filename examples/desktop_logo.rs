@@ -37,7 +37,7 @@ struct CrabWidget {
 impl CrabWidget {
     fn new(x: i16, y: i16) -> Self {
         Self {
-            bounds: Rect::new(x, y, x + 10, y + 1),
+            bounds: Rect::new(x, y, x + 9, y + 1),
             state: 0,
             position: 0,
             direction: 1,
@@ -64,17 +64,19 @@ impl View for CrabWidget {
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        let mut buf = DrawBuffer::new(10);
+        let mut buf = DrawBuffer::new(9);
         // Use status line colors (reverse video)
         let color = Attr::new(TvColor::Black, TvColor::LightGray);
 
         // Fill with spaces
-        for i in 0..10 {
+        for i in 0..9 {
             buf.move_char(i, ' ', color, 1);
         }
 
-        // Place the crab at current position
-        buf.move_char(self.position, '🦀', color, 1);
+        // Place the crab at current position (0-8)
+        if self.position < 9 {
+            buf.move_char(self.position, '🦀', color, 1);
+        }
 
         write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y, &buf);
     }
@@ -91,10 +93,10 @@ impl IdleView for CrabWidget {
     fn idle(&mut self) {
         // Update animation every 100ms
         if self.last_update.elapsed().as_millis() > 100 {
-            // Move the crab
+            // Move the crab (animate positions 0-8 in 9-character buffer)
             if self.direction > 0 {
                 self.position += 1;
-                if self.position >= 9 {
+                if self.position >= 8 {
                     self.direction = -1;
                 }
             } else {
@@ -299,7 +301,8 @@ fn main() -> turbo_vision::core::error::Result<()> {
 
     // Create animated crab widget on the right side of the status bar
     // Add it as an overlay widget so it continues animating even during modal dialogs
-    let crab_widget = CrabWidget::new(width as i16 - 11, height as i16 - 1);
+    // Position at width - 12 to avoid writing to the last column (which causes scrolling)
+    let crab_widget = CrabWidget::new(width as i16 - 12, height as i16 - 1);
     app.add_overlay_widget(Box::new(crab_widget));
 
     // Main event loop
