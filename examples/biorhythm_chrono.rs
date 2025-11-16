@@ -330,19 +330,7 @@ fn run_modal_birth_date_dialog(app: &mut Application, birth_date: Option<&NaiveD
     let old_state = dialog.state();
     dialog.set_state(old_state | SF_MODAL);
 
-    // Cache the last successfully validated date to avoid re-parsing when user clicks OK
-    // This date is updated every time the input changes and validation succeeds
-    // Initial validation and command state
-    // let mut last_valid_date = parse_birth_date(&day_data.borrow(), &month_data.borrow(), &year_data.borrow())
-    // .filter(|date| validate_birth_date(date));
-    let mut last_valid_date = None;
-
-    // Enable/disable CM_OK command based on the previous validation
-    // if last_valid_date.is_some() {
-    //     command_set::enable_command(CM_OK);
-    // } else {
-    //     command_set::disable_command(CM_OK);
-    // }
+    // Initially DD MM and YYYY fields are empty so CM_OK is grayed
     command_set::disable_command(CM_OK);
 
     // Broadcast the change to update button state globally
@@ -353,6 +341,9 @@ fn run_modal_birth_date_dialog(app: &mut Application, birth_date: Option<&NaiveD
     // Add dialog to desktop - this will center it automatically via OF_CENTERED
     app.desktop.add(Box::new(dialog));
     let dialog_index = app.desktop.child_count() - 1;
+
+    // Cache the last validated date to avoid re-parsing on OK click
+    let mut last_valid_date = None;
 
     let result;
 
