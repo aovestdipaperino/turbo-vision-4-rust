@@ -26,7 +26,7 @@ const CM_BIORHYTHM: u16 = 100;
 const CM_ABOUT: u16 = 101;
 
 /// DateFieldValidator - validates numeric date field input (day, month, year)
-/// More strict than RangeValidator: checks value during typing, not just characters
+/// Checks values during typing, not just characters
 struct DateFieldValidator {
     min: i64,
     max: i64,
