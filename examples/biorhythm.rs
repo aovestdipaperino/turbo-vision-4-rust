@@ -56,22 +56,6 @@ impl Biorhythm {
         Self { days_alive }
     }
 
-    // // Accept signed offsets for plotting (past/future relative to today)
-    // fn physical(&self, day_offset: i32) -> f64 {
-    //     let days = self.days_alive as i32 + day_offset;
-    //     (2.0 * PI * days as f64 / PHYSICAL_CYCLE).sin()
-    // }
-
-    // fn emotional(&self, day_offset: i32) -> f64 {
-    //     let days = self.days_alive as i32 + day_offset;
-    //     (2.0 * PI * days as f64 / EMOTIONAL_CYCLE).sin()
-    // }
-
-    // fn intellectual(&self, day_offset: i32) -> f64 {
-    //     let days = self.days_alive as i32 + day_offset;
-    //     (2.0 * PI * days as f64 / INTELLECTUAL_CYCLE).sin()
-    // }
-
     // Biorhythm cycles (in days)
     const PHYSICAL_CYCLE: f64 = 23.0;
     const EMOTIONAL_CYCLE: f64 = 28.0;
@@ -213,10 +197,13 @@ impl View for BiorhythmChart {
                 if y == height - 1 {
                     line.move_char(2, '■', Attr::new(TvColor::Red, TvColor::LightGray), 1);
                     line.move_str(3, ":Physical(23d) ", colors::DIALOG_NORMAL);
+
                     line.move_char(19, '■', Attr::new(TvColor::Green, TvColor::LightGray), 1);
                     line.move_str(20, ":Emotional(28d) ", colors::DIALOG_NORMAL);
+
                     line.move_char(37, '■', Attr::new(TvColor::Blue, TvColor::LightGray), 1);
                     line.move_str(38, ":Intellectual(33d) ", colors::DIALOG_NORMAL);
+
                     line.move_char(58, '|', colors::MENU_SHORTCUT, 1);
                     line.move_str(59, ":Today", colors::DIALOG_NORMAL);
                 }
