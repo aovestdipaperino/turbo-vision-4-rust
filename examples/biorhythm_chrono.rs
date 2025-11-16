@@ -33,20 +33,6 @@ use turbo_vision::views::{
 const CM_BIORHYTHM: u16 = 100;
 const CM_ABOUT: u16 = 101;
 
-/// Stores the birth date values
-#[derive(Clone, Default)]
-struct BirthDate {
-    day: u32,
-    month: u32,
-    year: u32,
-}
-
-impl BirthDate {
-    fn new() -> Self {
-        Default::default()
-    }
-}
-
 #[derive(Clone)]
 struct Biorhythm {
     // Number of days alive is inherently non-negative, keep as u32
@@ -238,7 +224,7 @@ impl View for BiorhythmChart {
 }
 
 // The D, M and Y fields use validator
-fn create_biorhythm_dialog(state: &BirthDate) -> (turbo_vision::views::dialog::Dialog, Rc<RefCell<String>>, Rc<RefCell<String>>, Rc<RefCell<String>>) {
+fn create_biorhythm_dialog(state: Option<&NaiveDate>) -> (turbo_vision::views::dialog::Dialog, Rc<RefCell<String>>, Rc<RefCell<String>>, Rc<RefCell<String>>) {
     // Dialog dimensions: 50 wide, 12 tall
     let dialog_width = 50i16;
     let dialog_height = 12i16;
@@ -268,10 +254,12 @@ fn create_biorhythm_dialog(state: &BirthDate) -> (turbo_vision::views::dialog::D
     dialog.add(Box::new(StaticTextBuilder::new().bounds(Rect::new(2, 5, 12, 6)).text("Month:").build()));
     dialog.add(Box::new(StaticTextBuilder::new().bounds(Rect::new(2, 6, 12, 7)).text("Year:").build()));
 
-    // Convert u32/i32 to String for display
-    let prev_day = if state.day > 0 { state.day.to_string() } else { String::new() };
-    let prev_month = if state.month > 0 { state.month.to_string() } else { String::new() };
-    let prev_year = if state.year > 0 { state.year.to_string() } else { String::new() };
+    // Convert NaiveDate to String components for display
+    let (prev_day, prev_month, prev_year) = if let Some(date) = state {
+        (date.day().to_string(), date.month().to_string(), date.year().to_string())
+    } else {
+        (String::new(), String::new(), String::new())
+    };
 
     // Create shared data for input fields with initial values
     let day_data = Rc::new(RefCell::new(prev_day));
@@ -307,14 +295,11 @@ fn create_biorhythm_dialog(state: &BirthDate) -> (turbo_vision::views::dialog::D
     (dialog, day_data, month_data, year_data)
 }
 
-/// Goes bbeyond what the validators can do
-/// Check if the date is valid (accounting for month lengths and leap years) and if it's not in the future
-fn validate_birth_date(birth_date: &BirthDate) -> bool {
-    let today = chrono::Local::now().date_naive();
-
-    NaiveDate::from_ymd_opt(birth_date.year as i32, birth_date.month, birth_date.day)
-        .map(|birth| birth <= today)
-        .unwrap_or(false)
+/// Goes beyond what the validators can do
+/// Check if the date is not in the future
+fn validate_birth_date(birth_date: &NaiveDate) -> bool {
+    let today = Local::now().date_naive();
+    *birth_date <= today
 }
 
 fn show_about_dialog(app: &mut Application) {
@@ -334,11 +319,11 @@ Semi-graphical ASCII chart";
     message_box(app, message, MF_ABOUT | MF_OK_BUTTON);
 }
 
-/// Helper function to parse three strings into a BirthDate
-/// Returns None if parsing fails
-fn parse_birth_state(day_str: &str, month_str: &str, year_str: &str) -> Option<BirthDate> {
-    if let (Ok(day), Ok(month), Ok(year)) = (day_str.parse::<u32>(), month_str.parse::<u32>(), year_str.parse::<u32>()) {
-        Some(BirthDate { day, month, year })
+/// Helper function to parse three strings into a NaiveDate
+/// Returns None if parsing fails or date is invalid
+fn parse_birth_state(day_str: &str, month_str: &str, year_str: &str) -> Option<NaiveDate> {
+    if let (Ok(day), Ok(month), Ok(year)) = (day_str.parse::<u32>(), month_str.parse::<u32>(), year_str.parse::<i32>()) {
+        NaiveDate::from_ymd_opt(year, month, day)
     } else {
         None
     }
@@ -351,24 +336,17 @@ fn parse_birth_state(day_str: &str, month_str: &str, year_str: &str) -> Option<B
 /// - Handles real-time validation of user input
 /// - Enables/disables the OK button based on validation state
 /// - Processes events until the user confirms or cancels
-/// - Parses the validated input strings into numeric date components
+/// - Parses the validated input strings into a NaiveDate
 ///
 /// # Returns
-/// - `Some(BirthDateState)` if the user confirmed with valid date data
-/// - `None` if the user cancelled or if parsing failed (though parsing failure
-///   should not occur due to the validators)
+/// - `Some(NaiveDate)` if the user confirmed with valid date data
+/// - `None` if the user cancelled or if parsing failed
 ///
 /// Note
-/// Initially, run_modal_birth_date_dialog() returned Rc<RefCell<String>>
-/// The Rc<RefCell<String>> wrappers were needed for sharing mutable data between the dialog's
-/// input widgets and our code while the dialog was active.
-/// Once the dialog closes, we no longer need shared ownership.
-/// We just need the final values.
-/// By cloning the strings and parsing them into numbers before returning, we transfer ownership of
-/// simple value types instead of shared references, eliminating the need for reference counting entirely.
-/// In short: Rc<RefCell<T>> enables sharing during the dialog's lifetime, but after the dialog closes,
-/// we only care about the final values, not the shared containers.
-fn run_modal_birth_date_dialog(app: &mut Application, state: &BirthDate) -> Option<BirthDate> {
+/// The Rc<RefCell<String>> wrappers are needed for sharing mutable data between the dialog's
+/// input widgets and our code while the dialog is active.
+/// Once the dialog closes, we parse the strings into a NaiveDate and return that instead.
+fn run_modal_birth_date_dialog(app: &mut Application, state: Option<&NaiveDate>) -> Option<NaiveDate> {
     use std::time::Duration;
     use turbo_vision::core::command::CM_COMMAND_SET_CHANGED;
     use turbo_vision::core::command_set;
@@ -381,11 +359,9 @@ fn run_modal_birth_date_dialog(app: &mut Application, state: &BirthDate) -> Opti
     dialog.set_state(old_state | SF_MODAL);
 
     // Initial validation and command state
-    let is_valid = if let Some(parsed_state) = parse_birth_state(&day_data.borrow(), &month_data.borrow(), &year_data.borrow()) {
-        validate_birth_date(&parsed_state)
-    } else {
-        false
-    };
+    let is_valid = parse_birth_state(&day_data.borrow(), &month_data.borrow(), &year_data.borrow())
+        .map(|date| validate_birth_date(&date))
+        .unwrap_or(false);
 
     // Enable/disable CM_OK command based on the previous validation
     if is_valid {
@@ -447,11 +423,9 @@ fn run_modal_birth_date_dialog(app: &mut Application, state: &BirthDate) -> Opti
             }
 
             // After every event, revalidate and update command state
-            let is_valid = if let Some(parsed_state) = parse_birth_state(&day_data.borrow(), &month_data.borrow(), &year_data.borrow()) {
-                validate_birth_date(&parsed_state)
-            } else {
-                false
-            };
+            let is_valid = parse_birth_state(&day_data.borrow(), &month_data.borrow(), &year_data.borrow())
+                .map(|date| validate_birth_date(&date))
+                .unwrap_or(false);
 
             // Enable/disable CM_OK command and broadcast change
             if is_valid {
@@ -488,32 +462,15 @@ fn run_modal_birth_date_dialog(app: &mut Application, state: &BirthDate) -> Opti
     // Re-enable CM_OK command for future dialogs
     command_set::enable_command(CM_OK);
 
-    // Process the result: parse strings to numbers if user confirmed
+    // Process the result: parse strings to NaiveDate if user confirmed
     if result == CM_OK {
         let day_str = day_data.borrow();
         let month_str = month_data.borrow();
         let year_str = year_data.borrow();
 
-        // Parse the validated input strings into numeric values
+        // Parse the validated input strings into a NaiveDate
         // This should always succeed thanks to the validators, but we handle it defensively
-        // First try a trimmed parse (accept leading/trailing spaces)
-        if let (Ok(day), Ok(month), Ok(year)) = (day_str.parse::<u32>(), month_str.parse::<u32>(), year_str.parse::<u32>()) {
-            Some(BirthDate { day, month, year })
-        } else {
-            // Fallback: user may have pasted "DD MM YYYY" into one field - try to split combined input
-            let combined = format!("{day_str} {month_str} {year_str}");
-            let parts: Vec<&str> = combined.split_whitespace().collect();
-            if parts.len() >= 3 {
-                if let (Ok(day), Ok(month), Ok(year)) = (parts[0].parse::<u32>(), parts[1].parse::<u32>(), parts[2].parse::<u32>()) {
-                    Some(BirthDate { day, month, year })
-                } else {
-                    None
-                }
-            } else {
-                // Parsing failed - should not happen with proper validators
-                None
-            }
-        }
+        parse_birth_state(&day_str, &month_str, &year_str)
     } else {
         // User cancelled
         None
@@ -522,39 +479,27 @@ fn run_modal_birth_date_dialog(app: &mut Application, state: &BirthDate) -> Opti
 
 /// Processes a validated birth date by calculating the biorhythm and updating application state.
 ///
-/// This function receives pre-validated and pre-parsed date components from the dialog,
+/// This function receives a validated birth date from the dialog,
 /// calculates the number of days since birth, creates a biorhythm instance, and updates
-/// the state for future dialog invocations.
+/// the shared biorhythm data.
 ///
 /// # Arguments
 /// * `biorhythm_data` - Shared biorhythm data to update
-/// * `state` - Birth date state containing the validated date and to persist for future dialog invocations
-///
-/// # Returns
-/// `true` if the biorhythm was successfully calculated and stored, `false` if the date
-/// is invalid (e.g., in the future or otherwise impossible)
-
-fn process_birth_date_result(biorhythm_data: &Arc<Mutex<Option<Biorhythm>>>, state: &BirthDate) -> bool {
+/// * `birth_date` - The validated birth date
+fn process_birth_date_result(biorhythm_data: &Arc<Mutex<Option<Biorhythm>>>, birth_date: &NaiveDate) {
     let today = Local::now().date_naive();
-
-    if let Some(birth) = NaiveDate::from_ymd_opt(state.year as i32, state.month, state.day) {
-        if birth <= today {
-            let days_alive = (today - birth).num_days().try_into().unwrap();
-            *biorhythm_data.lock().expect("Biorhythm mutex poisoned") = Some(Biorhythm::new(days_alive));
-            return true;
-        }
-    }
-    false
+    let days_alive = (today - *birth_date).num_days().try_into().unwrap();
+    *biorhythm_data.lock().expect("Biorhythm mutex poisoned") = Some(Biorhythm::new(days_alive));
 }
 
 /// Handle command events - returns true if app should continue running
-fn handle_command_event(command: u16, app: &mut Application, biorhythm_data: &Arc<Mutex<Option<Biorhythm>>>, birth_state: &mut BirthDate) -> bool {
+fn handle_command_event(command: u16, app: &mut Application, biorhythm_data: &Arc<Mutex<Option<Biorhythm>>>, birth_state: &mut Option<NaiveDate>) -> bool {
     match command {
         CM_BIORHYTHM => {
             // Show the birth date dialog and process the result if user confirmed
-            if let Some(new_state) = run_modal_birth_date_dialog(app, birth_state) {
+            if let Some(new_state) = run_modal_birth_date_dialog(app, birth_state.as_ref()) {
                 process_birth_date_result(biorhythm_data, &new_state);
-                *birth_state = new_state;
+                *birth_state = Some(new_state);
             }
             true
         }
@@ -649,18 +594,18 @@ fn main() -> turbo_vision::core::error::Result<()> {
     add_status_line(&mut app);
 
     let biorhythm_data = Arc::new(Mutex::new(None));
-    let initial_birth_date = BirthDate::new();
 
     // Displays the dialog box for entering the date of birth
-    let birth_date_result = run_modal_birth_date_dialog(&mut app, &initial_birth_date);
+    let birth_date_result = run_modal_birth_date_dialog(&mut app, None);
 
     // If user cancelled, quit the app
-    let Some(mut current_birth_state) = birth_date_result else {
+    let Some(birth_date) = birth_date_result else {
         return Ok(());
     };
 
     // Process the birth date and update birth_state
-    process_birth_date_result(&biorhythm_data, &current_birth_state);
+    process_birth_date_result(&biorhythm_data, &birth_date);
+    let mut current_birth_state = Some(birth_date);
 
     add_chart(&mut app, &biorhythm_data);
 
