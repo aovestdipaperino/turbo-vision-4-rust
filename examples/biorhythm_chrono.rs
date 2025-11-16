@@ -2,7 +2,6 @@
 // Biorhythm Calculator - Working Demo
 // Displays biorhythm charts with semi-graphical ASCII visualization
 
-// Global imports - used across multiple functions
 use chrono::{Datelike, Local, NaiveDate};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -13,7 +12,7 @@ use turbo_vision::core::event::{Event, EventType, KB_ALT_C, KB_ALT_X, KB_F1, KB_
 use turbo_vision::core::geometry::Rect;
 use turbo_vision::core::menu_data::{Menu, MenuItem};
 use turbo_vision::core::palette::{Attr, TvColor, colors};
-use turbo_vision::core::state::{StateFlags, OF_CENTERED, SF_MODAL, SF_VISIBLE};
+use turbo_vision::core::state::{OF_CENTERED, SF_MODAL, SF_VISIBLE, StateFlags};
 use turbo_vision::terminal::Terminal;
 use turbo_vision::views::View;
 use turbo_vision::views::dialog::DialogBuilder;
@@ -31,6 +30,7 @@ struct Biorhythm {
 }
 
 impl Biorhythm {
+    /// Create a new biorhythm instance from the number of days alive
     fn new(days_alive: u32) -> Self {
         Self { days_alive }
     }
@@ -40,21 +40,23 @@ impl Biorhythm {
     const EMOTIONAL_CYCLE: f64 = 28.0;
     const INTELLECTUAL_CYCLE: f64 = 33.0;
 
+    /// Calculate sine wave value for a given cycle period and day offset
     fn cycle_value(&self, offset: i32, period: f64) -> f64 {
-        // Days may be negative for past offsets
         let days = self.days_alive as i32 + offset;
         (2.0 * std::f64::consts::PI * days as f64 / period).sin()
     }
 
-    // Accept signed offsets for plotting (past/future relative to today)
+    /// Calculate physical cycle value for a given day offset from today
     fn physical(&self, day_offset: i32) -> f64 {
         self.cycle_value(day_offset, Self::PHYSICAL_CYCLE)
     }
 
+    /// Calculate emotional cycle value for a given day offset from today
     fn emotional(&self, day_offset: i32) -> f64 {
         self.cycle_value(day_offset, Self::EMOTIONAL_CYCLE)
     }
 
+    /// Calculate intellectual cycle value for a given day offset from today
     fn intellectual(&self, day_offset: i32) -> f64 {
         self.cycle_value(day_offset, Self::INTELLECTUAL_CYCLE)
     }
@@ -67,6 +69,7 @@ struct BiorhythmChart {
 }
 
 impl BiorhythmChart {
+    /// Create a new biorhythm chart view with the given bounds and shared data
     fn new(bounds: Rect, biorhythm: Rc<RefCell<Option<Biorhythm>>>) -> Self {
         Self { bounds, biorhythm, state: SF_VISIBLE }
     }
@@ -196,7 +199,7 @@ impl View for BiorhythmChart {
                 buf.move_char(0, ' ', colors::DIALOG_NORMAL, width);
 
                 if y == height / 2 {
-                    let msg = "Press F10 -> Biorhythm -> Calculate";
+                    let msg = "Press Alt+C or F10 -> Biorhythm -> Calculate";
                     let msg_x = (width.saturating_sub(msg.len())) / 2;
                     buf.move_str(msg_x, msg, colors::DIALOG_NORMAL);
                 }
@@ -214,14 +217,9 @@ impl View for BiorhythmChart {
     }
 }
 
-// The DD, MM and YYYY fields use validator
+/// Create birth date input dialog with validators and return dialog + shared field data
 fn create_biorhythm_dialog(birth_date: Option<&NaiveDate>) -> (turbo_vision::views::dialog::Dialog, Rc<RefCell<String>>, Rc<RefCell<String>>, Rc<RefCell<String>>) {
-    use turbo_vision::views::{
-        button::ButtonBuilder,
-        input_line::InputLineBuilder,
-        static_text::StaticTextBuilder,
-        validator::RangeValidator,
-    };
+    use turbo_vision::views::{button::ButtonBuilder, input_line::InputLineBuilder, static_text::StaticTextBuilder, validator::RangeValidator};
 
     let dialog_width = 50i16;
     let dialog_height = 12i16;
@@ -287,12 +285,13 @@ fn create_biorhythm_dialog(birth_date: Option<&NaiveDate>) -> (turbo_vision::vie
     (dialog, day_data, month_data, year_data)
 }
 
-/// Goes beyond what the validators can do. Check if the date is not in the future
+/// Validate that birth date is not in the future (beyond RangeValidator checks)
 fn validate_birth_date(birth_date: &NaiveDate) -> bool {
     let today = Local::now().date_naive();
     *birth_date <= today
 }
 
+/// Display application information dialog with biorhythm cycle details
 fn show_about_dialog(app: &mut Application) {
     use turbo_vision::helpers::msgbox::{MF_ABOUT, MF_OK_BUTTON, message_box};
 
@@ -310,8 +309,7 @@ Semi-graphical ASCII chart";
     message_box(app, message, MF_ABOUT | MF_OK_BUTTON);
 }
 
-/// Helper function to parse three strings into a NaiveDate
-/// Returns None if parsing fails or date is invalid
+/// Parse day, month, year strings into NaiveDate (returns None if invalid)
 fn parse_birth_date(day_str: &str, month_str: &str, year_str: &str) -> Option<NaiveDate> {
     if let (Ok(day), Ok(month), Ok(year)) = (day_str.parse::<u32>(), month_str.parse::<u32>(), year_str.parse::<i32>()) {
         NaiveDate::from_ymd_opt(year, month, day)
@@ -320,33 +318,12 @@ fn parse_birth_date(day_str: &str, month_str: &str, year_str: &str) -> Option<Na
     }
 }
 
-/// Runs a modal birth date dialog with validation and user input handling.
-///
-/// This function manages the entire lifecycle of the birth date input dialog:
-/// - Creates and displays the dialog with input fields
-/// - Handles real-time validation of user input
-/// - Enables/disables the OK button based on validation state
-/// - Caches the validated date to avoid redundant parsing
-/// - Processes events until the user confirms or cancels
-///
-/// # Implementation notes
-/// The input fields share their data via Rc<RefCell<String>> wrappers, allowing both
-/// the InputLine widgets and our validation code to access the same values.
-///
-/// To optimize performance, we cache the last successfully validated NaiveDate instead
-/// of re-parsing on every keystroke and again when the user clicks OK. This eliminates
-/// redundant parsing since the shared Rc<RefCell<String>> values remain accessible after
-/// the dialog closes.
-///
-/// # Returns
-/// - `Some(NaiveDate)` if the user confirmed with valid date data
-/// - `None` if the user cancelled
+/// Run modal birth date dialog. Returns a validated date if any
 fn run_modal_birth_date_dialog(app: &mut Application, birth_date: Option<&NaiveDate>) -> Option<NaiveDate> {
     use std::time::Duration;
     use turbo_vision::core::command::CM_COMMAND_SET_CHANGED;
     use turbo_vision::core::command_set;
 
-    // day_data is of type Rc<RefCell<String>>. See the InputLineBuilder() signature
     let (mut dialog, day_data, month_data, year_data) = create_biorhythm_dialog(birth_date);
 
     // Set modal flag
@@ -356,15 +333,17 @@ fn run_modal_birth_date_dialog(app: &mut Application, birth_date: Option<&NaiveD
     // Cache the last successfully validated date to avoid re-parsing when user clicks OK
     // This date is updated every time the input changes and validation succeeds
     // Initial validation and command state
-    let mut last_valid_date = parse_birth_date(&day_data.borrow(), &month_data.borrow(), &year_data.borrow())
-        .filter(|date| validate_birth_date(date));
+    // let mut last_valid_date = parse_birth_date(&day_data.borrow(), &month_data.borrow(), &year_data.borrow())
+    // .filter(|date| validate_birth_date(date));
+    let mut last_valid_date = None;
 
     // Enable/disable CM_OK command based on the previous validation
-    if last_valid_date.is_some() {
-        command_set::enable_command(CM_OK);
-    } else {
-        command_set::disable_command(CM_OK);
-    }
+    // if last_valid_date.is_some() {
+    //     command_set::enable_command(CM_OK);
+    // } else {
+    //     command_set::disable_command(CM_OK);
+    // }
+    command_set::disable_command(CM_OK);
 
     // Broadcast the change to update button state globally
     let mut broadcast_event = Event::broadcast(CM_COMMAND_SET_CHANGED);
@@ -420,8 +399,7 @@ fn run_modal_birth_date_dialog(app: &mut Application, birth_date: Option<&NaiveD
 
             // After every event, revalidate and update command state
             // Parse and validate the current input, caching the result if valid
-            last_valid_date = parse_birth_date(&day_data.borrow(), &month_data.borrow(), &year_data.borrow())
-                .filter(|date| validate_birth_date(date));
+            last_valid_date = parse_birth_date(&day_data.borrow(), &month_data.borrow(), &year_data.borrow()).filter(|date| validate_birth_date(date));
 
             // Enable/disable CM_OK command and broadcast change
             if last_valid_date.is_some() {
@@ -460,29 +438,17 @@ fn run_modal_birth_date_dialog(app: &mut Application, birth_date: Option<&NaiveD
 
     // Return the cached validated date if user confirmed, None if cancelled
     // No need to re-parse: last_valid_date already contains the validated result
-    if result == CM_OK {
-        last_valid_date
-    } else {
-        None
-    }
+    if result == CM_OK { last_valid_date } else { None }
 }
 
-/// Processes a validated birth date by calculating the biorhythm and updating application state.
-///
-/// This function receives a validated birth date from the dialog,
-/// calculates the number of days since birth, creates a biorhythm instance, and updates
-/// the shared biorhythm data.
-///
-/// # Arguments
-/// * `biorhythm_data` - Shared biorhythm data to update
-/// * `birth_date` - The validated birth date
+/// Calculate days alive from birth date and update shared biorhythm data
 fn process_birth_date_result(biorhythm_data: &Rc<RefCell<Option<Biorhythm>>>, birth_date: &NaiveDate) {
     let today = Local::now().date_naive();
     let days_alive = (today - *birth_date).num_days().try_into().unwrap();
     *biorhythm_data.borrow_mut() = Some(Biorhythm::new(days_alive));
 }
 
-/// Handle command events - returns true if app should continue running
+/// Process command events and return whether the application should continue running
 fn handle_command_event(command: u16, app: &mut Application, biorhythm_data: &Rc<RefCell<Option<Biorhythm>>>, birth_date: &mut Option<NaiveDate>) -> bool {
     match command {
         CM_BIORHYTHM => {
@@ -502,9 +468,7 @@ fn handle_command_event(command: u16, app: &mut Application, biorhythm_data: &Rc
     }
 }
 
-/// Convert global keyboard shortcuts to command events
-/// These shortcuts work regardless of whether menus are open or not
-/// Note: ESC is NOT converted here - ESC_ESC it's handled by MenuBar to close menus
+/// Convert global keyboard shortcuts (Alt+C, Alt+X, F1) to command events
 fn handle_global_shortcuts(event: &mut Event) {
     if event.what != EventType::Keyboard {
         return;
@@ -522,7 +486,7 @@ fn handle_global_shortcuts(event: &mut Event) {
     }
 }
 
-/// Create and configure the menu bar
+/// Create menu bar with Biorhythm and Help menus
 fn add_menu_bar(app: &mut Application) {
     let (width, _) = app.terminal.size();
     let mut menu_bar = MenuBar::new(Rect::new(0, 0, width as i16, 1));
@@ -537,7 +501,7 @@ fn add_menu_bar(app: &mut Application) {
     app.set_menu_bar(menu_bar);
 }
 
-/// Create and configure the status line at the bottom of the screen
+/// Create status line with F1/F10/Alt-X shortcuts at bottom of screen
 fn add_status_line(app: &mut Application) {
     let (width, height) = app.terminal.size();
 
@@ -552,7 +516,7 @@ fn add_status_line(app: &mut Application) {
     app.set_status_line(status_line);
 }
 
-/// Design the chart dialog box
+/// Create and add centered biorhythm chart window to the desktop
 fn add_chart(app: &mut Application, biorhythm_data: &Rc<RefCell<Option<Biorhythm>>>) {
     // Calculate window dimensions
     let (width, height) = app.terminal.size();
