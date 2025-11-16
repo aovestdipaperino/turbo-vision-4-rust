@@ -2,7 +2,7 @@
 // Biorhythm Calculator - Working Demo
 // Displays biorhythm charts with semi-graphical ASCII visualization
 
-// use chrono::Duration;
+// Global imports - used across multiple functions
 use chrono::{Datelike, Local, NaiveDate};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -13,20 +13,13 @@ use turbo_vision::core::event::{Event, EventType, KB_ALT_C, KB_ALT_X, KB_F1, KB_
 use turbo_vision::core::geometry::Rect;
 use turbo_vision::core::menu_data::{Menu, MenuItem};
 use turbo_vision::core::palette::{Attr, TvColor, colors};
-use turbo_vision::core::state::StateFlags;
-use turbo_vision::core::state::{OF_CENTERED, SF_MODAL, SF_VISIBLE};
+use turbo_vision::core::state::{StateFlags, OF_CENTERED, SF_MODAL, SF_VISIBLE};
 use turbo_vision::terminal::Terminal;
+use turbo_vision::views::View;
+use turbo_vision::views::dialog::DialogBuilder;
+use turbo_vision::views::menu_bar::{MenuBar, SubMenu};
+use turbo_vision::views::status_line::{StatusItem, StatusLine};
 use turbo_vision::views::view::write_line_to_terminal;
-use turbo_vision::views::{
-    View,
-    button::ButtonBuilder,
-    dialog::DialogBuilder,
-    input_line::InputLineBuilder,
-    menu_bar::{MenuBar, SubMenu},
-    static_text::StaticTextBuilder,
-    status_line::{StatusItem, StatusLine},
-    validator::RangeValidator,
-};
 
 // Custom commands
 const CM_BIORHYTHM: u16 = 100;
@@ -34,7 +27,6 @@ const CM_ABOUT: u16 = 101;
 
 #[derive(Clone)]
 struct Biorhythm {
-    // Number of days alive is inherently non-negative, keep as u32
     days_alive: u32,
 }
 
@@ -49,7 +41,7 @@ impl Biorhythm {
     const INTELLECTUAL_CYCLE: f64 = 33.0;
 
     fn cycle_value(&self, offset: i32, period: f64) -> f64 {
-        // days may be negative for past offsets
+        // Days may be negative for past offsets
         let days = self.days_alive as i32 + offset;
         (2.0 * std::f64::consts::PI * days as f64 / period).sin()
     }
@@ -222,19 +214,23 @@ impl View for BiorhythmChart {
     }
 }
 
-// The D, M and Y fields use validator
+// The DD, MM and YYYY fields use validator
 fn create_biorhythm_dialog(birth_date: Option<&NaiveDate>) -> (turbo_vision::views::dialog::Dialog, Rc<RefCell<String>>, Rc<RefCell<String>>, Rc<RefCell<String>>) {
-    // Dialog dimensions: 50 wide, 12 tall
+    use turbo_vision::views::{
+        button::ButtonBuilder,
+        input_line::InputLineBuilder,
+        static_text::StaticTextBuilder,
+        validator::RangeValidator,
+    };
+
     let dialog_width = 50i16;
     let dialog_height = 12i16;
 
     // Create dialog with dummy position - OF_CENTERED will auto-center it
     let mut dialog = DialogBuilder::new().bounds(Rect::new(0, 0, dialog_width, dialog_height)).title("Enter Birth Date").build();
-
-    // Enable automatic centering (matches Borland's ofCentered option)
     dialog.set_options(OF_CENTERED);
 
-    // Get today's date for display
+    // Get today's date for the displayed message
     let (today_year, today_month, today_day) = {
         let today = Local::now().date_naive();
         (today.year(), today.month(), today.day())
@@ -247,12 +243,11 @@ fn create_biorhythm_dialog(birth_date: Option<&NaiveDate>) -> (turbo_vision::vie
             .build(),
     ));
 
-    // Labels
     dialog.add(Box::new(StaticTextBuilder::new().bounds(Rect::new(2, 4, 12, 5)).text("Day:").build()));
     dialog.add(Box::new(StaticTextBuilder::new().bounds(Rect::new(2, 5, 12, 6)).text("Month:").build()));
     dialog.add(Box::new(StaticTextBuilder::new().bounds(Rect::new(2, 6, 12, 7)).text("Year:").build()));
 
-    // Convert NaiveDate to String components for display
+    // Convert NaiveDate to String components to fill the input lines
     let (prev_day, prev_month, prev_year) = if let Some(date) = birth_date {
         (date.day().to_string(), date.month().to_string(), date.year().to_string())
     } else {
