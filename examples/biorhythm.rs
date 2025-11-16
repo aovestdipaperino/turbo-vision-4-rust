@@ -2,169 +2,162 @@
 // Biorhythm Calculator - Working Demo
 // Displays biorhythm charts with semi-graphical ASCII visualization
 
+use chrono::{Datelike, Local, NaiveDate};
+use std::cell::RefCell;
+use std::rc::Rc;
 use turbo_vision::app::Application;
-use turbo_vision::views::{
-    dialog::DialogBuilder,
-    button::ButtonBuilder,
-    static_text::StaticTextBuilder,
-    input_line::InputLineBuilder,
-    menu_bar::{MenuBar, SubMenu},
-    status_line::{StatusLine, StatusItem},
-    View,
-    validator::RangeValidator,
-};
-use turbo_vision::core::command::{CM_QUIT, CM_OK, CM_CANCEL, CM_CLOSE};
-use turbo_vision::core::event::{Event, EventType, KB_F1, KB_F10};
+use turbo_vision::core::command::{CM_CANCEL, CM_CLOSE, CM_OK, CM_QUIT};
+use turbo_vision::core::draw::DrawBuffer;
+use turbo_vision::core::event::{Event, EventType, KB_ALT_C, KB_ALT_X, KB_F1, KB_F10};
 use turbo_vision::core::geometry::Rect;
 use turbo_vision::core::menu_data::{Menu, MenuItem};
-use turbo_vision::core::state::*;
-use turbo_vision::core::palette::{colors, Attr, TvColor};
-use turbo_vision::core::draw::DrawBuffer;
+use turbo_vision::core::palette::{Attr, TvColor, colors};
+use turbo_vision::core::state::{SF_VISIBLE, StateFlags};
 use turbo_vision::terminal::Terminal;
+use turbo_vision::views::View;
+use turbo_vision::views::dialog::DialogBuilder;
+use turbo_vision::views::menu_bar::{MenuBar, SubMenu};
+use turbo_vision::views::status_line::{StatusItem, StatusLine};
+use turbo_vision::views::validator::Validator;
 use turbo_vision::views::view::write_line_to_terminal;
-use std::f64::consts::PI;
-use std::sync::{Arc, Mutex};
-use std::rc::Rc;
-use std::cell::RefCell;
 
 // Custom commands
 const CM_BIORHYTHM: u16 = 100;
 const CM_ABOUT: u16 = 101;
 
-// Biorhythm cycles (in days)
-const PHYSICAL_CYCLE: f64 = 23.0;
-const EMOTIONAL_CYCLE: f64 = 28.0;
-const INTELLECTUAL_CYCLE: f64 = 33.0;
-
-// Simple date calculation functions (no external dependencies)
-fn is_leap_year(year: i32) -> bool {
-    (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0)
+/// DateFieldValidator - validates numeric date field input (day, month, year)
+/// Checks values during typing, not just characters
+struct DateFieldValidator {
+    min: i64,
+    max: i64,
 }
 
-fn days_in_month(month: u32, year: i32) -> u32 {
-    match month {
-        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
-        4 | 6 | 9 | 11 => 30,
-        2 => if is_leap_year(year) { 29 } else { 28 },
-        _ => 0,
+impl DateFieldValidator {
+    fn new(min: i64, max: i64) -> Self {
+        Self { min, max }
     }
 }
 
-fn days_since_epoch(year: i32, month: u32, day: u32) -> i32 {
-    // Calculate days since Jan 1, 1970 (Unix epoch)
-    let mut days = 0;
+impl Validator for DateFieldValidator {
+    fn is_valid(&self, input: &str) -> bool {
+        // Empty is invalid for final validation
+        if input.is_empty() {
+            return false;
+        }
 
-    // Add days for complete years
-    for y in 1970..year {
-        days += if is_leap_year(y) { 366 } else { 365 };
-    }
-
-    // Add days for complete months in the current year
-    for m in 1..month {
-        days += days_in_month(m, year) as i32;
-    }
-
-    // Add remaining days
-    days += day as i32;
-
-    days
-}
-
-fn get_current_date() -> (i32, u32, u32) {
-    // Get current date from system time
-    use std::time::{SystemTime, UNIX_EPOCH};
-    let duration = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
-    let total_days = duration.as_secs() / 86400;
-
-    // Simple algorithm to convert days since epoch to Y/M/D
-    let mut days_left = total_days as i32;
-    let mut year = 1970;
-
-    loop {
-        let days_in_year = if is_leap_year(year) { 366 } else { 365 };
-        if days_left >= days_in_year {
-            days_left -= days_in_year;
-            year += 1;
-        } else {
-            break;
+        // Try to parse as number
+        match input.parse::<i64>() {
+            Ok(value) => value >= self.min && value <= self.max,
+            Err(_) => false,
         }
     }
 
-    let mut month = 1;
-    while month <= 12 {
-        let days_in_current_month = days_in_month(month, year) as i32;
-        if days_left >= days_in_current_month {
-            days_left -= days_in_current_month;
-            month += 1;
-        } else {
-            break;
+    fn is_valid_input(&self, input: &str, _append: bool) -> bool {
+        // Empty string is valid during typing
+        if input.is_empty() {
+            return true;
+        }
+
+        // Must be all digits
+        if !input.chars().all(|c| c.is_ascii_digit()) {
+            return false;
+        }
+
+        // Try to parse the value
+        match input.parse::<i64>() {
+            Ok(value) => {
+                // Check if value is already out of range
+                if value > self.max {
+                    return false;
+                }
+
+                // For values below minimum, check if they could potentially become valid
+                // by adding more digits. For example, "1" could become "19" or "190"
+                if value < self.min {
+                    // Calculate how many digits would make this potentially valid
+                    // For example: min=1900, input="1" -> could become "1900" (valid)
+                    //              min=1900, input="2" -> could become "20xx" (valid if max >= 2000)
+                    //              min=1, input="4" -> already > max=31, so invalid
+
+                    // Check if we can still add digits to reach the minimum
+                    let input_len = input.len();
+                    let min_str = self.min.to_string();
+                    let max_str = self.max.to_string();
+
+                    // If input length is less than min length, it could still become valid
+                    if input_len < min_str.len() {
+                        return true;
+                    }
+
+                    // If input length equals min/max length but value < min, it's invalid
+                    if input_len >= min_str.len() && input_len >= max_str.len() {
+                        return false;
+                    }
+
+                    // Could still become valid
+                    return true;
+                }
+
+                // Value is within range
+                true
+            }
+            Err(_) => false,
         }
     }
 
-    let day = days_left + 1;
-    (year, month, day as u32)
-}
-
-fn calculate_days_alive(birth_year: i32, birth_month: u32, birth_day: u32) -> Option<i32> {
-    // Validate date
-    if birth_month < 1 || birth_month > 12 || birth_day < 1 {
-        return None;
-    }
-    if birth_day > days_in_month(birth_month, birth_year) {
-        return None;
-    }
-
-    let (today_year, today_month, today_day) = get_current_date();
-    let birth_days = days_since_epoch(birth_year, birth_month, birth_day);
-    let today_days = days_since_epoch(today_year, today_month, today_day);
-
-    let days_alive = today_days - birth_days;
-    if days_alive < 0 {
-        None  // Birth date is in the future
-    } else {
-        Some(days_alive)
+    fn error(&self) {
+        // Error handling via visual feedback in InputLine
     }
 }
 
 #[derive(Clone)]
 struct Biorhythm {
-    days_alive: i32,
+    days_alive: u32,
 }
 
 impl Biorhythm {
-    fn new(days_alive: i32) -> Self {
+    /// Create a new biorhythm instance from the number of days alive
+    fn new(days_alive: u32) -> Self {
         Self { days_alive }
     }
 
+    // Biorhythm cycles (in days)
+    const PHYSICAL_CYCLE: f64 = 23.0;
+    const EMOTIONAL_CYCLE: f64 = 28.0;
+    const INTELLECTUAL_CYCLE: f64 = 33.0;
+
+    /// Calculate sine wave value for a given cycle period and day offset
+    fn cycle_value(&self, offset: i32, period: f64) -> f64 {
+        let days = self.days_alive as i32 + offset;
+        (2.0 * std::f64::consts::PI * days as f64 / period).sin()
+    }
+
+    /// Calculate physical cycle value for a given day offset from today
     fn physical(&self, day_offset: i32) -> f64 {
-        let days = self.days_alive + day_offset;
-        (2.0 * PI * days as f64 / PHYSICAL_CYCLE).sin()
+        self.cycle_value(day_offset, Self::PHYSICAL_CYCLE)
     }
 
+    /// Calculate emotional cycle value for a given day offset from today
     fn emotional(&self, day_offset: i32) -> f64 {
-        let days = self.days_alive + day_offset;
-        (2.0 * PI * days as f64 / EMOTIONAL_CYCLE).sin()
+        self.cycle_value(day_offset, Self::EMOTIONAL_CYCLE)
     }
 
+    /// Calculate intellectual cycle value for a given day offset from today
     fn intellectual(&self, day_offset: i32) -> f64 {
-        let days = self.days_alive + day_offset;
-        (2.0 * PI * days as f64 / INTELLECTUAL_CYCLE).sin()
+        self.cycle_value(day_offset, Self::INTELLECTUAL_CYCLE)
     }
 }
 
 struct BiorhythmChart {
     bounds: Rect,
-    biorhythm: Arc<Mutex<Option<Biorhythm>>>,
+    biorhythm: Rc<RefCell<Option<Biorhythm>>>,
     state: StateFlags,
 }
 
 impl BiorhythmChart {
-    fn new(bounds: Rect, biorhythm: Arc<Mutex<Option<Biorhythm>>>) -> Self {
-        Self {
-            bounds,
-            biorhythm,
-            state: SF_VISIBLE,
-        }
+    /// Create a new biorhythm chart view with the given bounds and shared data
+    fn new(bounds: Rect, biorhythm: Rc<RefCell<Option<Biorhythm>>>) -> Self {
+        Self { bounds, biorhythm, state: SF_VISIBLE }
     }
 }
 
@@ -197,7 +190,7 @@ impl View for BiorhythmChart {
             return;
         }
 
-        let bio_opt = self.biorhythm.lock().unwrap();
+        let bio_opt = self.biorhythm.borrow();
 
         if let Some(ref bio) = *bio_opt {
             // Draw title
@@ -225,7 +218,7 @@ impl View for BiorhythmChart {
                 } else if y == center_y {
                     // Center Y-axis label and horizontal line
                     line.move_str(4, " 0.0", colors::DIALOG_NORMAL);
-                    for x in 9..9+chart_width {
+                    for x in 9..9 + chart_width {
                         line.move_char(x, '-', colors::DIALOG_NORMAL, 1);
                     }
                 } else if y == chart_top + chart_height {
@@ -259,7 +252,8 @@ impl View for BiorhythmChart {
 
                             if target_y == y {
                                 let x = 9 + i;
-                                if x != today_x {  // Don't overwrite today marker
+                                if x != today_x {
+                                    // Don't overwrite today marker
                                     line.move_char(x, *symbol, *color, 1);
                                 }
                             }
@@ -271,10 +265,13 @@ impl View for BiorhythmChart {
                 if y == height - 1 {
                     line.move_char(2, '■', Attr::new(TvColor::Red, TvColor::LightGray), 1);
                     line.move_str(3, ":Physical(23d) ", colors::DIALOG_NORMAL);
+
                     line.move_char(19, '■', Attr::new(TvColor::Green, TvColor::LightGray), 1);
                     line.move_str(20, ":Emotional(28d) ", colors::DIALOG_NORMAL);
+
                     line.move_char(37, '■', Attr::new(TvColor::Blue, TvColor::LightGray), 1);
                     line.move_str(38, ":Intellectual(33d) ", colors::DIALOG_NORMAL);
+
                     line.move_char(58, '|', colors::MENU_SHORTCUT, 1);
                     line.move_str(59, ":Today", colors::DIALOG_NORMAL);
                 }
@@ -288,7 +285,7 @@ impl View for BiorhythmChart {
                 buf.move_char(0, ' ', colors::DIALOG_NORMAL, width);
 
                 if y == height / 2 {
-                    let msg = "Press F10 -> Biorhythm -> Calculate";
+                    let msg = "Press Alt+C or F10 -> Biorhythm -> Calculate";
                     let msg_x = (width.saturating_sub(msg.len())) / 2;
                     buf.move_str(msg_x, msg, colors::DIALOG_NORMAL);
                 }
@@ -306,149 +303,241 @@ impl View for BiorhythmChart {
     }
 }
 
-fn create_biorhythm_dialog(prev_day: &str, prev_month: &str, prev_year: &str, _screen_width: u16, _screen_height: u16) -> (turbo_vision::views::dialog::Dialog, Rc<RefCell<String>>, Rc<RefCell<String>>, Rc<RefCell<String>>) {
-    // Dialog dimensions: 50 wide, 12 tall
+/// Create birth date input dialog with validators and return dialog + shared field data
+fn create_biorhythm_dialog(birth_date: Option<&NaiveDate>) -> (turbo_vision::views::dialog::Dialog, Rc<RefCell<String>>, Rc<RefCell<String>>, Rc<RefCell<String>>) {
+    use turbo_vision::views::{button::ButtonBuilder, input_line::InputLineBuilder, static_text::StaticTextBuilder};
+
     let dialog_width = 50i16;
     let dialog_height = 12i16;
 
-    // Create dialog with dummy position - OF_CENTERED will auto-center it
-    let mut dialog = DialogBuilder::new()
-        .bounds(Rect::new(0, 0, dialog_width, dialog_height))
-        .title("Enter Birth Date")
-        .build();
+    // Create dialog with dummy position - will be centered manually by caller
+    let mut dialog = DialogBuilder::new().bounds(Rect::new(0, 0, dialog_width, dialog_height)).title("Enter Birth Date").build();
 
-    // Enable automatic centering (matches Borland's ofCentered option)
-    dialog.set_options(OF_CENTERED);
+    // Get today's date for the displayed message
+    let (today_year, today_month, today_day) = {
+        let today = Local::now().date_naive();
+        (today.year(), today.month(), today.day())
+    };
 
-    // Get today's date for display
-    let (today_year, today_month, today_day) = get_current_date();
+    dialog.add(Box::new(
+        StaticTextBuilder::new()
+            .bounds(Rect::new(2, 1, 46, 3))
+            .text(&format!("Format: DD/MM/YYYY\nRange : 01/01/1900 - {}/{}/{}", today_day, today_month, today_year))
+            .build(),
+    ));
 
-    dialog.add(Box::new(StaticTextBuilder::new()
-        .bounds(Rect::new(2, 2, 46, 4))
-        .text(&format!("Enter your birth date (Today: {}/{}/{})", today_day, today_month, today_year))
-        .build()));
-
-    // Labels
     dialog.add(Box::new(StaticTextBuilder::new().bounds(Rect::new(2, 4, 12, 5)).text("Day:").build()));
     dialog.add(Box::new(StaticTextBuilder::new().bounds(Rect::new(2, 5, 12, 6)).text("Month:").build()));
     dialog.add(Box::new(StaticTextBuilder::new().bounds(Rect::new(2, 6, 12, 7)).text("Year:").build()));
 
-    // Create shared data for input fields with initial values
-    let day_data = Rc::new(RefCell::new(prev_day.to_string()));
-    let month_data = Rc::new(RefCell::new(prev_month.to_string()));
-    let year_data = Rc::new(RefCell::new(prev_year.to_string()));
+    // Convert NaiveDate to String components to fill the input lines
+    let (prev_day, prev_month, prev_year) = if let Some(date) = birth_date {
+        (date.day().to_string(), date.month().to_string(), date.year().to_string())
+    } else {
+        (String::new(), String::new(), String::new())
+    };
 
-    // Input fields with validators
-    // Day: 1-31
-    let day_validator = Rc::new(RefCell::new(RangeValidator::new(1, 31)));
-    let mut day_input = InputLineBuilder::new()
-        .bounds(Rect::new(12, 4, 18, 5))
-        .max_length(2)
-        .data(Rc::clone(&day_data))
-        .build();
+    // Create shared data for input fields with initial values
+    let day_data = Rc::new(RefCell::new(prev_day));
+    let month_data = Rc::new(RefCell::new(prev_month));
+    let year_data = Rc::new(RefCell::new(prev_year));
+
+    // Input fields with validators - Day: [1-31]
+    let day_validator = Rc::new(RefCell::new(DateFieldValidator::new(1, 31)));
+    let mut day_input = InputLineBuilder::new().bounds(Rect::new(12, 4, 17, 5)).max_length(2).data(Rc::clone(&day_data)).build();
     day_input.set_validator(day_validator);
     dialog.add(Box::new(day_input));
 
-    // Month: 1-12
-    let month_validator = Rc::new(RefCell::new(RangeValidator::new(1, 12)));
-    let mut month_input = InputLineBuilder::new()
-        .bounds(Rect::new(12, 5, 18, 6))
-        .max_length(2)
-        .data(Rc::clone(&month_data))
-        .build();
+    // Month: [1-12]
+    let month_validator = Rc::new(RefCell::new(DateFieldValidator::new(1, 12)));
+    let mut month_input = InputLineBuilder::new().bounds(Rect::new(12, 5, 17, 6)).max_length(2).data(Rc::clone(&month_data)).build();
     month_input.set_validator(month_validator);
     dialog.add(Box::new(month_input));
 
-    // Year: 1900-2100
-    let year_validator = Rc::new(RefCell::new(RangeValidator::new(1900, 2100)));
-    let mut year_input = InputLineBuilder::new()
-        .bounds(Rect::new(12, 6, 20, 7))
-        .max_length(4)
-        .data(Rc::clone(&year_data))
-        .build();
+    // Year: [1900-2100]
+    let year_validator = Rc::new(RefCell::new(DateFieldValidator::new(1900, 2100)));
+    let mut year_input = InputLineBuilder::new().bounds(Rect::new(12, 6, 17, 7)).max_length(4).data(Rc::clone(&year_data)).build();
     year_input.set_validator(year_validator);
     dialog.add(Box::new(year_input));
 
-    // Buttons (child indices 8 and 9)
+    // Buttons
     dialog.add(Box::new(ButtonBuilder::new().bounds(Rect::new(15, 8, 25, 10)).title("  OK  ").command(CM_OK).default(true).build()));
-    dialog.add(Box::new(ButtonBuilder::new().bounds(Rect::new(27, 8, 37, 10)).title("Cancel").command(CM_CANCEL).default(false).build()));
+    dialog.add(Box::new(
+        ButtonBuilder::new().bounds(Rect::new(27, 8, 37, 10)).title("Cancel").command(CM_CANCEL).default(false).build(),
+    ));
 
     dialog.set_initial_focus();
     (dialog, day_data, month_data, year_data)
 }
 
-/// Validate the complete birth date
-fn validate_birth_date(day_str: &str, month_str: &str, year_str: &str) -> bool {
-    // Check for empty fields
-    if day_str.trim().is_empty() || month_str.trim().is_empty() || year_str.trim().is_empty() {
-        return false;
-    }
-
-    // Parse the values
-    let day_result = day_str.parse::<u32>();
-    let month_result = month_str.parse::<u32>();
-    let year_result = year_str.parse::<i32>();
-
-    // Check if all fields parse successfully
-    let (Ok(day), Ok(month), Ok(year)) = (day_result, month_result, year_result) else {
-        return false;
-    };
-
-    // Check basic ranges
-    if day < 1 || day > 31 || month < 1 || month > 12 || year < 1900 || year > 2100 {
-        return false;
-    }
-
-    // Check if the date is valid (accounting for month lengths and leap years)
-    if day > days_in_month(month, year) {
-        return false;
-    }
-
-    // Check if date is not in the future
-    calculate_days_alive(year, month, day).is_some()
+/// Validate that birth date is not in the future (beyond RangeValidator checks)
+fn validate_birth_date(birth_date: &NaiveDate) -> bool {
+    let today = Local::now().date_naive();
+    *birth_date <= today
 }
 
+/// Display application information dialog with biorhythm cycle details
 fn show_about_dialog(app: &mut Application) {
-    use turbo_vision::helpers::msgbox::{message_box, MF_ABOUT, MF_OK_BUTTON};
+    use turbo_vision::helpers::msgbox::{MF_ABOUT, MF_OK_BUTTON, message_box};
 
-    let message = "Biorhythm Calculator v1.0\n\
-                   \n\
-                   Calculates three cycles:\n\
-                   • Physical (23 days)\n\
-                   • Emotional (28 days)\n\
-                   • Intellectual (33 days)\n\
-                   \n\
-                   Semi-graphical ASCII chart";
+    let message = r"Biorhythm Calculator v1.0
+
+Read docs/BIORHYTHM-CALCULATOR-TUTORIAL.md
+
+Calculates three cycles:
+  • Physical (23 days)
+  • Emotional (28 days)
+  • Intellectual (33 days)
+
+Semi-graphical ASCII chart";
 
     message_box(app, message, MF_ABOUT | MF_OK_BUTTON);
 }
 
-fn main() -> turbo_vision::core::error::Result<()> {
-    let mut app = Application::new()?;
-    let (width, height) = app.terminal.size();
+/// Parse day, month, year strings into NaiveDate (returns None if invalid)
+fn parse_birth_date(day_str: &str, month_str: &str, year_str: &str) -> Option<NaiveDate> {
+    if let (Ok(day), Ok(month), Ok(year)) = (day_str.parse::<u32>(), month_str.parse::<u32>(), year_str.parse::<i32>()) {
+        NaiveDate::from_ymd_opt(year, month, day)
+    } else {
+        None
+    }
+}
 
-    let biorhythm_data = Arc::new(Mutex::new(None));  // Start with no data
+/// Run modal birth date dialog with standard execute() pattern.
+/// This allows nested modals (e.g., F1 help) to work correctly.
+/// Returns a validated date if user clicks OK, None if cancelled.
+fn run_modal_birth_date_dialog(app: &mut Application, birth_date: Option<&NaiveDate>) -> Option<NaiveDate> {
+    use turbo_vision::helpers::msgbox::{MF_ERROR, MF_OK_BUTTON, message_box};
 
-    // Store previous birth date values (default: empty - will prompt on startup)
-    let mut prev_day = String::from("");
-    let mut prev_month = String::from("");
-    let mut prev_year = String::from("");
+    // Loop until user cancels or provides valid input
+    loop {
+        let (mut dialog, day_data, month_data, year_data) = create_biorhythm_dialog(birth_date);
 
-    // Menu bar
+        // Center the dialog manually since it's not added to desktop
+        // (execute() draws dialog on top of desktop without adding it)
+        let (term_width, term_height) = app.terminal.size();
+        let dialog_bounds = dialog.bounds();
+        let dialog_width = dialog_bounds.width();
+        let dialog_height = dialog_bounds.height();
+
+        let center_x = ((term_width as i16 - dialog_width) / 2).max(0);
+        let center_y = ((term_height as i16 - dialog_height) / 2).max(0);
+
+        let centered_bounds = Rect::new(
+            center_x,
+            center_y,
+            center_x + dialog_width,
+            center_y + dialog_height,
+        );
+        dialog.set_bounds(centered_bounds);
+
+        // Use standard execute() pattern - this supports nested modals
+        let result = dialog.execute(app);
+
+        // User cancelled
+        if result != CM_OK {
+            return None;
+        }
+
+        // User clicked OK - validate the input
+        let day_str = day_data.borrow();
+        let month_str = month_data.borrow();
+        let year_str = year_data.borrow();
+
+        // Try to parse the date
+        match parse_birth_date(&day_str, &month_str, &year_str) {
+            Some(date) => {
+                // Date parsed successfully - now validate it's not in the future
+                if validate_birth_date(&date) {
+                    // Valid date - return it
+                    return Some(date);
+                } else {
+                    // Date is in the future
+                    message_box(
+                        app,
+                        "Birth date cannot be in the future!\n\nPlease enter a valid past date.",
+                        MF_ERROR | MF_OK_BUTTON,
+                    );
+                    // Loop back to show dialog again with same values
+                }
+            }
+            None => {
+                // Invalid date format or values
+                message_box(
+                    app,
+                    "Invalid date entered!\n\nPlease check:\n  • Day is 1-31\n  • Month is 1-12\n  • Year is 1900-2100\n  • Date is valid (e.g., Feb 30 doesn't exist)",
+                    MF_ERROR | MF_OK_BUTTON,
+                );
+                // Loop back to show dialog again with same values
+            }
+        }
+    }
+}
+
+/// Calculate days alive from birth date and update shared biorhythm data
+fn process_birth_date_result(biorhythm_data: &Rc<RefCell<Option<Biorhythm>>>, birth_date: &NaiveDate) {
+    let today = Local::now().date_naive();
+    let days_alive = (today - *birth_date).num_days().try_into().unwrap();
+    *biorhythm_data.borrow_mut() = Some(Biorhythm::new(days_alive));
+}
+
+/// Process command events and return whether the application should continue running
+fn handle_command_event(command: u16, app: &mut Application, biorhythm_data: &Rc<RefCell<Option<Biorhythm>>>, birth_date: &mut Option<NaiveDate>) -> bool {
+    match command {
+        CM_BIORHYTHM => {
+            // Show the birth date dialog and process the result if user confirmed
+            if let Some(new_birth_date) = run_modal_birth_date_dialog(app, birth_date.as_ref()) {
+                process_birth_date_result(biorhythm_data, &new_birth_date);
+                *birth_date = Some(new_birth_date);
+            }
+            true
+        }
+        CM_ABOUT => {
+            show_about_dialog(app);
+            true
+        }
+        CM_CLOSE | CM_QUIT => false,
+        _ => true,
+    }
+}
+
+/// Convert global keyboard shortcuts (Alt+C, Alt+X, F1) to command events
+fn handle_global_shortcuts(event: &mut Event) {
+    if event.what != EventType::Keyboard {
+        return;
+    }
+
+    let command = match event.key_code {
+        KB_ALT_C => Some(CM_BIORHYTHM),
+        KB_ALT_X => Some(CM_QUIT),
+        KB_F1 => Some(CM_ABOUT),
+        _ => None,
+    };
+
+    if let Some(cmd) = command {
+        *event = Event::command(cmd);
+    }
+}
+
+/// Create menu bar with Biorhythm and Help menus
+fn add_menu_bar(app: &mut Application) {
+    let (width, _) = app.terminal.size();
     let mut menu_bar = MenuBar::new(Rect::new(0, 0, width as i16, 1));
     let biorhythm_menu = Menu::from_items(vec![
         MenuItem::with_shortcut("~C~alculate", CM_BIORHYTHM, 0, "Alt+C", 0),
         MenuItem::separator(),
         MenuItem::with_shortcut("E~x~it", CM_QUIT, 0, "Alt+X", 0),
     ]);
-    let help_menu = Menu::from_items(vec![
-        MenuItem::with_shortcut("~A~bout", CM_ABOUT, 0, "F1", 0),
-    ]);
+    let help_menu = Menu::from_items(vec![MenuItem::with_shortcut("~A~bout", CM_ABOUT, 0, "F1", 0)]);
     menu_bar.add_submenu(SubMenu::new("~B~iorhythm", biorhythm_menu));
     menu_bar.add_submenu(SubMenu::new("~H~elp", help_menu));
     app.set_menu_bar(menu_bar);
+}
 
-    // Status line
+/// Create status line with F1/F10/Alt-X shortcuts at bottom of screen
+fn add_status_line(app: &mut Application) {
+    let (width, height) = app.terminal.size();
+
     let status_line = StatusLine::new(
         Rect::new(0, height as i16 - 1, width as i16, height as i16),
         vec![
@@ -458,173 +547,68 @@ fn main() -> turbo_vision::core::error::Result<()> {
         ],
     );
     app.set_status_line(status_line);
+}
 
-    // Calculate window size: fixed width, maximum height
-    // Account for menu bar (1 row), status line (1 row), and shadow (2 cols, 1 row)
-    let window_width = 76i16;  // Fixed width for optimal chart readability
+/// Create and add centered biorhythm chart window to the desktop
+fn add_chart(app: &mut Application, biorhythm_data: &Rc<RefCell<Option<Biorhythm>>>) {
+    // Calculate window dimensions
+    let (width, height) = app.terminal.size();
+    let window_width = 76i16; // TODO should NOT be hard coded
     let available_width = width as i16;
-    let available_height = height as i16 - 2;  // Subtract menu bar and status line
-
-    // Use maximum available height with small top/bottom margins
-    let margin_vertical = 1i16;    // Leave 1 row top and bottom
-    let window_height = available_height - (margin_vertical * 2) - 1;  // -1 for shadow
-
-    // Center the window horizontally, position vertically with margin
+    let available_height = height as i16 - 3; // Subtract menu bar, status line and shadow
+    let margin_vertical: i16 = 1;
+    let window_height = available_height - (margin_vertical * 2);
     let window_x = (available_width - (window_width + 2)) / 2;
-    let window_y = 1 + margin_vertical;  // 1 for menu bar + vertical margin
+    let window_y = margin_vertical;
 
-    // Show birthdate dialog at startup
-    // Custom event loop with validation
-    use turbo_vision::core::command_set;
-    use turbo_vision::core::command::CM_COMMAND_SET_CHANGED;
-    use std::time::Duration;
-
-    let (mut dialog, day_data, month_data, year_data) = create_biorhythm_dialog(&prev_day, &prev_month, &prev_year, width, height);
-
-    // Set modal flag
-    let old_state = dialog.state();
-    dialog.set_state(old_state | SF_MODAL);
-
-    // Initial validation and command state
-    let is_valid = validate_birth_date(
-        &day_data.borrow(),
-        &month_data.borrow(),
-        &year_data.borrow()
-    );
-
-    // Enable/disable CM_OK command based on validation
-    if is_valid {
-        command_set::enable_command(CM_OK);
-    } else {
-        command_set::disable_command(CM_OK);
-    }
-
-    // Broadcast the change to update button state
-    let mut broadcast_event = Event::broadcast(CM_COMMAND_SET_CHANGED);
-    dialog.handle_event(&mut broadcast_event);
-    command_set::clear_command_set_changed();
-
-    // Add dialog to desktop - this will center it automatically via OF_CENTERED
-    app.desktop.add(Box::new(dialog));
-    let dialog_index = app.desktop.child_count() - 1;
-
-    let result;
-
-    loop {
-        // Draw desktop (which includes the dialog as a child)
-        app.desktop.draw(&mut app.terminal);
-        // Get cursor position from the dialog through desktop
-        if let Some(dialog_view) = app.desktop.window_at_mut(dialog_index) {
-            dialog_view.update_cursor(&mut app.terminal);
-        }
-        let _ = app.terminal.flush();
-
-        // Poll for event
-        if let Some(mut event) = app.terminal.poll_event(Duration::from_millis(50)).ok().flatten() {
-            // Handle the event through the desktop child
-            if let Some(dialog_view) = app.desktop.window_at_mut(dialog_index) {
-                dialog_view.handle_event(&mut event);
-
-                // If event was converted to command, process it again
-                if event.what == EventType::Command {
-                    dialog_view.handle_event(&mut event);
-                }
-            }
-
-            // After every event, revalidate and update command state
-            let is_valid = validate_birth_date(
-                &day_data.borrow(),
-                &month_data.borrow(),
-                &year_data.borrow()
-            );
-
-            // Enable/disable CM_OK command and broadcast change
-            if is_valid {
-                command_set::enable_command(CM_OK);
-            } else {
-                command_set::disable_command(CM_OK);
-            }
-
-            // Broadcast to update button state if command set changed
-            if command_set::command_set_changed() {
-                let mut broadcast_event = Event::broadcast(CM_COMMAND_SET_CHANGED);
-                if let Some(dialog_view) = app.desktop.window_at_mut(dialog_index) {
-                    dialog_view.handle_event(&mut broadcast_event);
-                }
-                command_set::clear_command_set_changed();
-            }
-        }
-
-        // Check if dialog should close
-        let end_state = if let Some(dialog_view) = app.desktop.window_at_mut(dialog_index) {
-            dialog_view.get_end_state()
-        } else {
-            0
-        };
-        if end_state != 0 {
-            result = end_state;
-            break;
-        }
-    }
-
-    // Remove dialog from desktop
-    app.desktop.remove_child(dialog_index);
-
-    // Re-enable CM_OK command
-    command_set::enable_command(CM_OK);
-
-    // If user canceled, quit the app
-    if result == CM_CANCEL {
-        return Ok(());
-    }
-
-    // User clicked OK - parse and set the birthdate
-    if result == CM_OK {
-        let day_str = day_data.borrow().clone();
-        let month_str = month_data.borrow().clone();
-        let year_str = year_data.borrow().clone();
-
-        if let (Ok(day), Ok(month), Ok(year)) = (
-            day_str.parse::<u32>(),
-            month_str.parse::<u32>(),
-            year_str.parse::<i32>(),
-        ) {
-            if let Some(days_alive) = calculate_days_alive(year, month, day) {
-                *biorhythm_data.lock().unwrap() = Some(Biorhythm::new(days_alive));
-                // Update previous values for next time
-                prev_day = day_str;
-                prev_month = month_str;
-                prev_year = year_str;
-            }
-        }
-    }
-
-    // Now create and show the main dialog with chart - sized to available space
+    // Create and show the main dialog with chart
     let mut main_dialog = DialogBuilder::new()
         .bounds(Rect::new(window_x, window_y, window_x + window_width, window_y + window_height))
         .title("Biorhythm Calculator")
         .build();
 
-    // Chart uses interior space (dialog minus frame), with 1-column margins
-    let chart_width = window_width - 2;   // Subtract frame (2 chars total)
-    let chart_height = window_height - 2; // Subtract frame (2 chars total)
-    let chart = BiorhythmChart::new(
-        Rect::new(1, 1, chart_width, chart_height),
-        Arc::clone(&biorhythm_data)
-    );
+    let chart_width = window_width - 2;
+    let chart_height = window_height - 2;
+    let chart = BiorhythmChart::new(Rect::new(1, 1, chart_width, chart_height), Rc::clone(&biorhythm_data));
     main_dialog.add(Box::new(chart));
     app.desktop.add(Box::new(main_dialog));
+}
 
-    // Custom event handler loop
+fn main() -> turbo_vision::core::error::Result<()> {
+    let mut app = Application::new()?;
+
+    add_menu_bar(&mut app);
+    add_status_line(&mut app);
+
+    let biorhythm_data = Rc::new(RefCell::new(None));
+
+    // Displays the dialog box for entering the date of birth
+    let birth_date_result = run_modal_birth_date_dialog(&mut app, None);
+
+    // If user cancelled, quit the app
+    let Some(birth_date) = birth_date_result else {
+        return Ok(());
+    };
+
+    // Process the birth date and update birth_state
+    process_birth_date_result(&biorhythm_data, &birth_date);
+    let mut current_birth_date = Some(birth_date);
+
+    add_chart(&mut app, &biorhythm_data);
+
+    // Main event loop
     app.running = true;
 
     while app.running {
-        // Draw every frame since chart data can change
         app.draw();
         app.terminal.flush()?;
 
         if let Ok(Some(mut event)) = app.terminal.poll_event(std::time::Duration::from_millis(50)) {
-            // Let menu bar handle events first (including F10)
+            // Order matters (very first)
+            // Convert global keyboard shortcuts to commands so that F1, Ctrl+N etc. work even when menus are closed
+            handle_global_shortcuts(&mut event);
+
+            // Let menu bar handle events first
             if let Some(ref mut menu_bar) = app.menu_bar {
                 menu_bar.handle_event(&mut event);
 
@@ -638,147 +622,18 @@ fn main() -> turbo_vision::core::error::Result<()> {
                 }
             }
 
-            // Let status line handle events (keyboard shortcuts)
+            // Let status line handle events
             if let Some(ref mut status_line) = app.status_line {
                 status_line.handle_event(&mut event);
             }
 
-            // Let desktop handle events (window close, etc.)
+            // Let desktop handle events
             app.desktop.handle_event(&mut event);
 
-            // Handle custom commands after UI components have processed events
+            // Handle custom commands
             if event.what == EventType::Command {
-                match event.command {
-                    CM_BIORHYTHM => {
-                        let (mut dialog, day_data, month_data, year_data) = create_biorhythm_dialog(&prev_day, &prev_month, &prev_year, width, height);
-
-                        // Custom event loop with validation
-                        // Set modal flag
-                        let old_state = dialog.state();
-                        dialog.set_state(old_state | SF_MODAL);
-
-                        // Initial validation and command state
-                        let is_valid = validate_birth_date(
-                            &day_data.borrow(),
-                            &month_data.borrow(),
-                            &year_data.borrow()
-                        );
-
-                        // Enable/disable CM_OK command based on validation
-                        if is_valid {
-                            command_set::enable_command(CM_OK);
-                        } else {
-                            command_set::disable_command(CM_OK);
-                        }
-
-                        // Broadcast the change to update button state
-                        let mut broadcast_event = Event::broadcast(CM_COMMAND_SET_CHANGED);
-                        dialog.handle_event(&mut broadcast_event);
-                        command_set::clear_command_set_changed();
-
-                        // Add dialog to desktop - this will center it automatically via OF_CENTERED
-                        app.desktop.add(Box::new(dialog));
-                        let dialog_index = app.desktop.child_count() - 1;
-
-                        let result;
-
-                        loop {
-                            // Draw desktop (which includes the dialog as a child)
-                            app.desktop.draw(&mut app.terminal);
-                            // Get cursor position from the dialog through desktop
-                            if let Some(dialog_view) = app.desktop.window_at_mut(dialog_index) {
-                                dialog_view.update_cursor(&mut app.terminal);
-                            }
-                            let _ = app.terminal.flush();
-
-                            // Poll for event
-                            if let Some(mut event) = app.terminal.poll_event(Duration::from_millis(50)).ok().flatten() {
-                                // Handle the event through the desktop child
-                                if let Some(dialog_view) = app.desktop.window_at_mut(dialog_index) {
-                                    dialog_view.handle_event(&mut event);
-
-                                    // If event was converted to command, process it again
-                                    if event.what == EventType::Command {
-                                        dialog_view.handle_event(&mut event);
-                                    }
-                                }
-
-                                // After every event, revalidate and update command state
-                                let is_valid = validate_birth_date(
-                                    &day_data.borrow(),
-                                    &month_data.borrow(),
-                                    &year_data.borrow()
-                                );
-
-                                // Enable/disable CM_OK command and broadcast change
-                                if is_valid {
-                                    command_set::enable_command(CM_OK);
-                                } else {
-                                    command_set::disable_command(CM_OK);
-                                }
-
-                                // Broadcast to update button state if command set changed
-                                if command_set::command_set_changed() {
-                                    let mut broadcast_event = Event::broadcast(CM_COMMAND_SET_CHANGED);
-                                    if let Some(dialog_view) = app.desktop.window_at_mut(dialog_index) {
-                                        dialog_view.handle_event(&mut broadcast_event);
-                                    }
-                                    command_set::clear_command_set_changed();
-                                }
-                            }
-
-                            // Check if dialog should close
-                            let end_state = if let Some(dialog_view) = app.desktop.window_at_mut(dialog_index) {
-                                dialog_view.get_end_state()
-                            } else {
-                                0
-                            };
-                            if end_state != 0 {
-                                result = end_state;
-                                break;
-                            }
-                        }
-
-                        // Remove dialog from desktop
-                        app.desktop.remove_child(dialog_index);
-
-                        // Re-enable CM_OK command
-                        command_set::enable_command(CM_OK);
-
-                        if result == CM_OK {
-                            // Parse the input fields
-                            let day_str = day_data.borrow().clone();
-                            let month_str = month_data.borrow().clone();
-                            let year_str = year_data.borrow().clone();
-
-                            if let (Ok(day), Ok(month), Ok(year)) = (
-                                day_str.parse::<u32>(),
-                                month_str.parse::<u32>(),
-                                year_str.parse::<i32>(),
-                            ) {
-                                if let Some(days_alive) = calculate_days_alive(year, month, day) {
-                                    *biorhythm_data.lock().unwrap() = Some(Biorhythm::new(days_alive));
-                                    // Update previous values for next time
-                                    prev_day = day_str;
-                                    prev_month = month_str;
-                                    prev_year = year_str;
-                                }
-                            }
-                        }
-                        continue;
-                    }
-                    CM_ABOUT => {
-                        show_about_dialog(&mut app);
-                        continue;
-                    }
-                    CM_CLOSE => {
-                        // Main window close button clicked - exit application
-                        app.running = false;
-                    }
-                    CM_QUIT => {
-                        app.running = false;
-                    }
-                    _ => {}
+                if !handle_command_event(event.command, &mut app, &biorhythm_data, &mut current_birth_date) {
+                    app.running = false;
                 }
             }
         }

@@ -5,6 +5,9 @@
 /// Command identifiers
 pub type CommandId = u16;
 
+// Modal dialog control
+pub const CM_CONTINUE: CommandId = 0;  // Modal dialog continues (returned by get_end_state when no end command received)
+
 // Standard commands
 pub const CM_QUIT: CommandId = 24;
 pub const CM_CLOSE: CommandId = 25;

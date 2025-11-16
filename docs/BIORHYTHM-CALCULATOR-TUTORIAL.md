@@ -30,7 +30,7 @@ When you run the biorhythm calculator, here's what happens:
 4. You start typing. The instant your date becomes valid, the OK button lights up
 5. If you make it invalid (February 31st, anyone?), it grays out again
 6. Press Enter or click OK, and the chart window appears, perfectly centered
-7. If you press Cancel instead, the app just... exits. Clean. No orphaned windows.
+7. If you press Cancel (or press Alt+X) instead, the app just... exits. Clean. No orphaned windows.
 
 It *feels* polished. Like someone thought about the details.
 
