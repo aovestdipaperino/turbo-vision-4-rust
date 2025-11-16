@@ -188,16 +188,16 @@ This implementation closely follows Borland Turbo Vision's architecture, adapted
 ===============================================================================
  Language            Files        Lines         Code     Comments       Blanks
 ===============================================================================
- Rust                  119        33941        25502         3213         5226
- |- Markdown            87         3660          247         2858          555
- (Total)                          37601        25749         6071         5781
+ Rust                  119        34112        25524         3313         5275
+ |- Markdown            88         3698          247         2890          561
+ (Total)                          37810        25771         6203         5836
 ===============================================================================
 ```
 
 Generated with [tokei](https://github.com/XAMPPRocky/tokei) - includes inline documentation
 
-**199 tests** - all passing ✅
-- 190 unit tests
+**202 tests** - all passing ✅
+- 193 unit tests
 - 9 palette regression tests
 
 ## License
