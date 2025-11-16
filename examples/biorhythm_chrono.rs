@@ -66,40 +66,74 @@ impl Validator for DateFieldValidator {
         // Try to parse the value
         match input.parse::<i64>() {
             Ok(value) => {
-                // Check if value is already out of range
+                // Reject if already above max
                 if value > self.max {
                     return false;
                 }
 
-                // For values below minimum, check if they could potentially become valid
-                // by adding more digits. For example, "1" could become "19" or "190"
-                if value < self.min {
-                    // Calculate how many digits would make this potentially valid
-                    // For example: min=1900, input="1" -> could become "1900" (valid)
-                    //              min=1900, input="2" -> could become "20xx" (valid if max >= 2000)
-                    //              min=1, input="4" -> already > max=31, so invalid
-
-                    // Check if we can still add digits to reach the minimum
+                // If already within range, check if adding more digits could exceed max
+                if value >= self.min && value <= self.max {
+                    // Check if we could still add more digits
+                    let min_str_len = self.min.to_string().len();
+                    let max_str_len = self.max.to_string().len();
+                    let max_allowed_len = min_str_len.max(max_str_len);
                     let input_len = input.len();
-                    let min_str = self.min.to_string();
-                    let max_str = self.max.to_string();
 
-                    // If input length is less than min length, it could still become valid
-                    if input_len < min_str.len() {
+                    // If we've reached max length, the value is final - accept it
+                    if input_len >= max_allowed_len {
                         return true;
                     }
 
-                    // If input length equals min/max length but value < min, it's invalid
-                    if input_len >= min_str.len() && input_len >= max_str.len() {
-                        return false;
+                    // Single digit values: accept them as they could be final
+                    // User can press Tab/Enter to move on, or continue typing
+                    // Example: "9" is valid for day (could be final) or month (could be final)
+                    if value < 10 {
+                        return true;
                     }
 
-                    // Could still become valid
+                    // Multi-digit values: check if adding more would exceed max
+                    // Build minimum possible by appending one 0
+                    let min_possible_str = format!("{}0", input);
+                    if let Ok(min_possible) = min_possible_str.parse::<i64>() {
+                        // If even adding a 0 exceeds max, reject
+                        // Example: "20" -> "200" > 31, but "10" -> "100" > 31 too
+                        if min_possible > self.max {
+                            return false;
+                        }
+                    }
+
                     return true;
                 }
 
-                // Value is within range
-                true
+                // Value is below minimum - check if it could become valid by adding more digits
+                // Example: "1" could become "1999" for range [1900-2100]
+
+                // Use the max of min and max string lengths to allow full range
+                let min_str_len = self.min.to_string().len();
+                let max_str_len = self.max.to_string().len();
+                let max_allowed_len = min_str_len.max(max_str_len);
+                let input_len = input.len();
+
+                // If we've already reached max allowed length and still below min, reject
+                if input_len >= max_allowed_len {
+                    return false;
+                }
+
+                // Build the maximum possible number by appending 9s
+                // For "1" with 3 remaining digits: "1999"
+                // For "19" with 2 remaining digits: "1999"
+                let mut max_possible_str = input.to_string();
+                let remaining_digits = max_allowed_len - input_len;
+                for _ in 0..remaining_digits {
+                    max_possible_str.push('9');
+                }
+
+                // Parse and check if this could reach the valid range
+                if let Ok(max_possible) = max_possible_str.parse::<i64>() {
+                    max_possible >= self.min
+                } else {
+                    false
+                }
             }
             Err(_) => false,
         }
@@ -183,8 +217,8 @@ impl View for BiorhythmChart {
             return;
         }
 
-        let width = self.bounds.width_clamped() as usize;
-        let height = self.bounds.height_clamped() as usize;
+        let width = self.bounds.width() as usize;
+        let height = self.bounds.height() as usize;
 
         if width < 10 || height < 10 {
             return;
@@ -371,10 +405,10 @@ fn create_biorhythm_dialog(birth_date: Option<&NaiveDate>) -> (turbo_vision::vie
     (dialog, day_data, month_data, year_data)
 }
 
-/// Validate that birth date is not in the future (beyond RangeValidator checks)
+/// Validate that birth date is not in the future and year is >= 1900
 fn validate_birth_date(birth_date: &NaiveDate) -> bool {
     let today = Local::now().date_naive();
-    *birth_date <= today
+    birth_date.year() >= 1900 && *birth_date <= today
 }
 
 /// Display application information dialog with biorhythm cycle details
