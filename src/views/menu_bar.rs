@@ -14,6 +14,7 @@
 use super::menu_box::MenuBox;
 use super::menu_viewer::{MenuViewer, MenuViewerState};
 use super::view::{View, write_line_to_terminal};
+use crate::core::command_set;
 use crate::core::draw::DrawBuffer;
 use crate::core::event::{
     Event, EventType, KB_ALT_A, KB_ALT_B, KB_ALT_C, KB_ALT_D, KB_ALT_E, KB_ALT_F, KB_ALT_G, KB_ALT_H, KB_ALT_I, KB_ALT_J, KB_ALT_K, KB_ALT_L, KB_ALT_M, KB_ALT_N, KB_ALT_O, KB_ALT_P, KB_ALT_Q,
@@ -283,10 +284,14 @@ impl MenuBar {
                     }
                     item_buf.put_char(dropdown_width - 1, '┤', normal_attr);
                 }
-                MenuItem::Regular { text, enabled, shortcut, .. } => {
-                    let attr = if is_selected && *enabled {
+                MenuItem::Regular { text, enabled, shortcut, command, .. } => {
+                    // Check if command is enabled in BOTH the MenuItem AND the global command_set
+                    let is_enabled_global = command_set::command_enabled(*command);
+                    let is_enabled = *enabled && is_enabled_global;
+
+                    let attr = if is_selected && is_enabled {
                         selected_attr
-                    } else if !enabled {
+                    } else if !is_enabled {
                         disabled_attr
                     } else {
                         normal_attr
@@ -306,9 +311,9 @@ impl MenuBar {
                             break;
                         }
                         if ch == '~' {
-                            let item_shortcut_attr = if is_selected && *enabled {
+                            let item_shortcut_attr = if is_selected && is_enabled {
                                 selected_attr
-                            } else if !enabled {
+                            } else if !is_enabled {
                                 disabled_attr
                             } else {
                                 shortcut_attr
@@ -556,11 +561,18 @@ impl View for MenuBar {
                                         }
                                     }
 
-                                    // If it's a regular item, execute it
+                                    // If it's a regular item, execute it (check both MenuItem enabled AND command_set)
                                     let command = self
                                         .menu_state
                                         .get_current_item()
-                                        .and_then(|item| if let MenuItem::Regular { command, enabled: true, .. } = item { Some(*command) } else { None });
+                                        .and_then(|item| if let MenuItem::Regular { command, enabled: true, .. } = item {
+                                            // Also check if command is enabled in global command_set
+                                            if command_set::command_enabled(*command) {
+                                                Some(*command)
+                                            } else {
+                                                None
+                                            }
+                                        } else { None });
 
                                     if let Some(cmd) = command {
                                         self.close_menu();
@@ -645,11 +657,18 @@ impl View for MenuBar {
                                 }
                             }
 
-                            // Execute current item (if it's a regular item)
+                            // Execute current item (if it's a regular item and enabled in command_set)
                             let command = self
                                 .menu_state
                                 .get_current_item()
-                                .and_then(|item| if let MenuItem::Regular { command, enabled: true, .. } = item { Some(*command) } else { None });
+                                .and_then(|item| if let MenuItem::Regular { command, enabled: true, .. } = item {
+                                    // Also check if command is enabled in global command_set
+                                    if command_set::command_enabled(*command) {
+                                        Some(*command)
+                                    } else {
+                                        None
+                                    }
+                                } else { None });
 
                             if let Some(cmd) = command {
                                 self.close_menu();
