@@ -1,13 +1,12 @@
 // (C) 2025 - Enzo Lombardi
 // Outline Demo - demonstrates hierarchical tree view
 
+use turbo_vision::prelude::*;
+
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::time::Duration;
-use turbo_vision::app::Application;
-use turbo_vision::core::event::KB_CTRL_C;
-use turbo_vision::core::geometry::Rect;
-use turbo_vision::views::View;
+use turbo_vision::core::event::KB_ALT_X;
 use turbo_vision::views::dialog::DialogBuilder;
 use turbo_vision::views::outline::{Node, OutlineViewer};
 use turbo_vision::views::static_text::StaticTextBuilder;
@@ -21,7 +20,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
     dialog.add(Box::new(
         StaticTextBuilder::new()
             .bounds(Rect::new(2, 2, 64, 4))
-            .text("Use arrows to navigate, Enter to toggle, → expand, ← collapse\nCTRL+C to exit.")
+            .text("Use arrows to navigate, Enter to toggle, → expand, ← collapse\nAlt+X to exit.")
             .build(),
     ));
 
@@ -29,10 +28,10 @@ fn main() -> turbo_vision::core::error::Result<()> {
     let root = create_file_tree();
 
     // Create outline viewer
-    let mut outline = OutlineViewer::new(Rect::new(2, 5, 64, 17), |name: &String| name.clone());
-    outline.add_root(root);
+    let mut tree_view = OutlineViewer::new(Rect::new(2, 5, 64, 17), |name: &String| name.clone());
+    tree_view.add_root(root);
 
-    dialog.add(Box::new(outline));
+    dialog.add(Box::new(tree_view));
     app.desktop.add(Box::new(dialog));
 
     // Simple event loop
@@ -43,15 +42,10 @@ fn main() -> turbo_vision::core::error::Result<()> {
         if let Some(mut event) = app.terminal.poll_event(Duration::from_millis(50)).ok().flatten() {
             app.desktop.handle_event(&mut event);
 
-            // Check for quit command
-            if event.what == turbo_vision::core::event::EventType::Command && event.command == turbo_vision::core::command::CM_QUIT {
-                break;
-            }
-
-            // Handle Ctrl+C or F10
+            // Handle Alt+X to quit
             if event.what == turbo_vision::core::event::EventType::Keyboard {
                 let key = event.key_code;
-                if key == KB_CTRL_C || key == turbo_vision::core::event::KB_F10 {
+                if key == KB_ALT_X {
                     break;
                 }
             }

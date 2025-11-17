@@ -324,7 +324,7 @@ impl<T: 'static> View for OutlineViewer<T> {
                 buf.move_str(0, &text, color);
 
                 // Fill rest of line with spaces
-                let text_len = text.len();
+                let text_len = text.chars().count();
                 if text_len < width {
                     buf.move_char(text_len, ' ', color, width - text_len);
                 }
