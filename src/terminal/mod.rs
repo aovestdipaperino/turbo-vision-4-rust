@@ -230,6 +230,20 @@ impl Terminal {
         self.active_view_bounds = None;
     }
 
+    /// Force a full screen redraw on the next flush
+    ///
+    /// This clears the internal prev_buffer, forcing all cells to be resent to the terminal
+    /// on the next flush() call. Useful when internal view state changes and you need to
+    /// guarantee a complete visual update.
+    pub fn force_full_redraw(&mut self) {
+        let empty_cell = Cell::new(' ', Attr::from_u8(0x07));
+        for row in &mut self.prev_buffer {
+            for cell in row {
+                *cell = empty_cell;
+            }
+        }
+    }
+
     /// Push a clipping region onto the stack
     pub fn push_clip(&mut self, rect: crate::core::geometry::Rect) {
         self.clip_stack.push(rect);

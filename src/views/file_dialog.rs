@@ -100,13 +100,6 @@
 /// - Any other text: `"~C~ustom"`
 ///
 /// The `~` character indicates the hotkey underline in the button text.
-///
-/// ## Known Limitations
-///
-/// **Wildcard Pattern Filtering**: When typing a wildcard pattern (*.rs) and pressing OK,
-/// the code correctly clears end_state and stays open, but the ListBox view is not properly
-/// refreshed on screen. The underlying data is updated, but the visual display doesn't update.
-/// TODO: Need to investigate why set_items() on the downcast ListBox doesn't trigger a redraw.
 
 use super::View;
 use super::button::Button;
@@ -354,6 +347,11 @@ impl FileDialog {
                                         // CRITICAL: Clear the end_state that was set by Dialog.handle_event()
                                         // Dialog called end_modal(CM_OK) but we're staying open for wildcard filter
                                         self.dialog.set_end_state(0);
+
+                                        // Force full redraw to ensure ListBox visual updates
+                                        // The Terminal's double-buffering system needs this to guarantee
+                                        // that all changed cells are resent to the actual terminal
+                                        app.terminal.force_full_redraw();
 
                                         // Stay open - continue event loop
                                         continue;
