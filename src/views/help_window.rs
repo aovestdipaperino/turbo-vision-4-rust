@@ -8,9 +8,9 @@
 // A window containing a HelpViewer with navigation and topic selection.
 
 use crate::core::geometry::Rect;
-use crate::core::event::{Event, EventType, KB_ESC};
+use crate::core::event::{Event, EventType, KB_ESC, KB_CTRL_X};
 use crate::core::state::StateFlags;
-use crate::core::command::{CM_CANCEL, CommandId};
+use crate::core::command::{CM_CANCEL, CM_CLOSE, CommandId};
 use crate::terminal::Terminal;
 use super::view::View;
 use super::window::Window;
@@ -84,13 +84,26 @@ impl HelpWindow {
     pub fn new(bounds: Rect, title: &str, help_file: Rc<RefCell<HelpFile>>) -> Self {
         let mut window = Window::new(bounds, title);
 
-        // Viewer fills the window interior
-        let viewer_bounds = Rect::new(1, 1, bounds.width() - 2, bounds.height() - 2);
+        // Get the window's interior bounds to calculate viewer size
+        // Window interior is inset by 1 on all sides for the frame
+        let window_bounds = bounds;
+        let interior_width = window_bounds.width().saturating_sub(2);
+        let interior_height = window_bounds.height().saturating_sub(2);
+
+        // Viewer uses (0, 0) as relative coords (will be offset by window's interior group)
+        // Leave 1 character width for scrollbar (on the right edge)
+        let viewer_bounds = Rect::new(
+            0,
+            0,
+            interior_width.saturating_sub(1),  // Width minus 1 for scrollbar
+            interior_height,                     // Full interior height
+        );
         let viewer = Rc::new(RefCell::new(
             HelpViewer::new(viewer_bounds).with_scrollbar()
         ));
 
-        // Insert viewer as a child of window (matches Borland's window->insert(viewer))
+        // Insert viewer as a child of window's interior
+        // When added to window's interior group, bounds (0,0,...) will be offset to absolute coords
         window.add(Box::new(SharedHelpViewer(Rc::clone(&viewer))));
 
         Self {
@@ -220,9 +233,67 @@ impl HelpWindow {
         Some(topics[0].clone())
     }
 
-    /// Execute the help window modally
+    /// Execute the help window modally with proper event loop
+    /// Unlike Window::execute(), this calls HelpWindow::handle_event() which provides
+    /// ESC handling and other help-specific features
     pub fn execute(&mut self, app: &mut crate::app::Application) -> CommandId {
-        self.window.execute(app)
+        use std::time::Duration;
+
+        // Constrain window position to desktop bounds
+        self.window.constrain_to_limits();
+
+        // Set explicit drag limits from desktop bounds
+        let desktop_bounds = app.desktop.get_bounds();
+        self.window.set_drag_limits(desktop_bounds);
+
+        loop {
+            // Draw desktop first (clears background)
+            app.desktop.draw(&mut app.terminal);
+
+            // Draw menu bar if present
+            if let Some(ref mut menu_bar) = app.menu_bar {
+                menu_bar.draw(&mut app.terminal);
+            }
+
+            // Draw status line if present
+            if let Some(ref mut status_line) = app.status_line {
+                status_line.draw(&mut app.terminal);
+            }
+
+            // Draw the help window on top of everything
+            self.draw(&mut app.terminal);
+
+            // Draw overlay widgets
+            for widget in &mut app.overlay_widgets {
+                widget.draw(&mut app.terminal);
+            }
+
+            self.update_cursor(&mut app.terminal);
+            let _ = app.terminal.flush();
+
+            // Poll for events with timeout
+            match app.terminal.poll_event(Duration::from_millis(20)).ok().flatten() {
+                Some(mut event) => {
+                    // CRITICAL: Call help_window.handle_event(), not window.handle_event()
+                    // This ensures ESC handling and other help-specific features work
+                    self.handle_event(&mut event);
+
+                    // Check if help window should close
+                    if self.window.get_end_state() != 0 {
+                        return self.window.get_end_state();
+                    }
+                }
+                None => {
+                    // Timeout - call idle
+                    app.idle();
+
+                    // Check if help window should close even without events
+                    if self.window.get_end_state() != 0 {
+                        return self.window.get_end_state();
+                    }
+                }
+            }
+        }
     }
 
     /// End the modal event loop
@@ -237,10 +308,10 @@ impl View for HelpWindow {
     }
 
     fn set_bounds(&mut self, bounds: Rect) {
+        // Delegate to window - it will update the interior group and all children
         self.window.set_bounds(bounds);
-        // Update viewer bounds to match window interior
-        let viewer_bounds = Rect::new(1, 1, bounds.width() - 2, bounds.height() - 2);
-        self.viewer.borrow_mut().set_bounds(viewer_bounds);
+        // The window's interior group will automatically call set_bounds() on the viewer
+        // via the SharedHelpViewer wrapper, so we don't need to do anything here
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
@@ -249,8 +320,17 @@ impl View for HelpWindow {
     }
 
     fn handle_event(&mut self, event: &mut Event) {
-        // ESC closes the help window
-        if event.what == EventType::Keyboard && event.key_code == KB_ESC {
+        // Close button, ESC, or Ctrl+X closes the help window
+        if event.what == EventType::Keyboard {
+            if event.key_code == KB_ESC || event.key_code == KB_CTRL_X {
+                self.window.end_modal(CM_CANCEL);
+                event.clear();
+                return;
+            }
+        }
+
+        // Handle close button click (CM_CLOSE generated by Frame when close button is clicked)
+        if event.what == EventType::Command && event.command == CM_CLOSE {
             self.window.end_modal(CM_CANCEL);
             event.clear();
             return;
@@ -275,6 +355,10 @@ impl View for HelpWindow {
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
         self.window.get_palette()
+    }
+
+    fn update_cursor(&self, terminal: &mut crate::terminal::Terminal) {
+        self.window.update_cursor(terminal);
     }
 }
 

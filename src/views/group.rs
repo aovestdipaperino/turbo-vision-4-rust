@@ -73,7 +73,16 @@ impl Group {
             return;
         }
 
-        // Find first focusable child and set focus
+        // Priority 1: Look for a focusable default button (matches Borland convention)
+        for i in 0..self.children.len() {
+            if self.children[i].can_focus() && self.children[i].is_default_button() {
+                self.focused = i;
+                self.children[i].set_focus(true);
+                return;
+            }
+        }
+
+        // Priority 2: Find first focusable child as fallback
         for i in 0..self.children.len() {
             if self.children[i].can_focus() {
                 self.focused = i;
@@ -979,5 +988,131 @@ mod tests {
         assert!(group.child_by_id(id2).is_some());
         assert!(group.child_by_id(id3).is_some());
         assert!(group.child_by_id(new_id).is_some());
+    }
+
+    // Helper focusable view for testing focus behavior
+    struct FocusableView {
+        bounds: Rect,
+        focused: std::cell::RefCell<bool>,
+        is_default: bool,
+    }
+
+    impl FocusableView {
+        fn new(bounds: Rect) -> Self {
+            Self {
+                bounds,
+                focused: std::cell::RefCell::new(false),
+                is_default: false,
+            }
+        }
+
+        fn with_default(bounds: Rect) -> Self {
+            Self {
+                bounds,
+                focused: std::cell::RefCell::new(false),
+                is_default: true,
+            }
+        }
+    }
+
+    impl View for FocusableView {
+        fn bounds(&self) -> Rect {
+            self.bounds
+        }
+
+        fn set_bounds(&mut self, bounds: Rect) {
+            self.bounds = bounds;
+        }
+
+        fn draw(&mut self, _terminal: &mut Terminal) {}
+
+        fn handle_event(&mut self, _event: &mut Event) {}
+
+        fn can_focus(&self) -> bool {
+            true
+        }
+
+        fn set_focus(&mut self, focused: bool) {
+            *self.focused.borrow_mut() = focused;
+        }
+
+        fn is_default_button(&self) -> bool {
+            self.is_default
+        }
+
+        fn get_palette(&self) -> Option<crate::core::palette::Palette> {
+            None
+        }
+    }
+
+    #[test]
+    fn test_focus_by_view_id_valid() {
+        // Test that focus_by_view_id() can focus a child by its ID
+        let mut group = Group::new(Rect::new(0, 0, 50, 50));
+
+        let view1 = Box::new(FocusableView::new(Rect::new(0, 0, 10, 10)));
+        let id1 = group.add(view1);
+
+        let view2 = Box::new(FocusableView::new(Rect::new(20, 0, 30, 10)));
+        let id2 = group.add(view2);
+
+        // Set initial focus to first child
+        group.set_initial_focus();
+        assert!(group.focused_child().is_some());
+
+        // Focus the second child by ID
+        let success = group.focus_by_view_id(id2);
+        assert!(success);
+        assert_eq!(group.focused, 1);
+    }
+
+    #[test]
+    fn test_focus_by_view_id_invalid() {
+        // Test that focus_by_view_id() returns false for invalid ID
+        let mut group = Group::new(Rect::new(0, 0, 50, 50));
+
+        let view1 = Box::new(FocusableView::new(Rect::new(0, 0, 10, 10)));
+        let _id1 = group.add(view1);
+
+        // Try to focus with an invalid ID
+        let invalid_id = ViewId::new();
+        let success = group.focus_by_view_id(invalid_id);
+        assert!(!success);
+    }
+
+    #[test]
+    fn test_set_initial_focus_prioritizes_default_button() {
+        // Test that set_initial_focus() prioritizes default buttons
+        let mut group = Group::new(Rect::new(0, 0, 50, 50));
+
+        // Add a regular focusable view first
+        let view1 = Box::new(FocusableView::new(Rect::new(0, 0, 10, 10)));
+        group.add(view1);
+
+        // Add a default button after it
+        let view2 = Box::new(FocusableView::with_default(Rect::new(20, 0, 30, 10)));
+        group.add(view2);
+
+        // Set initial focus - should prioritize the default button (index 1)
+        group.set_initial_focus();
+        assert_eq!(group.focused, 1);
+        assert!(group.children[1].is_default_button());
+    }
+
+    #[test]
+    fn test_set_initial_focus_falls_back_to_first_focusable() {
+        // Test that set_initial_focus() falls back to first focusable if no default button
+        let mut group = Group::new(Rect::new(0, 0, 50, 50));
+
+        // Add regular focusable views (no default buttons)
+        let view1 = Box::new(FocusableView::new(Rect::new(0, 0, 10, 10)));
+        group.add(view1);
+
+        let view2 = Box::new(FocusableView::new(Rect::new(20, 0, 30, 10)));
+        group.add(view2);
+
+        // Set initial focus - should prioritize first focusable
+        group.set_initial_focus();
+        assert_eq!(group.focused, 0);
     }
 }

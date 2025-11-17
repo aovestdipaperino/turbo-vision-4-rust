@@ -283,6 +283,13 @@ impl Window {
         self.interior.set_focus_to(index);
     }
 
+    /// Set focus to a child by its ViewId
+    /// Returns true if the child was found and is focusable, false otherwise
+    /// Allows decoupling visual layout from focus order
+    pub fn set_focus_by_id(&mut self, view_id: ViewId) -> bool {
+        self.interior.focus_by_view_id(view_id)
+    }
+
     /// Get the number of child views in the interior
     pub fn child_count(&self) -> usize {
         self.interior.len()
@@ -338,11 +345,66 @@ impl Window {
         self.prev_bounds = None;
     }
 
-    /// Execute a modal event loop
-    /// Delegates to the interior Group's execute() method
-    /// Matches Borland: Window and Dialog both inherit TGroup's execute()
+    /// Execute a modal event loop with drawing
+    /// Matches Borland: Window (like Dialog) can execute modally with its own event loop
+    /// This is used when a Window needs to operate standalone (not added to desktop)
     pub fn execute(&mut self, app: &mut crate::app::Application) -> crate::core::command::CommandId {
-        self.interior.execute(app)
+        use std::time::Duration;
+
+        // Constrain window position to desktop bounds
+        self.constrain_to_limits();
+
+        // Set explicit drag limits from desktop bounds
+        let desktop_bounds = app.desktop.get_bounds();
+        self.set_drag_limits(desktop_bounds);
+
+        loop {
+            // Draw desktop first (clears background)
+            app.desktop.draw(&mut app.terminal);
+
+            // Draw menu bar if present
+            if let Some(ref mut menu_bar) = app.menu_bar {
+                menu_bar.draw(&mut app.terminal);
+            }
+
+            // Draw status line if present
+            if let Some(ref mut status_line) = app.status_line {
+                status_line.draw(&mut app.terminal);
+            }
+
+            // Draw the window on top of everything
+            self.draw(&mut app.terminal);
+
+            // Draw overlay widgets
+            for widget in &mut app.overlay_widgets {
+                widget.draw(&mut app.terminal);
+            }
+
+            self.update_cursor(&mut app.terminal);
+            let _ = app.terminal.flush();
+
+            // Poll for events with timeout
+            match app.terminal.poll_event(Duration::from_millis(20)).ok().flatten() {
+                Some(mut event) => {
+                    // Handle the event
+                    self.handle_event(&mut event);
+
+                    // Check if window should close
+                    if self.interior.get_end_state() != 0 {
+                        return self.interior.get_end_state();
+                    }
+                }
+                None => {
+                    // Timeout - call idle
+                    app.idle();
+
+                    // Check if window should close even without events
+                    if self.interior.get_end_state() != 0 {
+                        return self.interior.get_end_state();
+                    }
+                }
+            }
+        }
     }
 
     /// End the modal event loop
@@ -392,13 +454,22 @@ impl View for Window {
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        self.frame.draw(terminal);
+        // CRITICAL: Draw in this order to ensure frame stays on top:
+        // 1. Interior (client area with children)
+        // 2. Frame children (scrollbars that hang off edges)
+        // 3. Frame border (must be on top to avoid being overwritten)
+        // 4. Shadow (drawn last, underneath frame)
+
         self.interior.draw(terminal);
 
-        // Draw frame children (scrollbars, etc.) after interior so they appear on top
+        // Draw frame children (scrollbars, etc.) - these hang off the frame edges
         for child in &mut self.frame_children {
             child.draw(terminal);
         }
+
+        // Draw frame LAST so border stays on top and isn't overwritten by interior children
+        // This matches Borland's behavior where the frame is always visible
+        self.frame.draw(terminal);
 
         // Draw shadow if enabled
         if self.has_shadow() {

@@ -168,8 +168,16 @@ impl View for HelpViewer {
             };
 
             let mut buf = DrawBuffer::new(display_width);
+            // Fill the entire line with spaces first
             buf.move_char(0, ' ', color, display_width);
-            buf.move_str(0, line, color);
+
+            // Handle horizontal scrolling - extract substring starting from delta.x
+            if line.len() > self.delta.x as usize {
+                // Get the substring starting from delta.x
+                let substr = &line[self.delta.x as usize..];
+                buf.move_str(0, substr, color);
+            }
+
             write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y + row, &buf);
         }
 

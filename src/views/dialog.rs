@@ -47,6 +47,13 @@ impl Dialog {
         self.window.set_focus_to_child(index);
     }
 
+    /// Set focus to a child by its ViewId
+    /// Returns true if the child was found and is focusable, false otherwise
+    /// Allows decoupling visual layout from focus order
+    pub fn set_focus_by_id(&mut self, view_id: ViewId) -> bool {
+        self.window.set_focus_by_id(view_id)
+    }
+
     /// Get the number of child views
     pub fn child_count(&self) -> usize {
         self.window.child_count()
