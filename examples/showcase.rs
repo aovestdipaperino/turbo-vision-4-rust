@@ -8,8 +8,9 @@ use std::time::Instant;
 use std::time::SystemTime;
 use turbo_vision::app::Application;
 use turbo_vision::core::command::{CM_CASCADE, CM_CLOSE, CM_NEXT, CM_PREV, CM_QUIT, CM_TILE, CM_ZOOM};
+use turbo_vision::core::command_set;
 use turbo_vision::core::draw::DrawBuffer;
-use turbo_vision::core::event::{Event, EventType, KB_ALT_X, KB_F3, KB_F6, KB_F10};
+use turbo_vision::core::event::{Event, EventType, KB_ALT_F3, KB_ALT_X, KB_F3, KB_F6, KB_F10};
 use turbo_vision::core::geometry::Rect;
 use turbo_vision::core::menu_data::{Menu, MenuItem};
 use turbo_vision::core::palette::{Attr, Palette, TvColor, colors};
@@ -320,6 +321,7 @@ fn handle_global_shortcuts(event: &mut Event) {
     let command = match event.key_code {
         KB_F6 => Some(CM_NEXT),
         KB_F3 => Some(CM_OPEN),
+        KB_ALT_F3 => Some(CM_CLOSE),
         _ => None,
     };
 
@@ -1388,6 +1390,20 @@ fn show_chdir_dialog(app: &mut Application) {
     }
 }
 
+/// Update menu command states based on current desktop state
+/// Matches Borland: TProgram::idle() checks window count and updates command states
+fn update_menu_states(app: &Application) {
+    let has_window = app.desktop.child_count() > 0;
+
+    // CM_CLOSE: enabled only if there's at least one window open
+    // Matches Borland: cmClose is disabled when no windows are open
+    if has_window {
+        command_set::enable_command(CM_CLOSE);
+    } else {
+        command_set::disable_command(CM_CLOSE);
+    }
+}
+
 fn main() -> turbo_vision::core::error::Result<()> {
     // Setup panic hook to log crashes
     std::panic::set_hook(Box::new(|panic_info| {
@@ -1458,6 +1474,9 @@ fn main() -> turbo_vision::core::error::Result<()> {
     show_about_dialog(&mut app);
 
     while app.running {
+        // Update menu states based on current desktop state (before drawing)
+        update_menu_states(&app);
+
         app.draw();
 
         // if let Some(ref mut menu_bar) = app.menu_bar {
