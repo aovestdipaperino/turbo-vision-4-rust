@@ -11,18 +11,18 @@
 // - Color-coded messages (warnings, errors, success)
 // - Interactive buttons to control log playback
 
+use turbo_vision::prelude::*;
+
 use std::time::{Duration, Instant};
-use turbo_vision::app::Application;
 use turbo_vision::core::command::CM_QUIT;
 use turbo_vision::core::command_set;
-use turbo_vision::core::event::{EventType, KB_ALT_X};
-use turbo_vision::core::geometry::Rect;
+use turbo_vision::core::event::KB_ALT_X;
 use turbo_vision::core::palette::Attr;
-use turbo_vision::views::View;
 use turbo_vision::views::button::ButtonBuilder;
-use turbo_vision::views::dialog::DialogBuilder;
+use turbo_vision::views::dialog::{Dialog, DialogBuilder};
 use turbo_vision::views::status_line::{StatusItem, StatusLine};
 use turbo_vision::views::terminal_widget::TerminalWidget;
+use turbo_vision::views::view::ViewId;
 
 const CM_START_LOG: u16 = 100;
 const CM_STOP_LOG: u16 = 101;
@@ -73,32 +73,62 @@ const BUILD_LOG: &[(&str, u8)] = &[
     ("========================================", 0x07),
 ];
 
-fn main() -> turbo_vision::core::error::Result<()> {
-    let mut app = Application::new()?;
-    let (width, height) = app.terminal.size();
+/// Application state for log playback
+struct LogState {
+    playing: bool,
+    index: usize,
+    last_update: Instant,
+}
 
-    // Create status line
-    let status_line = StatusLine::new(Rect::new(0, height as i16 - 1, width as i16, height as i16), vec![StatusItem::new("~Alt+X~ Exit", KB_ALT_X, CM_QUIT)]);
-    app.set_status_line(status_line);
+impl LogState {
+    fn new() -> Self {
+        Self {
+            playing: false,
+            index: 0,
+            last_update: Instant::now(),
+        }
+    }
 
-    // Create dialog (matches Borland structure but larger for more content)
+    fn reset(&mut self) {
+        self.playing = false;
+        self.index = 0;
+    }
+
+    fn start(&mut self) {
+        self.playing = true;
+    }
+
+    fn stop(&mut self) {
+        self.playing = false;
+    }
+
+    fn should_update(&self) -> bool {
+        self.playing && self.index < BUILD_LOG.len() && self.last_update.elapsed() >= Duration::from_millis(150)
+    }
+}
+
+/// Helper function to get terminal widget from dialog
+fn get_terminal_widget(app: &mut Application, term_vid: ViewId) -> Option<&mut TerminalWidget> {
+    let dialog_view = app.desktop.child_at_mut(0);
+    let dialog = dialog_view.as_any_mut().downcast_mut::<Dialog>()?;
+    let terminal_view = dialog.child_by_id_mut(term_vid)?;
+    terminal_view.as_any_mut().downcast_mut::<TerminalWidget>()
+}
+
+/// Create and setup the main dialog with terminal and buttons
+fn create_dialog() -> (Box<Dialog>, ViewId) {
     let mut dialog = DialogBuilder::new().bounds(Rect::new(5, 2, 75, 22)).title("Build Output Terminal").build();
 
     // Add control buttons
     dialog.add(Box::new(ButtonBuilder::new().bounds(Rect::new(54, 15, 66, 17)).title("~Q~uit").command(CM_QUIT).build()));
-
     dialog.add(Box::new(ButtonBuilder::new().bounds(Rect::new(2, 15, 14, 17)).title("~S~tart Log").command(CM_START_LOG).build()));
-
     dialog.add(Box::new(ButtonBuilder::new().bounds(Rect::new(16, 15, 28, 17)).title("S~t~op Log").command(CM_STOP_LOG).build()));
     command_set::disable_command(CM_STOP_LOG);
-
     dialog.add(Box::new(ButtonBuilder::new().bounds(Rect::new(30, 15, 42, 17)).title("~C~lear Log").command(CM_CLEAR_LOG).build()));
     command_set::disable_command(CM_CLEAR_LOG);
 
-    // Create terminal widget inside dialog
+    // Create terminal widget with welcome message
     let mut terminal = TerminalWidget::new(Rect::new(2, 1, 66, 14)).with_scrollbar();
-
-    // Add initial welcome message
     terminal.append_text("Build Output Viewer");
     terminal.append_text("==================");
     terminal.append_text("");
@@ -106,16 +136,76 @@ fn main() -> turbo_vision::core::error::Result<()> {
     terminal.append_text("Use arrow keys or PgUp/PgDn to scroll.");
     terminal.append_text("");
 
-    dialog.add(Box::new(terminal));
+    let term_vid = dialog.add(Box::new(terminal));
 
-    // Terminal widget index in dialog (after 4 buttons: Quit, Start, Stop, Clear)
-    const TERMINAL_INDEX: usize = 4;
+    (Box::new(dialog), term_vid)
+}
 
-    app.desktop.add(Box::new(dialog));
+/// Update log streaming - add next line to terminal
+fn update_log_streaming(app: &mut Application, term_vid: ViewId, log_state: &mut LogState) {
+    if !log_state.should_update() {
+        return;
+    }
+
+    if let Some(terminal) = get_terminal_widget(app, term_vid) {
+        let (text, color) = BUILD_LOG[log_state.index];
+        terminal.append_line_colored(text.to_string(), Attr::from_u8(color));
+        log_state.index += 1;
+        log_state.last_update = Instant::now();
+    }
+}
+
+/// Handle START_LOG command
+fn handle_start_log(app: &mut Application, term_vid: ViewId, log_state: &mut LogState) {
+    command_set::disable_command(CM_START_LOG);
+    command_set::enable_command(CM_STOP_LOG);
+    command_set::enable_command(CM_CLEAR_LOG);
+
+    log_state.start();
+    if log_state.index == 0 {
+        if let Some(terminal) = get_terminal_widget(app, term_vid) {
+            terminal.clear();
+        }
+    }
+}
+
+/// Handle STOP_LOG command
+fn handle_stop_log(log_state: &mut LogState) {
+    command_set::enable_command(CM_START_LOG);
+    command_set::disable_command(CM_STOP_LOG);
+    command_set::enable_command(CM_CLEAR_LOG);
+
+    log_state.stop();
+}
+
+/// Handle CLEAR_LOG command
+fn handle_clear_log(app: &mut Application, term_vid: ViewId, log_state: &mut LogState) {
+    command_set::enable_command(CM_START_LOG);
+    command_set::disable_command(CM_STOP_LOG);
+    command_set::disable_command(CM_CLEAR_LOG);
+
+    log_state.reset();
+    if let Some(terminal) = get_terminal_widget(app, term_vid) {
+        terminal.clear();
+        terminal.append_text("Log cleared. Press 'Start Log' to replay.");
+        terminal.append_text("");
+    }
+}
+
+fn main() -> turbo_vision::core::error::Result<()> {
+    let mut app = Application::new()?;
+
+    // Create status line
+    let (width, height) = app.terminal.size();
+    let status_line = StatusLine::new(Rect::new(0, height as i16 - 1, width as i16, height as i16), vec![StatusItem::new("~Alt+X~ Exit", KB_ALT_X, CM_QUIT)]);
+    app.set_status_line(status_line);
+
+    // Create and add dialog
+    let (dialog, term_vid) = create_dialog();
+    app.desktop.add(dialog);
+
     // Log playback state
-    let mut log_playing = false;
-    let mut log_index = 0;
-    let mut last_log_time = Instant::now();
+    let mut log_state = LogState::new();
 
     // Main event loop
     app.running = true;
@@ -128,23 +218,10 @@ fn main() -> turbo_vision::core::error::Result<()> {
         }
         let _ = app.terminal.flush();
 
-        // Simulate log streaming
-        if log_playing && log_index < BUILD_LOG.len() {
-            if last_log_time.elapsed() >= Duration::from_millis(150) {
-                // Access terminal widget
-                let dialog_view = app.desktop.child_at_mut(0);
-                if let Some(dialog) = dialog_view.as_any_mut().downcast_mut::<turbo_vision::views::dialog::Dialog>() {
-                    let terminal_view = dialog.child_at_mut(TERMINAL_INDEX);
-                    if let Some(terminal) = terminal_view.as_any_mut().downcast_mut::<TerminalWidget>() {
-                        let (text, color) = BUILD_LOG[log_index];
-                        terminal.append_line_colored(text.to_string(), Attr::from_u8(color));
-                        log_index += 1;
-                        last_log_time = Instant::now();
-                    }
-                }
-            }
-        }
+        // Update log streaming
+        update_log_streaming(&mut app, term_vid, &mut log_state);
 
+        // Handle events
         if let Some(mut event) = app.terminal.poll_event(Duration::from_millis(50)).ok().flatten() {
             app.desktop.handle_event(&mut event);
 
@@ -154,55 +231,14 @@ fn main() -> turbo_vision::core::error::Result<()> {
 
             if event.what == EventType::Command {
                 match event.command {
-                    CM_START_LOG => {
-                        command_set::disable_command(CM_START_LOG);
-                        command_set::enable_command(CM_STOP_LOG);
-                        command_set::enable_command(CM_CLEAR_LOG);
-
-                        log_playing = true;
-                        if log_index == 0 {
-                            // Clear welcome message before starting
-                            let dialog_view = app.desktop.child_at_mut(0);
-                            if let Some(dialog) = dialog_view.as_any_mut().downcast_mut::<turbo_vision::views::dialog::Dialog>() {
-                                let terminal_view = dialog.child_at_mut(TERMINAL_INDEX);
-                                if let Some(terminal) = terminal_view.as_any_mut().downcast_mut::<TerminalWidget>() {
-                                    terminal.clear();
-                                }
-                            }
-                        }
-                    }
-                    CM_STOP_LOG => {
-                        command_set::enable_command(CM_START_LOG);
-                        command_set::disable_command(CM_STOP_LOG);
-                        command_set::enable_command(CM_CLEAR_LOG);
-
-                        log_playing = false;
-                    }
-                    CM_CLEAR_LOG => {
-                        command_set::enable_command(CM_START_LOG);
-                        command_set::disable_command(CM_STOP_LOG);
-                        command_set::disable_command(CM_CLEAR_LOG);
-
-                        log_playing = false;
-                        log_index = 0;
-                        let dialog_view = app.desktop.child_at_mut(0);
-                        if let Some(dialog) = dialog_view.as_any_mut().downcast_mut::<turbo_vision::views::dialog::Dialog>() {
-                            let terminal_view = dialog.child_at_mut(TERMINAL_INDEX);
-                            if let Some(terminal) = terminal_view.as_any_mut().downcast_mut::<TerminalWidget>() {
-                                terminal.clear();
-                                terminal.append_text("Log cleared. Press 'Start Log' to replay.");
-                                terminal.append_text("");
-                            }
-                        }
-                    }
-                    CM_QUIT => {
-                        app.running = false;
-                    }
+                    CM_START_LOG => handle_start_log(&mut app, term_vid, &mut log_state),
+                    CM_STOP_LOG => handle_stop_log(&mut log_state),
+                    CM_CLEAR_LOG => handle_clear_log(&mut app, term_vid, &mut log_state),
+                    CM_QUIT => app.running = false,
                     _ => {}
                 }
             }
         }
     }
-
     Ok(())
 }
