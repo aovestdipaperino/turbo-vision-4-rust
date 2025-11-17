@@ -7,10 +7,10 @@
 use crate::core::command::{CM_CANCEL, CM_COMMAND_SET_CHANGED, CM_QUIT, CommandId};
 use crate::core::command_set;
 use crate::core::error::Result;
-use crate::core::event::{Event, EventType, KB_ALT_X, KB_ESC, KB_ESC_ESC, KB_F10};
+use crate::core::event::{Event, EventType, KB_ALT_X};
 use crate::core::geometry::Rect;
 use crate::terminal::Terminal;
-use crate::views::{View, IdleView, desktop::Desktop, menu_bar::MenuBar, status_line::StatusLine};
+use crate::views::{IdleView, View, desktop::Desktop, menu_bar::MenuBar, status_line::StatusLine};
 use std::time::Duration;
 
 pub struct Application {
@@ -24,8 +24,8 @@ pub struct Application {
     /// These widgets continue to animate even during modal dialogs
     /// Matches Borland: TProgram::idle() continues running during execView()
     pub(crate) overlay_widgets: Vec<Box<dyn IdleView>>,
-                        // Note: Command set is now stored in thread-local static (command_set module)
-                        // This matches Borland's architecture where TView::curCommandSet is static
+    // Note: Command set is now stored in thread-local static (command_set module)
+    // This matches Borland's architecture where TView::curCommandSet is static
 }
 
 impl Application {
@@ -438,10 +438,8 @@ impl Application {
             event.clear();
         }
 
-        // Handle Ctrl+C, F10, Alt+X (or ESC+X), and ESC/ESC+ESC at application level
-        if event.what == EventType::Keyboard
-            && (event.key_code == 0x0003 || event.key_code == KB_F10 || event.key_code == KB_ALT_X || event.key_code == KB_ESC || event.key_code == KB_ESC_ESC)
-        {
+        // Handle Alt+X (or ESC+X) at application level
+        if event.what == EventType::Keyboard && (event.key_code == KB_ALT_X) {
             // Treat these as quit command
             *event = Event::command(CM_QUIT);
             self.running = false;
@@ -500,9 +498,10 @@ impl Application {
     /// ```
     pub fn set_esc_timeout(&mut self, timeout_ms: u64) -> Result<()> {
         if timeout_ms < 250 || timeout_ms > 1500 {
-            return Err(crate::core::error::TurboVisionError::invalid_input(
-                format!("ESC timeout must be between 250 and 1500 milliseconds, got {}", timeout_ms)
-            ));
+            return Err(crate::core::error::TurboVisionError::invalid_input(format!(
+                "ESC timeout must be between 250 and 1500 milliseconds, got {}",
+                timeout_ms
+            )));
         }
         self.terminal.set_esc_timeout(timeout_ms);
         Ok(())
