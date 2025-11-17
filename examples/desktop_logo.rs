@@ -2,7 +2,6 @@
 // Desklogo Example - Custom Desktop Background
 // Port of the Borland Turbo Vision desklogo example
 // Demonstrates how to customize the desktop background with a pattern
-// The logo (Ferris the crab) is embedded from logo.txt at compile time
 
 use turbo_vision::app::Application;
 use turbo_vision::core::command::CM_QUIT;
@@ -37,7 +36,7 @@ struct CrabWidget {
 impl CrabWidget {
     fn new(x: i16, y: i16) -> Self {
         Self {
-            bounds: Rect::new(x, y, x + 9, y + 1),
+            bounds: Rect::new(x, y, x + 10, y + 1),
             state: 0,
             position: 0,
             direction: 1,
@@ -64,19 +63,17 @@ impl View for CrabWidget {
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        let mut buf = DrawBuffer::new(9);
+        let mut buf = DrawBuffer::new(10);
         // Use status line colors (reverse video)
         let color = Attr::new(TvColor::Black, TvColor::LightGray);
 
         // Fill with spaces
-        for i in 0..9 {
+        for i in 0..10 {
             buf.move_char(i, ' ', color, 1);
         }
 
-        // Place the crab at current position (0-8)
-        if self.position < 9 {
-            buf.move_char(self.position, '🦀', color, 1);
-        }
+        // Place the crab at current position
+        buf.move_char(self.position, '🦀', color, 1);
 
         write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y, &buf);
     }
@@ -93,10 +90,10 @@ impl IdleView for CrabWidget {
     fn idle(&mut self) {
         // Update animation every 100ms
         if self.last_update.elapsed().as_millis() > 100 {
-            // Move the crab (animate positions 0-8 in 9-character buffer)
+            // Move the crab
             if self.direction > 0 {
                 self.position += 1;
-                if self.position >= 8 {
+                if self.position >= 9 {
                     self.direction = -1;
                 }
             } else {
@@ -112,8 +109,23 @@ impl IdleView for CrabWidget {
     }
 }
 
-// Embedded logo from logo.txt (compiled into binary at build time)
-const LOGO_TEXT: &str = include_str!("logo.txt");
+// The Turbo Vision logo pattern (23 rows x 80 columns)
+// ASCII art logo pattern
+const LOGO_LINES: [&str; 13] = [
+    "████████╗██╗   ██╗██████╗ ██████╗  ██████╗ ",
+    "╚══██╔══╝██║   ██║██╔══██╗██╔══██╗██╔═══██╗",
+    "   ██║   ██║   ██║██████╔╝██████╔╝██║   ██║",
+    "   ██║   ██║   ██║██╔══██╗██╔══██╗██║   ██║",
+    "   ██║   ╚██████╔╝██║  ██║██████╔╝╚██████╔╝",
+    "   ╚═╝    ╚═════╝ ╚═╝  ╚═╝╚═════╝  ╚═════╝ ",
+    "                                           ",
+    "██╗   ██╗██╗███████╗██╗ ██████╗ ███╗   ██╗ ",
+    "██║   ██║██║██╔════╝██║██╔═══██╗████╗  ██║ ",
+    "██║   ██║██║███████╗██║██║   ██║██╔██╗ ██║ ",
+    "╚██╗ ██╔╝██║╚════██║██║██║   ██║██║╚██╗██║ ",
+    " ╚████╔╝ ██║███████║██║╚██████╔╝██║ ╚████║ ",
+    "  ╚═══╝  ╚═╝╚══════╝╚═╝ ╚═════╝ ╚═╝  ╚═══╝ ",
+];
 
 // Custom Desktop Background with Logo Pattern
 struct LogoBackground {
@@ -124,48 +136,6 @@ struct LogoBackground {
 impl LogoBackground {
     fn new(bounds: Rect) -> Self {
         Self { bounds, state: 0 }
-    }
-
-    /// Parse a line from the logo text, stripping ANSI codes and returning
-    /// a vector indicating which positions are filled (true) or empty (false)
-    fn parse_logo_line(line: &str) -> Vec<bool> {
-        let mut result = Vec::new();
-        let mut chars = line.chars().peekable();
-        let mut is_filled = false;
-
-        while let Some(ch) = chars.next() {
-            if ch == '\x1b' || (ch == '[' && chars.peek().map_or(false, |&c| c.is_ascii_digit())) {
-                // Found start of ANSI escape sequence
-                let mut code = String::new();
-
-                // Skip the '[' if we're at it
-                if ch == '[' {
-                    code.push(ch);
-                }
-
-                // Read until 'm'
-                while let Some(&c) = chars.peek() {
-                    code.push(chars.next().unwrap());
-                    if c == 'm' {
-                        break;
-                    }
-                }
-
-                // Check what kind of code it is
-                if code.contains("48;2;0;0;0") {
-                    // Black background - this is the logo
-                    is_filled = true;
-                } else if code.contains("48;2;") || code.contains("[0m") || code.ends_with("0m") {
-                    // Any other background color or reset - not part of logo
-                    is_filled = false;
-                }
-            } else {
-                // Regular character - add a position with current fill state
-                result.push(is_filled);
-            }
-        }
-
-        result
     }
 }
 
@@ -187,25 +157,18 @@ impl View for LogoBackground {
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        let width = self.bounds.width_clamped() as usize;
-        let height = self.bounds.height_clamped() as usize;
+        let width = self.bounds.width() as usize;
+        let height = self.bounds.height() as usize;
+        // Use cyan background for desktop
+        let color = Attr::new(TvColor::LightGray, TvColor::DarkGray);
 
-        // Background color for desktop
-        let bg_color = Attr::new(TvColor::LightGray, TvColor::DarkGray);
-        // Logo color (filled blocks)
-        let logo_color = Attr::new(TvColor::Black, TvColor::DarkGray);
-
-        // Parse logo lines from embedded text
-        let logo_lines: Vec<&str> = LOGO_TEXT.lines().collect();
-        let logo_height = logo_lines.len();
-
-        // Calculate maximum width by parsing first few lines
-        let logo_width = logo_lines
+        // Calculate logo dimensions
+        let logo_width = LOGO_LINES
             .iter()
-            .take(10)
-            .map(|line| Self::parse_logo_line(line).len())
+            .map(|line| line.chars().count())
             .max()
             .unwrap_or(0);
+        let logo_height = LOGO_LINES.len();
 
         // Calculate center position
         let x_offset = (width.saturating_sub(logo_width)) / 2;
@@ -216,21 +179,18 @@ impl View for LogoBackground {
 
             // Fill the entire line with spaces first
             for j in 0..width {
-                buf.move_char(j, ' ', bg_color, 1);
+                buf.move_char(j, ' ', color, 1);
             }
 
             // Draw logo if we're in the logo area
             if i >= y_offset && i < y_offset + logo_height {
                 let logo_line_idx = i - y_offset;
-                if logo_line_idx < logo_lines.len() {
-                    let parsed_line = Self::parse_logo_line(logo_lines[logo_line_idx]);
+                let logo_line = LOGO_LINES[logo_line_idx];
 
-                    // Draw each character of the logo at the centered position
-                    for (j, is_filled) in parsed_line.iter().enumerate() {
-                        if x_offset + j < width {
-                            let color = if *is_filled { logo_color } else { bg_color };
-                            buf.move_char(x_offset + j, ' ', color, 1);
-                        }
+                // Draw each character of the logo at the centered position
+                for (j, ch) in logo_line.chars().enumerate() {
+                    if x_offset + j < width {
+                        buf.move_char(x_offset + j, ch, color, 1);
                     }
                 }
             }
@@ -301,8 +261,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
 
     // Create animated crab widget on the right side of the status bar
     // Add it as an overlay widget so it continues animating even during modal dialogs
-    // Position at width - 12 to avoid writing to the last column (which causes scrolling)
-    let crab_widget = CrabWidget::new(width as i16 - 12, height as i16 - 1);
+    let crab_widget = CrabWidget::new(width as i16 - 11, height as i16 - 1);
     app.add_overlay_widget(Box::new(crab_widget));
 
     // Main event loop
