@@ -1,6 +1,6 @@
 # Turbo Vision Examples
 
-This directory contains 16 examples demonstrating various features of the Turbo Vision framework.
+This directory contains comprehensive examples demonstrating various features of the Turbo Vision framework.
 
 ## Core Examples (Essential)
 
@@ -8,12 +8,17 @@ This directory contains 16 examples demonstrating various features of the Turbo 
 - **`menu.rs`** - Complete menu bar with dropdowns and keyboard navigation
 - **`dialogs.rs`** - Modal dialogs with buttons and controls
 
-### Editor
+### Editor & IDE
 - **`editor.rs`** ⭐ **NEW v0.2.6** - Comprehensive editor demonstrations:
   - Basic editing (undo/redo/clipboard)
   - Search and replace
   - Syntax highlighting (Rust)
   - File I/O operations (load/save)
+- **`tm_basic.rs`** ⭐ **IDE Showcase** - TMBASIC IDE demo:
+  - Full code editor with BASIC syntax
+  - Application window with status line
+  - Demonstrates building a complete IDE interface
+  - Based on the TMBASIC programming language project
 
 ### Validation
 - **`validator.rs`** ⭐ **NEW v0.2.6** - All validator types:
@@ -51,6 +56,7 @@ This directory contains 16 examples demonstrating various features of the Turbo 
 | Feature | Example | Lines | Description |
 |---------|---------|-------|-------------|
 | **All Editor Features** | editor.rs | 290 | Editing, undo/redo, search, syntax highlighting, file I/O |
+| **IDE Application** | tm_basic.rs | 70 | Complete IDE demo with editor and status line |
 | **All Validators** | validator.rs | 320 | Filter, Range, Picture validators |
 | **File Browser** | file_browser.rs | 120 | Directory tree + file list |
 | **Help System** | help_system.rs | 120 | Markdown help with topics |
@@ -81,8 +87,9 @@ cargo run --example
 Best examples to start with:
 1. **menu.rs** - See the full application structure
 2. **dialogs.rs** - Learn basic dialogs
-3. **editor.rs** - See advanced editor features (syntax highlighting, search, file I/O)
-4. **validator.rs** - Learn all input validation patterns
+3. **tm_basic.rs** - See a complete IDE application
+4. **editor.rs** - See advanced editor features (syntax highlighting, search, file I/O)
+5. **validator.rs** - Learn all input validation patterns
 
 ## Notes
 
