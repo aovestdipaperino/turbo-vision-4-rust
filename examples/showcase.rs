@@ -9,7 +9,7 @@ use std::time::SystemTime;
 use turbo_vision::app::Application;
 use turbo_vision::core::command::{CM_CASCADE, CM_CLOSE, CM_NEXT, CM_PREV, CM_QUIT, CM_TILE, CM_ZOOM};
 use turbo_vision::core::draw::DrawBuffer;
-use turbo_vision::core::event::{Event, EventType, KB_ALT_X, /*KB_F1, KB_F3,*/ KB_F10};
+use turbo_vision::core::event::{Event, EventType, KB_ALT_X, KB_F3, KB_F6, KB_F10};
 use turbo_vision::core::geometry::Rect;
 use turbo_vision::core::menu_data::{Menu, MenuItem};
 use turbo_vision::core::palette::{Attr, Palette, TvColor, colors};
@@ -308,6 +308,23 @@ impl View for CrabWidgetWrapper {
 impl IdleView for CrabWidgetWrapper {
     fn idle(&mut self) {
         self.inner.borrow_mut().idle();
+    }
+}
+
+/// Convert global keyboard shortcuts (Alt+C, Alt+X, F1) to command events
+fn handle_global_shortcuts(event: &mut Event) {
+    if event.what != EventType::Keyboard {
+        return;
+    }
+
+    let command = match event.key_code {
+        KB_F6 => Some(CM_NEXT),
+        KB_F3 => Some(CM_OPEN),
+        _ => None,
+    };
+
+    if let Some(cmd) = command {
+        *event = Event::command(cmd);
     }
 }
 
@@ -1442,15 +1459,21 @@ fn main() -> turbo_vision::core::error::Result<()> {
 
     while app.running {
         app.draw();
-        if let Some(ref mut menu_bar) = app.menu_bar {
-            menu_bar.draw(&mut app.terminal);
-        }
+
+        // if let Some(ref mut menu_bar) = app.menu_bar {
+        //     menu_bar.draw(&mut app.terminal);
+        // }
+
         // Draw clock on top (like Borland's idle() update)
         // Matches Borland: tvdemo3.cc:173-174
         clock.draw(&mut app.terminal);
         app.terminal.flush()?;
 
         if let Ok(Some(mut event)) = app.terminal.poll_event(std::time::Duration::from_millis(50)) {
+            // Order matters
+            // Convert global keyboard shortcuts to commands so that F1, Ctrl+N etc. work even when menus are closed
+            handle_global_shortcuts(&mut event);
+
             // Menu bar handles events first
             if let Some(ref mut menu_bar) = app.menu_bar {
                 menu_bar.handle_event(&mut event);
@@ -1539,6 +1562,17 @@ fn main() -> turbo_vision::core::error::Result<()> {
                         // Matches Borland: Desktop handles cmZoom command
                         app.desktop.zoom_top_window();
                         false
+                    }
+                    CM_CLOSE => {
+                        // Close the topmost window (last in z-order)
+                        // Matches Borland: TWindow::close() calls valid(cmClose) and destroys itself
+                        // In showcase, windows don't need validation (no unsaved data)
+                        let window_count = app.desktop.child_count();
+                        if window_count > 0 {
+                            // Remove the topmost window (last in z-order = highest index)
+                            app.desktop.remove_child(window_count - 1);
+                        }
+                        true // Window closed - need full redraw
                     }
                     _ => false,
                 };
