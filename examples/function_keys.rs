@@ -5,103 +5,98 @@
 // - Function key detection (F1-F10)
 // - Real-time key press display
 // - Simple dialog-based UI
+//
+// Note : under WIN11 F11 => full screen
 
 use turbo_vision::app::Application;
 use turbo_vision::core::command::CM_QUIT;
 use turbo_vision::core::draw::DrawBuffer;
-use turbo_vision::core::event::{
-    EventType, KB_ALT_X, KB_F1, KB_F2, KB_F3, KB_F4, KB_F5, KB_F6, KB_F7, KB_F8, KB_F9, KB_F10,
-};
+use turbo_vision::core::event::{EventType, KB_ALT_X, KB_F1, KB_F2, KB_F3, KB_F4, KB_F5, KB_F6, KB_F7, KB_F8, KB_F9, KB_F10};
 use turbo_vision::core::geometry::Rect;
-use turbo_vision::core::palette::colors;
+use turbo_vision::core::palette::Attr;
+use turbo_vision::views::View;
 use turbo_vision::views::status_line::{StatusItem, StatusLine};
 use turbo_vision::views::view::write_line_to_terminal;
-use turbo_vision::views::View;
 
 fn main() -> turbo_vision::core::error::Result<()> {
     let mut app = Application::new()?;
-    let (width, height) = app.terminal.size();
 
-    // Create status line
-    let status_line = StatusLine::new(
-        Rect::new(0, height as i16 - 1, width as i16, height as i16),
-        vec![StatusItem::new("~Alt+X~ Quit", KB_ALT_X, CM_QUIT)],
-    );
+    let status_line = setup_status_line(&app);
     app.set_status_line(status_line);
 
+    let (width, _) = app.terminal.size();
+    let width = width as i16;
     let mut last_key = String::from("None");
+    app.running = true;
 
     // Event loop
-    app.running = true;
     while app.running {
         // Draw everything
         app.desktop.draw(&mut app.terminal);
 
-        // Draw title
-        let title = "Function Keys Test (F1-F10)";
+        // Configuration for the "box"
+        let box_width = 40;
+        let box_x = (width - box_width) / 2;
+
+        // Draw title box
+        let title = " Function Keys Test (F1-F10)            ";
+        let title_y = 2;
+        let title_x = (width - title.len() as i16) / 2;
         let mut buf = DrawBuffer::new(title.len());
         for (i, ch) in title.chars().enumerate() {
-            buf.put_char(i, ch, colors::HIGHLIGHTED);
+            buf.put_char(i, ch, Attr::from_u8(0x0F)); // White on black
         }
-        write_line_to_terminal(
-            &mut app.terminal,
-            (width as usize / 2 - title.len() / 2) as i16,
-            2,
-            &buf,
-        );
+        write_line_to_terminal(&mut app.terminal, title_x, title_y, &buf);
 
-        // Draw instructions
-        let instructions = vec![
-            "Press any function key F1-F10",
-            "to test keyboard input.",
-            "",
-            "The last pressed key will be",
-            "displayed below.",
+        // Draw instructions box
+        let instructions = [
+            " Press any function key F1-F10 ",
+            " to test keyboard input.       ",
+            "                               ",
+            " The last pressed key will be  ",
+            " displayed below.              ",
         ];
 
+        let instr_y = 5;
         for (i, line) in instructions.iter().enumerate() {
-            let mut buf = DrawBuffer::new(line.len());
-            for (j, ch) in line.chars().enumerate() {
-                buf.put_char(j, ch, colors::NORMAL);
+            let mut buf = DrawBuffer::new(box_width as usize);
+            for j in 0..box_width as usize {
+                if j < line.len() {
+                    buf.put_char(j, line.chars().nth(j).unwrap(), Attr::from_u8(0x0F)); // White on black
+                } else {
+                    buf.put_char(j, ' ', Attr::from_u8(0x0F));
+                }
             }
-            write_line_to_terminal(
-                &mut app.terminal,
-                (width as usize / 2 - line.len() / 2) as i16,
-                5 + i as i16,
-                &buf,
-            );
+            write_line_to_terminal(&mut app.terminal, box_x, instr_y + i as i16, &buf);
         }
 
-        // Draw last key pressed
-        let display = format!("Last Key: {}", last_key);
-        let mut buf = DrawBuffer::new(display.len());
-        for (i, ch) in display.chars().enumerate() {
-            buf.put_char(i, ch, colors::SELECTED);
+        // Draw last key box
+        let key_display = format!(" Last Key: {:15} ", last_key);
+        let key_y = 12;
+        let mut buf = DrawBuffer::new(box_width as usize);
+        for j in 0..box_width as usize {
+            if j < key_display.len() {
+                buf.put_char(j, key_display.chars().nth(j).unwrap(), Attr::from_u8(0x3F)); // Cyan on black
+            } else {
+                buf.put_char(j, ' ', Attr::from_u8(0x3F));
+            }
         }
-        write_line_to_terminal(
-            &mut app.terminal,
-            (width as usize / 2 - display.len() / 2) as i16,
-            12,
-            &buf,
-        );
+        write_line_to_terminal(&mut app.terminal, box_x, key_y, &buf);
 
-        // Draw key reference
-        let key_ref = vec![
-            "F1  F2  F3  F4  F5",
-            "F6  F7  F8  F9  F10",
-        ];
+        // Draw key reference box
+        let key_ref = [" F1  F2  F3  F4  F5             ", " F6  F7  F8  F9  F10            "];
 
+        let ref_y = 15;
         for (i, line) in key_ref.iter().enumerate() {
-            let mut buf = DrawBuffer::new(line.len());
-            for (j, ch) in line.chars().enumerate() {
-                buf.put_char(j, ch, colors::NORMAL);
+            let mut buf = DrawBuffer::new(box_width as usize);
+            for j in 0..box_width as usize {
+                if j < line.len() {
+                    buf.put_char(j, line.chars().nth(j).unwrap(), Attr::from_u8(0x0F)); // White on black
+                } else {
+                    buf.put_char(j, ' ', Attr::from_u8(0x0F));
+                }
             }
-            write_line_to_terminal(
-                &mut app.terminal,
-                (width as usize / 2 - line.len() / 2) as i16,
-                15 + i as i16,
-                &buf,
-            );
+            write_line_to_terminal(&mut app.terminal, box_x, ref_y + i as i16, &buf);
         }
 
         // Draw status line
@@ -112,10 +107,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
         let _ = app.terminal.flush();
 
         // Handle events
-        if let Ok(Some(mut event)) = app
-            .terminal
-            .poll_event(std::time::Duration::from_millis(50))
-        {
+        if let Ok(Some(mut event)) = app.terminal.poll_event(std::time::Duration::from_millis(50)) {
             // Status line handles shortcuts
             if let Some(ref mut status_line) = app.status_line {
                 status_line.handle_event(&mut event);
@@ -151,4 +143,11 @@ fn main() -> turbo_vision::core::error::Result<()> {
     }
 
     Ok(())
+}
+
+/// Create and configure the status line at the bottom of the screen
+fn setup_status_line(app: &Application) -> StatusLine {
+    let (w, h) = app.terminal.size();
+
+    StatusLine::new(Rect::new(0, h as i16 - 1, w as i16, h as i16), vec![StatusItem::new("~Alt-X~ Exit", KB_ALT_X, CM_QUIT)])
 }
