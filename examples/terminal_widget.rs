@@ -197,7 +197,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
 
     // Create status line
     let (width, height) = app.terminal.size();
-    let status_line = StatusLine::new(Rect::new(0, height as i16 - 1, width as i16, height as i16), vec![StatusItem::new("~Alt+X~ Exit", KB_ALT_X, CM_QUIT)]);
+    let status_line = StatusLine::new(Rect::new(0, height - 1, width, height), vec![StatusItem::new("~Alt+X~ Exit", KB_ALT_X, CM_QUIT)]);
     app.set_status_line(status_line);
 
     // Create and add dialog

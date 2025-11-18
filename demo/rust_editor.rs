@@ -84,12 +84,6 @@ fn main() -> turbo_vision::core::error::Result<()> {
     let status_line = init_status_line(Rect::new(0, height as i16 - 1, width as i16, height as i16));
     app.set_status_line(status_line);
 
-    // Create initial editor window on startup (matching Borland TEditWindow)
-    // Use RELATIVE coordinates since it will be added to desktop
-    // Desktop starts at row 1 (menu bar), so window at relative (5, 1) becomes absolute (5, 2)
-    let window_bounds = Rect::new(5, 1, width as i16 - 5, height as i16 - 4);
-    create_editor_window(&mut app, window_bounds, None);
-
     // Event loop
     app.running = true;
     while app.running {
@@ -208,46 +202,14 @@ fn main() -> turbo_vision::core::error::Result<()> {
                         }
                     }
                     CM_NEW => {
-                        let should_proceed = if app.desktop.child_count() > 0 {
-                            let is_modified = get_file_editor(&app)
-                                .map_or(false, |fe| fe.is_modified());
-
-                            if is_modified {
-                                let title = get_file_editor(&app)
-                                    .map(|fe| fe.get_title())
-                                    .unwrap_or_else(|| "Untitled".to_string());
-
-                                let message = format!("Save changes to {}?", title);
-                                match turbo_vision::views::msgbox::confirmation_box(&mut app, &message) {
-                                    cmd if cmd == CM_YES => {
-                                        save_file(&mut app);
-                                        true
-                                    }
-                                    cmd if cmd == CM_NO => true,
-                                    _ => false,
-                                }
-                            } else {
-                                true
-                            }
-                        } else {
-                            true
-                        };
-
-                        if should_proceed {
-                            if app.desktop.child_count() > 0 {
-                                app.desktop.remove_child(0);
-                            }
-                            // Use RELATIVE coordinates for desktop
-                            let window_bounds = Rect::new(5, 1, width as i16 - 5, height as i16 - 4);
-                            create_editor_window(&mut app, window_bounds, None);
-                        }
+                        // Create new untitled window
+                        // Use RELATIVE coordinates for desktop
+                        let window_bounds = Rect::new(5, 1, width as i16 - 5, height as i16 - 4);
+                        create_editor_window(&mut app, window_bounds, None);
                     }
                     CM_OPEN => {
                         if let Some(path) = show_file_open_dialog(&mut app) {
-                            // Remove old window and create new one with loaded file
-                            if app.desktop.child_count() > 0 {
-                                app.desktop.remove_child(0);
-                            }
+                            // Create new window with loaded file
                             // Use RELATIVE coordinates for desktop
                             let window_bounds = Rect::new(5, 1, width as i16 - 5, height as i16 - 4);
                             create_editor_window(&mut app, window_bounds, Some(path));

@@ -66,8 +66,8 @@ pub fn message_box(app: &mut Application, msg: &str, options: u16) -> CommandId 
     // Minimum 9 (Borland default), maximum 20 (leave margin on 24-row screen)
     let dialog_height = (1 + num_lines + 2 + 3).clamp(9, 20);
 
-    let dialog_x = (width as i16 - dialog_width) / 2;
-    let dialog_y = (height as i16 - dialog_height - 2) / 2; // -2 for menu and status
+    let dialog_x = (width - dialog_width) / 2;
+    let dialog_y = (height - dialog_height - 2) / 2; // -2 for menu and status
 
     let bounds = Rect::new(
         dialog_x,
@@ -160,8 +160,8 @@ pub fn input_box(
     // Create centered dialog (60x8 as in Borland)
     let dialog_width = 60i16;
     let dialog_height = 8i16;
-    let dialog_x = (width as i16 - dialog_width) / 2;
-    let dialog_y = (height as i16 - dialog_height - 2) / 2;
+    let dialog_x = (width - dialog_width) / 2;
+    let dialog_y = (height - dialog_height - 2) / 2;
 
     let bounds = Rect::new(
         dialog_x,

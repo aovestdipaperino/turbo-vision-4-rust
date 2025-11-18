@@ -288,13 +288,21 @@ impl View for Dialog {
                         event.clear();
                     }
                     _ => {
-                        // Other commands (custom commands from child views like ListBox)
-                        // These should NOT close the dialog - let them pass through to be handled
-                        // by the caller (e.g., FileDialog)
-                        // CRITICAL: The old code incorrectly called end_modal() for all commands,
-                        // which broke custom commands from ListBox (cmFileSelected)
-                        // Now we only close the dialog for standard dialog commands above
-                        // Custom commands are left alone - the caller handles them
+                        // Other commands - distinguish between button commands and internal commands
+                        // Button commands (< 1000): Custom button commands like 1, 2, 3
+                        //   These should end the modal loop and return to caller
+                        // Internal commands (>= 1000): Commands from child views like CMD_FILE_SELECTED (1000)
+                        //   These are used by specific dialog implementations (FileDialog, etc.)
+                        //   and should NOT close the dialog - let them pass through
+                        //
+                        // Convention: Commands >= 1000 are internal/custom view commands
+                        //            Commands < 1000 are dialog close commands
+                        if event.command < 1000 {
+                            // Custom button command - end modal and return to caller
+                            self.window.end_modal(event.command);
+                            event.clear();
+                        }
+                        // else: Internal command >= 1000 - pass through to caller without closing
                     }
                 }
             }
@@ -492,5 +500,174 @@ impl DialogBuilder {
 impl Default for DialogBuilder {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::state::SF_MODAL;
+
+    /// Regression test for FileDialog folder navigation bug (issue #73 follow-up)
+    ///
+    /// The bug: Dialog was calling end_modal() for ALL commands (including CMD_FILE_SELECTED = 1000),
+    /// which caused FileDialog to close when double-clicking folders instead of navigating into them.
+    ///
+    /// The fix: Dialog now only calls end_modal() for commands < 1000 (dialog close commands).
+    /// Commands >= 1000 (internal/child view commands) pass through without closing the dialog.
+    ///
+    /// This test verifies:
+    /// 1. Internal commands (>= 1000) do NOT close modal dialogs
+    /// 2. Custom button commands (< 1000) DO close modal dialogs
+    #[test]
+    fn test_dialog_command_handling() {
+        // Test 1: Internal command (>= 1000) should NOT close dialog
+        {
+            let mut dialog = Dialog::new(Rect::new(0, 0, 40, 10), "Test");
+            let current_state = dialog.state();
+            dialog.set_state(current_state | SF_MODAL);
+
+            // Simulate an internal command like CMD_FILE_SELECTED (1000)
+            let mut event = Event::command(1000);
+            dialog.handle_event(&mut event);
+
+            // Dialog should NOT close (end_state should remain 0)
+            assert_eq!(
+                dialog.get_end_state(),
+                0,
+                "Internal command (1000) should not close dialog"
+            );
+
+            // Event should still be available (not cleared)
+            assert_eq!(
+                event.what,
+                EventType::Command,
+                "Internal command event should not be cleared"
+            );
+            assert_eq!(
+                event.command, 1000,
+                "Internal command should remain unchanged"
+            );
+        }
+
+        // Test 2: Custom button command (< 1000) should close dialog
+        {
+            let mut dialog = Dialog::new(Rect::new(0, 0, 40, 10), "Test");
+            let current_state = dialog.state();
+            dialog.set_state(current_state | SF_MODAL);
+
+            // Simulate a custom button command (e.g., 100)
+            let mut event = Event::command(100);
+            dialog.handle_event(&mut event);
+
+            // Dialog SHOULD close (end_state should be set to the command)
+            assert_eq!(
+                dialog.get_end_state(),
+                100,
+                "Custom button command (100) should close dialog"
+            );
+
+            // Event should be cleared
+            assert_eq!(
+                event.what,
+                EventType::Nothing,
+                "Custom button command event should be cleared"
+            );
+        }
+
+        // Test 3: Boundary test - command 999 should close, 1000 should not
+        {
+            let mut dialog = Dialog::new(Rect::new(0, 0, 40, 10), "Test");
+            let current_state = dialog.state();
+            dialog.set_state(current_state | SF_MODAL);
+
+            let mut event = Event::command(999);
+            dialog.handle_event(&mut event);
+
+            assert_eq!(
+                dialog.get_end_state(),
+                999,
+                "Command 999 should close dialog (< 1000)"
+            );
+            assert_eq!(
+                event.what,
+                EventType::Nothing,
+                "Command 999 event should be cleared"
+            );
+        }
+
+        {
+            let mut dialog = Dialog::new(Rect::new(0, 0, 40, 10), "Test");
+            let current_state = dialog.state();
+            dialog.set_state(current_state | SF_MODAL);
+
+            let mut event = Event::command(1000);
+            dialog.handle_event(&mut event);
+
+            assert_eq!(
+                dialog.get_end_state(),
+                0,
+                "Command 1000 should not close dialog (>= 1000)"
+            );
+            assert_eq!(
+                event.what,
+                EventType::Command,
+                "Command 1000 event should not be cleared"
+            );
+        }
+
+        // Test 4: Standard commands (OK, Cancel, etc.) should still work
+        {
+            use crate::core::command::{CM_OK, CM_CANCEL, CM_YES, CM_NO};
+
+            for cmd in [CM_OK, CM_CANCEL, CM_YES, CM_NO] {
+                let mut dialog = Dialog::new(Rect::new(0, 0, 40, 10), "Test");
+                let current_state = dialog.state();
+                dialog.set_state(current_state | SF_MODAL);
+
+                let mut event = Event::command(cmd);
+                dialog.handle_event(&mut event);
+
+                assert_eq!(
+                    dialog.get_end_state(),
+                    cmd,
+                    "Standard command {} should close dialog",
+                    cmd
+                );
+                assert_eq!(
+                    event.what,
+                    EventType::Nothing,
+                    "Standard command {} event should be cleared",
+                    cmd
+                );
+            }
+        }
+    }
+
+    /// Test that non-modal dialogs don't interfere with command handling
+    #[test]
+    fn test_non_modal_dialog_commands() {
+        let mut dialog = Dialog::new(Rect::new(0, 0, 40, 10), "Test");
+        // Don't set SF_MODAL - this is a non-modal dialog
+
+        // Non-modal dialogs should not call end_modal() for any command
+        let mut event = Event::command(100);
+        dialog.handle_event(&mut event);
+
+        // end_state should remain 0 because dialog is not modal
+        assert_eq!(
+            dialog.get_end_state(),
+            0,
+            "Non-modal dialog should not set end_state"
+        );
+
+        // Commands should pass through unchanged
+        let mut event = Event::command(1000);
+        dialog.handle_event(&mut event);
+        assert_eq!(
+            dialog.get_end_state(),
+            0,
+            "Non-modal dialog should not set end_state for internal commands"
+        );
     }
 }

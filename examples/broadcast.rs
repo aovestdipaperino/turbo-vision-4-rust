@@ -118,8 +118,8 @@ fn main() -> turbo_vision::core::error::Result<()> {
     // This lets us call group.broadcast() directly
     let group_width = 70;
     let group_height = 20;
-    let group_x = (width as i16 - group_width) / 2;
-    let group_y = (height as i16 - group_height) / 2;
+    let group_x = (width - group_width) / 2;
+    let group_y = (height - group_height) / 2;
 
     let mut group = Group::new(Rect::new(group_x, group_y, group_x + group_width, group_y + group_height));
 

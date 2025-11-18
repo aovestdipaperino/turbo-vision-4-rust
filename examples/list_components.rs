@@ -27,7 +27,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
     let (width, height) = app.terminal.size();
 
     // Create menu bar using MenuBuilder
-    let mut menu_bar = MenuBar::new(Rect::new(0, 0, width as i16, 1));
+    let mut menu_bar = MenuBar::new(Rect::new(0, 0, width, 1));
 
     // File menu with MenuBuilder
     let file_menu = MenuBuilder::new()
@@ -67,7 +67,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
 
     // Create status line
     let status_line = StatusLine::new(
-        Rect::new(0, height as i16 - 1, width as i16, height as i16),
+        Rect::new(0, height - 1, width, height),
         vec![
             StatusItem::new("~↑~↓~ Navigate", 0, 0),
             StatusItem::new("~Enter~ Select", 0, 0),
@@ -216,8 +216,8 @@ fn show_message(app: &mut Application, message: &str, width: i16, height: i16) {
     use turbo_vision::views::view::write_line_to_terminal;
 
     let (term_width, term_height) = app.terminal.size();
-    let x = (term_width as i16 - width) / 2;
-    let y = (term_height as i16 - height) / 2;
+    let x = (term_width - width) / 2;
+    let y = (term_height - height) / 2;
 
     // Draw border
     let mut top = DrawBuffer::new(width as usize);

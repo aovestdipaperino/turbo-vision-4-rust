@@ -48,7 +48,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
 
     // Create status line with shortcuts
     let status_line = StatusLine::new(
-        Rect::new(0, height as i16 - 1, width as i16, height as i16),
+        Rect::new(0, height - 1, width, height),
         vec![
             StatusItem::new("~Alt+A~ Jump to A", KB_ALT_A, CMD_SEARCH_A),
             StatusItem::new("~Alt+B~ Jump to B", KB_ALT_B, CMD_SEARCH_B),

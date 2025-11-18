@@ -207,8 +207,8 @@ impl View for LogoBackground {
     }
 }
 
-fn create_menu_bar(width: u16) -> MenuBar {
-    let mut menu_bar = MenuBar::new(Rect::new(0, 0, width as i16, 1));
+fn create_menu_bar(width: i16) -> MenuBar {
+    let mut menu_bar = MenuBar::new(Rect::new(0, 0, width, 1));
 
     // About menu
     let about_menu_items = vec![MenuItem::with_shortcut("~A~bout", CM_ABOUT, 0, "Alt+A", 0)];
@@ -218,13 +218,13 @@ fn create_menu_bar(width: u16) -> MenuBar {
     menu_bar
 }
 
-fn create_status_line(width: u16, height: u16) -> StatusLine {
+fn create_status_line(width: i16, height: i16) -> StatusLine {
     use turbo_vision::core::event::KB_ALT_X;
 
     let status_items = vec![StatusItem::new("~Alt+X~ Exit", KB_ALT_X, CM_QUIT)];
 
     StatusLine::new(
-        Rect::new(0, height as i16 - 1, width as i16, height as i16),
+        Rect::new(0, height - 1, width, height),
         status_items,
     )
 }
@@ -261,7 +261,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
 
     // Create animated crab widget on the right side of the status bar
     // Add it as an overlay widget so it continues animating even during modal dialogs
-    let crab_widget = CrabWidget::new(width as i16 - 11, height as i16 - 1);
+    let crab_widget = CrabWidget::new(width - 11, height - 1);
     app.add_overlay_widget(Box::new(crab_widget));
 
     // Main event loop

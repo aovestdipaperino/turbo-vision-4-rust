@@ -311,8 +311,8 @@ impl IdleView for CrabWidgetWrapper {
     }
 }
 
-fn create_menu_bar(width: u16) -> MenuBar {
-    let mut menu_bar = MenuBar::new(Rect::new(0, 0, width as i16, 1));
+fn create_menu_bar(width: i16) -> MenuBar {
+    let mut menu_bar = MenuBar::new(Rect::new(0, 0, width, 1));
 
     // System menu (using ☼ symbol as in original Borland TV)
     let system_menu_items = vec![
@@ -352,9 +352,9 @@ fn create_menu_bar(width: u16) -> MenuBar {
     menu_bar
 }
 
-fn create_status_line(width: u16, height: u16) -> StatusLine {
+fn create_status_line(width: i16, height: i16) -> StatusLine {
     StatusLine::new(
-        Rect::new(0, height as i16 - 1, width as i16, height as i16),
+        Rect::new(0, height - 1, width, height),
         vec![
             StatusItem::new("~F1~ Help", KB_F1, CM_ABOUT),
             StatusItem::new("~F3~ Open", KB_F3, CM_OPEN),
@@ -463,8 +463,8 @@ fn show_ascii_table(app: &mut Application) {
     // 5 columns narrower than original (was 76, now 71)
     let win_width = 71i16;
     let win_height = 22i16;
-    let win_x = (width as i16 - win_width) / 2;
-    let win_y = (height as i16 - win_height - 2) / 2; // -2 for menu and status
+    let win_x = (width - win_width) / 2;
+    let win_y = (height - win_height - 2) / 2; // -2 for menu and status
 
     let mut window = WindowBuilder::new().bounds(Rect::new(win_x, win_y, win_x + win_width, win_y + win_height)).title("ASCII Table").build();
 
@@ -735,17 +735,17 @@ fn show_calculator_placeholder(app: &mut Application) {
 
     writeln!(log, "\n=== show_calculator_placeholder START ===").unwrap();
 
-    let display_len = 25;
+    let display_len = 25i16;
     let dialog_width = 6 + display_len;
-    let dialog_height = 15; // Back to original height
+    let dialog_height = 15i16; // Back to original height
 
     let mut dialog = DialogBuilder::new()
-        .bounds(Rect::new(5, 3, 5 + dialog_width as i16, 3 + dialog_height as i16))
+        .bounds(Rect::new(5, 3, 5 + dialog_width, 3 + dialog_height))
         .title("Calculator")
         .build();
 
     // Add display at top - moved 1 row up and 1 to the left
-    let display = CalcDisplay::new(Rect::new(2, 1, 2 + display_len as i16, 2));
+    let display = CalcDisplay::new(Rect::new(2, 1, 2 + display_len, 2));
     dialog.add(Box::new(display));
 
     // Add buttons in 4x5 grid
@@ -1335,8 +1335,8 @@ fn show_open_file_dialog(app: &mut Application, crab: &Rc<RefCell<CrabWidget>>) 
     // Create centered file dialog
     let dialog_width = 62i16;
     let dialog_height = 18i16;
-    let dialog_x = (width as i16 - dialog_width) / 2;
-    let dialog_y = (height as i16 - dialog_height - 2) / 2;
+    let dialog_x = (width - dialog_width) / 2;
+    let dialog_y = (height - dialog_height - 2) / 2;
 
     let mut file_dialog = FileDialogBuilder::new()
         .bounds(Rect::new(dialog_x, dialog_y, dialog_x + dialog_width, dialog_y + dialog_height))
@@ -1414,12 +1414,12 @@ fn main() -> turbo_vision::core::error::Result<()> {
 
     // Create clock view (right side of menu bar) - Matches Borland: tvdemo1.cc:128
     let clock_width = 9; // "HH:MM:SS" format + space
-    let mut clock = ClockView::new(Rect::new(width as i16 - clock_width, 0, width as i16, 1));
+    let mut clock = ClockView::new(Rect::new(width - clock_width, 0, width, 1));
 
     // Create animated crab widget on the right side of the status bar
     // Add it as an overlay widget so it continues animating even during modal dialogs
     // Use Rc<RefCell<>> to allow shared ownership for pause/start control
-    let crab_widget = Rc::new(RefCell::new(CrabWidget::new(width as i16 - 11, height as i16 - 1)));
+    let crab_widget = Rc::new(RefCell::new(CrabWidget::new(width - 11, height - 1)));
     app.add_overlay_widget(Box::new(CrabWidgetWrapper::new(crab_widget.clone())));
 
     // Main event loop

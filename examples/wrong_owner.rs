@@ -3,7 +3,7 @@
 
 use turbo_vision::prelude::*;
 
-use turbo_vision::core::event::KB_ALT_X;
+use turbo_vision::core::event::{KB_ALT_X, KB_ESC};
 use turbo_vision::views::button::ButtonBuilder;
 use turbo_vision::views::status_line::{StatusItem, StatusLine};
 use turbo_vision::views::window::WindowBuilder;
@@ -15,7 +15,13 @@ fn main() -> turbo_vision::core::error::Result<()> {
 
     // Status line
     let (width, height) = app.terminal.size();
-    let status_line = StatusLine::new(Rect::new(0, height as i16 - 1, width as i16, height as i16), vec![StatusItem::new("~Alt-X~ Exit", KB_ALT_X, CM_QUIT)]);
+    let status_line = StatusLine::new(
+        Rect::new(0, height - 1, width, height),
+        vec![
+            StatusItem::new("~Alt-X~ Exit", KB_ALT_X, CM_QUIT),
+            StatusItem::new("~Esc~ Exit", KB_ESC, CM_QUIT),
+        ],
+    );
     app.set_status_line(status_line);
 
     // Create a Window

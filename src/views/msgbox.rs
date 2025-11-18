@@ -40,8 +40,8 @@ pub fn message_box(app: &mut Application, message: &str, options: u16) -> Comman
 
     // Center on screen
     let (screen_w, screen_h) = app.terminal.size();
-    let x = (screen_w as i16 - width as i16) / 2;
-    let y = (screen_h as i16 - height as i16) / 2;
+    let x = (screen_w - width as i16) / 2;
+    let y = (screen_h - height as i16) / 2;
 
     let bounds = Rect::new(x, y, x + width as i16, y + height as i16);
 
@@ -175,8 +175,8 @@ pub fn input_box(app: &mut Application, title: &str, label: &str, initial: &str,
 
     // Center on screen
     let (screen_w, screen_h) = app.terminal.size();
-    let x = (screen_w as i16 - width as i16) / 2;
-    let y = (screen_h as i16 - height as i16) / 2;
+    let x = (screen_w - width as i16) / 2;
+    let y = (screen_h - height as i16) / 2;
 
     let bounds = Rect::new(x, y, x + width as i16, y + height as i16);
 
@@ -239,8 +239,8 @@ pub fn search_box(app: &mut Application, title: &str) -> Option<String> {
 
     // Center on screen
     let (screen_w, screen_h) = app.terminal.size();
-    let x = (screen_w as i16 - width) / 2;
-    let y = (screen_h as i16 - height) / 2;
+    let x = (screen_w - width) / 2;
+    let y = (screen_h - height) / 2;
 
     let bounds = Rect::new(x, y, x + width, y + height);
 
@@ -296,8 +296,8 @@ pub fn search_replace_box(app: &mut Application, title: &str) -> Option<(String,
 
     // Center on screen
     let (screen_w, screen_h) = app.terminal.size();
-    let x = (screen_w as i16 - width) / 2;
-    let y = (screen_h as i16 - height) / 2;
+    let x = (screen_w - width) / 2;
+    let y = (screen_h - height) / 2;
 
     let bounds = Rect::new(x, y, x + width, y + height);
 
@@ -367,8 +367,8 @@ pub fn goto_line_box(app: &mut Application, title: &str) -> Option<usize> {
 
     // Center on screen
     let (screen_w, screen_h) = app.terminal.size();
-    let x = (screen_w as i16 - width) / 2;
-    let y = (screen_h as i16 - height) / 2;
+    let x = (screen_w - width) / 2;
+    let y = (screen_h - height) / 2;
 
     let bounds = Rect::new(x, y, x + width, y + height);
 
