@@ -19,7 +19,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
     // Add minimal status line (no menu bar!)
     let (width, height) = app.terminal.size();
     let status_line = StatusLine::new(
-        Rect::new(0, height as i16 - 1, width as i16, height as i16),
+        Rect::new(0, height - 1, width, height),
         vec![
             StatusItem::new("~Esc-X~ Exit", KB_ESC, CM_QUIT),
             StatusItem::new("~Alt-X~ Exit", KB_ALT_X, CM_QUIT),

@@ -517,7 +517,7 @@ pub trait IdleView: View {
 
 /// Helper to draw a line to the terminal
 pub fn write_line_to_terminal(terminal: &mut Terminal, x: i16, y: i16, buf: &DrawBuffer) {
-    if y < 0 || y >= terminal.size().1 as i16 {
+    if y < 0 || y >= terminal.size().1 {
         return;
     }
     terminal.write_line(x.max(0) as u16, y as u16, &buf.data);

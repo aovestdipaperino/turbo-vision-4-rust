@@ -210,8 +210,8 @@ impl Terminal {
     }
 
     /// Get terminal size
-    pub fn size(&self) -> (u16, u16) {
-        (self.width, self.height)
+    pub fn size(&self) -> (i16, i16) {
+        (self.width as i16, self.height as i16)
     }
 
     /// Set the ESC timeout in milliseconds

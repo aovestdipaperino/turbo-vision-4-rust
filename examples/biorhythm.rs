@@ -454,8 +454,8 @@ fn run_modal_birth_date_dialog(app: &mut Application, birth_date: Option<&NaiveD
         let dialog_width = dialog_bounds.width();
         let dialog_height = dialog_bounds.height();
 
-        let center_x = ((term_width as i16 - dialog_width) / 2).max(0);
-        let center_y = ((term_height as i16 - dialog_height) / 2).max(0);
+        let center_x = ((term_width - dialog_width) / 2).max(0);
+        let center_y = ((term_height - dialog_height) / 2).max(0);
 
         let centered_bounds = Rect::new(
             center_x,
@@ -556,7 +556,7 @@ fn handle_global_shortcuts(event: &mut Event) {
 /// Create menu bar with Biorhythm and Help menus
 fn add_menu_bar(app: &mut Application) {
     let (width, _) = app.terminal.size();
-    let mut menu_bar = MenuBar::new(Rect::new(0, 0, width as i16, 1));
+    let mut menu_bar = MenuBar::new(Rect::new(0, 0, width, 1));
     let biorhythm_menu = Menu::from_items(vec![
         MenuItem::with_shortcut("~C~alculate", CM_BIORHYTHM, 0, "Alt+C", 0),
         MenuItem::separator(),
@@ -573,7 +573,7 @@ fn add_status_line(app: &mut Application) {
     let (width, height) = app.terminal.size();
 
     let status_line = StatusLine::new(
-        Rect::new(0, height as i16 - 1, width as i16, height as i16),
+        Rect::new(0, height - 1, width, height),
         vec![
             StatusItem::new("~F1~ Help", KB_F1, CM_ABOUT),
             StatusItem::new("~F10~ Menu", KB_F10, 0),
@@ -588,8 +588,8 @@ fn add_chart(app: &mut Application, biorhythm_data: &Rc<RefCell<Option<Biorhythm
     // Calculate window dimensions
     let (width, height) = app.terminal.size();
     let window_width = 76i16; // TODO should NOT be hard coded
-    let available_width = width as i16;
-    let available_height = height as i16 - 3; // Subtract menu bar, status line and shadow
+    let available_width = width;
+    let available_height = height - 3; // Subtract menu bar, status line and shadow
     let margin_vertical: i16 = 1;
     let window_height = available_height - (margin_vertical * 2);
     let window_x = (available_width - (window_width + 2)) / 2;

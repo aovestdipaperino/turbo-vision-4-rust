@@ -162,7 +162,7 @@ fn setup_menu_bar(app: &mut Application) {
     let (width, _) = app.terminal.size();
 
     // Create menu bar with keyboard shortcuts
-    let mut menu_bar = MenuBar::new(Rect::new(0, 0, width as i16, 1));
+    let mut menu_bar = MenuBar::new(Rect::new(0, 0, width, 1));
 
     // File menu with shortcuts
     let file_menu_items = vec![
@@ -201,7 +201,7 @@ fn setup_menu_bar(app: &mut Application) {
 fn setup_status_line(app: &mut Application) {
     let (width, height) = app.terminal.size();
     let status_line = StatusLine::new(
-        Rect::new(0, height as i16 - 1, width as i16, height as i16),
+        Rect::new(0, height - 1, width, height),
         vec![StatusItem::new("~F10~ Menu", KB_F10, 0), StatusItem::new("~F1~ Help", 0, CMD_HELP)],
     );
     app.set_status_line(status_line);
@@ -285,8 +285,8 @@ All matching Borland TV!";
 fn show_msg(app: &mut Application, text: &str, title: &str, dialog_width: i16, dialog_height: i16) {
     let (term_width, term_height) = app.terminal.size();
 
-    let dialog_x = (term_width as i16 - dialog_width) / 2;
-    let dialog_y = (term_height as i16 - dialog_height) / 2;
+    let dialog_x = (term_width - dialog_width) / 2;
+    let dialog_y = (term_height - dialog_height) / 2;
 
     let mut dialog = DialogBuilder::new()
         .bounds(Rect::new(dialog_x, dialog_y, dialog_x + dialog_width, dialog_y + dialog_height))

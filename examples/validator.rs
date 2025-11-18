@@ -36,8 +36,8 @@ fn demo_all_validators(app: &mut Application) {
     // Create larger dialog to fit all validators
     let dialog_width = 65;
     let dialog_height = 34;
-    let dialog_x = (width as i16 - dialog_width) / 2;
-    let dialog_y = (height as i16 - dialog_height) / 2;
+    let dialog_x = (width - dialog_width) / 2;
+    let dialog_y = (height - dialog_height) / 2;
 
     let mut dialog = DialogBuilder::new()
         .bounds(Rect::new(dialog_x, dialog_y, dialog_x + dialog_width, dialog_y + dialog_height))

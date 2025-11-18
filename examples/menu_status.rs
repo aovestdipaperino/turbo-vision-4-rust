@@ -55,8 +55,8 @@ fn main() -> turbo_vision::core::error::Result<()> {
 }
 
 /// Create and configure the menu bar with File, Edit, and Help menus
-fn setup_menu_bar(app: &mut Application, width: u16) {
-    let mut menu_bar = MenuBar::new(Rect::new(0, 0, width as i16, 1));
+fn setup_menu_bar(app: &mut Application, width: i16) {
+    let mut menu_bar = MenuBar::new(Rect::new(0, 0, width, 1));
 
     // File menu with Recent Files submenu
     let recent_files_submenu = Menu::from_items(vec![
@@ -105,9 +105,9 @@ fn setup_menu_bar(app: &mut Application, width: u16) {
 }
 
 /// Create and configure the status line at the bottom of the screen
-fn setup_status_line(app: &mut Application, width: u16, height: u16) {
+fn setup_status_line(app: &mut Application, width: i16, height: i16) {
     let status_line = StatusLine::new(
-        Rect::new(0, height as i16 - 1, width as i16, height as i16),
+        Rect::new(0, height - 1, width, height),
         vec![
             StatusItem::new("~F10~ Menu", KB_F10, 0),
             StatusItem::new("~F1~ Help", 0, 0),
@@ -118,11 +118,11 @@ fn setup_status_line(app: &mut Application, width: u16, height: u16) {
 }
 
 /// Add a welcome message to the desktop background
-fn setup_welcome_message(app: &mut Application, width: u16, height: u16) {
+fn setup_welcome_message(app: &mut Application, width: i16, height: i16) {
     let msg_width = 60;
-    let msg_x = (width as i16 - msg_width) / 2;
+    let msg_x = (width - msg_width) / 2;
     let msg = StaticTextBuilder::new()
-        .bounds(Rect::new(msg_x, height as i16 / 2, msg_x + msg_width, height as i16 / 2 + 4))
+        .bounds(Rect::new(msg_x, height / 2, msg_x + msg_width, height / 2 + 4))
         .text("Extended Menu Example\n\nTry the menu bar with submenus\nor right-click for a popup menu!")
         .centered(true)
         .build();
@@ -292,8 +292,8 @@ fn show_message(app: &mut Application, title: &str, message: &str) {
 
     let dialog_width = 40;
     let dialog_height = 7;
-    let dialog_x = (term_width as i16 - dialog_width) / 2;
-    let dialog_y = (term_height as i16 - dialog_height) / 2;
+    let dialog_x = (term_width - dialog_width) / 2;
+    let dialog_y = (term_height - dialog_height) / 2;
 
     let mut dialog = DialogBuilder::new()
         .bounds(Rect::new(dialog_x, dialog_y, dialog_x + dialog_width, dialog_y + dialog_height))

@@ -36,8 +36,8 @@ fn main() -> turbo_vision::core::error::Result<()> {
     // Create file dialog
     let dialog_width = 62;
     let dialog_height = 20;
-    let dialog_x = (width as i16 - dialog_width) / 2;
-    let dialog_y = (height as i16 - dialog_height) / 2;
+    let dialog_x = (width - dialog_width) / 2;
+    let dialog_y = (height - dialog_height) / 2;
 
     // Show all files with "*" wildcard
     // You can use "*.rs" to show only Rust files, "*.toml" for TOML files, etc.

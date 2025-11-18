@@ -64,7 +64,7 @@ impl Application {
 
         // Create Desktop with full screen bounds initially
         // Will be adjusted when menu_bar/status_line are set
-        let desktop = Desktop::new(Rect::new(0, 0, width as i16, height as i16));
+        let desktop = Desktop::new(Rect::new(0, 0, width, height));
 
         // Initialize global command set
         // Matches Borland's initCommands() (tview.cc:58-68)
@@ -137,7 +137,7 @@ impl Application {
     /// Matches Borland: TProgram::initDeskTop() calculates bounds based on menuBar/statusLine
     fn update_desktop_bounds(&mut self) {
         let (width, height) = self.terminal.size();
-        let mut desktop_bounds = Rect::new(0, 0, width as i16, height as i16);
+        let mut desktop_bounds = Rect::new(0, 0, width, height);
 
         // Adjust top edge for menu bar
         // Borland: if (menuBar) r.a.y += menuBar->size.y; else r.a.y++;
