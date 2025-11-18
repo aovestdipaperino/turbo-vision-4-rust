@@ -288,13 +288,17 @@ impl View for Dialog {
                         event.clear();
                     }
                     _ => {
-                        // Other commands (custom commands from child views like ListBox)
-                        // These should NOT close the dialog - let them pass through to be handled
-                        // by the caller (e.g., FileDialog)
-                        // CRITICAL: The old code incorrectly called end_modal() for all commands,
-                        // which broke custom commands from ListBox (cmFileSelected)
-                        // Now we only close the dialog for standard dialog commands above
-                        // Custom commands are left alone - the caller handles them
+                        // Other commands (including custom button commands)
+                        // For modal dialogs, ALL command events should end the modal loop
+                        // This allows custom button commands (like 1, 2, 3 in editor.rs) to work
+                        // The dialog returns the command to the caller for handling
+                        //
+                        // Note: This differs from Borland which only ends on standard commands,
+                        // but is necessary for custom button commands to work properly in Rust
+                        // since we can't easily distinguish between button commands and other
+                        // child view commands at this level.
+                        self.window.end_modal(event.command);
+                        event.clear();
                     }
                 }
             }

@@ -3,7 +3,7 @@
 
 use turbo_vision::prelude::*;
 
-use turbo_vision::core::event::KB_ALT_X;
+use turbo_vision::core::event::{KB_ALT_X, KB_ESC};
 use turbo_vision::views::button::ButtonBuilder;
 use turbo_vision::views::status_line::{StatusItem, StatusLine};
 use turbo_vision::views::window::WindowBuilder;
