@@ -422,20 +422,56 @@ impl View for Group {
         let dw = bounds.width() - self.bounds.width();
         let dh = bounds.height() - self.bounds.height();
 
+        // Log the bounds change
+        eprintln!("=== GROUP SET_BOUNDS ===");
+        eprintln!("Old bounds: ({}, {}) to ({}, {}) [size: {}x{}]",
+                  self.bounds.a.x, self.bounds.a.y, self.bounds.b.x, self.bounds.b.y,
+                  self.bounds.width(), self.bounds.height());
+        eprintln!("New bounds: ({}, {}) to ({}, {}) [size: {}x{}]",
+                  bounds.a.x, bounds.a.y, bounds.b.x, bounds.b.y,
+                  bounds.width(), bounds.height());
+        eprintln!("Offset: dx={}, dy={}", dx, dy);
+        eprintln!("Size change: dw={}, dh={}", dw, dh);
+        eprintln!("Children count: {}", self.children.len());
+
         // Update our bounds
         self.bounds = bounds;
 
-        // Update all children's bounds by the offset and size change
-        for child in &mut self.children {
+        // Update children's bounds
+        // Matches Borland: TGroup::changeBounds() with grow mode support
+        // For now, we implement a simple rule:
+        // - First child (background) grows with the group
+        // - Other children only move by offset (don't resize)
+        // TODO: Implement full grow mode flags (OF_GROW_LO_X, OF_GROW_HI_X, etc.)
+        for (index, child) in self.children.iter_mut().enumerate() {
             let child_bounds = child.bounds();
-            let new_bounds = Rect::new(
-                child_bounds.a.x + dx,
-                child_bounds.a.y + dy,
-                child_bounds.b.x + dx + dw,
-                child_bounds.b.y + dy + dh,
-            );
+            let new_bounds = if index == 0 {
+                // First child (background) grows to fill entire group
+                Rect::new(
+                    child_bounds.a.x + dx,
+                    child_bounds.a.y + dy,
+                    child_bounds.b.x + dx + dw,
+                    child_bounds.b.y + dy + dh,
+                )
+            } else {
+                // Other children only move by offset, don't resize
+                Rect::new(
+                    child_bounds.a.x + dx,
+                    child_bounds.a.y + dy,
+                    child_bounds.b.x + dx,
+                    child_bounds.b.y + dy,
+                )
+            };
+
+            // Log child bounds change
+            eprintln!("  Child {}: ({}, {}) to ({}, {}) -> ({}, {}) to ({}, {})",
+                      index,
+                      child_bounds.a.x, child_bounds.a.y, child_bounds.b.x, child_bounds.b.y,
+                      new_bounds.a.x, new_bounds.a.y, new_bounds.b.x, new_bounds.b.y);
+
             child.set_bounds(new_bounds);
         }
+        eprintln!();
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {

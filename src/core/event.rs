@@ -128,6 +128,7 @@ pub enum EventType {
     MouseWheelDown, // Mouse wheel scrolled down
     Command,
     Broadcast,
+    Resize,         // Terminal resize event
 }
 
 // Event masks (for filtering)
@@ -140,6 +141,7 @@ pub const EV_MOUSE_WHEEL_UP: u16 = 0x0010;
 pub const EV_MOUSE_WHEEL_DOWN: u16 = 0x0020;
 pub const EV_MOUSE: u16 = 0x003F; // All mouse events (including wheel)
 pub const EV_KEYBOARD: u16 = 0x0040;
+pub const EV_RESIZE: u16 = 0x0080;
 pub const EV_COMMAND: u16 = 0x0100;
 pub const EV_BROADCAST: u16 = 0x0200;
 pub const EV_MESSAGE: u16 = 0xFF00; // Command | Broadcast
@@ -227,6 +229,13 @@ impl Event {
         }
     }
 
+    pub fn resize() -> Self {
+        Self {
+            what: EventType::Resize,
+            ..Self::nothing()
+        }
+    }
+
     pub fn mouse(event_type: EventType, pos: Point, buttons: u8, double_click: bool) -> Self {
         Self {
             what: event_type,
@@ -282,6 +291,7 @@ impl fmt::Display for Event {
             EventType::MouseWheelDown => write!(f, "Event::MouseWheelDown({})", self.mouse.pos),
             EventType::Command => write!(f, "Event::Command({:#06x})", self.command),
             EventType::Broadcast => write!(f, "Event::Broadcast({:#06x})", self.command),
+            EventType::Resize => write!(f, "Event::Resize"),
         }
     }
 }

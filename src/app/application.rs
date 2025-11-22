@@ -137,6 +137,9 @@ impl Application {
     /// Matches Borland: TProgram::initDeskTop() calculates bounds based on menuBar/statusLine
     fn update_desktop_bounds(&mut self) {
         let (width, height) = self.terminal.size();
+        // Use actual terminal size, no minimum enforcement at bounds level
+        // Clipping will handle terminals smaller than 80x25
+
         let mut desktop_bounds = Rect::new(0, 0, width, height);
 
         // Adjust top edge for menu bar
@@ -156,6 +159,29 @@ impl Application {
         }
 
         self.desktop.set_bounds(desktop_bounds);
+    }
+
+    /// Handle terminal resize event
+    /// Updates all view bounds (menu bar, desktop, status line) to match new terminal size
+    fn handle_resize(&mut self) {
+        let (width, height) = self.terminal.size();
+        // Use actual terminal size, no minimum enforcement
+
+        // Update menu bar bounds if present
+        if let Some(ref mut menu_bar) = self.menu_bar {
+            menu_bar.set_bounds(Rect::new(0, 0, width, 1));
+        }
+
+        // Update status line bounds if present
+        if let Some(ref mut status_line) = self.status_line {
+            status_line.set_bounds(Rect::new(0, height - 1, width, height));
+        }
+
+        // Update desktop bounds (accounting for menu bar and status line)
+        self.update_desktop_bounds();
+
+        // Force full redraw after resize
+        self.needs_redraw = true;
     }
 
     /// Request a full redraw on the next frame
@@ -303,6 +329,20 @@ impl Application {
     }
 
     pub fn run(&mut self) {
+        // Log initial state to stderr
+        let (term_w, term_h) = self.terminal.size();
+        let desktop_bounds = self.desktop.bounds();
+        eprintln!("=== APPLICATION START ===");
+        eprintln!("Terminal buffer size: {}x{}", term_w, term_h);
+        eprintln!("Desktop bounds: ({}, {}) to ({}, {}) [size: {}x{}]",
+                  desktop_bounds.a.x, desktop_bounds.a.y,
+                  desktop_bounds.b.x, desktop_bounds.b.y,
+                  desktop_bounds.width(), desktop_bounds.height());
+        eprintln!("Menu bar: {:?}", self.menu_bar.as_ref().map(|m| m.bounds()));
+        eprintln!("Status line: {:?}", self.status_line.as_ref().map(|s| s.bounds()));
+        eprintln!("Origin (0,0) in app coordinates maps to screen coordinate (0,0)");
+        eprintln!("Desktop starts at app coordinate ({}, {})\n", desktop_bounds.a.x, desktop_bounds.a.y);
+
         self.running = true;
 
         // Initial draw
@@ -410,6 +450,13 @@ impl Application {
     }
 
     pub fn handle_event(&mut self, event: &mut Event) {
+        // Handle resize events at application level first
+        if event.what == EventType::Resize {
+            self.handle_resize();
+            event.clear();
+            return;
+        }
+
         // Menu bar gets first shot
         if let Some(ref mut menu_bar) = self.menu_bar {
             menu_bar.handle_event(event);
@@ -548,6 +595,57 @@ impl Application {
     /// Idle processing - broadcasts command set changes and updates command states
     /// Matches Borland: TProgram::idle() (tprogram.cc:248-257)
     pub fn idle(&mut self) {
+        // Check for terminal resize (fallback for terminals that don't send resize events)
+        if let Ok((actual_width, actual_height)) = Terminal::query_size() {
+            let (current_width, current_height) = self.terminal.size();
+
+            if actual_width != current_width || actual_height != current_height {
+                // Log resize event
+                eprintln!("=== RESIZE EVENT ===");
+                eprintln!("Terminal size change: {}x{} -> {}x{}",
+                          current_width, current_height,
+                          actual_width, actual_height);
+
+                // Terminal was resized but we didn't get an event - handle it now
+                // Resize the terminal buffers to actual size
+                self.terminal.resize(actual_width.max(0) as u16, actual_height.max(0) as u16);
+
+                // Update all view bounds (with minimum size enforcement)
+                self.handle_resize();
+
+                // Log state after resize
+                let (term_w, term_h) = self.terminal.size();
+                let desktop_bounds = self.desktop.bounds();
+
+                eprintln!("=== AFTER RESIZE ===");
+                eprintln!("Terminal buffer size: {}x{}", term_w, term_h);
+                eprintln!("Desktop bounds: ({}, {}) to ({}, {}) [size: {}x{}]",
+                          desktop_bounds.a.x, desktop_bounds.a.y,
+                          desktop_bounds.b.x, desktop_bounds.b.y,
+                          desktop_bounds.width(), desktop_bounds.height());
+                eprintln!("Menu bar: {:?}", self.menu_bar.as_ref().map(|m| m.bounds()));
+                eprintln!("Status line: {:?}", self.status_line.as_ref().map(|s| s.bounds()));
+
+                // Log all desktop children (windows/dialogs)
+                let child_count = self.desktop.child_count();
+                eprintln!("Desktop children: {}", child_count);
+                for i in 0..child_count {
+                    let child = self.desktop.child_at(i);
+                    let bounds = child.bounds();
+                    eprintln!("  Child {}: ({}, {}) to ({}, {}) [size: {}x{}]",
+                              i, bounds.a.x, bounds.a.y, bounds.b.x, bounds.b.y,
+                              bounds.width(), bounds.height());
+                }
+                eprintln!();
+
+                // IMPORTANT: Redraw immediately after resize
+                // Otherwise the screen won't update until the next event
+                self.update_active_view_bounds();
+                self.draw();
+                let _ = self.terminal.flush();
+            }
+        }
+
         // Update overlay widgets (animations, etc.)
         // These continue running even during modal dialogs
         for widget in &mut self.overlay_widgets {

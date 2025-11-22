@@ -1,6 +1,6 @@
 # Turbo Vision Examples
 
-This directory contains 16 examples demonstrating various features of the Turbo Vision framework.
+This directory contains 17 examples demonstrating various features of the Turbo Vision framework.
 
 ## Core Examples (Essential)
 
@@ -14,6 +14,11 @@ This directory contains 16 examples demonstrating various features of the Turbo 
   - Search and replace
   - Syntax highlighting (Rust)
   - File I/O operations (load/save)
+- **`code_editor.rs`** ⭐ **NEW v1.0.0** - BASIC code editor with line numbers (inspired by tmbasic):
+  - BASIC syntax highlighting
+  - Line numbers in left margin (custom implementation)
+  - Word wrapping and auto-indent
+  - Modal editor window
 
 ### Validation
 - **`validator.rs`** ⭐ **NEW v0.2.6** - All validator types:
@@ -51,6 +56,7 @@ This directory contains 16 examples demonstrating various features of the Turbo 
 | Feature | Example | Lines | Description |
 |---------|---------|-------|-------------|
 | **All Editor Features** | editor.rs | 290 | Editing, undo/redo, search, syntax highlighting, file I/O |
+| **BASIC Code Editor** | code_editor.rs | 180 | BASIC syntax highlighting with line numbers |
 | **All Validators** | validator.rs | 320 | Filter, Range, Picture validators |
 | **File Browser** | file_browser.rs | 120 | Directory tree + file list |
 | **Help System** | help_system.rs | 120 | Markdown help with topics |

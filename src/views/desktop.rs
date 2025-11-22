@@ -64,6 +64,18 @@ impl Desktop {
         // Matches Borland: TView::locate() constrains position to owner bounds
         view.constrain_to_parent_bounds();
 
+        // Log window addition
+        let view_bounds = view.bounds();
+        eprintln!("=== WINDOW ADDED ===");
+        eprintln!("Desktop bounds: ({}, {}) to ({}, {}) [size: {}x{}]",
+                  self.bounds.a.x, self.bounds.a.y, self.bounds.b.x, self.bounds.b.y,
+                  self.bounds.width(), self.bounds.height());
+        eprintln!("Window bounds: ({}, {}) to ({}, {}) [size: {}x{}]",
+                  view_bounds.a.x, view_bounds.a.y, view_bounds.b.x, view_bounds.b.y,
+                  view_bounds.width(), view_bounds.height());
+        eprintln!("Window relative to desktop: offset ({}, {})\n",
+                  view_bounds.a.x - self.bounds.a.x, view_bounds.a.y - self.bounds.a.y);
+
         let view_id = self.children.add(view);
 
         // Initialize internal owner pointers after view is in final position

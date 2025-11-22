@@ -214,6 +214,34 @@ impl Terminal {
         (self.width as i16, self.height as i16)
     }
 
+    /// Query actual terminal size from the system
+    /// This is useful for detecting manual resizes
+    pub fn query_size() -> io::Result<(i16, i16)> {
+        let (width, height) = terminal::size()?;
+        Ok((width as i16, height as i16))
+    }
+
+    /// Resize the terminal buffers
+    /// Recreates buffers and forces a complete redraw
+    pub fn resize(&mut self, new_width: u16, new_height: u16) {
+        // Update dimensions to actual terminal size (no minimum enforcement here)
+        self.width = new_width;
+        self.height = new_height;
+
+        // Recreate buffers with new size
+        let empty_cell = Cell::new(' ', Attr::from_u8(0x07));
+        self.buffer = vec![vec![empty_cell; new_width as usize]; new_height as usize];
+
+        // Use a different cell for prev_buffer to force complete redraw
+        // This ensures every cell is redrawn after resize
+        let force_redraw_cell = Cell::new('\0', Attr::from_u8(0xFF));
+        self.prev_buffer = vec![vec![force_redraw_cell; new_width as usize]; new_height as usize];
+
+        // Clear the screen
+        let mut stdout = stdout();
+        let _ = execute!(stdout, terminal::Clear(terminal::ClearType::All));
+    }
+
     /// Set the ESC timeout in milliseconds
     /// This controls how long the terminal waits after ESC to detect ESC+letter sequences
     pub fn set_esc_timeout(&mut self, timeout_ms: u64) {
@@ -461,6 +489,11 @@ impl Terminal {
                 CTEvent::Mouse(mouse) => {
                     Ok(self.convert_mouse_event(mouse))
                 }
+                CTEvent::Resize(new_width, new_height) => {
+                    // Handle terminal resize event
+                    self.resize(new_width, new_height);
+                    Ok(Some(Event::resize()))
+                }
                 _ => Ok(None),
             }
         } else {
@@ -513,6 +546,11 @@ impl Terminal {
                     if let Some(event) = self.convert_mouse_event(mouse) {
                         return Ok(event);
                     }
+                }
+                CTEvent::Resize(new_width, new_height) => {
+                    // Handle terminal resize event
+                    self.resize(new_width, new_height);
+                    return Ok(Event::resize());
                 }
                 _ => continue,
             }

@@ -395,3 +395,131 @@ mod tests {
         assert!(type_token.is_some(), "Should find type name");
     }
 }
+
+/// BASIC syntax highlighter (inspired by tmbasic)
+pub struct BasicHighlighter;
+
+impl BasicHighlighter {
+    pub fn new() -> Self {
+        BasicHighlighter
+    }
+
+    fn is_basic_keyword(word: &str) -> bool {
+        matches!(
+            word.to_lowercase().as_str(),
+            "and" | "as" | "boolean" | "by" | "case" | "catch" | "const" | "continue"
+                | "date" | "datetime" | "datetimeoffset" | "dim" | "do" | "each" | "else"
+                | "end" | "exit" | "false" | "finally" | "for" | "from" | "function"
+                | "group" | "if" | "in" | "input" | "into" | "join" | "key" | "list"
+                | "loop" | "map" | "mod" | "next" | "no" | "not" | "number" | "of"
+                | "on" | "optional" | "or" | "print" | "record" | "rethrow" | "return"
+                | "select" | "shared" | "step" | "sub" | "string" | "then" | "throw"
+                | "timespan" | "timezone" | "to" | "true" | "try" | "type" | "wend"
+                | "where" | "while" | "with" | "yield"
+        )
+    }
+}
+
+impl SyntaxHighlighter for BasicHighlighter {
+    fn language(&self) -> &str {
+        "basic"
+    }
+
+    fn highlight_line(&self, line: &str, _line_number: usize) -> Vec<Token> {
+        let mut tokens = Vec::new();
+        let chars: Vec<char> = line.chars().collect();
+        let mut i = 0;
+
+        while i < chars.len() {
+            let ch = chars[i];
+
+            // Comment (REM or ')
+            if ch == '\'' {
+                tokens.push(Token::new(i, chars.len(), TokenType::Comment));
+                break;
+            }
+
+            // Check for REM comment
+            if i + 3 <= chars.len() {
+                let word: String = chars[i..(i + 3).min(chars.len())].iter().collect();
+                if word.to_lowercase() == "rem" {
+                    // Make sure it's followed by whitespace or end of line
+                    if i + 3 >= chars.len() || chars[i + 3].is_whitespace() {
+                        tokens.push(Token::new(i, chars.len(), TokenType::Comment));
+                        break;
+                    }
+                }
+            }
+
+            // String literal
+            if ch == '"' {
+                let start = i;
+                i += 1;
+                while i < chars.len() {
+                    if chars[i] == '\\' && i + 1 < chars.len() {
+                        i += 2; // Skip escaped character
+                    } else if chars[i] == '"' {
+                        i += 1;
+                        break;
+                    } else {
+                        i += 1;
+                    }
+                }
+                tokens.push(Token::new(start, i, TokenType::String));
+                continue;
+            }
+
+            // Number literal
+            if ch.is_ascii_digit() {
+                let start = i;
+                while i < chars.len() && (chars[i].is_ascii_alphanumeric() || chars[i] == '.' || chars[i] == '_') {
+                    i += 1;
+                }
+                tokens.push(Token::new(start, i, TokenType::Number));
+                continue;
+            }
+
+            // Operator
+            if matches!(ch, '+' | '-' | '*' | '/' | '\\' | '%' | '=' | '<' | '>' | '&' | '|' | '^' | '~') {
+                let start = i;
+                i += 1;
+                // Handle multi-character operators
+                while i < chars.len() && matches!(chars[i], '=' | '>' | '<') {
+                    i += 1;
+                }
+                tokens.push(Token::new(start, i, TokenType::Operator));
+                continue;
+            }
+
+            // Identifier or keyword
+            if ch.is_alphabetic() || ch == '_' {
+                let start = i;
+                while i < chars.len() && (chars[i].is_alphanumeric() || chars[i] == '_') {
+                    i += 1;
+                }
+                let word: String = chars[start..i].iter().collect();
+
+                let token_type = if Self::is_basic_keyword(&word) {
+                    TokenType::Keyword
+                } else {
+                    TokenType::Identifier
+                };
+
+                tokens.push(Token::new(start, i, token_type));
+                continue;
+            }
+
+            // Special characters
+            if matches!(ch, '(' | ')' | '[' | ']' | '{' | '}' | ',' | ';' | ':' | '.') {
+                tokens.push(Token::new(i, i + 1, TokenType::Special));
+                i += 1;
+                continue;
+            }
+
+            // Skip whitespace
+            i += 1;
+        }
+
+        tokens
+    }
+}
