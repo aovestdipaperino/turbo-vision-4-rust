@@ -39,7 +39,7 @@ name = "rust_editor"
 path = "demo/rust_editor.rs"
 
 [dependencies]
-crossterm = "0.27"
+crossterm = "0.29"
 unicode-width = "0.1"
 arboard = "3.3"
 chrono = "0.4.42"
