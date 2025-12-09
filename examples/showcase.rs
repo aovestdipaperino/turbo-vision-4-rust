@@ -96,13 +96,8 @@ impl ClockView {
     }
 
     fn get_time_string() -> String {
-        let now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs();
-
-        let hours = ((now / 3600) % 24) as u8;
-        let minutes = ((now / 60) % 60) as u8;
-        let seconds = (now % 60) as u8;
-
-        format!("{:02}:{:02}:{:02}", hours, minutes, seconds)
+        use chrono::Local;
+        Local::now().format("%H:%M:%S").to_string()
     }
 }
 
@@ -165,9 +160,13 @@ struct CrabWidget {
 }
 
 impl CrabWidget {
+    // Crab emoji is 2 cells wide, so we need width 12 to fit animation range 0-9
+    const WIDTH: i16 = 12;
+    const MAX_POS: usize = 9; // Max position (emoji occupies pos and pos+1)
+
     fn new(x: i16, y: i16) -> Self {
         Self {
-            bounds: Rect::new(x, y, x + 10, y + 1),
+            bounds: Rect::new(x, y, x + Self::WIDTH, y + 1),
             state: 0,
             position: 0,
             direction: 1,
@@ -210,16 +209,17 @@ impl View for CrabWidget {
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        let mut buf = DrawBuffer::new(10);
+        let width = CrabWidget::WIDTH as usize;
+        let mut buf = DrawBuffer::new(width);
         // Use status line colors (reverse video)
         let color = Attr::new(TvColor::Black, TvColor::LightGray);
 
         // Fill with spaces
-        for i in 0..10 {
+        for i in 0..width {
             buf.move_char(i, ' ', color, 1);
         }
 
-        // Place the crab at current position
+        // Place the crab at current position (emoji is 2 cells wide)
         buf.move_char(self.position, '🦀', color, 1);
 
         write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y, &buf);
@@ -245,7 +245,7 @@ impl IdleView for CrabWidget {
             // Move the crab
             if self.direction > 0 {
                 self.position += 1;
-                if self.position >= 9 {
+                if self.position >= CrabWidget::MAX_POS {
                     self.direction = -1;
                 }
             } else {
@@ -1452,7 +1452,7 @@ fn init_application() -> turbo_vision::core::error::Result<(Application, ClockVi
     let clock = ClockView::new(Rect::new(width - clock_width, 0, width, 1));
 
     // Create animated crab widget on the right side of the status bar
-    let crab_widget = Rc::new(RefCell::new(CrabWidget::new(width - 11, height - 1)));
+    let crab_widget = Rc::new(RefCell::new(CrabWidget::new(width - CrabWidget::WIDTH, height - 1)));
     app.add_overlay_widget(Box::new(CrabWidgetWrapper::new(crab_widget.clone())));
 
     Ok((app, clock, crab_widget))

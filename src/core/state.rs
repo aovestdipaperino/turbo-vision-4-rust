@@ -2,6 +2,8 @@
 
 //! View state flags - constants for tracking view visibility, focus, and behavior.
 
+use std::sync::OnceLock;
+
 /// View state flags
 pub type StateFlags = u16;
 
@@ -35,9 +37,26 @@ pub const OF_CENTER_Y: u16 = 0x200;
 pub const OF_CENTERED: u16 = 0x300;
 pub const OF_VALIDATE: u16 = 0x400;  // View should be validated on focus release (Borland: ofValidate)
 
-/// Shadow size (width, height)
-/// Matches Borland: shadows are 1 column wide on right, 1 row tall on bottom
-pub const SHADOW_SIZE: (i16, i16) = (1, 1);
+/// Shadow size storage - initialized once at startup based on terminal cell aspect ratio
+static SHADOW_SIZE_CELL: OnceLock<(i16, i16)> = OnceLock::new();
+
+/// Get shadow size (width, height) - dynamically determined from terminal cell aspect ratio
+///
+/// Terminal characters are typically taller than wide (e.g., 10x16 pixels = 1.6:1 ratio).
+/// This function queries the terminal for pixel dimensions and calculates the appropriate
+/// shadow proportions. Falls back to (2, 1) if pixel info is unavailable.
+///
+/// The value is cached after first call for consistency throughout the session.
+#[inline]
+pub fn shadow_size() -> (i16, i16) {
+    *SHADOW_SIZE_CELL.get_or_init(|| {
+        crate::terminal::Terminal::query_cell_aspect_ratio()
+    })
+}
+
+/// Legacy constant for backwards compatibility - prefer shadow_size() function
+/// This is kept for code that needs a const value at compile time
+pub const SHADOW_SIZE: (i16, i16) = (2, 1);
 
 /// Shadow attribute (darkened color)
 pub const SHADOW_ATTR: u8 = 0x08;

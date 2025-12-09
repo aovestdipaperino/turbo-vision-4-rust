@@ -241,7 +241,8 @@ impl Validator for PictureValidator {
     }
 
     fn error(&self) {
-        eprintln!("Input must match format: {}", self.mask);
+        // In a full implementation, this would show a message box
+        // For now, just a no-op (the InputLine will handle visual feedback)
     }
 
     fn valid(&self, input: &str) -> bool {

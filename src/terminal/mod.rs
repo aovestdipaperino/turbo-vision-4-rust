@@ -37,7 +37,7 @@ use crate::core::ansi_dump;
 use crate::core::error::Result;
 use crossterm::{
     cursor, execute, queue, style,
-    terminal::{self},
+    terminal::{self, window_size},
     event::{self, Event as CTEvent, KeyEventKind, MouseEventKind, MouseButton},
 };
 use std::io::{self, Write, stdout};
@@ -109,6 +109,11 @@ impl Terminal {
             event::EnableMouseCapture  // Enable mouse support
         )?;
 
+        // Disable autowrap (DECAWM) to prevent scrolling when writing to bottom-right corner
+        // This is critical for TUI applications that draw to the entire screen
+        write!(stdout, "\x1b[?7l")?;
+        stdout.flush()?;
+
         let (width, height) = terminal::size()?;
 
         let empty_cell = Cell::new(' ', Attr::from_u8(0x07));
@@ -158,6 +163,10 @@ impl Terminal {
     /// ```
     pub fn shutdown(&mut self) -> Result<()> {
         let mut stdout = stdout();
+
+        // Re-enable autowrap (DECAWM) before leaving
+        write!(stdout, "\x1b[?7h")?;
+
         execute!(
             stdout,
             event::DisableMouseCapture,  // Disable mouse support
@@ -174,6 +183,10 @@ impl Terminal {
     /// Call resume() to return to TUI mode
     pub fn suspend(&mut self) -> Result<()> {
         let mut stdout = stdout();
+
+        // Re-enable autowrap before suspending
+        write!(stdout, "\x1b[?7h")?;
+
         execute!(
             stdout,
             event::DisableMouseCapture,
@@ -197,6 +210,10 @@ impl Terminal {
             event::EnableMouseCapture
         )?;
 
+        // Disable autowrap (DECAWM) to prevent scrolling when writing to bottom-right corner
+        write!(stdout, "\x1b[?7l")?;
+        stdout.flush()?;
+
         // Force full screen redraw by clearing prev_buffer
         // This ensures everything is redrawn after resume
         let empty_cell = Cell::new(' ', Attr::from_u8(0x07));
@@ -212,6 +229,60 @@ impl Terminal {
     /// Get terminal size
     pub fn size(&self) -> (i16, i16) {
         (self.width as i16, self.height as i16)
+    }
+
+    /// Query actual terminal size from the system
+    /// This is useful for detecting manual resizes
+    pub fn query_size() -> io::Result<(i16, i16)> {
+        let (width, height) = terminal::size()?;
+        Ok((width as i16, height as i16))
+    }
+
+    /// Query terminal cell aspect ratio (width:height) for shadow proportions
+    ///
+    /// Uses crossterm's window_size() to get pixel dimensions and calculate
+    /// the character cell aspect ratio. Returns (horizontal, vertical) shadow
+    /// multipliers to make shadows appear visually proportional.
+    ///
+    /// Returns (2, 1) as fallback if pixel info unavailable (common case).
+    pub fn query_cell_aspect_ratio() -> (i16, i16) {
+        if let Ok(ws) = window_size() {
+            // WindowSize has: columns, rows, width (pixels), height (pixels)
+            if ws.width > 0 && ws.height > 0 && ws.columns > 0 && ws.rows > 0 {
+                let cell_width = ws.width as f32 / ws.columns as f32;
+                let cell_height = ws.height as f32 / ws.rows as f32;
+
+                if cell_width > 0.0 {
+                    // Calculate ratio: how many horizontal cells equal one vertical cell
+                    let ratio = (cell_height / cell_width).round() as i16;
+                    return (ratio.max(1), 1);
+                }
+            }
+        }
+        // Fallback: typical terminal fonts are ~10x16 pixels (1.6:1 ratio)
+        // Round up to 2:1 for shadow proportions
+        (2, 1)
+    }
+
+    /// Resize the terminal buffers
+    /// Recreates buffers and forces a complete redraw
+    pub fn resize(&mut self, new_width: u16, new_height: u16) {
+        // Update dimensions to actual terminal size (no minimum enforcement here)
+        self.width = new_width;
+        self.height = new_height;
+
+        // Recreate buffers with new size
+        let empty_cell = Cell::new(' ', Attr::from_u8(0x07));
+        self.buffer = vec![vec![empty_cell; new_width as usize]; new_height as usize];
+
+        // Use a different cell for prev_buffer to force complete redraw
+        // This ensures every cell is redrawn after resize
+        let force_redraw_cell = Cell::new('\0', Attr::from_u8(0xFF));
+        self.prev_buffer = vec![vec![force_redraw_cell; new_width as usize]; new_height as usize];
+
+        // Clear the screen
+        let mut stdout = stdout();
+        let _ = execute!(stdout, terminal::Clear(terminal::ClearType::All));
     }
 
     /// Set the ESC timeout in milliseconds

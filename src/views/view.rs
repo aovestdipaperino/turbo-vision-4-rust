@@ -6,7 +6,7 @@ use crate::core::command::CommandId;
 use crate::core::draw::DrawBuffer;
 use crate::core::event::Event;
 use crate::core::geometry::Rect;
-use crate::core::state::{StateFlags, SF_FOCUSED, SF_SHADOW, SHADOW_ATTR, SHADOW_SIZE};
+use crate::core::state::{StateFlags, SF_FOCUSED, SF_SHADOW, SHADOW_ATTR, shadow_size};
 use crate::terminal::Terminal;
 use std::io;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -119,8 +119,9 @@ pub trait View {
     fn shadow_bounds(&self) -> Rect {
         let mut bounds = self.bounds();
         if self.has_shadow() {
-            bounds.b.x += SHADOW_SIZE.0;
-            bounds.b.y += SHADOW_SIZE.1;
+            let ss = shadow_size();
+            bounds.b.x += ss.0;
+            bounds.b.y += ss.1;
         }
         bounds
     }
@@ -267,7 +268,7 @@ pub trait View {
     }
 
     /// Draw shadow for this view
-    /// Draws a shadow offset by (1, 1) from the view bounds
+    /// Draws a shadow offset dynamically based on terminal cell aspect ratio
     /// Shadow is semi-transparent - darkens the underlying content by 50%
     /// This matches the Borland Turbo Vision behavior more closely
     fn draw_shadow(&self, terminal: &mut Terminal) {
@@ -276,12 +277,13 @@ pub trait View {
         const SHADOW_FACTOR: f32 = 0.5; // Darken to 50% of original brightness
 
         let bounds = self.bounds();
-        let mut buf = DrawBuffer::new(SHADOW_SIZE.0 as usize);
+        let ss = shadow_size();
+        let mut buf = DrawBuffer::new(ss.0 as usize);
 
-        // Draw right edge shadow (1 column wide, offset by 1 vertically)
+        // Draw right edge shadow (ss.0 columns wide, offset by ss.1 vertically)
         // Read existing cells and darken them for semi-transparency
-        for y in (bounds.a.y + 1)..(bounds.b.y + 1) {
-            for i in 0..SHADOW_SIZE.0 {
+        for y in (bounds.a.y + ss.1)..(bounds.b.y + ss.1) {
+            for i in 0..ss.0 {
                 let x = bounds.b.x + i;
 
                 // Read the existing cell at this position
@@ -298,13 +300,13 @@ pub trait View {
             write_line_to_terminal(terminal, bounds.b.x, y, &buf);
         }
 
-        // Draw bottom edge shadow (offset by 1 horizontally, excludes right shadow area to prevent double-darkening)
-        let bottom_width = (bounds.b.x - bounds.a.x - 1) as usize;
+        // Draw bottom edge shadow (offset by ss.0 horizontally, excludes right shadow area to prevent double-darkening)
+        let bottom_width = (bounds.b.x - bounds.a.x - ss.0) as usize;
         let mut bottom_buf = DrawBuffer::new(bottom_width);
 
         let shadow_y = bounds.b.y;
         for i in 0..bottom_width {
-            let x = bounds.a.x + 1 + i as i16;
+            let x = bounds.a.x + ss.0 + i as i16;
 
             // Read the existing cell at this position
             if let Some(existing_cell) = terminal.read_cell(x, shadow_y) {
@@ -317,7 +319,7 @@ pub trait View {
                 bottom_buf.put_char(i, ' ', default_attr);
             }
         }
-        write_line_to_terminal(terminal, bounds.a.x + 1, bounds.b.y, &bottom_buf);
+        write_line_to_terminal(terminal, bounds.a.x + ss.0, bounds.b.y, &bottom_buf);
     }
 
     /// Get the linked control ViewId for labels
@@ -534,12 +536,13 @@ pub fn draw_shadow_bounds(terminal: &mut Terminal, bounds: Rect) {
 
     const SHADOW_FACTOR: f32 = 0.5; // Darken to 50% of original brightness
 
-    let mut buf = DrawBuffer::new(SHADOW_SIZE.0 as usize);
+    let ss = shadow_size();
+    let mut buf = DrawBuffer::new(ss.0 as usize);
 
-    // Draw right edge shadow (1 column wide, offset by 1 vertically)
+    // Draw right edge shadow (ss.0 columns wide, offset by ss.1 vertically)
     // Read existing cells and darken them for semi-transparency
-    for y in (bounds.a.y + 1)..(bounds.b.y + 1) {
-        for i in 0..SHADOW_SIZE.0 {
+    for y in (bounds.a.y + ss.1)..(bounds.b.y + ss.1) {
+        for i in 0..ss.0 {
             let x = bounds.b.x + i;
 
             // Read the existing cell at this position
@@ -556,13 +559,13 @@ pub fn draw_shadow_bounds(terminal: &mut Terminal, bounds: Rect) {
         write_line_to_terminal(terminal, bounds.b.x, y, &buf);
     }
 
-    // Draw bottom edge shadow (offset by 1 horizontally, excludes right shadow area to prevent double-darkening)
-    let bottom_width = (bounds.b.x - bounds.a.x - 1) as usize;
+    // Draw bottom edge shadow (offset by ss.0 horizontally, excludes right shadow area to prevent double-darkening)
+    let bottom_width = (bounds.b.x - bounds.a.x - ss.0) as usize;
     let mut bottom_buf = DrawBuffer::new(bottom_width);
 
     let shadow_y = bounds.b.y;
     for i in 0..bottom_width {
-        let x = bounds.a.x + 1 + i as i16;
+        let x = bounds.a.x + ss.0 + i as i16;
 
         // Read the existing cell at this position
         if let Some(existing_cell) = terminal.read_cell(x, shadow_y) {
@@ -575,5 +578,5 @@ pub fn draw_shadow_bounds(terminal: &mut Terminal, bounds: Rect) {
             bottom_buf.put_char(i, ' ', default_attr);
         }
     }
-    write_line_to_terminal(terminal, bounds.a.x + 1, bounds.b.y, &bottom_buf);
+    write_line_to_terminal(terminal, bounds.a.x + ss.0, bounds.b.y, &bottom_buf);
 }

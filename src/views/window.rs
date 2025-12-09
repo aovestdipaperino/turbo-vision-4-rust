@@ -8,7 +8,7 @@ use super::view::{View, ViewId};
 use crate::core::command::{CM_CANCEL, CM_CLOSE};
 use crate::core::event::{Event, EventType};
 use crate::core::geometry::{Point, Rect};
-use crate::core::state::{SF_DRAGGING, SF_MODAL, SF_RESIZING, SF_SHADOW, StateFlags};
+use crate::core::state::{SF_DRAGGING, SF_MODAL, SF_RESIZING, SF_SHADOW, shadow_size, StateFlags};
 use crate::terminal::Terminal;
 
 pub struct Window {
@@ -236,8 +236,12 @@ impl Window {
         let width = self.bounds.width();
         let height = self.bounds.height();
 
-        // Account for shadow when constraining bottom edge
-        let shadow_offset = if (self.state & SF_SHADOW) != 0 { 1 } else { 0 };
+        // Account for shadow when constraining edges
+        let (shadow_x, shadow_y) = if (self.state & SF_SHADOW) != 0 {
+            shadow_size()
+        } else {
+            (0, 0)
+        };
 
         let mut new_x = self.bounds.a.x;
         let mut new_y = self.bounds.a.y;
@@ -249,11 +253,11 @@ impl Window {
         // dmLimitLoY: keep top edge within bounds
         new_y = new_y.max(limits.a.y);
 
-        // dmLimitHiX: keep right edge within bounds
-        new_x = new_x.min(limits.b.x - width);
+        // dmLimitHiX: keep right edge (including shadow) within bounds
+        new_x = new_x.min(limits.b.x - width - shadow_x);
 
         // dmLimitHiY: keep bottom edge (including shadow) within bounds
-        new_y = new_y.min(limits.b.y - height - shadow_offset);
+        new_y = new_y.min(limits.b.y - height - shadow_y);
 
         // Update bounds if position changed
         if new_x != self.bounds.a.x || new_y != self.bounds.a.y {
@@ -324,10 +328,11 @@ impl Window {
             // Union of old and new bounds, including shadows
             let mut union = prev.union(&self.bounds);
 
-            // Expand by 1 on right and bottom for shadow
+            // Expand by shadow_size on right and bottom for shadow
             // Matches Borland: TView::shadowSize
-            union.b.x += 1;
-            union.b.y += 1;
+            let ss = shadow_size();
+            union.b.x += ss.0;
+            union.b.y += ss.1;
 
             union
         })
@@ -459,9 +464,12 @@ impl View for Window {
                 let width = self.bounds.width();
                 let height = self.bounds.height();
 
-                // Account for shadow when constraining bottom edge
-                // Shadows take 1 additional row at the bottom
-                let shadow_offset = if (self.state & SF_SHADOW) != 0 { 1 } else { 0 };
+                // Account for shadow when constraining edges
+                let (shadow_x, shadow_y) = if (self.state & SF_SHADOW) != 0 {
+                    shadow_size()
+                } else {
+                    (0, 0)
+                };
 
                 // Apply drag constraints to keep window fully within parent bounds
                 // Matches Borland: dmLimitLoX | dmLimitLoY | dmLimitHiX | dmLimitHiY (full containment)
@@ -472,11 +480,11 @@ impl View for Window {
                 // dmLimitLoY: keep top edge within bounds (prevent negative y)
                 new_y = new_y.max(limits.a.y);
 
-                // dmLimitHiX: keep right edge within bounds
-                new_x = new_x.min(limits.b.x - width);
+                // dmLimitHiX: keep right edge (including shadow) within bounds
+                new_x = new_x.min(limits.b.x - width - shadow_x);
 
                 // dmLimitHiY: keep bottom edge (including shadow) within bounds
-                new_y = new_y.min(limits.b.y - height - shadow_offset);
+                new_y = new_y.min(limits.b.y - height - shadow_y);
 
                 // Save previous bounds for union rect calculation (Borland's locate pattern)
                 self.prev_bounds = Some(self.bounds);
