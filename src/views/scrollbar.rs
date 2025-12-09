@@ -2,7 +2,7 @@
 
 //! ScrollBar view - vertical or horizontal scrollbar with draggable indicator.
 
-use super::view::{write_line_to_terminal, View};
+use super::view::{View, write_line_to_terminal};
 use crate::core::draw::DrawBuffer;
 use crate::core::event::{
     Event, EventType, KB_DOWN, KB_END, KB_HOME, KB_LEFT, KB_PGDN, KB_PGUP, KB_RIGHT, KB_UP,
@@ -48,6 +48,7 @@ pub struct ScrollBar {
     is_vertical: bool,
     owner: Option<*const dyn View>,
     owner_type: super::view::OwnerType,
+    dragging_thumb: bool,
 }
 
 impl ScrollBar {
@@ -63,6 +64,7 @@ impl ScrollBar {
             is_vertical: true,
             owner: None,
             owner_type: super::view::OwnerType::Window, // Default to Window context
+            dragging_thumb: false,
         }
     }
 
@@ -78,6 +80,7 @@ impl ScrollBar {
             is_vertical: false,
             owner: None,
             owner_type: super::view::OwnerType::Window, // Default to Window context
+            dragging_thumb: false,
         }
     }
 
@@ -186,6 +189,193 @@ impl ScrollBar {
             _ => 0,
         }
     }
+
+    fn keypress(&mut self, event: &mut Event) {
+        if self.is_vertical {
+            match event.key_code {
+                KB_UP => {
+                    self.value = (self.value - self.ar_step).max(self.min_val);
+                    event.clear();
+                }
+                KB_DOWN => {
+                    self.value = (self.value + self.ar_step).min(self.max_val);
+                    event.clear();
+                }
+                KB_PGUP => {
+                    self.value = (self.value - self.pg_step).max(self.min_val);
+                    event.clear();
+                }
+                KB_PGDN => {
+                    self.value = (self.value + self.pg_step).min(self.max_val);
+                    event.clear();
+                }
+                KB_HOME => {
+                    self.value = self.min_val;
+                    event.clear();
+                }
+                KB_END => {
+                    self.value = self.max_val;
+                    event.clear();
+                }
+                _ => {}
+            }
+        } else {
+            match event.key_code {
+                KB_LEFT => {
+                    self.value = (self.value - self.ar_step).max(self.min_val);
+                    event.clear();
+                }
+                KB_RIGHT => {
+                    self.value = (self.value + self.ar_step).min(self.max_val);
+                    event.clear();
+                }
+                KB_HOME => {
+                    self.value = self.min_val;
+                    event.clear();
+                }
+                KB_END => {
+                    self.value = self.max_val;
+                    event.clear();
+                }
+                _ => {}
+            }
+        }
+    }
+    fn drag(&mut self, event: &mut Event) {
+        if self.is_vertical {
+            // Update thumb position based on mouse Y
+            let mouse_y = event.mouse.pos.y;
+            let rel_y = (mouse_y - self.bounds.a.y - 1) as i32; // Relative to track start
+            let range = self.max_val - self.min_val + 1;
+            let s = self.get_size();
+            log::debug!(
+                "Dragging thumb to rel_y: {}, size: {}, range: {}, max_val: {}, min_val: {}",
+                rel_y,
+                s,
+                range,
+                self.max_val,
+                self.min_val
+            );
+            if s > 0 && range > 0 {
+                let new_pos = rel_y.max(0).min(s);
+                log::debug!("Calculated new thumb position: {}", new_pos);
+                self.value = (new_pos * range / s) + self.min_val;
+            }
+        } else {
+            // Horizontal scrollbar
+            let mouse_x = event.mouse.pos.x;
+            let rel_x = (mouse_x - self.bounds.a.x - 1) as i32; // Relative to track start
+            let range = self.max_val - self.min_val + 1;
+            let s = self.get_size();
+            log::debug!(
+                "Dragging thumb to rel_x: {}, size: {}, range: {}, max_val: {}, min_val: {}",
+                rel_x,
+                s,
+                range,
+                self.max_val,
+                self.min_val
+            );
+            if s > 0 && range > 0 {
+                let new_pos = rel_x.max(0).min(s);
+                log::debug!("Calculated new thumb position: {}", new_pos);
+                self.value = (new_pos * range / s) + self.min_val;
+            }
+        }
+    }
+    fn left_click(&mut self, event: &mut Event) {
+        let mouse_pos = event.mouse.pos;
+
+        if self.is_vertical {
+            // Check if mouse is within scrollbar bounds
+            if mouse_pos.x >= self.bounds.a.x
+                && mouse_pos.x < self.bounds.b.x
+                && mouse_pos.y >= self.bounds.a.y
+                && mouse_pos.y < self.bounds.b.y
+            {
+                let rel_y = mouse_pos.y - self.bounds.a.y;
+                let height = self.bounds.height();
+
+                if rel_y == 0 {
+                    // Up arrow clicked
+                    self.value = (self.value - self.ar_step).max(self.min_val);
+                    event.clear();
+                } else if rel_y == height - 1 {
+                    // Down arrow clicked
+                    self.value = (self.value + self.ar_step).min(self.max_val);
+                    event.clear();
+                } else {
+                    // Page area clicked - calculate position
+                    let range = self.max_val - self.min_val;
+                    if range > 0 {
+                        let thumb_size = 1;
+                        let track_size = (height - 2 - thumb_size).max(1) as i32;
+                        let thumb_pos = if range > 0 {
+                            ((self.value - self.min_val) * track_size / range) as i16
+                        } else {
+                            0
+                        };
+
+                        if rel_y < thumb_pos + 1 {
+                            // Clicked above thumb - page up
+                            self.value = (self.value - self.pg_step).max(self.min_val);
+                        } else if rel_y > thumb_pos + 1 {
+                            // Clicked below thumb - page down
+                            self.value = (self.value + self.pg_step).min(self.max_val);
+                        } else {
+                            log::debug!("Clicked on the thumb itself");
+                            self.dragging_thumb = true;
+                        }
+
+                        event.clear();
+                    }
+                }
+            }
+        } else {
+            // Horizontal scrollbar
+            if mouse_pos.y >= self.bounds.a.y
+                && mouse_pos.y < self.bounds.b.y
+                && mouse_pos.x >= self.bounds.a.x
+                && mouse_pos.x < self.bounds.b.x
+            {
+                let rel_x = mouse_pos.x - self.bounds.a.x;
+                let width = self.bounds.width();
+
+                if rel_x == 0 {
+                    // Left arrow clicked
+                    self.value = (self.value - self.ar_step).max(self.min_val);
+                    event.clear();
+                } else if rel_x == width - 1 {
+                    // Right arrow clicked
+                    self.value = (self.value + self.ar_step).min(self.max_val);
+                    event.clear();
+                } else {
+                    // Page area clicked
+                    let range = self.max_val - self.min_val;
+                    if range > 0 {
+                        let thumb_size = 1;
+                        let track_size = (width - 2 - thumb_size).max(1) as i32;
+                        let thumb_pos = if range > 0 {
+                            ((self.value - self.min_val) * track_size / range) as i16
+                        } else {
+                            0
+                        };
+
+                        if rel_x < thumb_pos + 1 {
+                            // Clicked left of thumb - page left
+                            self.value = (self.value - self.pg_step).max(self.min_val);
+                        } else if rel_x > thumb_pos + 1 {
+                            // Clicked right of thumb - page right
+                            self.value = (self.value + self.pg_step).min(self.max_val);
+                        } else {
+                            log::debug!("Clicked on the thumb itself");
+                            self.dragging_thumb = true;
+                        }
+                        event.clear();
+                    }
+                }
+            }
+        }
+    }
 }
 
 impl View for ScrollBar {
@@ -260,138 +450,30 @@ impl View for ScrollBar {
     }
 
     fn handle_event(&mut self, event: &mut Event) {
-        if event.what == EventType::Keyboard {
-            if self.is_vertical {
-                match event.key_code {
-                    KB_UP => {
-                        self.value = (self.value - self.ar_step).max(self.min_val);
-                        event.clear();
-                    }
-                    KB_DOWN => {
-                        self.value = (self.value + self.ar_step).min(self.max_val);
-                        event.clear();
-                    }
-                    KB_PGUP => {
-                        self.value = (self.value - self.pg_step).max(self.min_val);
-                        event.clear();
-                    }
-                    KB_PGDN => {
-                        self.value = (self.value + self.pg_step).min(self.max_val);
-                        event.clear();
-                    }
-                    KB_HOME => {
-                        self.value = self.min_val;
-                        event.clear();
-                    }
-                    KB_END => {
-                        self.value = self.max_val;
-                        event.clear();
-                    }
-                    _ => {}
-                }
-            } else {
-                match event.key_code {
-                    KB_LEFT => {
-                        self.value = (self.value - self.ar_step).max(self.min_val);
-                        event.clear();
-                    }
-                    KB_RIGHT => {
-                        self.value = (self.value + self.ar_step).min(self.max_val);
-                        event.clear();
-                    }
-                    KB_HOME => {
-                        self.value = self.min_val;
-                        event.clear();
-                    }
-                    KB_END => {
-                        self.value = self.max_val;
-                        event.clear();
-                    }
-                    _ => {}
+        log::debug!("ScrollBar received event: {:?}", event);
+        match event.what {
+            EventType::MouseMove => {
+                if self.dragging_thumb {
+                    self.drag(event);
+                    event.clear();
                 }
             }
-        } else if event.what == EventType::MouseDown && (event.mouse.buttons & MB_LEFT_BUTTON) != 0 {
-            let mouse_pos = event.mouse.pos;
-
-            if self.is_vertical {
-                // Check if mouse is within scrollbar bounds
-                if mouse_pos.x >= self.bounds.a.x && mouse_pos.x < self.bounds.b.x
-                    && mouse_pos.y >= self.bounds.a.y && mouse_pos.y < self.bounds.b.y {
-
-                    let rel_y = mouse_pos.y - self.bounds.a.y;
-                    let height = self.bounds.height();
-
-                    if rel_y == 0 {
-                        // Up arrow clicked
-                        self.value = (self.value - self.ar_step).max(self.min_val);
-                        event.clear();
-                    } else if rel_y == height - 1 {
-                        // Down arrow clicked
-                        self.value = (self.value + self.ar_step).min(self.max_val);
-                        event.clear();
-                    } else {
-                        // Page area clicked - calculate position
-                        let range = self.max_val - self.min_val;
-                        if range > 0 {
-                            let thumb_size = 1;
-                            let track_size = (height - 2 - thumb_size).max(1) as i32;
-                            let thumb_pos = if range > 0 {
-                                ((self.value - self.min_val) * track_size / range) as i16
-                            } else {
-                                0
-                            };
-
-                            if rel_y < thumb_pos + 1 {
-                                // Clicked above thumb - page up
-                                self.value = (self.value - self.pg_step).max(self.min_val);
-                            } else if rel_y > thumb_pos + 1 {
-                                // Clicked below thumb - page down
-                                self.value = (self.value + self.pg_step).min(self.max_val);
-                            }
-                            event.clear();
-                        }
-                    }
-                }
-            } else {
-                // Horizontal scrollbar
-                if mouse_pos.y >= self.bounds.a.y && mouse_pos.y < self.bounds.b.y
-                    && mouse_pos.x >= self.bounds.a.x && mouse_pos.x < self.bounds.b.x {
-
-                    let rel_x = mouse_pos.x - self.bounds.a.x;
-                    let width = self.bounds.width();
-
-                    if rel_x == 0 {
-                        // Left arrow clicked
-                        self.value = (self.value - self.ar_step).max(self.min_val);
-                        event.clear();
-                    } else if rel_x == width - 1 {
-                        // Right arrow clicked
-                        self.value = (self.value + self.ar_step).min(self.max_val);
-                        event.clear();
-                    } else {
-                        // Page area clicked
-                        let range = self.max_val - self.min_val;
-                        if range > 0 {
-                            let thumb_size = 1;
-                            let track_size = (width - 2 - thumb_size).max(1) as i32;
-                            let thumb_pos = if range > 0 {
-                                ((self.value - self.min_val) * track_size / range) as i16
-                            } else {
-                                0
-                            };
-
-                            if rel_x < thumb_pos + 1 {
-                                // Clicked left of thumb - page left
-                                self.value = (self.value - self.pg_step).max(self.min_val);
-                            } else if rel_x > thumb_pos + 1 {
-                                // Clicked right of thumb - page right
-                                self.value = (self.value + self.pg_step).min(self.max_val);
-                            }
-                            event.clear();
-                        }
-                    }
+            EventType::Keyboard => {
+                self.keypress(event);
+            }
+            EventType::MouseDown => {
+                if (event.mouse.buttons & MB_LEFT_BUTTON) != 0 {
+                    self.left_click(event);
+                    event.clear();
                 }
             }
+            EventType::MouseUp => {
+                if self.dragging_thumb {
+                    self.dragging_thumb = false;
+                    event.clear();
+                }
+            }
+            _ => {}
         }
     }
 
@@ -404,7 +486,7 @@ impl View for ScrollBar {
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        use crate::core::palette::{palettes, Palette};
+        use crate::core::palette::{Palette, palettes};
         Some(Palette::from_slice(palettes::CP_SCROLLBAR))
     }
 
@@ -415,7 +497,6 @@ impl View for ScrollBar {
     fn set_owner_type(&mut self, owner_type: super::view::OwnerType) {
         self.owner_type = owner_type;
     }
-
 }
 
 /// Builder for creating scrollbars with a fluent API.
@@ -486,7 +567,14 @@ impl ScrollBarBuilder {
 
     /// Sets the scrollbar parameters.
     #[must_use]
-    pub fn params(mut self, value: i32, min_val: i32, max_val: i32, pg_step: i32, ar_step: i32) -> Self {
+    pub fn params(
+        mut self,
+        value: i32,
+        min_val: i32,
+        max_val: i32,
+        pg_step: i32,
+        ar_step: i32,
+    ) -> Self {
         self.value = value;
         self.min_val = min_val;
         self.max_val = max_val;
@@ -540,7 +628,10 @@ impl ScrollBarBuilder {
 
         ScrollBar {
             bounds,
-            value: self.value.max(self.min_val).min(self.max_val.max(self.min_val)),
+            value: self
+                .value
+                .max(self.min_val)
+                .min(self.max_val.max(self.min_val)),
             min_val: self.min_val,
             max_val: self.max_val.max(self.min_val),
             pg_step: self.pg_step,
@@ -549,6 +640,7 @@ impl ScrollBarBuilder {
             is_vertical: self.is_vertical,
             owner: None,
             owner_type: super::view::OwnerType::Window,
+            dragging_thumb: false,
         }
     }
 
