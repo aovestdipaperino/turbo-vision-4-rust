@@ -33,6 +33,7 @@ kloczek port of Borland Turbo Vision C++. All features from the original framewo
 - **Flexible Layout System**: Geometry primitives with absolute and relative positioning
 - **Color Support**: 16-color palette with Borland-accurate attribute system and context-aware remapping
 - **Cross-Platform**: Built on crossterm for wide terminal compatibility
+- **SSH Support**: Optional SSH backend to serve TUI applications over SSH connections
 - **Modal Dialogs**: Built-in support for modal dialog execution
 - **Focus Management**: Tab navigation and keyboard shortcuts
 - **ANSI Dump**: Debug UI by dumping screen/views to ANSI text files (F12 for full screen, Shift+F12 for active view, with flash effect)
@@ -248,6 +249,71 @@ Currently implements:
 - ✅ EditWindow (ready-to-use editor window wrapper)
 - ✅ OS Clipboard integration (cross-platform with arboard)
 - ✅ Help System (markdown-based with HelpFile, HelpViewer, HelpWindow, HelpContext)
+- ✅ SSH TUI Bridge (optional feature for serving TUI apps over SSH)
+
+## SSH Support
+
+Turbo Vision can serve TUI applications over SSH connections, enabling remote terminal access to your application. This is useful for admin consoles, monitoring dashboards, and tools that need to be accessed remotely.
+
+### Enabling SSH Support
+
+SSH support is behind a feature flag. Enable it in your `Cargo.toml`:
+
+```toml
+[dependencies]
+turbo-vision = { version = "1.0", features = ["ssh"] }
+```
+
+Or build with the feature:
+
+```bash
+cargo build --features ssh
+```
+
+### Quick Example
+
+```rust
+use turbo_vision::prelude::*;
+use turbo_vision::terminal::{Backend, SshBackend, SshSessionBuilder};
+use turbo_vision::ssh::{SshServer, SshServerConfig};
+use std::sync::Arc;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let config = SshServerConfig::default();
+    let server = SshServer::new(config)?;
+
+    server.run("0.0.0.0:2222", |backend| {
+        // Create Terminal with SSH backend
+        let terminal = Terminal::with_backend(backend).unwrap();
+        run_your_tui_app(terminal);
+    }).await?;
+
+    Ok(())
+}
+```
+
+### Running the Example
+
+```bash
+# Start the SSH server
+cargo run --example ssh_server --features ssh
+
+# Connect from another terminal
+ssh -p 2222 user@localhost
+# Password: any (accepts any password in the example)
+```
+
+### Architecture
+
+The SSH support uses a Backend trait abstraction:
+
+- **Backend trait**: Abstracts terminal I/O operations
+- **CrosstermBackend**: Default implementation for local terminals
+- **SshBackend**: Implementation for SSH channel I/O
+- **InputParser**: Converts raw terminal bytes to turbo-vision events
+
+This allows the same TUI application to run locally or over SSH with no code changes.
 
 ## Architecture
 
