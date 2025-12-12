@@ -47,6 +47,8 @@ pub struct TuiSession {
     pub handle: SshSessionHandle,
     /// Output receiver (moved to forwarding task when shell starts).
     pub output_rx: Option<mpsc::UnboundedReceiver<Vec<u8>>>,
+    /// Backend (moved to TUI when shell starts).
+    pub backend: Option<crate::terminal::SshBackend>,
 }
 
 /// SSH handler that manages TUI sessions.
@@ -143,14 +145,10 @@ where
             channel_id: channel.id(),
             handle,
             output_rx: Some(output_rx),
+            backend: Some(backend),
         });
 
-        // Spawn the TUI application if we have a factory
-        if let Some(factory) = self.app_factory.take() {
-            tokio::task::spawn_blocking(move || {
-                factory(Box::new(backend));
-            });
-        }
+        // Note: TUI will be spawned in shell_request after forwarding is set up
 
         Ok(true)
     }
@@ -190,14 +188,24 @@ where
     ) -> Result<(), Self::Error> {
         log::debug!("Shell request on channel {:?}", channel_id);
 
-        // Start the output forwarding task
+        // Start the output forwarding task and TUI
         if let Some(ref mut s) = self.session {
             if s.channel_id == channel_id {
+                // Start output forwarding first
                 if let Some(output_rx) = s.output_rx.take() {
                     let handle = session.handle();
                     tokio::spawn(async move {
                         forward_output(handle, channel_id, output_rx).await;
                     });
+                }
+
+                // Now spawn the TUI application
+                if let Some(backend) = s.backend.take() {
+                    if let Some(factory) = self.app_factory.take() {
+                        tokio::task::spawn_blocking(move || {
+                            factory(Box::new(backend));
+                        });
+                    }
                 }
             }
         }
