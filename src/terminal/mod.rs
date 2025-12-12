@@ -74,8 +74,7 @@ use crate::core::geometry::{Point, Rect};
 use crate::core::palette::Attr;
 use crate::core::ansi_dump;
 use crate::core::error::Result;
-use crossterm::{queue, style, cursor};
-use std::io::{self, Write, stdout};
+use std::io::{self, Write};
 use std::time::Duration;
 
 /// Terminal abstraction for rendering and input handling.
@@ -426,7 +425,8 @@ impl Terminal {
     /// This performs differential rendering, only sending changed cells
     /// to the terminal for optimal performance.
     pub fn flush(&mut self) -> io::Result<()> {
-        let mut stdout = stdout();
+        // Build output in a buffer, then send through backend
+        let mut output = Vec::new();
 
         for y in 0..self.height as usize {
             let mut x = 0;
@@ -448,22 +448,30 @@ impl Terminal {
                     x += 1;
                 }
 
-                // Move cursor and set colors
-                queue!(
-                    stdout,
-                    cursor::MoveTo(start_x as u16, y as u16),
-                    style::SetForegroundColor(current_attr.fg.to_crossterm()),
-                    style::SetBackgroundColor(current_attr.bg.to_crossterm())
-                )?;
+                // Move cursor: ESC[row;colH (1-indexed)
+                write!(output, "\x1b[{};{}H", y + 1, start_x + 1)?;
+
+                // Set colors: ESC[38;5;fg;48;5;bgm
+                let fg = current_attr.fg.to_ansi_code();
+                let bg = current_attr.bg.to_ansi_code();
+                write!(output, "\x1b[38;5;{};48;5;{}m", fg, bg)?;
 
                 // Write the changed characters
                 for i in start_x..x {
-                    write!(stdout, "{}", self.buffer[y][i].ch)?;
+                    let ch = self.buffer[y][i].ch;
+                    // Encode character as UTF-8
+                    let mut buf = [0u8; 4];
+                    let encoded = ch.encode_utf8(&mut buf);
+                    output.extend_from_slice(encoded.as_bytes());
                 }
             }
         }
 
-        stdout.flush()?;
+        // Send through backend
+        if !output.is_empty() {
+            self.backend.write_raw(&output)?;
+        }
+        self.backend.flush()?;
 
         // Copy current buffer to previous buffer
         self.prev_buffer.clone_from(&self.buffer);
