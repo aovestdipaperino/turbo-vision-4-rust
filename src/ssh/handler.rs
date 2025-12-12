@@ -25,18 +25,19 @@ async fn forward_output(
     channel_id: ChannelId,
     mut output_rx: mpsc::UnboundedReceiver<Vec<u8>>,
 ) {
-    log::debug!("Starting output forwarding for channel {:?}", channel_id);
+    log::info!("Starting output forwarding for channel {:?}", channel_id);
 
     while let Some(data) = output_rx.recv().await {
+        log::info!("Forwarding {} bytes to SSH client", data.len());
         if !data.is_empty() {
             if let Err(e) = handle.data(channel_id, CryptoVec::from(data)).await {
-                log::debug!("Failed to send data to channel: {:?}", e);
+                log::error!("Failed to send data to channel: {:?}", e);
                 break;
             }
         }
     }
 
-    log::debug!("Output forwarding ended for channel {:?}", channel_id);
+    log::info!("Output forwarding ended for channel {:?}", channel_id);
 }
 
 /// A TUI session for a single SSH connection.
@@ -75,6 +76,33 @@ where
             app_factory: Some(app_factory),
             peer_addr,
         }
+    }
+
+    /// Start the TUI application (called by shell_request or exec_request).
+    async fn start_tui(&mut self, channel_id: ChannelId, session: &mut Session) -> Result<(), russh::Error> {
+        if let Some(ref mut s) = self.session {
+            if s.channel_id == channel_id {
+                // Start output forwarding first
+                if let Some(output_rx) = s.output_rx.take() {
+                    let handle = session.handle();
+                    log::info!("Starting output forwarding task");
+                    tokio::spawn(async move {
+                        forward_output(handle, channel_id, output_rx).await;
+                    });
+                }
+
+                // Now spawn the TUI application
+                if let Some(backend) = s.backend.take() {
+                    if let Some(factory) = self.app_factory.take() {
+                        log::info!("Spawning TUI application");
+                        tokio::task::spawn_blocking(move || {
+                            factory(Box::new(backend));
+                        });
+                    }
+                }
+            }
+        }
+        Ok(())
     }
 }
 
@@ -186,30 +214,22 @@ where
         channel_id: ChannelId,
         session: &mut Session,
     ) -> Result<(), Self::Error> {
-        log::debug!("Shell request on channel {:?}", channel_id);
+        log::info!("Shell request on channel {:?}", channel_id);
+        self.start_tui(channel_id, session).await?;
+        session.channel_success(channel_id)?;
+        Ok(())
+    }
 
-        // Start the output forwarding task and TUI
-        if let Some(ref mut s) = self.session {
-            if s.channel_id == channel_id {
-                // Start output forwarding first
-                if let Some(output_rx) = s.output_rx.take() {
-                    let handle = session.handle();
-                    tokio::spawn(async move {
-                        forward_output(handle, channel_id, output_rx).await;
-                    });
-                }
-
-                // Now spawn the TUI application
-                if let Some(backend) = s.backend.take() {
-                    if let Some(factory) = self.app_factory.take() {
-                        tokio::task::spawn_blocking(move || {
-                            factory(Box::new(backend));
-                        });
-                    }
-                }
-            }
-        }
-
+    /// Handle exec request (some clients send this instead of shell).
+    async fn exec_request(
+        &mut self,
+        channel_id: ChannelId,
+        data: &[u8],
+        session: &mut Session,
+    ) -> Result<(), Self::Error> {
+        log::info!("Exec request on channel {:?}: {:?}", channel_id, String::from_utf8_lossy(data));
+        // Treat exec request like shell request - start the TUI
+        self.start_tui(channel_id, session).await?;
         session.channel_success(channel_id)?;
         Ok(())
     }

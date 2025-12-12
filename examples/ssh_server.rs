@@ -29,6 +29,7 @@ use turbo_vision::ssh::{SshServer, SshServerConfig};
 
 /// Run the TUI application with the provided backend.
 fn run_tui_app(backend: Box<dyn Backend>) {
+    log::info!("TUI app starting...");
     let terminal = match Terminal::with_backend(backend) {
         Ok(t) => t,
         Err(e) => {
@@ -36,8 +37,10 @@ fn run_tui_app(backend: Box<dyn Backend>) {
             return;
         }
     };
+    log::info!("Terminal created, running TUI...");
 
     run_tui_inner(terminal);
+    log::info!("TUI app finished.");
 }
 
 fn run_tui_inner(mut terminal: Terminal) {
@@ -72,13 +75,20 @@ fn run_tui_inner(mut terminal: Terminal) {
     dialog.add(Box::new(button));
 
     // Event loop
+    log::info!("Entering event loop...");
     let mut running = true;
+    let mut frame_count = 0;
     while running {
         // Draw
         terminal.clear();
         dialog.draw(&mut terminal);
         if terminal.flush().is_err() {
+            log::error!("Flush failed, breaking loop");
             break;
+        }
+        frame_count += 1;
+        if frame_count <= 3 {
+            log::info!("Frame {} drawn and flushed", frame_count);
         }
 
         // Handle events
@@ -102,12 +112,12 @@ fn run_tui_inner(mut terminal: Terminal) {
 
 #[tokio::main]
 async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
-    // Initialize logging
-    let _ = simplelog::TermLogger::init(
-        simplelog::LevelFilter::Info,
+    // Initialize file logging
+    let log_file = std::fs::File::create("ssh_server.log")?;
+    let _ = simplelog::WriteLogger::init(
+        simplelog::LevelFilter::Debug,
         simplelog::Config::default(),
-        simplelog::TerminalMode::Mixed,
-        simplelog::ColorChoice::Auto,
+        log_file,
     );
 
     let config = SshServerConfig::new()
