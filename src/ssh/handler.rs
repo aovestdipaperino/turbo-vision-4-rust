@@ -9,12 +9,35 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use parking_lot::Mutex;
-use russh::server::{Auth, Handler, Msg, Session};
+use russh::server::{Auth, Handler, Handle, Msg, Session};
 use russh::{Channel, ChannelId, CryptoVec};
 use russh_keys::PublicKey;
 use tokio::sync::mpsc;
 
 use crate::terminal::{InputParser, SshSessionHandle};
+
+/// Forward output from TUI to SSH channel.
+///
+/// This runs as a background task, continuously reading output from the TUI
+/// and sending it to the SSH client.
+async fn forward_output(
+    handle: Handle,
+    channel_id: ChannelId,
+    mut output_rx: mpsc::UnboundedReceiver<Vec<u8>>,
+) {
+    log::debug!("Starting output forwarding for channel {:?}", channel_id);
+
+    while let Some(data) = output_rx.recv().await {
+        if !data.is_empty() {
+            if let Err(e) = handle.data(channel_id, CryptoVec::from(data)).await {
+                log::debug!("Failed to send data to channel: {:?}", e);
+                break;
+            }
+        }
+    }
+
+    log::debug!("Output forwarding ended for channel {:?}", channel_id);
+}
 
 /// A TUI session for a single SSH connection.
 pub struct TuiSession {
@@ -22,6 +45,8 @@ pub struct TuiSession {
     pub channel_id: ChannelId,
     /// Handle for communicating with the TUI.
     pub handle: SshSessionHandle,
+    /// Output receiver (moved to forwarding task when shell starts).
+    pub output_rx: Option<mpsc::UnboundedReceiver<Vec<u8>>>,
 }
 
 /// SSH handler that manages TUI sessions.
@@ -105,9 +130,11 @@ where
             Arc::clone(&size),
         );
 
+        // Create a dummy output_rx for the handle (the real one goes to the forwarding task)
+        let (_dummy_tx, dummy_rx) = mpsc::unbounded_channel();
         let handle = SshSessionHandle {
             event_tx,
-            output_rx,
+            output_rx: dummy_rx,
             size,
             input_parser: InputParser::new(),
         };
@@ -115,6 +142,7 @@ where
         self.session = Some(TuiSession {
             channel_id: channel.id(),
             handle,
+            output_rx: Some(output_rx),
         });
 
         // Spawn the TUI application if we have a factory
@@ -161,6 +189,19 @@ where
         session: &mut Session,
     ) -> Result<(), Self::Error> {
         log::debug!("Shell request on channel {:?}", channel_id);
+
+        // Start the output forwarding task
+        if let Some(ref mut s) = self.session {
+            if s.channel_id == channel_id {
+                if let Some(output_rx) = s.output_rx.take() {
+                    let handle = session.handle();
+                    tokio::spawn(async move {
+                        forward_output(handle, channel_id, output_rx).await;
+                    });
+                }
+            }
+        }
+
         session.channel_success(channel_id)?;
         Ok(())
     }
@@ -191,17 +232,13 @@ where
         &mut self,
         channel_id: ChannelId,
         data: &[u8],
-        session: &mut Session,
+        _session: &mut Session,
     ) -> Result<(), Self::Error> {
         if let Some(ref mut s) = self.session {
             if s.channel_id == channel_id {
                 // Parse input and send to TUI
                 s.handle.process_input(data);
-
-                // Send any buffered output back to client
-                while let Some(output) = s.handle.try_recv_output() {
-                    session.data(channel_id, CryptoVec::from(output))?;
-                }
+                // Note: Output is forwarded by the background task started in shell_request
             }
         }
 
