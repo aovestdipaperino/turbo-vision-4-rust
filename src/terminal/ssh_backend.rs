@@ -116,7 +116,6 @@ impl SshBackend {
     fn send_output(&mut self) -> io::Result<()> {
         if !self.output_buffer.is_empty() {
             let data = std::mem::take(&mut self.output_buffer);
-            log::info!("SshBackend: sending {} bytes to channel", data.len());
             self.output_tx
                 .send(data)
                 .map_err(|_| io::Error::new(

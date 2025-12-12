@@ -29,18 +29,12 @@ use turbo_vision::ssh::{SshServer, SshServerConfig};
 
 /// Run the TUI application with the provided backend.
 fn run_tui_app(backend: Box<dyn Backend>) {
-    log::info!("TUI app starting...");
     let terminal = match Terminal::with_backend(backend) {
         Ok(t) => t,
-        Err(e) => {
-            log::error!("Failed to create terminal: {}", e);
-            return;
-        }
+        Err(_) => return,
     };
-    log::info!("Terminal created, running TUI...");
 
     run_tui_inner(terminal);
-    log::info!("TUI app finished.");
 }
 
 fn run_tui_inner(mut terminal: Terminal) {
@@ -74,33 +68,32 @@ fn run_tui_inner(mut terminal: Terminal) {
     );
     dialog.add(Box::new(button));
 
+    // Set initial focus to the first focusable child (the button)
+    // This is critical for keyboard events to work!
+    dialog.set_initial_focus();
+
     // Event loop
-    log::info!("Entering event loop...");
     let mut running = true;
-    let mut frame_count = 0;
     while running {
         // Draw
         terminal.clear();
         dialog.draw(&mut terminal);
         if terminal.flush().is_err() {
-            log::error!("Flush failed, breaking loop");
             break;
-        }
-        frame_count += 1;
-        if frame_count <= 3 {
-            log::info!("Frame {} drawn and flushed", frame_count);
         }
 
         // Handle events
         if let Ok(Some(mut event)) = terminal.poll_event(Duration::from_millis(50)) {
             dialog.handle_event(&mut event);
 
-            // Check for quit command
-            if event.what == EventType::Command && event.command == CM_QUIT {
+            // Check if dialog ended via button press
+            // Dialog::handle_event() intercepts commands and calls end_modal(),
+            // so we check get_end_state() instead of the event directly
+            if dialog.get_end_state() != 0 {
                 running = false;
             }
 
-            // Also quit on Escape
+            // Also quit on Escape (if not already handled by dialog)
             if event.what == EventType::Keyboard && event.key_code == turbo_vision::core::event::KB_ESC {
                 running = false;
             }
