@@ -218,6 +218,10 @@ pub mod views;
 pub mod app;
 pub mod helpers;
 
+// SSH server support (only available with ssh feature)
+#[cfg(feature = "ssh")]
+pub mod ssh;
+
 // Test utilities (only available with test-util feature)
 #[cfg(feature = "test-util")]
 pub mod test_util;

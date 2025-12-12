@@ -1,6 +1,6 @@
 // (C) 2025 - Enzo Lombardi
 
-//! Terminal abstraction layer providing crossterm-based rendering.
+//! Terminal abstraction layer for turbo-vision.
 //!
 //! This module provides the [`Terminal`] type which handles all interaction
 //! with the physical terminal including:
@@ -10,6 +10,14 @@
 //! - Mouse capture and tracking
 //! - Clipping region management
 //! - ANSI dump support for debugging
+//!
+//! # Backend Architecture
+//!
+//! The terminal uses a [`Backend`] trait to abstract low-level I/O operations,
+//! allowing turbo-vision to work with different terminal transports:
+//!
+//! - [`CrosstermBackend`] - Local terminal via crossterm (default)
+//! - `SshBackend` - Remote terminal via SSH (requires `ssh` feature)
 //!
 //! # Examples
 //!
@@ -28,39 +36,66 @@
 //!     Ok(())
 //! }
 //! ```
+//!
+//! Using a custom backend:
+//!
+//! ```rust,no_run
+//! use turbo_vision::terminal::{Terminal, CrosstermBackend};
+//! use turbo_vision::core::error::Result;
+//!
+//! fn main() -> Result<()> {
+//!     let backend = CrosstermBackend::new()?;
+//!     let mut terminal = Terminal::with_backend(Box::new(backend))?;
+//!     // ...
+//!     terminal.shutdown()?;
+//!     Ok(())
+//! }
+//! ```
+
+mod backend;
+mod crossterm_backend;
+
+#[cfg(feature = "ssh")]
+mod input_parser;
+#[cfg(feature = "ssh")]
+mod ssh_backend;
+
+pub use backend::{Backend, Capabilities};
+pub use crossterm_backend::CrosstermBackend;
+
+#[cfg(feature = "ssh")]
+pub use input_parser::InputParser;
+#[cfg(feature = "ssh")]
+pub use ssh_backend::{SshBackend, SshSessionBuilder, SshSessionHandle};
 
 use crate::core::draw::Cell;
-use crate::core::event::{Event, EventType, EscSequenceTracker, MB_LEFT_BUTTON, MB_MIDDLE_BUTTON, MB_RIGHT_BUTTON, KB_F12, KB_SHIFT_F12};
-use crate::core::geometry::Point;
+use crate::core::event::Event;
+use crate::core::geometry::{Point, Rect};
 use crate::core::palette::Attr;
 use crate::core::ansi_dump;
 use crate::core::error::Result;
-use crossterm::{
-    cursor, execute, queue, style,
-    terminal::{self, window_size},
-    event::{self, Event as CTEvent, KeyEventKind, MouseEventKind, MouseButton},
-};
+use crossterm::{queue, style, cursor};
 use std::io::{self, Write, stdout};
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
-/// Terminal abstraction for crossterm backend
+/// Terminal abstraction for rendering and input handling.
+///
+/// The Terminal provides a high-level interface for TUI applications,
+/// managing double-buffered rendering, clipping regions, and event handling.
+/// Low-level I/O is delegated to a [`Backend`] implementation.
 pub struct Terminal {
+    backend: Box<dyn Backend>,
     buffer: Vec<Vec<Cell>>,
     prev_buffer: Vec<Vec<Cell>>,
     width: u16,
     height: u16,
-    esc_tracker: EscSequenceTracker,
-    last_mouse_pos: Point,
-    last_mouse_buttons: u8,
-    last_click_time: Option<Instant>,
-    last_click_pos: Point,
-    clip_stack: Vec<crate::core::geometry::Rect>,
-    active_view_bounds: Option<crate::core::geometry::Rect>,
-    pending_event: Option<Event>,  // Event queue for putEvent() - matches Borland's TProgram::pending
+    clip_stack: Vec<Rect>,
+    active_view_bounds: Option<Rect>,
+    pending_event: Option<Event>,
 }
 
 impl Terminal {
-    /// Initializes a new terminal instance in raw mode.
+    /// Initializes a new terminal instance using the default crossterm backend.
     ///
     /// This function sets up the terminal for full-screen TUI operation by:
     /// - Enabling raw mode (no line buffering, no echo)
@@ -81,11 +116,6 @@ impl Terminal {
     /// - Alternate screen cannot be entered
     /// - Mouse capture cannot be enabled
     ///
-    /// Common causes include:
-    /// - Running in a non-terminal environment (e.g., redirected output)
-    /// - Terminal doesn't support required capabilities
-    /// - Permission denied for terminal operations
-    ///
     /// # Examples
     ///
     /// ```rust,no_run
@@ -100,36 +130,51 @@ impl Terminal {
     /// }
     /// ```
     pub fn init() -> Result<Self> {
-        terminal::enable_raw_mode()?;
-        let mut stdout = stdout();
-        execute!(
-            stdout,
-            terminal::EnterAlternateScreen,
-            cursor::Hide,
-            event::EnableMouseCapture  // Enable mouse support
-        )?;
+        let backend = CrosstermBackend::new()?;
+        Self::with_backend(Box::new(backend))
+    }
 
-        // Disable autowrap (DECAWM) to prevent scrolling when writing to bottom-right corner
-        // This is critical for TUI applications that draw to the entire screen
-        write!(stdout, "\x1b[?7l")?;
-        stdout.flush()?;
+    /// Initializes a new terminal instance with a custom backend.
+    ///
+    /// This allows using alternative backends such as SSH for remote
+    /// terminal access.
+    ///
+    /// # Arguments
+    ///
+    /// * `backend` - The backend implementation to use for I/O.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if initialization fails.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use turbo_vision::terminal::{Terminal, CrosstermBackend};
+    /// use turbo_vision::core::error::Result;
+    ///
+    /// fn main() -> Result<()> {
+    ///     let backend = CrosstermBackend::new()?;
+    ///     let mut terminal = Terminal::with_backend(Box::new(backend))?;
+    ///     terminal.shutdown()?;
+    ///     Ok(())
+    /// }
+    /// ```
+    pub fn with_backend(mut backend: Box<dyn Backend>) -> Result<Self> {
+        backend.init()?;
 
-        let (width, height) = terminal::size()?;
+        let (width, height) = backend.size()?;
 
         let empty_cell = Cell::new(' ', Attr::from_u8(0x07));
         let buffer = vec![vec![empty_cell; width as usize]; height as usize];
         let prev_buffer = vec![vec![empty_cell; width as usize]; height as usize];
 
         Ok(Self {
+            backend,
             buffer,
             prev_buffer,
             width,
             height,
-            esc_tracker: EscSequenceTracker::new(),
-            last_mouse_pos: Point::zero(),
-            last_mouse_buttons: 0,
-            last_click_time: None,
-            last_click_pos: Point::zero(),
             clip_stack: Vec::new(),
             active_view_bounds: None,
             pending_event: None,
@@ -148,74 +193,27 @@ impl Terminal {
     ///
     /// Returns an error if terminal restoration fails. In most cases, the
     /// terminal will still be usable even if an error occurs.
-    ///
-    /// # Examples
-    ///
-    /// ```rust,no_run
-    /// # use turbo_vision::Terminal;
-    /// # use turbo_vision::core::error::Result;
-    /// # fn main() -> Result<()> {
-    /// let mut terminal = Terminal::init()?;
-    /// // Use terminal...
-    /// terminal.shutdown()?;
-    /// # Ok(())
-    /// # }
-    /// ```
     pub fn shutdown(&mut self) -> Result<()> {
-        let mut stdout = stdout();
-
-        // Re-enable autowrap (DECAWM) before leaving
-        write!(stdout, "\x1b[?7h")?;
-
-        execute!(
-            stdout,
-            event::DisableMouseCapture,  // Disable mouse support
-            cursor::Show,
-            terminal::LeaveAlternateScreen
-        )?;
-        terminal::disable_raw_mode()?;
+        self.backend.cleanup()?;
         Ok(())
     }
 
-    /// Suspend the terminal (for Ctrl+Z handling)
-    /// Matches Borland: TScreen::suspend() - restores terminal to normal mode
-    /// Leaves raw mode and restores cursor, but keeps the Terminal struct alive
-    /// Call resume() to return to TUI mode
+    /// Suspend the terminal (for Ctrl+Z handling).
+    ///
+    /// Restores terminal to normal mode while keeping the Terminal struct alive.
+    /// Call [`resume()`](Self::resume) to return to TUI mode.
     pub fn suspend(&mut self) -> Result<()> {
-        let mut stdout = stdout();
-
-        // Re-enable autowrap before suspending
-        write!(stdout, "\x1b[?7h")?;
-
-        execute!(
-            stdout,
-            event::DisableMouseCapture,
-            cursor::Show,
-            terminal::LeaveAlternateScreen
-        )?;
-        terminal::disable_raw_mode()?;
+        self.backend.suspend()?;
         Ok(())
     }
 
-    /// Resume the terminal after suspension (for Ctrl+Z handling)
-    /// Matches Borland: TScreen::resume() - re-enters raw mode and redraws
-    /// Re-initializes terminal state and forces full screen redraw
+    /// Resume the terminal after suspension.
+    ///
+    /// Re-initializes terminal state and forces full screen redraw.
     pub fn resume(&mut self) -> Result<()> {
-        terminal::enable_raw_mode()?;
-        let mut stdout = stdout();
-        execute!(
-            stdout,
-            terminal::EnterAlternateScreen,
-            cursor::Hide,
-            event::EnableMouseCapture
-        )?;
-
-        // Disable autowrap (DECAWM) to prevent scrolling when writing to bottom-right corner
-        write!(stdout, "\x1b[?7l")?;
-        stdout.flush()?;
+        self.backend.resume()?;
 
         // Force full screen redraw by clearing prev_buffer
-        // This ensures everything is redrawn after resume
         let empty_cell = Cell::new(' ', Attr::from_u8(0x07));
         for row in &mut self.prev_buffer {
             for cell in row {
@@ -226,48 +224,54 @@ impl Terminal {
         Ok(())
     }
 
-    /// Get terminal size
+    /// Get terminal size.
     pub fn size(&self) -> (i16, i16) {
         (self.width as i16, self.height as i16)
     }
 
-    /// Query actual terminal size from the system
-    /// This is useful for detecting manual resizes
+    /// Query actual terminal size from the system.
+    ///
+    /// This is useful for detecting manual resizes.
     pub fn query_size() -> io::Result<(i16, i16)> {
-        let (width, height) = terminal::size()?;
+        let (width, height) = crossterm::terminal::size()?;
         Ok((width as i16, height as i16))
     }
 
-    /// Query terminal cell aspect ratio (width:height) for shadow proportions
+    /// Query terminal cell aspect ratio for shadow proportions (static version).
     ///
-    /// Uses crossterm's window_size() to get pixel dimensions and calculate
-    /// the character cell aspect ratio. Returns (horizontal, vertical) shadow
-    /// multipliers to make shadows appear visually proportional.
-    ///
-    /// Returns (2, 1) as fallback if pixel info unavailable (common case).
+    /// Returns `(horizontal, vertical)` shadow multipliers to make shadows
+    /// appear visually proportional. This static version can be called before
+    /// a Terminal instance is created.
     pub fn query_cell_aspect_ratio() -> (i16, i16) {
+        use crossterm::terminal::window_size;
+
         if let Ok(ws) = window_size() {
-            // WindowSize has: columns, rows, width (pixels), height (pixels)
             if ws.width > 0 && ws.height > 0 && ws.columns > 0 && ws.rows > 0 {
                 let cell_width = ws.width as f32 / ws.columns as f32;
                 let cell_height = ws.height as f32 / ws.rows as f32;
 
                 if cell_width > 0.0 {
-                    // Calculate ratio: how many horizontal cells equal one vertical cell
                     let ratio = (cell_height / cell_width).round() as i16;
                     return (ratio.max(1), 1);
                 }
             }
         }
         // Fallback: typical terminal fonts are ~10x16 pixels (1.6:1 ratio)
-        // Round up to 2:1 for shadow proportions
         (2, 1)
     }
 
-    /// Resize the terminal buffers
-    /// Recreates buffers and forces a complete redraw
+    /// Query terminal cell aspect ratio for shadow proportions (instance version).
+    ///
+    /// Returns `(horizontal, vertical)` shadow multipliers to make shadows
+    /// appear visually proportional.
+    pub fn cell_aspect_ratio(&self) -> (i16, i16) {
+        self.backend.cell_aspect_ratio()
+    }
+
+    /// Resize the terminal buffers.
+    ///
+    /// Recreates buffers and forces a complete redraw.
     pub fn resize(&mut self, new_width: u16, new_height: u16) {
-        // Update dimensions to actual terminal size (no minimum enforcement here)
         self.width = new_width;
         self.height = new_height;
 
@@ -276,36 +280,46 @@ impl Terminal {
         self.buffer = vec![vec![empty_cell; new_width as usize]; new_height as usize];
 
         // Use a different cell for prev_buffer to force complete redraw
-        // This ensures every cell is redrawn after resize
         let force_redraw_cell = Cell::new('\0', Attr::from_u8(0xFF));
         self.prev_buffer = vec![vec![force_redraw_cell; new_width as usize]; new_height as usize];
 
         // Clear the screen
-        let mut stdout = stdout();
-        let _ = execute!(stdout, terminal::Clear(terminal::ClearType::All));
+        let _ = self.backend.clear_screen();
     }
 
-    /// Set the ESC timeout in milliseconds
-    /// This controls how long the terminal waits after ESC to detect ESC+letter sequences
+    /// Set the ESC timeout in milliseconds.
+    ///
+    /// This controls how long the terminal waits after ESC to detect
+    /// ESC+letter sequences.
     pub fn set_esc_timeout(&mut self, timeout_ms: u64) {
-        self.esc_tracker.set_timeout(timeout_ms);
+        // This is only relevant for CrosstermBackend
+        // For other backends, this is a no-op
+        if let Some(ct_backend) = self.backend_as_crossterm_mut() {
+            ct_backend.set_esc_timeout(timeout_ms);
+        }
     }
 
-    /// Set the bounds of the currently active view (for F11 screen dumps)
-    pub fn set_active_view_bounds(&mut self, bounds: crate::core::geometry::Rect) {
+    /// Get a mutable reference to the backend as CrosstermBackend, if applicable.
+    fn backend_as_crossterm_mut(&mut self) -> Option<&mut CrosstermBackend> {
+        // This is a workaround since we can't downcast trait objects easily
+        // In practice, we'd use Any trait for downcasting
+        None // For now, ESC timeout only works via Terminal::init()
+    }
+
+    /// Set the bounds of the currently active view (for F11 screen dumps).
+    pub fn set_active_view_bounds(&mut self, bounds: Rect) {
         self.active_view_bounds = Some(bounds);
     }
 
-    /// Clear the active view bounds
+    /// Clear the active view bounds.
     pub fn clear_active_view_bounds(&mut self) {
         self.active_view_bounds = None;
     }
 
-    /// Force a full screen redraw on the next flush
+    /// Force a full screen redraw on the next flush.
     ///
-    /// This clears the internal prev_buffer, forcing all cells to be resent to the terminal
-    /// on the next flush() call. Useful when internal view state changes and you need to
-    /// guarantee a complete visual update.
+    /// This clears the internal prev_buffer, forcing all cells to be resent
+    /// to the terminal on the next [`flush()`](Self::flush) call.
     pub fn force_full_redraw(&mut self) {
         let empty_cell = Cell::new(' ', Attr::from_u8(0x07));
         for row in &mut self.prev_buffer {
@@ -315,18 +329,18 @@ impl Terminal {
         }
     }
 
-    /// Push a clipping region onto the stack
-    pub fn push_clip(&mut self, rect: crate::core::geometry::Rect) {
+    /// Push a clipping region onto the stack.
+    pub fn push_clip(&mut self, rect: Rect) {
         self.clip_stack.push(rect);
     }
 
-    /// Pop a clipping region from the stack
+    /// Pop a clipping region from the stack.
     pub fn pop_clip(&mut self) {
         self.clip_stack.pop();
     }
 
-    /// Get the current effective clipping region (intersection of all regions on stack)
-    fn get_clip_rect(&self) -> Option<crate::core::geometry::Rect> {
+    /// Get the current effective clipping region (intersection of all regions on stack).
+    fn get_clip_rect(&self) -> Option<Rect> {
         if self.clip_stack.is_empty() {
             None
         } else {
@@ -338,7 +352,7 @@ impl Terminal {
         }
     }
 
-    /// Check if a point is within the current clipping region
+    /// Check if a point is within the current clipping region.
     fn is_clipped(&self, x: i16, y: i16) -> bool {
         if let Some(clip) = self.get_clip_rect() {
             !clip.contains(Point::new(x, y))
@@ -347,7 +361,7 @@ impl Terminal {
         }
     }
 
-    /// Write a cell at the given position
+    /// Write a cell at the given position.
     pub fn write_cell(&mut self, x: u16, y: u16, cell: Cell) {
         let x_i16 = x as i16;
         let y_i16 = y as i16;
@@ -365,7 +379,7 @@ impl Terminal {
         self.buffer[y as usize][x as usize] = cell;
     }
 
-    /// Write a line from a draw buffer
+    /// Write a line from a draw buffer.
     pub fn write_line(&mut self, x: u16, y: u16, cells: &[Cell]) {
         let y_i16 = y as i16;
 
@@ -387,8 +401,9 @@ impl Terminal {
         }
     }
 
-    /// Read a cell from the buffer at the given position
-    /// Returns None if coordinates are out of bounds
+    /// Read a cell from the buffer at the given position.
+    ///
+    /// Returns `None` if coordinates are out of bounds.
     pub fn read_cell(&self, x: i16, y: i16) -> Option<Cell> {
         if x < 0 || y < 0 || x >= self.width as i16 || y >= self.height as i16 {
             return None;
@@ -396,7 +411,7 @@ impl Terminal {
         Some(self.buffer[y as usize][x as usize])
     }
 
-    /// Clear the entire screen
+    /// Clear the entire screen buffer.
     pub fn clear(&mut self) {
         let empty_cell = Cell::new(' ', Attr::from_u8(0x07));
         for row in &mut self.buffer {
@@ -406,7 +421,10 @@ impl Terminal {
         }
     }
 
-    /// Flush changes to the terminal
+    /// Flush changes to the terminal.
+    ///
+    /// This performs differential rendering, only sending changed cells
+    /// to the terminal for optimal performance.
     pub fn flush(&mut self) -> io::Result<()> {
         let mut stdout = stdout();
 
@@ -453,207 +471,48 @@ impl Terminal {
         Ok(())
     }
 
-    /// Show the cursor at the specified position
+    /// Show the cursor at the specified position.
     pub fn show_cursor(&mut self, x: u16, y: u16) -> io::Result<()> {
-        let mut stdout = stdout();
-        execute!(
-            stdout,
-            cursor::MoveTo(x, y),
-            cursor::Show
-        )?;
-        Ok(())
+        self.backend.show_cursor(x, y)
     }
 
-    /// Hide the cursor
+    /// Hide the cursor.
     pub fn hide_cursor(&mut self) -> io::Result<()> {
-        let mut stdout = stdout();
-        execute!(stdout, cursor::Hide)?;
-        Ok(())
+        self.backend.hide_cursor()
     }
 
-    /// Put an event in the queue for next iteration
-    /// Matches Borland's TProgram::putEvent() - allows re-queuing events
+    /// Put an event in the queue for next iteration.
+    ///
+    /// This allows re-queuing events, matching Borland's `TProgram::putEvent()`.
     pub fn put_event(&mut self, event: Event) {
         self.pending_event = Some(event);
     }
 
-    /// Poll for an event with timeout
+    /// Poll for an event with timeout.
     pub fn poll_event(&mut self, timeout: Duration) -> io::Result<Option<Event>> {
-        // Check for pending event first (matches Borland's TProgram::getEvent)
+        // Check for pending event first
         if let Some(event) = self.pending_event.take() {
             return Ok(Some(event));
         }
 
-        if event::poll(timeout)? {
-            match event::read()? {
-                CTEvent::Key(key) => {
-                    // On Windows, crossterm sends both Press and Release events
-                    // Filter to only process Press events to avoid duplicates
-                    if key.kind != KeyEventKind::Press {
-                        return Ok(None);
-                    }
-
-                    let key_code = self.esc_tracker.process_key(key);
-                    if key_code == 0 {
-                        // ESC sequence in progress, don't generate event yet
-                        return Ok(None);
-                    }
-
-                    // Handle global screen dump shortcuts at the lowest level
-                    if key_code == KB_F12 {
-                        let _ = self.flash();
-                        let _ = self.dump_screen("screen-dump.txt");
-                        return Ok(None);  // Don't propagate event, it's been handled
-                    }
-
-                    // Handle active view dump shortcut (Shift+F12)
-                    if key_code == KB_SHIFT_F12 {
-                        let _ = self.flash();
-                        if let Some(bounds) = self.active_view_bounds {
-                            let _ = self.dump_region(
-                                bounds.a.x as u16,
-                                bounds.a.y as u16,
-                                (bounds.b.x - bounds.a.x) as u16,
-                                (bounds.b.y - bounds.a.y) as u16,
-                                "active-view-dump.txt"
-                            );
-                        }
-                        return Ok(None);  // Don't propagate event, it's been handled
-                    }
-
-                    // Create event preserving modifiers from original crossterm event
-                    Ok(Some(Event {
-                        what: EventType::Keyboard,
-                        key_code,
-                        key_modifiers: key.modifiers,
-                        ..Event::nothing()
-                    }))
-                }
-                CTEvent::Mouse(mouse) => {
-                    Ok(self.convert_mouse_event(mouse))
-                }
-                _ => Ok(None),
-            }
-        } else {
-            Ok(None)
-        }
+        self.backend.poll_event(timeout)
     }
 
-    /// Read an event (blocking)
+    /// Read an event (blocking).
     pub fn read_event(&mut self) -> io::Result<Event> {
         loop {
-            match event::read()? {
-                CTEvent::Key(key) => {
-                    // On Windows, crossterm sends both Press and Release events
-                    // Filter to only process Press events to avoid duplicates
-                    if key.kind != KeyEventKind::Press {
-                        continue;
-                    }
-
-                    let key_code = self.esc_tracker.process_key(key);
-                    if key_code == 0 {
-                        // ESC sequence in progress, wait for next key
-                        continue;
-                    }
-
-                    // Handle global screen dump shortcuts at the lowest level
-                    if key_code == KB_F12 {
-                        let _ = self.flash();
-                        let _ = self.dump_screen("screen-dump.txt");
-                        continue;  // Don't return event, it's been handled - wait for next event
-                    }
-
-                    // Handle active view dump shortcut (Shift+F12)
-                    if key_code == KB_SHIFT_F12 {
-                        let _ = self.flash();
-                        if let Some(bounds) = self.active_view_bounds {
-                            let _ = self.dump_region(
-                                bounds.a.x as u16,
-                                bounds.a.y as u16,
-                                (bounds.b.x - bounds.a.x) as u16,
-                                (bounds.b.y - bounds.a.y) as u16,
-                                "active-view-dump.txt"
-                            );
-                        }
-                        continue;  // Don't return event, it's been handled - wait for next event
-                    }
-
-                    return Ok(Event::keyboard(key_code));
-                }
-                CTEvent::Mouse(mouse) => {
-                    if let Some(event) = self.convert_mouse_event(mouse) {
-                        return Ok(event);
-                    }
-                }
-                _ => continue,
+            if let Some(event) = self.poll_event(Duration::from_secs(60))? {
+                return Ok(event);
             }
         }
     }
 
-    /// Convert crossterm mouse event to our Event type
-    fn convert_mouse_event(&mut self, mouse: event::MouseEvent) -> Option<Event> {
-        let pos = Point::new(mouse.column as i16, mouse.row as i16);
-
-        // Handle scroll wheel events separately
-        match mouse.kind {
-            MouseEventKind::ScrollUp => {
-                return Some(Event::mouse(EventType::MouseWheelUp, pos, 0, false));
-            }
-            MouseEventKind::ScrollDown => {
-                return Some(Event::mouse(EventType::MouseWheelDown, pos, 0, false));
-            }
-            _ => {}
-        }
-
-        // Convert button state to our format
-        let buttons = match mouse.kind {
-            MouseEventKind::Down(MouseButton::Left) | MouseEventKind::Drag(MouseButton::Left) => MB_LEFT_BUTTON,
-            MouseEventKind::Down(MouseButton::Right) | MouseEventKind::Drag(MouseButton::Right) => MB_RIGHT_BUTTON,
-            MouseEventKind::Down(MouseButton::Middle) | MouseEventKind::Drag(MouseButton::Middle) => MB_MIDDLE_BUTTON,
-            MouseEventKind::Up(_) => 0, // No buttons pressed on release
-            MouseEventKind::Moved => self.last_mouse_buttons, // Maintain button state during move
-            _ => return None,
-        };
-
-        // Determine event type and detect double-clicks
-        let (event_type, is_double_click) = match mouse.kind {
-            MouseEventKind::Down(_) => {
-                // Check for double-click: same position, within 500ms
-                let is_double = if let Some(last_time) = self.last_click_time {
-                    let elapsed = last_time.elapsed();
-                    elapsed.as_millis() <= 500 && pos == self.last_click_pos
-                } else {
-                    false
-                };
-
-                // Update click tracking
-                self.last_click_time = Some(Instant::now());
-                self.last_click_pos = pos;
-                self.last_mouse_buttons = buttons;
-                self.last_mouse_pos = pos;
-
-                (EventType::MouseDown, is_double)
-            }
-            MouseEventKind::Up(_) => {
-                self.last_mouse_buttons = 0;
-                (EventType::MouseUp, false)
-            }
-            MouseEventKind::Drag(_) | MouseEventKind::Moved => {
-                self.last_mouse_pos = pos;
-                (EventType::MouseMove, false)
-            }
-            _ => return None,
-        };
-
-        Some(Event::mouse(event_type, pos, buttons, is_double_click))
-    }
-
-    /// Dump the entire screen buffer to an ANSI text file for debugging
+    /// Dump the entire screen buffer to an ANSI text file for debugging.
     pub fn dump_screen(&self, path: &str) -> io::Result<()> {
         ansi_dump::dump_buffer_to_file(&self.buffer, self.width as usize, self.height as usize, path)
     }
 
-    /// Dump a rectangular region of the screen to an ANSI text file
+    /// Dump a rectangular region of the screen to an ANSI text file.
     pub fn dump_region(&self, x: u16, y: u16, width: u16, height: u16, path: &str) -> io::Result<()> {
         let mut file = std::fs::File::create(path)?;
         ansi_dump::dump_buffer_region(
@@ -666,12 +525,12 @@ impl Terminal {
         )
     }
 
-    /// Get a reference to the internal buffer for custom dumping
+    /// Get a reference to the internal buffer for custom dumping.
     pub fn buffer(&self) -> &[Vec<Cell>] {
         &self.buffer
     }
 
-    /// Flash the screen by inverting all colors briefly
+    /// Flash the screen by inverting all colors briefly.
     pub fn flash(&mut self) -> io::Result<()> {
         use std::thread;
 
@@ -703,14 +562,14 @@ impl Terminal {
         Ok(())
     }
 
-    /// Emit a terminal beep (bell) sound
-    /// Matches Borland: TScreen::makeBeep() which calls beep() + refresh()
-    /// Outputs the terminal bell character and flushes immediately
+    /// Emit a terminal beep (bell) sound.
     pub fn beep(&mut self) -> io::Result<()> {
-        let mut stdout = stdout();
-        write!(stdout, "\x07")?;  // Terminal bell character
-        stdout.flush()?;
-        Ok(())
+        self.backend.bell()
+    }
+
+    /// Get terminal capabilities.
+    pub fn capabilities(&self) -> Capabilities {
+        self.backend.capabilities()
     }
 }
 

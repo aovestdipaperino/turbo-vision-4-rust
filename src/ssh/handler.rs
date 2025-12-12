@@ -1,0 +1,272 @@
+// (C) 2025 - Enzo Lombardi
+
+//! SSH connection handler for TUI sessions.
+//!
+//! This module provides the russh handler implementation that bridges
+//! SSH I/O to turbo-vision applications.
+
+use std::sync::Arc;
+
+use async_trait::async_trait;
+use parking_lot::Mutex;
+use russh::server::{Auth, Handler, Msg, Session};
+use russh::{Channel, ChannelId, CryptoVec};
+use russh_keys::PublicKey;
+use tokio::sync::mpsc;
+
+use crate::terminal::{InputParser, SshSessionHandle};
+
+/// A TUI session for a single SSH connection.
+pub struct TuiSession {
+    /// The SSH channel ID.
+    pub channel_id: ChannelId,
+    /// Handle for communicating with the TUI.
+    pub handle: SshSessionHandle,
+}
+
+/// SSH handler that manages TUI sessions.
+///
+/// Implements the russh `Handler` trait to handle SSH protocol events
+/// and route them to the TUI application.
+pub struct TuiHandler<F>
+where
+    F: FnOnce(Box<dyn crate::terminal::Backend>) + Send + 'static,
+{
+    session: Option<TuiSession>,
+    app_factory: Option<F>,
+    peer_addr: Option<std::net::SocketAddr>,
+}
+
+impl<F> TuiHandler<F>
+where
+    F: FnOnce(Box<dyn crate::terminal::Backend>) + Send + 'static,
+{
+    /// Create a new TUI handler.
+    pub fn new(app_factory: F, peer_addr: Option<std::net::SocketAddr>) -> Self {
+        Self {
+            session: None,
+            app_factory: Some(app_factory),
+            peer_addr,
+        }
+    }
+}
+
+#[async_trait]
+impl<F> Handler for TuiHandler<F>
+where
+    F: FnOnce(Box<dyn crate::terminal::Backend>) + Send + 'static,
+{
+    type Error = russh::Error;
+
+    /// Handle password authentication.
+    ///
+    /// Override this in your implementation to add real authentication.
+    /// Default accepts all passwords (NOT SECURE - for demo only).
+    async fn auth_password(
+        &mut self,
+        user: &str,
+        _password: &str,
+    ) -> Result<Auth, Self::Error> {
+        log::info!("Password auth attempt from {:?} for user '{}'", self.peer_addr, user);
+        // WARNING: This accepts all passwords - implement real auth!
+        Ok(Auth::Accept)
+    }
+
+    /// Handle public key authentication.
+    ///
+    /// Override this in your implementation to add real authentication.
+    /// Default accepts all keys (NOT SECURE - for demo only).
+    async fn auth_publickey(
+        &mut self,
+        user: &str,
+        _key: &PublicKey,
+    ) -> Result<Auth, Self::Error> {
+        log::info!("Pubkey auth attempt from {:?} for user '{}'", self.peer_addr, user);
+        // WARNING: This accepts all keys - implement real auth!
+        Ok(Auth::Accept)
+    }
+
+    /// Handle channel open request.
+    async fn channel_open_session(
+        &mut self,
+        channel: Channel<Msg>,
+        _session: &mut Session,
+    ) -> Result<bool, Self::Error> {
+        log::debug!("Channel open session request");
+
+        // Create session components
+        let (event_tx, event_rx) = mpsc::unbounded_channel();
+        let (output_tx, output_rx) = mpsc::unbounded_channel();
+        let size = Arc::new(Mutex::new((80u16, 24u16)));
+
+        let backend = crate::terminal::SshBackend::new(
+            output_tx,
+            event_rx,
+            Arc::clone(&size),
+        );
+
+        let handle = SshSessionHandle {
+            event_tx,
+            output_rx,
+            size,
+            input_parser: InputParser::new(),
+        };
+
+        self.session = Some(TuiSession {
+            channel_id: channel.id(),
+            handle,
+        });
+
+        // Spawn the TUI application if we have a factory
+        if let Some(factory) = self.app_factory.take() {
+            tokio::task::spawn_blocking(move || {
+                factory(Box::new(backend));
+            });
+        }
+
+        Ok(true)
+    }
+
+    /// Handle PTY request.
+    async fn pty_request(
+        &mut self,
+        channel_id: ChannelId,
+        term: &str,
+        col_width: u32,
+        row_height: u32,
+        _pix_width: u32,
+        _pix_height: u32,
+        _modes: &[(russh::Pty, u32)],
+        session: &mut Session,
+    ) -> Result<(), Self::Error> {
+        log::debug!(
+            "PTY request: {}x{} term={}",
+            col_width, row_height, term
+        );
+
+        if let Some(ref mut s) = self.session {
+            if s.channel_id == channel_id {
+                s.handle.resize(col_width as u16, row_height as u16);
+            }
+        }
+
+        session.channel_success(channel_id)?;
+        Ok(())
+    }
+
+    /// Handle shell request.
+    async fn shell_request(
+        &mut self,
+        channel_id: ChannelId,
+        session: &mut Session,
+    ) -> Result<(), Self::Error> {
+        log::debug!("Shell request on channel {:?}", channel_id);
+        session.channel_success(channel_id)?;
+        Ok(())
+    }
+
+    /// Handle window size change.
+    async fn window_change_request(
+        &mut self,
+        channel_id: ChannelId,
+        col_width: u32,
+        row_height: u32,
+        _pix_width: u32,
+        _pix_height: u32,
+        _session: &mut Session,
+    ) -> Result<(), Self::Error> {
+        log::debug!("Window change: {}x{}", col_width, row_height);
+
+        if let Some(ref mut s) = self.session {
+            if s.channel_id == channel_id {
+                s.handle.resize(col_width as u16, row_height as u16);
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Handle data from SSH client.
+    async fn data(
+        &mut self,
+        channel_id: ChannelId,
+        data: &[u8],
+        session: &mut Session,
+    ) -> Result<(), Self::Error> {
+        if let Some(ref mut s) = self.session {
+            if s.channel_id == channel_id {
+                // Parse input and send to TUI
+                s.handle.process_input(data);
+
+                // Send any buffered output back to client
+                while let Some(output) = s.handle.try_recv_output() {
+                    session.data(channel_id, CryptoVec::from(output))?;
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Handle channel close.
+    async fn channel_close(
+        &mut self,
+        channel_id: ChannelId,
+        _session: &mut Session,
+    ) -> Result<(), Self::Error> {
+        if let Some(ref s) = self.session {
+            if s.channel_id == channel_id {
+                log::info!("Channel closed for {:?}", self.peer_addr);
+                self.session = None;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Handle channel EOF.
+    async fn channel_eof(
+        &mut self,
+        channel_id: ChannelId,
+        session: &mut Session,
+    ) -> Result<(), Self::Error> {
+        log::debug!("Channel EOF on {:?}", channel_id);
+
+        // Close the channel when we receive EOF
+        if let Some(ref s) = self.session {
+            if s.channel_id == channel_id {
+                session.close(channel_id)?;
+            }
+        }
+
+        Ok(())
+    }
+}
+
+/// Simple handler that doesn't spawn a TUI application.
+///
+/// Useful for testing or when you want to manually manage the TUI lifecycle.
+pub struct SimpleTuiHandler {
+    session: Option<TuiSession>,
+    peer_addr: Option<std::net::SocketAddr>,
+}
+
+impl SimpleTuiHandler {
+    /// Create a new simple handler.
+    pub fn new(peer_addr: Option<std::net::SocketAddr>) -> Self {
+        Self {
+            session: None,
+            peer_addr,
+        }
+    }
+
+    /// Get the current session, if any.
+    pub fn session(&self) -> Option<&TuiSession> {
+        self.session.as_ref()
+    }
+
+    /// Get the current session mutably, if any.
+    pub fn session_mut(&mut self) -> Option<&mut TuiSession> {
+        self.session.as_mut()
+    }
+}
