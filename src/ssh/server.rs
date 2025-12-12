@@ -6,6 +6,7 @@
 //! turbo-vision applications to remote clients.
 
 use std::net::SocketAddr;
+use std::path::Path;
 use std::sync::Arc;
 
 use russh::server::{Config, Server};
@@ -56,6 +57,57 @@ impl SshServerConfig {
         use rand::rngs::OsRng;
         if let Ok(key) = PrivateKey::random(&mut OsRng, ssh_key::Algorithm::Ed25519) {
             self.keys.push(key);
+        }
+        self
+    }
+
+    /// Load a host key from file, or generate and save a new one if it doesn't exist.
+    ///
+    /// This ensures the server uses a consistent host key across restarts,
+    /// preventing SSH client warnings about changed host keys.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - Path to the key file (OpenSSH format)
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// let config = SshServerConfig::new()
+    ///     .bind_addr("0.0.0.0:2222")
+    ///     .load_or_generate_key("host_key");
+    /// ```
+    pub fn load_or_generate_key(mut self, path: impl AsRef<Path>) -> Self {
+        let path = path.as_ref();
+
+        // Try to load existing key
+        if path.exists() {
+            match load_key_from_file(path) {
+                Ok(key) => {
+                    log::info!("Loaded host key from {}", path.display());
+                    self.keys.push(key);
+                    return self;
+                }
+                Err(e) => {
+                    log::warn!("Failed to load host key from {}: {}", path.display(), e);
+                }
+            }
+        }
+
+        // Generate new key and save it
+        use rand::rngs::OsRng;
+        match PrivateKey::random(&mut OsRng, ssh_key::Algorithm::Ed25519) {
+            Ok(key) => {
+                if let Err(e) = save_key_to_file(&key, path) {
+                    log::warn!("Failed to save host key to {}: {}", path.display(), e);
+                } else {
+                    log::info!("Generated and saved new host key to {}", path.display());
+                }
+                self.keys.push(key);
+            }
+            Err(e) => {
+                log::error!("Failed to generate host key: {}", e);
+            }
         }
         self
     }
@@ -211,4 +263,32 @@ where
 
     let server = SshServer::new(config, app_factory);
     server.run().await
+}
+
+/// Load a private key from a file in OpenSSH format.
+fn load_key_from_file(path: &Path) -> Result<PrivateKey, Box<dyn std::error::Error>> {
+    let pem = std::fs::read_to_string(path)?;
+    let key = PrivateKey::from_openssh(&pem)?;
+    Ok(key)
+}
+
+/// Save a private key to a file in OpenSSH format.
+fn save_key_to_file(key: &PrivateKey, path: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    use std::io::Write;
+
+    let pem = key.to_openssh(ssh_key::LineEnding::LF)?;
+
+    // Create file with restricted permissions (owner read/write only)
+    let mut file = std::fs::File::create(path)?;
+
+    // On Unix, set permissions to 0600
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let permissions = std::fs::Permissions::from_mode(0o600);
+        file.set_permissions(permissions)?;
+    }
+
+    file.write_all(pem.as_bytes())?;
+    Ok(())
 }

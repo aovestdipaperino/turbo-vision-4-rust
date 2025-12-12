@@ -112,7 +112,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 
     let config = SshServerConfig::new()
         .bind_addr("0.0.0.0:2222")
-        .generate_key();
+        .load_or_generate_key("ssh_host_key");
 
     println!("=== SSH TUI Server ===");
     println!();
