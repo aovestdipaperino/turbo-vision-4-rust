@@ -186,29 +186,10 @@ impl MenuBar {
             let dropdown_x = self.menu_positions.get(menu_idx).copied().unwrap_or(0);
             let item_y = self.bounds.a.y + 2 + current_idx as i16; // +1 for bar, +1 for top border
 
-            // Calculate dropdown width (similar to draw_dropdown logic)
-            let parent_menu = &self.submenus[menu_idx].menu;
-            let mut max_text_width = 10;
-            for item in &parent_menu.items {
-                match item {
-                    MenuItem::Regular { text, shortcut, .. } => {
-                        let text_len = text.replace('~', "").len();
-                        max_text_width = max_text_width.max(text_len);
-                        if let Some(s) = shortcut {
-                            max_text_width = max_text_width.max(text_len + s.len() + 2);
-                        }
-                    }
-                    MenuItem::SubMenu { text, .. } => {
-                        let text_len = text.replace('~', "").len();
-                        max_text_width = max_text_width.max(text_len + 3);
-                    }
-                    MenuItem::Separator => {}
-                }
-            }
-            let dropdown_width = max_text_width + 4;
-
-            let submenu_x = dropdown_x + dropdown_width as i16 - 1;
-            let position = Point::new(submenu_x, item_y);
+            // Place submenu just under the parent item.
+            // X is aligned under the item's text start (dropdown left + 2), and Y is one row below the item.
+            let submenu_x = dropdown_x + 2;
+            let position = Point::new(submenu_x, item_y + 1);
 
             // Create and execute the cascading menu
             let mut menu_box = MenuBox::new(position, menu.clone());
@@ -220,22 +201,7 @@ impl MenuBar {
         None
     }
 
-    /// Draw the dropdown menu
-    fn draw_dropdown(&self, terminal: &mut Terminal, menu_idx: usize) {
-        if menu_idx >= self.submenus.len() || menu_idx >= self.menu_positions.len() {
-            return;
-        }
-
-        let menu_x = self.menu_positions[menu_idx];
-        let menu_y = self.bounds.a.y + 1;
-        let menu = &self.submenus[menu_idx].menu;
-
-        let normal_attr = self.map_color(MENU_NORMAL);
-        let selected_attr = self.map_color(MENU_SELECTED);
-        let disabled_attr = self.map_color(MENU_DISABLED);
-        let shortcut_attr = self.map_color(MENU_SHORTCUT);
-
-        // Calculate dropdown width
+    fn compute_dropdown_width(&self, menu: &Menu) -> usize {
         let mut max_text_width = 12;
         let mut max_shortcut_width = 0;
         for item in &menu.items {
@@ -255,11 +221,34 @@ impl MenuBar {
             }
         }
 
-        let dropdown_width = if max_shortcut_width > 0 {
-            max_text_width + 2 + max_shortcut_width + 2
+        // Layout:
+        // [border][pad][content...][pad][border]
+        // Ensure 1 space padding on both left and right before the frame.
+        let content_width = if max_shortcut_width > 0 {
+            // text + 2 spaces gap + shortcut
+            max_text_width + 2 + max_shortcut_width
         } else {
-            max_text_width + 2
+            max_text_width
         };
+        content_width + 4 // 2 borders + 2 pads
+    }
+
+    /// Draw the dropdown menu
+    fn draw_dropdown(&self, terminal: &mut Terminal, menu_idx: usize) {
+        if menu_idx >= self.submenus.len() || menu_idx >= self.menu_positions.len() {
+            return;
+        }
+
+        let menu_x = self.menu_positions[menu_idx];
+        let menu_y = self.bounds.a.y + 1;
+        let menu = &self.submenus[menu_idx].menu;
+
+        let normal_attr = self.map_color(MENU_NORMAL);
+        let selected_attr = self.map_color(MENU_SELECTED);
+        let disabled_attr = self.map_color(MENU_DISABLED);
+        let shortcut_attr = self.map_color(MENU_SHORTCUT);
+
+        let dropdown_width = self.compute_dropdown_width(menu);
         let dropdown_height = menu.items.len() as i16;
 
         // Draw top border
@@ -304,10 +293,10 @@ impl MenuBar {
                     }
 
                     // Draw text with accelerator
-                    let mut x = 1;
+                    let mut x = 2; // leave 1 space padding before the left frame
                     let mut chars = text.chars();
                     while let Some(ch) = chars.next() {
-                        if x >= dropdown_width - 1 {
+                        if x >= dropdown_width - 2 {
                             break;
                         }
                         if ch == '~' {
@@ -322,7 +311,7 @@ impl MenuBar {
                                 if sc == '~' {
                                     break;
                                 }
-                                if x < dropdown_width - 1 {
+                                if x < dropdown_width - 2 {
                                     item_buf.put_char(x, sc, item_shortcut_attr);
                                     x += 1;
                                 }
@@ -342,9 +331,10 @@ impl MenuBar {
                         } else {
                             shortcut_attr
                         };
-                        let shortcut_x = dropdown_width.saturating_sub(shortcut_text.len() + 1);
+                        // Leave 1 space padding before the right frame
+                        let shortcut_x = dropdown_width.saturating_sub(shortcut_text.len() + 2);
                         for (i, ch) in shortcut_text.chars().enumerate() {
-                            if shortcut_x + i < dropdown_width - 1 {
+                            if shortcut_x + i < dropdown_width - 2 {
                                 item_buf.put_char(shortcut_x + i, ch, shortcut_draw_attr);
                             }
                         }
@@ -361,9 +351,10 @@ impl MenuBar {
                     }
 
                     // Draw text
-                    let mut x = 1;
+                    let mut x = 2; // leave 1 space padding before the left frame
                     for ch in text.replace('~', "").chars() {
-                        if x >= dropdown_width - 2 {
+                        // Reserve arrow at (dropdown_width - 3) and padding at (dropdown_width - 2)
+                        if x >= dropdown_width - 3 {
                             break;
                         }
                         item_buf.put_char(x, ch, attr);
@@ -371,7 +362,7 @@ impl MenuBar {
                     }
 
                     // Draw arrow
-                    item_buf.put_char(dropdown_width - 2, '►', attr);
+                    item_buf.put_char(dropdown_width - 3, '►', attr);
                     item_buf.put_char(dropdown_width - 1, '│', normal_attr);
                 }
             }
@@ -388,8 +379,28 @@ impl MenuBar {
         bottom_buf.put_char(dropdown_width - 1, '┘', normal_attr);
         write_line_to_terminal(terminal, menu_x, menu_y + 1 + dropdown_height, &bottom_buf);
 
+        // Leave a 1-column blank gap before the left frame.
+        if menu_x > 0 {
+            let left_gap_x = menu_x - 1;
+            let mut left_gap_buf = DrawBuffer::new(1);
+            left_gap_buf.put_char(0, ' ', normal_attr);
+            for y in menu_y..=(menu_y + dropdown_height + 1) {
+                write_line_to_terminal(terminal, left_gap_x, y, &left_gap_buf);
+            }
+        }
+
+        // Leave a 1-column blank gap after the right frame before the shadow.
+        // This matches the classic Turbo Vision look where the shadow is offset
+        // and not drawn immediately adjacent to the frame.
+        let gap_x = menu_x + dropdown_width as i16;
+        let mut gap_buf = DrawBuffer::new(1);
+        gap_buf.put_char(0, ' ', normal_attr);
+        for y in menu_y..=(menu_y + dropdown_height + 1) {
+            write_line_to_terminal(terminal, gap_x, y, &gap_buf);
+        }
+
         // Draw shadow
-        let shadow_bounds = crate::core::geometry::Rect::new(menu_x, menu_y, menu_x + dropdown_width as i16, menu_y + dropdown_height + 2);
+        let shadow_bounds = crate::core::geometry::Rect::new(menu_x, menu_y, menu_x + dropdown_width as i16 + 1, menu_y + dropdown_height + 2);
         crate::views::view::draw_shadow_bounds(terminal, shadow_bounds);
     }
 }
@@ -496,13 +507,14 @@ impl View for MenuBar {
                             let menu_x = self.menu_positions[menu_idx];
                             let menu_y = self.bounds.a.y + 1;
                             let item_count = menu.items.len();
+                            let dropdown_width = self.compute_dropdown_width(menu) as i16;
 
                             // Dropdown bounds: top border + items + bottom border
                             let bounds = Rect::new(
                                 menu_x,
                                 menu_y,
-                                menu_x + 20, // Approximate width
-                                menu_y + 1 + item_count as i16 + 1,
+                                menu_x + dropdown_width,
+                                menu_y + 2 + item_count as i16,
                             );
                             (Some(bounds), item_count)
                         } else {
@@ -544,8 +556,9 @@ impl View for MenuBar {
                             let menu_x = self.menu_positions[menu_idx];
                             let menu_y = self.bounds.a.y + 1;
                             let item_count = menu.items.len();
+                            let dropdown_width = self.compute_dropdown_width(menu) as i16;
 
-                            let bounds = Rect::new(menu_x, menu_y, menu_x + 20, menu_y + 1 + item_count as i16 + 1);
+                            let bounds = Rect::new(menu_x, menu_y, menu_x + dropdown_width, menu_y + 2 + item_count as i16);
                             (Some(bounds), item_count)
                         } else {
                             (None, 0)
@@ -732,11 +745,16 @@ impl MenuViewer for MenuBar {
             if menu_idx < self.menu_positions.len() {
                 let menu_x = self.menu_positions[menu_idx];
                 let menu_y = self.bounds.a.y + 1;
+                let dropdown_width = self
+                    .menu_state
+                    .get_menu()
+                    .map(|m| self.compute_dropdown_width(m) as i16)
+                    .unwrap_or(0);
                 // Items start at menu_y + 1 (after top border), each is 1 row
                 return crate::core::geometry::Rect::new(
                     menu_x,
                     menu_y + 1 + item_index as i16,
-                    menu_x + 20, // Approximate width
+                    menu_x + dropdown_width,
                     menu_y + 2 + item_index as i16,
                 );
             }

@@ -306,9 +306,28 @@ impl View for MenuBox {
         buf.put_char(width - 1, '┘', normal_attr);
         write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y + y as i16, &buf);
 
+        // Leave a 1-column blank gap before the left frame and after the right frame.
+        // This matches the classic Turbo Vision look where menus are offset from shadows.
+        let mut gap_buf = DrawBuffer::new(1);
+        gap_buf.put_char(0, ' ', normal_attr);
+
+        if self.bounds.a.x > 0 {
+            let left_gap_x = self.bounds.a.x - 1;
+            for yy in self.bounds.a.y..self.bounds.b.y {
+                write_line_to_terminal(terminal, left_gap_x, yy, &gap_buf);
+            }
+        }
+
+        let right_gap_x = self.bounds.b.x;
+        for yy in self.bounds.a.y..self.bounds.b.y {
+            write_line_to_terminal(terminal, right_gap_x, yy, &gap_buf);
+        }
+
         // Draw shadow
         if self.state & SF_SHADOW != 0 {
-            self.draw_shadow(terminal);
+            let mut shadow_bounds = self.bounds;
+            shadow_bounds.b.x += 1;
+            crate::views::view::draw_shadow_bounds(terminal, shadow_bounds);
         }
     }
 
