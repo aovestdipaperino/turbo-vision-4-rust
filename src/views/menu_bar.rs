@@ -335,10 +335,17 @@ impl MenuBar {
 
                     // Draw shortcut right-aligned
                     if let Some(shortcut_text) = shortcut {
+                        let shortcut_draw_attr = if is_selected && is_enabled {
+                            selected_attr
+                        } else if !is_enabled {
+                            disabled_attr
+                        } else {
+                            shortcut_attr
+                        };
                         let shortcut_x = dropdown_width.saturating_sub(shortcut_text.len() + 1);
                         for (i, ch) in shortcut_text.chars().enumerate() {
                             if shortcut_x + i < dropdown_width - 1 {
-                                item_buf.put_char(shortcut_x + i, ch, shortcut_attr);
+                                item_buf.put_char(shortcut_x + i, ch, shortcut_draw_attr);
                             }
                         }
                     }
