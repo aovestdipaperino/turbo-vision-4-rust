@@ -30,6 +30,7 @@
 //!
 //! ```rust,no_run
 //! use turbo_vision::app::Application;
+//! use turbo_vision::views::View;
 //! use turbo_vision::core::error::Result;
 //! use turbo_vision::core::event::EventType;
 //! use turbo_vision::core::command::CM_QUIT;

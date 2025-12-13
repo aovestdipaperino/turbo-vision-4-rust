@@ -16,7 +16,7 @@
 //! Basic terminal usage:
 //!
 //! ```rust,no_run
-//! use turbo_vision::Terminal;
+//! use turbo_vision::terminal::Terminal;
 //! use turbo_vision::core::error::Result;
 //!
 //! fn main() -> Result<()> {
@@ -89,7 +89,7 @@ impl Terminal {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use turbo_vision::Terminal;
+    /// use turbo_vision::terminal::Terminal;
     /// use turbo_vision::core::error::Result;
     ///
     /// fn main() -> Result<()> {
@@ -152,7 +152,7 @@ impl Terminal {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// # use turbo_vision::Terminal;
+    /// # use turbo_vision::terminal::Terminal;
     /// # use turbo_vision::core::error::Result;
     /// # fn main() -> Result<()> {
     /// let mut terminal = Terminal::init()?;

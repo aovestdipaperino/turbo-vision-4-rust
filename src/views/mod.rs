@@ -43,12 +43,13 @@
 //! Creating a simple window with a button:
 //!
 //! ```rust,no_run
-//! use turbo_vision::views::{Window, Button};
+//! use turbo_vision::views::window::Window;
+//! use turbo_vision::views::button::Button;
 //! use turbo_vision::core::geometry::Rect;
 //! use turbo_vision::core::command::CM_OK;
 //!
 //! let mut window = Window::new(Rect::new(10, 5, 50, 15), "My Window");
-//! let button = Button::new(Rect::new(15, 5, 25, 7), "OK", CM_OK);
+//! let button = Button::new(Rect::new(15, 5, 25, 7), "OK", CM_OK, true);
 //! window.add(Box::new(button));
 //! ```
 
