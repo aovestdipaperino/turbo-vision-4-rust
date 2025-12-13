@@ -1,7 +1,7 @@
 # Turbo Vision for Rust - Design Documentation
 
-**Version:** 0.3.0
-**Last Updated:** 2025-11-05
+**Version:** 1.0.0
+**Last Updated:** 2025-12-13
 **Reference:** Borland Turbo Vision 2.0
 
 ---
@@ -23,7 +23,8 @@
 13. [Screen Dump System](#screen-dump-system)
 14. [Command Set System](#command-set-system)
 15. [Palette System](#palette-system)
-16. [Architecture Comparisons](#architecture-comparisons)
+16. [Terminal and Backend Architecture](#terminal-and-backend-architecture)
+17. [Architecture Comparisons](#architecture-comparisons)
 
 ---
 
@@ -3543,6 +3544,314 @@ The current palette system eliminates unsafe code while maintaining visual compa
 - **Maintained compatibility** with the Borland design philosophy
 
 The context-aware palette system is a pragmatic design that prioritizes safety and simplicity while providing the flexibility needed for real-world Turbo Vision applications. The three context types (None, Window, Dialog) cover all standard use cases, and the comprehensive test suite ensures ongoing correctness.
+
+---
+
+# Terminal and Backend Architecture
+
+## Overview
+
+The Terminal module provides the interface between turbo-vision and the physical (or virtual) terminal. In version 1.0, a major architectural change introduced the **Backend trait** to abstract low-level I/O operations, enabling turbo-vision applications to run over different transport mechanisms.
+
+## Architecture Diagram
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                       Application                            │
+│    (Event loop, Desktop, Views, Dialogs)                    │
+└────────────────────────────┬────────────────────────────────┘
+                             │
+                             ▼
+┌─────────────────────────────────────────────────────────────┐
+│                        Terminal                              │
+│  High-level concerns:                                        │
+│  • Double-buffered rendering                                 │
+│  • Differential screen updates                               │
+│  • Clipping region management                                │
+│  • Event queuing (put_event/poll_event)                     │
+│  • Screen dump support (F12/Shift+F12)                      │
+│  • ESC sequence tracking (macOS Alt emulation)              │
+└────────────────────────────┬────────────────────────────────┘
+                             │
+                             ▼
+┌─────────────────────────────────────────────────────────────┐
+│                     Backend Trait                            │
+│  Low-level I/O abstraction:                                  │
+│  • init() / cleanup() - Terminal mode management            │
+│  • size() - Query dimensions                                 │
+│  • poll_event() - Input handling                             │
+│  • write_raw() / flush() - Output                            │
+│  • show_cursor() / hide_cursor()                             │
+│  • capabilities() - Feature detection                        │
+└─────────────┬──────────────────────────────┬────────────────┘
+              │                              │
+              ▼                              ▼
+┌─────────────────────────┐    ┌─────────────────────────────┐
+│   CrosstermBackend      │    │       SshBackend            │
+│   (Local terminal)      │    │   (SSH channel)             │
+├─────────────────────────┤    ├─────────────────────────────┤
+│ • Uses crossterm crate  │    │ • Channel-based I/O         │
+│ • Direct stdout access  │    │ • InputParser for events    │
+│ • Full feature support  │    │ • Async/sync bridge         │
+│ • ESC sequence tracking │    │ • Shared size state         │
+└─────────────────────────┘    └─────────────────────────────┘
+```
+
+## The Backend Trait
+
+The `Backend` trait (`src/terminal/backend.rs`) defines the contract for terminal I/O:
+
+```rust
+pub trait Backend: Send {
+    // Lifecycle
+    fn init(&mut self) -> io::Result<()>;
+    fn cleanup(&mut self) -> io::Result<()>;
+    fn suspend(&mut self) -> io::Result<()>;
+    fn resume(&mut self) -> io::Result<()>;
+
+    // Dimensions
+    fn size(&self) -> io::Result<(u16, u16)>;
+
+    // Input
+    fn poll_event(&mut self, timeout: Duration) -> io::Result<Option<Event>>;
+
+    // Output
+    fn write_raw(&mut self, data: &[u8]) -> io::Result<()>;
+    fn flush(&mut self) -> io::Result<()>;
+
+    // Cursor
+    fn show_cursor(&mut self, x: u16, y: u16) -> io::Result<()>;
+    fn hide_cursor(&mut self) -> io::Result<()>;
+
+    // Capabilities
+    fn capabilities(&self) -> Capabilities;
+    fn cell_aspect_ratio(&self) -> (i16, i16);
+    fn bell(&mut self) -> io::Result<()>;
+    fn clear_screen(&mut self) -> io::Result<()>;
+}
+```
+
+### Key Design Decisions
+
+1. **`Send` bound**: Backends must be `Send` to support multi-threaded scenarios (e.g., SSH server with connection pools).
+
+2. **Synchronous interface**: Despite SSH being async, the Backend trait is synchronous. The SshBackend uses channels to bridge async SSH handlers with the synchronous TUI event loop.
+
+3. **Capabilities struct**: Allows backends to advertise what they support (mouse, colors, etc.), enabling graceful degradation.
+
+4. **Default implementations**: Methods like `bell()`, `clear_screen()`, `suspend()`, and `resume()` have sensible defaults using ANSI escape sequences.
+
+## Available Backends
+
+### CrosstermBackend (Default)
+
+Used for local terminal applications. Uses the crossterm crate for cross-platform terminal control.
+
+```rust
+use turbo_vision::terminal::Terminal;
+
+// Default: uses CrosstermBackend automatically
+let terminal = Terminal::init()?;
+```
+
+**Features:**
+- Full keyboard support with modifiers
+- Mouse events (click, drag, scroll, double-click)
+- Terminal resize detection
+- ESC sequence tracking for macOS Alt emulation
+- True color support
+- Cell aspect ratio detection for proper shadow rendering
+
+### SshBackend (Feature: `ssh`)
+
+Enables serving turbo-vision applications over SSH connections.
+
+```rust
+use turbo_vision::terminal::{Terminal, SshSessionBuilder};
+
+// SSH handler creates a session
+let (backend, handle) = SshSessionBuilder::new()
+    .size(width, height)
+    .build();
+
+// TUI runs with the backend
+let terminal = Terminal::with_backend(Box::new(backend))?;
+
+// SSH handler uses the handle to communicate
+handle.process_input(&data);
+let output = handle.try_recv_output();
+```
+
+**Architecture:**
+```
+┌──────────────────┐          ┌──────────────────┐
+│   SSH Handler    │          │   SshBackend     │
+│   (async)        │          │   (sync)         │
+├──────────────────┤          ├──────────────────┤
+│                  │  events  │                  │
+│  InputParser ────┼─────────▶│  event_rx        │
+│                  │          │                  │
+│                  │  output  │                  │
+│  SSH channel ◀───┼──────────┤  output_tx       │
+│                  │          │                  │
+│  PTY size ───────┼─────────▶│  size (shared)   │
+└──────────────────┘          └──────────────────┘
+```
+
+**Key Components:**
+- **InputParser**: Converts raw SSH input bytes into turbo-vision Events
+- **Channels**: mpsc channels bridge async SSH with sync TUI
+- **Shared size**: `Arc<Mutex<(u16, u16)>>` for resize handling
+
+## Paths Not Taken
+
+During the design of the Backend abstraction, several alternative approaches were considered and rejected:
+
+### Alternative 1: Async Backend Trait
+
+**Considered:** Making the Backend trait fully async with `async fn poll_event()`.
+
+**Rejected because:**
+- Turbo-vision's event loop is inherently synchronous (matches Borland's design)
+- Would require async runtime throughout the codebase
+- Adds complexity for the common case (local terminal)
+- The sync-to-async bridge via channels works well for SSH
+
+### Alternative 2: Generic Terminal<B: Backend>
+
+**Considered:** Making Terminal generic over its backend type.
+
+```rust
+// Rejected approach
+pub struct Terminal<B: Backend> {
+    backend: B,
+    // ...
+}
+```
+
+**Rejected because:**
+- Forces generic parameters to propagate through Application, Desktop, etc.
+- Makes dynamic backend selection (runtime choice) difficult
+- Increases compile times due to monomorphization
+- `Box<dyn Backend>` provides the flexibility needed with minimal overhead
+
+### Alternative 3: Callback-based I/O
+
+**Considered:** Using closures for read/write operations.
+
+```rust
+// Rejected approach
+pub struct Terminal {
+    read_fn: Box<dyn Fn() -> Event>,
+    write_fn: Box<dyn Fn(&[u8])>,
+}
+```
+
+**Rejected because:**
+- Less structured than a trait
+- Harder to add new operations
+- No capability negotiation
+- No lifecycle management (init/cleanup)
+
+### Alternative 4: Platform-specific Implementations
+
+**Considered:** Separate Terminal implementations per platform (local, SSH, etc.).
+
+**Rejected because:**
+- Code duplication for high-level logic (buffering, clipping, etc.)
+- The Backend trait cleanly separates concerns
+- Terminal's ~500 lines of buffer management shouldn't be duplicated
+
+### Alternative 5: Event Callback Registration
+
+**Considered:** Backend registers callbacks for events instead of polling.
+
+```rust
+// Rejected approach
+backend.on_key(|key| { ... });
+backend.on_mouse(|mouse| { ... });
+```
+
+**Rejected because:**
+- Doesn't match turbo-vision's poll-based event model
+- Complicates event re-queuing (`put_event`)
+- Makes timeout handling awkward
+
+## Terminal Changes Summary
+
+The refactoring from direct crossterm usage to the Backend abstraction involved:
+
+1. **Extracted I/O operations** from Terminal into Backend trait
+2. **Created CrosstermBackend** containing original crossterm logic
+3. **Added `Terminal::with_backend()`** for custom backend injection
+4. **Moved ESC tracking** to CrosstermBackend (not needed for SSH)
+5. **Changed `flush()`** to use backend instead of direct stdout
+6. **Added Capabilities** for feature detection
+
+**Before (v0.10.x):**
+```rust
+impl Terminal {
+    pub fn init() -> Result<Self> {
+        terminal::enable_raw_mode()?;
+        execute!(stdout(), EnterAlternateScreen, ...)?;
+        // ... directly used crossterm
+    }
+
+    pub fn flush(&mut self) -> io::Result<()> {
+        // ... wrote directly to stdout
+        stdout().flush()
+    }
+}
+```
+
+**After (v1.0):**
+```rust
+impl Terminal {
+    pub fn init() -> Result<Self> {
+        let backend = CrosstermBackend::new()?;
+        Self::with_backend(Box::new(backend))
+    }
+
+    pub fn with_backend(mut backend: Box<dyn Backend>) -> Result<Self> {
+        backend.init()?;
+        // ... Terminal just coordinates, backend does I/O
+    }
+
+    pub fn flush(&mut self) -> io::Result<()> {
+        // ... builds output buffer
+        self.backend.write_raw(&output)?;
+        self.backend.flush()
+    }
+}
+```
+
+## SSH Integration
+
+The SSH feature (`--features ssh`) enables serving TUI apps over SSH:
+
+```rust
+// Example: SSH TUI server
+use turbo_vision::ssh::{SshServer, SshServerConfig};
+
+let config = SshServerConfig::new()
+    .bind_addr("0.0.0.0:2222")
+    .load_or_generate_key("ssh_host_key");
+
+let server = SshServer::new(config, || {
+    Box::new(|backend: Box<dyn Backend>| {
+        let terminal = Terminal::with_backend(backend).unwrap();
+        run_tui_app(terminal);
+    })
+});
+
+server.run().await?;
+```
+
+**Key architectural points:**
+- SSH server is async (uses tokio + russh)
+- TUI runs in a blocking thread per connection
+- Backend channels bridge the async/sync boundary
+- Each connection gets its own Terminal instance
 
 ---
 
