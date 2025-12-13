@@ -286,7 +286,7 @@ impl View for MenuBox {
                     }
 
                     // Draw submenu arrow
-                    buf.put_char(width - 2, '►', color);
+                    buf.put_char(width - 2, '▶', color);
 
                     // Right border
                     buf.put_char(width - 1, '│', normal_attr);

@@ -362,7 +362,7 @@ impl MenuBar {
                     }
 
                     // Draw arrow
-                    item_buf.put_char(dropdown_width - 3, '►', attr);
+                    item_buf.put_char(dropdown_width - 3, '▶', attr);
                     item_buf.put_char(dropdown_width - 1, '│', normal_attr);
                 }
             }
