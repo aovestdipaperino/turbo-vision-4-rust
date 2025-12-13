@@ -28,3 +28,4 @@ sync-fork.ps1
 .DS_Store
 Thumbs.db
 calc.log
+ssh_host_key

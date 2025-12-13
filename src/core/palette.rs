@@ -100,6 +100,14 @@ pub enum TvColor {
 }
 
 impl TvColor {
+    /// Converts TvColor to ANSI 256-color code.
+    ///
+    /// The first 16 colors in the ANSI 256-color palette match the
+    /// standard 16-color palette, so we can directly use the enum value.
+    pub fn to_ansi_code(self) -> u8 {
+        self as u8
+    }
+
     /// Converts TvColor to crossterm Color with RGB values
     pub fn to_crossterm(self) -> Color {
         match self {
