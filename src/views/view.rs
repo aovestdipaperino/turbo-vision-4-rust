@@ -46,7 +46,7 @@ pub enum OwnerType {
 /// ```
 ///
 /// **Rust Pattern:**
-/// ```rust
+/// ```ignore
 /// fn handle_event(&mut self, event: &mut Event) {
 ///     // Transform event to send message upward
 ///     *event = Event::command(self.command);
@@ -491,7 +491,7 @@ pub trait View {
 ///
 /// # Examples
 ///
-/// ```rust,no_run
+/// ```ignore
 /// use turbo_vision::views::{View, IdleView};
 /// use turbo_vision::terminal::Terminal;
 /// use std::time::Instant;

@@ -24,7 +24,7 @@
 //! Basic terminal usage:
 //!
 //! ```rust,no_run
-//! use turbo_vision::Terminal;
+//! use turbo_vision::terminal::Terminal;
 //! use turbo_vision::core::error::Result;
 //!
 //! fn main() -> Result<()> {
@@ -118,7 +118,7 @@ impl Terminal {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use turbo_vision::Terminal;
+    /// use turbo_vision::terminal::Terminal;
     /// use turbo_vision::core::error::Result;
     ///
     /// fn main() -> Result<()> {
@@ -192,6 +192,19 @@ impl Terminal {
     ///
     /// Returns an error if terminal restoration fails. In most cases, the
     /// terminal will still be usable even if an error occurs.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// # use turbo_vision::terminal::Terminal;
+    /// # use turbo_vision::core::error::Result;
+    /// # fn main() -> Result<()> {
+    /// let mut terminal = Terminal::init()?;
+    /// // Use terminal...
+    /// terminal.shutdown()?;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn shutdown(&mut self) -> Result<()> {
         self.backend.cleanup()?;
         Ok(())

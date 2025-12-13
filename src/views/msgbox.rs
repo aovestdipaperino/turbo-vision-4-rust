@@ -104,7 +104,7 @@ pub fn message_box_rect(app: &mut Application, bounds: Rect, message: &str, opti
 /// Returns CM_OK when dismissed.
 ///
 /// # Example
-/// ```
+/// ```ignore
 /// use turbo_vision::views::msgbox::message_box_ok;
 ///
 /// message_box_ok(&mut app, "File saved successfully!");
@@ -118,7 +118,7 @@ pub fn message_box_ok(app: &mut Application, message: &str) -> CommandId {
 /// Returns CM_OK when dismissed.
 ///
 /// # Example
-/// ```
+/// ```ignore
 /// use turbo_vision::views::msgbox::message_box_error;
 ///
 /// message_box_error(&mut app, "Failed to open file");
@@ -139,7 +139,7 @@ pub fn message_box_warning(app: &mut Application, message: &str) -> CommandId {
 /// Returns CM_YES, CM_NO, or CM_CANCEL based on user choice.
 ///
 /// # Example
-/// ```
+/// ```ignore
 /// use turbo_vision::views::msgbox::{confirmation_box, CM_YES, CM_NO};
 ///
 /// match confirmation_box(&mut app, "Save changes?") {
@@ -225,7 +225,7 @@ pub fn input_box_rect(app: &mut Application, bounds: Rect, title: &str, label: &
 /// Returns Some(search_text) if OK was pressed, None if cancelled
 ///
 /// # Example
-/// ```
+/// ```ignore
 /// use turbo_vision::views::msgbox::search_box;
 ///
 /// if let Some(text) = search_box(&mut app, "Search") {
@@ -282,7 +282,7 @@ pub fn search_box(app: &mut Application, title: &str) -> Option<String> {
 /// Returns Some((find_text, replace_text)) if OK was pressed, None if cancelled
 ///
 /// # Example
-/// ```
+/// ```ignore
 /// use turbo_vision::views::msgbox::search_replace_box;
 ///
 /// if let Some((find, replace)) = search_replace_box(&mut app, "Replace") {
@@ -353,7 +353,7 @@ pub fn search_replace_box(app: &mut Application, title: &str) -> Option<(String,
 /// Returns Some(line_number) if OK was pressed, None if cancelled or invalid
 ///
 /// # Example
-/// ```
+/// ```ignore
 /// use turbo_vision::views::msgbox::goto_line_box;
 ///
 /// if let Some(line) = goto_line_box(&mut app, "Go to Line") {

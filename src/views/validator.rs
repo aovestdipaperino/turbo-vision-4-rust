@@ -74,6 +74,7 @@ pub trait Validator {
 ///
 /// Example:
 /// ```
+/// use turbo_vision::views::validator::{FilterValidator, Validator};
 /// let validator = FilterValidator::new("0123456789"); // Only digits
 /// assert!(validator.is_valid("123"));
 /// assert!(!validator.is_valid("12a3"));
@@ -126,6 +127,7 @@ impl Validator for FilterValidator {
 ///
 /// Example:
 /// ```
+/// use turbo_vision::views::validator::{RangeValidator, Validator};
 /// let validator = RangeValidator::new(0, 100); // 0 to 100
 /// assert!(validator.is_valid("50"));
 /// assert!(!validator.is_valid("150"));

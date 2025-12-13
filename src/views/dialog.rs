@@ -133,6 +133,11 @@ impl Dialog {
         // Matches Borland: TView::locate() constrains position to owner bounds
         self.window.constrain_to_limits();
 
+        // Set initial focus to the first focusable child
+        // Matches Borland: TView::setState(sfVisible) calls owner->resetCurrent()
+        // which selects the first visible, selectable child when views are added
+        self.set_initial_focus();
+
         // Event loop matching Borland's TGroup::execute() (tgroup.cc:182-195)
         // IMPORTANT: We can't just delegate to window.execute() because that would
         // call Group::handle_event(), but we need Dialog::handle_event() to be called
