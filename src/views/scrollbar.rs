@@ -31,8 +31,8 @@ pub const VSCROLL_CHARS: [char; 5] = [
 /// Scroll bar characters for horizontal scrollbar
 pub const HSCROLL_CHARS: [char; 5] = [
     '█', // Indicator
-    '◄', // Left arrow
-    '►', // Right arrow
+    '◀', // Left arrow
+    '▶', // Right arrow
     '░', // Page left area
     '░', // Page right area
 ];
