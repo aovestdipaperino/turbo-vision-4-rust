@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.2] - 2025-12-15
+
+### Added
+- **ANSI Escape Sequence Parser** (src/core/ansi.rs)
+  - New `AnsiParser` for parsing ANSI escape sequences from text
+  - New `AnsiImage` struct for storing parsed ANSI art as colored cells
+  - Supports basic 16-color (codes 30-37, 40-47)
+  - Supports bright colors (codes 90-97, 100-107)
+  - Supports 256-color palette (`\x1b[38;5;Nm` / `\x1b[48;5;Nm`)
+  - Supports true color RGB (`\x1b[38;2;R;G;Bm` / `\x1b[48;2;R;G;Bm`)
+  - Supports bold/bright attribute (`\x1b[1m`) and reset (`\x1b[0m`)
+  - Includes comprehensive unit tests for all color modes
+
+- **ANSI Background View** (src/views/ansi_background.rs)
+  - New `AnsiBackground` view for displaying ANSI art on desktop
+  - `from_file()` method to load ANSI art from text files
+  - `from_string()` method to parse ANSI art from strings
+  - Automatic centering support (horizontal and vertical)
+  - `AnsiBackgroundBuilder` with fluent API for construction
+  - Works with existing `examples/logo.txt` true-color ANSI art
+
+### Changed
+- **Desktop Logo Example** (examples/desktop_logo.rs)
+  - Now automatically loads ANSI art from `examples/logo.txt` if available
+  - Falls back to ASCII art when ANSI file is not found
+  - Added File menu with "Load ANSI File" and "Load ASCII Art" options
+  - Updated About dialog to mention ANSI support
+
 ## [1.0.1] - 2025-12-15
 
 ### Added

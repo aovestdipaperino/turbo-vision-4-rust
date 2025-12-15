@@ -105,6 +105,7 @@ pub mod help_index;
 pub mod help_toc;
 pub mod color_selector;
 pub mod color_dialog;
+pub mod ansi_background;
 
 #[doc(inline)]
 pub use view::{View, ViewId, IdleView};
