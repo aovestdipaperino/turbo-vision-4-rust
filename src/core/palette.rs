@@ -102,10 +102,31 @@ pub enum TvColor {
 impl TvColor {
     /// Converts TvColor to ANSI 256-color code.
     ///
-    /// The first 16 colors in the ANSI 256-color palette match the
-    /// standard 16-color palette, so we can directly use the enum value.
+    /// Turbo Vision uses CGA/DOS color ordering which differs from ANSI:
+    /// - TV: 0=Black, 1=Blue, 2=Green, 3=Cyan, 4=Red, 5=Magenta, 6=Brown, 7=LightGray
+    /// - ANSI: 0=Black, 1=Red, 2=Green, 3=Yellow, 4=Blue, 5=Magenta, 6=Cyan, 7=White
+    ///
+    /// This method maps from TV color indices to ANSI color codes.
     pub fn to_ansi_code(self) -> u8 {
-        self as u8
+        // Map Turbo Vision color order to ANSI color order
+        match self {
+            TvColor::Black => 0,
+            TvColor::Blue => 4,        // TV 1 -> ANSI 4
+            TvColor::Green => 2,
+            TvColor::Cyan => 6,        // TV 3 -> ANSI 6
+            TvColor::Red => 1,         // TV 4 -> ANSI 1
+            TvColor::Magenta => 5,
+            TvColor::Brown => 3,       // TV 6 -> ANSI 3 (yellow/brown)
+            TvColor::LightGray => 7,
+            TvColor::DarkGray => 8,
+            TvColor::LightBlue => 12,  // TV 9 -> ANSI 12
+            TvColor::LightGreen => 10,
+            TvColor::LightCyan => 14,  // TV 11 -> ANSI 14
+            TvColor::LightRed => 9,    // TV 12 -> ANSI 9
+            TvColor::LightMagenta => 13,
+            TvColor::Yellow => 11,     // TV 14 -> ANSI 11
+            TvColor::White => 15,
+        }
     }
 
     /// Converts TvColor to crossterm Color with RGB values

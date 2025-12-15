@@ -235,6 +235,8 @@ pub trait Backend: Send {
     ///
     /// Returns an error if the clear fails.
     fn clear_screen(&mut self) -> io::Result<()> {
+        // Reset colors first to prevent color bleed
+        self.write_raw(b"\x1b[0m")?;
         self.write_raw(b"\x1b[2J")?;
         self.write_raw(b"\x1b[H")?;
         self.flush()

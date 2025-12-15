@@ -244,7 +244,8 @@ impl Backend for SshBackend {
     }
 
     fn clear_screen(&mut self) -> io::Result<()> {
-        self.output_buffer.extend_from_slice(b"\x1b[2J\x1b[H");
+        // Reset colors first to prevent color bleed
+        self.output_buffer.extend_from_slice(b"\x1b[0m\x1b[2J\x1b[H");
         self.send_output()
     }
 }

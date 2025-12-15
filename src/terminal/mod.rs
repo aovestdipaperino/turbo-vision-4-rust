@@ -464,10 +464,10 @@ impl Terminal {
                 // Move cursor: ESC[row;colH (1-indexed)
                 write!(output, "\x1b[{};{}H", y + 1, start_x + 1)?;
 
-                // Set colors: ESC[38;5;fg;48;5;bgm
-                let fg = current_attr.fg.to_ansi_code();
-                let bg = current_attr.bg.to_ansi_code();
-                write!(output, "\x1b[38;5;{};48;5;{}m", fg, bg)?;
+                // Set colors using true color (RGB) for accurate CGA colors
+                let (fg_r, fg_g, fg_b) = current_attr.fg.to_rgb();
+                let (bg_r, bg_g, bg_b) = current_attr.bg.to_rgb();
+                write!(output, "\x1b[38;2;{};{};{};48;2;{};{};{}m", fg_r, fg_g, fg_b, bg_r, bg_g, bg_b)?;
 
                 // Write the changed characters
                 for i in start_x..x {
