@@ -1,5 +1,6 @@
 /target
 /local-only
+/cache
 Cargo.lock
 CLAUDE.md
 
