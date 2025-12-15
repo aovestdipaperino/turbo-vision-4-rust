@@ -151,6 +151,11 @@ impl View for Button {
                     let window_palette = Palette::from_slice(palettes::CP_BLUE_WINDOW);
                     window_palette.get(1)
                 }
+                super::view::OwnerType::CyanWindow => {
+                    // Cyan Window: palette[1] = 16 → app[16] = 0x37 (White on Cyan)
+                    let window_palette = Palette::from_slice(palettes::CP_CYAN_WINDOW);
+                    window_palette.get(1)
+                }
                 super::view::OwnerType::Dialog => {
                     // Dialog: palette[1] = 32 → app[32] = 0x70 (Black on LightGray)
                     let dialog_palette = Palette::from_slice(palettes::CP_GRAY_DIALOG);

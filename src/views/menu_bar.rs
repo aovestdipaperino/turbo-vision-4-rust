@@ -18,7 +18,7 @@ use crate::core::command_set;
 use crate::core::draw::DrawBuffer;
 use crate::core::event::{
     Event, EventType, KB_ALT_A, KB_ALT_B, KB_ALT_C, KB_ALT_D, KB_ALT_E, KB_ALT_F, KB_ALT_G, KB_ALT_H, KB_ALT_I, KB_ALT_J, KB_ALT_K, KB_ALT_L, KB_ALT_M, KB_ALT_N, KB_ALT_O, KB_ALT_P, KB_ALT_Q,
-    KB_ALT_R, KB_ALT_S, KB_ALT_T, KB_ALT_U, KB_ALT_V, KB_ALT_W, KB_ALT_X, KB_ALT_Y, KB_ALT_Z, KB_ENTER, KB_ESC, KB_ESC_ESC, KB_F1, KB_F10, KB_LEFT, KB_RIGHT, KeyCode, MB_LEFT_BUTTON,
+    KB_ALT_R, KB_ALT_S, KB_ALT_T, KB_ALT_U, KB_ALT_V, KB_ALT_W, KB_ALT_X, KB_ALT_Y, KB_ALT_Z, KB_ENTER, KB_ESC, KB_ESC_ESC, KB_F10, KB_LEFT, KB_RIGHT, KeyCode, MB_LEFT_BUTTON,
 };
 use crate::core::geometry::{Point, Rect};
 use crate::core::menu_data::{Menu, MenuItem};
@@ -612,10 +612,10 @@ impl View for MenuBar {
             EventType::Keyboard => {
                 // Hot keys to open specific menus
                 if self.active_menu_idx.is_none() {
-                    // Special case: F10 always opens first menu, F1 always opens last (Help)
+                    // Special case: F10 always opens first menu
+                    // Note: F1 is reserved for context-sensitive help (handled by Application)
                     let menu_to_open = match event.key_code {
                         KB_F10 if !self.submenus.is_empty() => Some(0),
-                        KB_F1 if !self.submenus.is_empty() => Some(self.submenus.len() - 1),
                         _ => {
                             // Dynamically match Alt+Letter based on ~X~ hotkeys in menu names
                             // This extracts the hotkey character from menu names like "~F~ile", "~W~indow", etc.

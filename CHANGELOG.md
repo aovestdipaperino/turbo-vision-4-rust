@@ -5,6 +5,55 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2025-12-15
+
+### Added
+- **F1 Help System for rust_editor** (demo/rust_editor.rs)
+  - F1 key now opens the Help window with context-sensitive help
+  - Help file located at demo/help/rust_editor.md with comprehensive documentation
+  - Covers File Menu, Edit Menu, Search Menu, Window Menu operations
+  - Includes keyboard shortcuts reference and navigation instructions
+
+- **CyanWindow Owner Type for Palette Remapping** (src/views/view.rs, src/views/window.rs)
+  - Added `OwnerType::CyanWindow` enum variant for proper cyan window palette handling
+  - Views inside cyan windows (like HelpWindow) now correctly use CP_CYAN_WINDOW colors
+  - Updated `map_color()` to remap through cyan window palette
+  - Updated `Window::add()` to set CyanWindow owner type for cyan palette windows
+
+- **Backspace Navigation in Help Window** (src/views/help_window.rs)
+  - Backspace key now navigates back in help history (alternative to Alt+F1)
+  - More intuitive navigation for users accustomed to browser-style back navigation
+
+- **HelpWindow Modal State Support** (src/views/help_window.rs, src/app/application.rs)
+  - Added `get_end_state()` and `set_end_state()` to HelpWindow for proper modal execution
+  - SF_MODAL flag now correctly set on HelpWindow in `show_help_topic()`
+  - Modal help windows properly block until closed
+
+### Fixed
+- **Help Window Content Positioning** (src/views/help_window.rs)
+  - Fixed HelpViewer bounds calculation in `set_bounds()` to use absolute coordinates
+  - Content no longer appears offset or cut off when help window is displayed
+
+- **Help Text Cyan Background Color** (src/core/palette.rs, src/views/button.rs)
+  - Help viewer now correctly displays with cyan background (classic Borland style)
+  - Fixed palette chain to properly remap through CP_CYAN_WINDOW
+  - Added CyanWindow handling in button.rs for shadow color calculation
+
+- **Exit Command During Modal Help Window** (src/app/application.rs)
+  - Alt+X (quit) now works even when modal help window is open
+  - Added `self.running` check in `exec_view()` modal loop to respect application quit
+
+### Changed
+- **Help Text Foreground Color** (src/core/palette.rs)
+  - Changed normal help text from light gray (0x37) to black (0x30) on cyan
+  - Improves readability on modern terminals where light gray on cyan has poor contrast
+  - Comment added explaining deviation from Borland's original palette
+
+- **CP_HELP_VIEWER Palette** (src/core/palette.rs)
+  - Extended from 3 to 6 color entries for rich text support
+  - Indices now properly remap through CP_CYAN_WINDOW palette chain
+  - Supports normal text, links, selected links, bold, italic, and code styles
+
 ## [0.10.4] - 2025-11-13
 
 ### Fixed

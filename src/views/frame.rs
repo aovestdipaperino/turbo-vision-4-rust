@@ -29,8 +29,9 @@ pub struct Frame {
 /// Matches Borland's palette hierarchy (cpDialog, cpBlueWindow, etc.)
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FramePaletteType {
-    Dialog,    // Uses cpDialog palette (LightGreen close button)
-    Editor,    // Uses cpBlueWindow/cpCyanWindow palette (different colors)
+    Dialog,     // Uses cpDialog palette (LightGreen close button)
+    Editor,     // Uses cpBlueWindow palette (blue window)
+    HelpWindow, // Uses cpCyanWindow palette (cyan help window)
 }
 
 impl Frame {
@@ -266,6 +267,7 @@ impl View for Frame {
         match self.palette_type {
             FramePaletteType::Dialog => Some(Palette::from_slice(palettes::CP_GRAY_DIALOG)),
             FramePaletteType::Editor => Some(Palette::from_slice(palettes::CP_BLUE_WINDOW)),
+            FramePaletteType::HelpWindow => Some(Palette::from_slice(palettes::CP_CYAN_WINDOW)),
         }
     }
 }

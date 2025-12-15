@@ -8,7 +8,7 @@
 // A window containing a HelpViewer with navigation and topic selection.
 
 use crate::core::geometry::Rect;
-use crate::core::event::{Event, EventType, KB_ESC};
+use crate::core::event::{Event, EventType, KB_ALT_F1, KB_BACKSPACE, KB_ENTER, KB_ESC, MB_LEFT_BUTTON};
 use crate::core::state::StateFlags;
 use crate::core::command::{CM_CANCEL, CommandId};
 use crate::terminal::Terminal;
@@ -80,9 +80,10 @@ pub struct HelpWindow {
 impl HelpWindow {
     /// Create a new help window
     ///
-    /// Matches Borland: THelpWindow constructor creates TWindow and inserts THelp Viewer as child
+    /// Matches Borland: THelpWindow constructor creates TWindow and inserts THelpViewer as child
+    /// Uses cyan window palette (cHelpWindow) for the classic help window appearance
     pub fn new(bounds: Rect, title: &str, help_file: Rc<RefCell<HelpFile>>) -> Self {
-        let mut window = Window::new(bounds, title);
+        let mut window = Window::new_for_help(bounds, title);
 
         // Viewer fills the window interior
         let viewer_bounds = Rect::new(1, 1, bounds.width() - 2, bounds.height() - 2);
@@ -238,8 +239,14 @@ impl View for HelpWindow {
 
     fn set_bounds(&mut self, bounds: Rect) {
         self.window.set_bounds(bounds);
-        // Update viewer bounds to match window interior
-        let viewer_bounds = Rect::new(1, 1, bounds.width() - 2, bounds.height() - 2);
+        // Update viewer bounds to match window interior (ABSOLUTE coordinates)
+        // The viewer needs absolute screen coordinates, not relative to window
+        let viewer_bounds = Rect::new(
+            bounds.a.x + 1,
+            bounds.a.y + 1,
+            bounds.b.x - 1,
+            bounds.b.y - 1,
+        );
         self.viewer.borrow_mut().set_bounds(viewer_bounds);
     }
 
@@ -249,11 +256,50 @@ impl View for HelpWindow {
     }
 
     fn handle_event(&mut self, event: &mut Event) {
-        // ESC closes the help window
-        if event.what == EventType::Keyboard && event.key_code == KB_ESC {
-            self.window.end_modal(CM_CANCEL);
-            event.clear();
-            return;
+        match event.what {
+            EventType::Keyboard => {
+                match event.key_code {
+                    KB_ESC => {
+                        // ESC closes the help window
+                        self.window.end_modal(CM_CANCEL);
+                        event.clear();
+                        return;
+                    }
+                    KB_ENTER => {
+                        // Follow selected link
+                        // Matches Borland: THelpViewer::handleEvent() kbEnter (help.cc:189-194)
+                        let target = self.viewer.borrow().get_selected_target().map(|s| s.to_string());
+                        if let Some(target) = target {
+                            self.switch_to_topic(&target);
+                            event.clear();
+                            return;
+                        }
+                    }
+                    KB_ALT_F1 | KB_BACKSPACE => {
+                        // Go back in history
+                        // Matches Borland: THelpViewer::handleEvent() kbAltF1 (help.cc:195-200)
+                        // Also supports Backspace as an intuitive alternative
+                        self.go_back();
+                        event.clear();
+                        return;
+                    }
+                    _ => {}
+                }
+            }
+            EventType::MouseDown => {
+                // Handle double-click on links to follow them
+                // Matches Borland: THelpViewer double-click behavior
+                if event.mouse.double_click && event.mouse.buttons & MB_LEFT_BUTTON != 0 {
+                    // Check if viewer has a selected link (it would have been set by single-click)
+                    let target = self.viewer.borrow().get_selected_target().map(|s| s.to_string());
+                    if let Some(target) = target {
+                        self.switch_to_topic(&target);
+                        event.clear();
+                        return;
+                    }
+                }
+            }
+            _ => {}
         }
 
         // Window handles events and dispatches to children (including viewer)
@@ -275,6 +321,14 @@ impl View for HelpWindow {
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
         self.window.get_palette()
+    }
+
+    fn get_end_state(&self) -> crate::core::command::CommandId {
+        self.window.get_end_state()
+    }
+
+    fn set_end_state(&mut self, command: crate::core::command::CommandId) {
+        self.window.set_end_state(command);
     }
 }
 

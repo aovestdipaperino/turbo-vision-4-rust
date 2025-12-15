@@ -74,6 +74,18 @@ impl Window {
         )
     }
 
+    /// Create a window for THelpWindow with cyan palette
+    /// Matches Borland: THelpWindow uses cyan help window palette (cHelpWindow)
+    pub fn new_for_help(bounds: Rect, title: &str) -> Self {
+        Self::new_with_palette(
+            bounds,
+            title,
+            super::frame::FramePaletteType::HelpWindow,
+            WindowPaletteType::Cyan,
+            true, // help windows are resizable
+        )
+    }
+
     fn new_with_palette(
         bounds: Rect,
         title: &str,
@@ -115,9 +127,10 @@ impl Window {
     }
 
     pub fn add(&mut self, mut view: Box<dyn View>) -> ViewId {
-        // Set the owner type based on whether this is a Dialog or regular Window
+        // Set the owner type based on palette type for correct color remapping
         let owner_type = match self.palette_type {
             WindowPaletteType::Dialog => super::view::OwnerType::Dialog,
+            WindowPaletteType::Cyan => super::view::OwnerType::CyanWindow,
             _ => super::view::OwnerType::Window,
         };
         view.set_owner_type(owner_type);
@@ -130,9 +143,10 @@ impl Window {
     /// Used for scrollbars and other frame-edge elements
     /// Matches Borland: TWindow is a TGroup, all children use window-relative coords
     pub fn add_frame_child(&mut self, mut view: Box<dyn View>) -> usize {
-        // Set the owner type
+        // Set the owner type based on palette type for correct color remapping
         let owner_type = match self.palette_type {
             WindowPaletteType::Dialog => super::view::OwnerType::Dialog,
+            WindowPaletteType::Cyan => super::view::OwnerType::CyanWindow,
             _ => super::view::OwnerType::Window,
         };
         view.set_owner_type(owner_type);

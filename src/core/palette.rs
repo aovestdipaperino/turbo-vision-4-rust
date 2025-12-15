@@ -524,7 +524,10 @@ pub mod palettes {
     pub const CP_APP_COLOR: &[u8] = &[
         0x71, 0x70, 0x78, 0x74, 0x20, 0x28, 0x24, 0x17, // 1-8: Desktop colors
         0x1F, 0x1A, 0x31, 0x31, 0x1E, 0x71, 0x00,       // 9-15: Menu colors
-        0x37, 0x3F, 0x3A, 0x13, 0x13, 0x3E, 0x21, 0x00, // 16-23: Cyan Window
+        // 16-23: Cyan Window
+        // Note: Index 16 changed from Borland's 0x37 (light gray on cyan) to 0x30 (black on cyan)
+        // for better readability on modern terminals where light gray on cyan has poor contrast
+        0x30, 0x3F, 0x3A, 0x13, 0x13, 0x3E, 0x21, 0x00,
         0x70, 0x7F, 0x7A, 0x13, 0x13, 0x70, 0x7F, 0x00, // 24-31: Gray Window
         0x70, 0x7F, 0x7A, 0x13, 0x13, 0x70, 0x70, 0x7F, // 32-39: Dialog (Frame, StaticText, Label, etc.)
         0x7E, 0x20, 0x2B, 0x2F, 0x78, 0x2E, 0x70, 0x30, // 40-47: Dialog (controls)
@@ -649,11 +652,18 @@ pub mod palettes {
         2, 3,  // 1-2: Normal indicator, Modified/active indicator
     ];
 
-    // Help Viewer palette (help text display)
-    // Borland: cHelpViewer = "\x06\x07\x08" (6, 7, 8)
+    // HelpViewer palette - uses cyan window colors for classic help appearance
+    // Borland: cHelpViewer used cyan window background
+    // These indices are remapped through CP_CYAN_WINDOW to get final app palette colors
+    // Extended for rich text: normal, links, selected, bold, italic, code
     #[rustfmt::skip]
     pub const CP_HELP_VIEWER: &[u8] = &[
-        6, 7, 8,  // 1-3: Normal text, Focused text, Cross-reference links
+        1,  // 1: Normal text -> CP_CYAN[0] = 16 -> 0x30 (cyan bg, black fg)
+        2,  // 2: Link/keyword text -> CP_CYAN[1] = 17 -> 0x3F (cyan bg, bright white)
+        6,  // 3: Selected link -> CP_CYAN[5] = 21 -> 0x3E (cyan bg, yellow)
+        2,  // 4: Bold text -> CP_CYAN[1] = 17 -> 0x3F (cyan bg, bright white)
+        3,  // 5: Italic text -> CP_CYAN[2] = 18 -> 0x3A (cyan bg, bright green)
+        4,  // 6: Code text -> CP_CYAN[3] = 19 -> 0x13 (blue bg, cyan fg)
     ];
 
     // Editor palette (TEditor view)

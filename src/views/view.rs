@@ -26,9 +26,10 @@ impl ViewId {
 /// Owner context for palette remapping
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum OwnerType {
-    None,   // Top-level view (Application)
-    Window, // Inside a Window
-    Dialog, // Inside a Dialog
+    None,       // Top-level view (Application)
+    Window,     // Inside a Window (blue palette)
+    CyanWindow, // Inside a Cyan Window (help windows)
+    Dialog,     // Inside a Dialog
 }
 
 /// View trait - all UI components implement this
@@ -445,6 +446,18 @@ pub trait View {
                     // Remap through blue window palette (standard TWindow)
                     let window_palette = Palette::from_slice(palettes::CP_BLUE_WINDOW);
                     // Borland behavior: Return errorAttr if index exceeds palette size
+                    if color as usize > window_palette.len() {
+                        return Attr::from_u8(ERROR_ATTR);
+                    }
+                    let remapped = window_palette.get(color as usize);
+                    if remapped == 0 {
+                        return Attr::from_u8(ERROR_ATTR);
+                    }
+                    color = remapped;
+                }
+                OwnerType::CyanWindow => {
+                    // Remap through cyan window palette (help windows)
+                    let window_palette = Palette::from_slice(palettes::CP_CYAN_WINDOW);
                     if color as usize > window_palette.len() {
                         return Attr::from_u8(ERROR_ATTR);
                     }

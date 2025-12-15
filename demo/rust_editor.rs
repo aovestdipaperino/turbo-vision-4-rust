@@ -23,7 +23,7 @@ use turbo_vision::core::command::{
     CM_REPLACE, CM_SEARCH_AGAIN, CM_GOTO_LINE,
 };
 use turbo_vision::core::command_set;
-use turbo_vision::core::event::{EventType, KB_F10};
+use turbo_vision::core::event::{EventType, KB_F1, KB_F10};
 use turbo_vision::core::geometry::Rect;
 use turbo_vision::core::menu_data::{Menu, MenuItem};
 use turbo_vision::views::file_dialog::FileDialogBuilder;
@@ -95,6 +95,21 @@ fn main() -> turbo_vision::core::error::Result<()> {
     let status_line = init_status_line(Rect::new(0, height as i16 - 1, width as i16, height as i16));
     app.set_status_line(status_line);
 
+    // Set up help file for F1 context-sensitive help
+    // Try multiple paths to find the help file
+    let help_paths = [
+        "demo/help/rust_editor.md",
+        "help/rust_editor.md",
+        "../demo/help/rust_editor.md",
+    ];
+    for path in &help_paths {
+        if std::path::Path::new(path).exists() {
+            if app.set_help_file(path).is_ok() {
+                break;
+            }
+        }
+    }
+
     // Event loop
     app.running = true;
     while app.running {
@@ -151,6 +166,14 @@ fn main() -> turbo_vision::core::error::Result<()> {
                         }
                     }
                 }
+            }
+
+            // Handle F1 for context-sensitive help BEFORE desktop
+            // This ensures F1 is intercepted before the editor window processes it
+            // Matches Borland: TProgram::getEvent() handles F1 at application level
+            if event.what == EventType::Keyboard && event.key_code == KB_F1 {
+                app.show_help();
+                event.clear();
             }
 
             // Desktop (including editor window) handles events

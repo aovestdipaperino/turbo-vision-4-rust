@@ -73,6 +73,7 @@ pub const KB_ALT_W: KeyCode = 0x1100;
 pub const KB_ALT_X: KeyCode = 0x2D00;
 pub const KB_ALT_Y: KeyCode = 0x1500;
 pub const KB_ALT_Z: KeyCode = 0x2C00;
+pub const KB_ALT_F1: KeyCode = 0x6800; // Alt+F1 for help history back
 pub const KB_ALT_F3: KeyCode = 0x6A00;
 
 // ESC + letter (for macOS Alt emulation)
@@ -451,7 +452,13 @@ fn crossterm_to_keycode(key: KeyEvent) -> KeyCode {
         CKC::PageDown => KB_PGDN,
         CKC::Insert => KB_INS,
         CKC::Delete => KB_DEL,
-        CKC::F(1) => KB_F1,
+        CKC::F(1) => {
+            if key.modifiers.contains(KeyModifiers::ALT) {
+                KB_ALT_F1
+            } else {
+                KB_F1
+            }
+        }
         CKC::F(2) => KB_F2,
         CKC::F(3) => {
             if key.modifiers.contains(KeyModifiers::ALT) {

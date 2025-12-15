@@ -7,10 +7,15 @@
 use crate::core::command::{CM_CANCEL, CM_CASCADE, CM_COMMAND_SET_CHANGED, CM_QUIT, CM_TILE, CommandId};
 use crate::core::command_set;
 use crate::core::error::Result;
-use crate::core::event::{Event, EventType, KB_ALT_X};
+use crate::core::event::{Event, EventType, KB_ALT_X, KB_F1};
 use crate::core::geometry::Rect;
 use crate::terminal::Terminal;
 use crate::views::{IdleView, View, desktop::Desktop, menu_bar::MenuBar, status_line::StatusLine};
+use crate::views::help_file::HelpFile;
+use crate::views::help_window::HelpWindow;
+use crate::views::help_context::HelpContext;
+use std::cell::RefCell;
+use std::rc::Rc;
 use std::time::Duration;
 
 pub struct Application {
@@ -26,6 +31,11 @@ pub struct Application {
     pub(crate) overlay_widgets: Vec<Box<dyn IdleView>>,
     // Note: Command set is now stored in thread-local static (command_set module)
     // This matches Borland's architecture where TView::curCommandSet is static
+    /// Help file for F1 context-sensitive help
+    /// Matches Borland: TProgram::helpFile (tprogram.cc)
+    help_file: Option<Rc<RefCell<HelpFile>>>,
+    /// Help context mappings (context ID to topic ID)
+    help_context: HelpContext,
 }
 
 impl Application {
@@ -78,6 +88,8 @@ impl Application {
             running: false,
             needs_redraw: true, // Initial draw needed
             overlay_widgets: Vec::new(),
+            help_file: None,
+            help_context: HelpContext::new(),
         };
 
         // Set initial Desktop bounds (adjusts for missing menu/status)
@@ -285,6 +297,13 @@ impl Application {
                 }
             }
 
+            // Check if application wants to quit (Alt+X, CM_QUIT)
+            // This allows quit to work even when modal dialogs are open
+            if !self.running {
+                self.desktop.remove_child(view_index);
+                return CM_CANCEL;
+            }
+
             // Check if the modal view wants to close
             // Matches Borland: TGroup::execute() checks endState (tgroup.cc:192)
             if view_index < self.desktop.child_count() {
@@ -456,6 +475,92 @@ impl Application {
             // Treat these as quit command
             *event = Event::command(CM_QUIT);
             self.running = false;
+        }
+
+        // Handle F1 for context-sensitive help
+        // Matches Borland: TProgram::getEvent() F1 handling (tprogram.cc:145-165)
+        if event.what == EventType::Keyboard && event.key_code == KB_F1 {
+            self.show_help();
+            event.clear();
+        }
+    }
+
+    // Help System Methods
+    // Matches Borland: TProgram help support (tprogram.cc)
+
+    /// Set the help file for F1 context-sensitive help
+    /// Matches Borland: TApplication::helpFile initialization
+    ///
+    /// # Arguments
+    /// * `path` - Path to a markdown help file
+    ///
+    /// # Returns
+    /// Result indicating success or file load error
+    ///
+    /// # Examples
+    /// ```ignore
+    /// app.set_help_file("help/manual.md")?;
+    /// ```
+    pub fn set_help_file(&mut self, path: &str) -> std::io::Result<()> {
+        let help_file = HelpFile::new(path)?;
+        self.help_file = Some(Rc::new(RefCell::new(help_file)));
+        Ok(())
+    }
+
+    /// Register a help context mapping (context ID to topic ID)
+    /// This allows views to have help_context set, and F1 will open the corresponding topic
+    ///
+    /// # Arguments
+    /// * `context_id` - Numeric context ID (assigned to views)
+    /// * `topic_id` - String topic ID in the help file (e.g., "file-open")
+    pub fn register_help_context(&mut self, context_id: u16, topic_id: &str) {
+        self.help_context.register(context_id, topic_id);
+    }
+
+    /// Show help for a specific topic
+    /// Opens the help window and displays the given topic
+    pub fn show_help_topic(&mut self, topic_id: &str) {
+        use crate::core::state::SF_MODAL;
+
+        if let Some(ref help_file) = self.help_file {
+            let (width, height) = self.terminal.size();
+            let help_width = (width * 3 / 4).max(40).min(width - 4);
+            let help_height = (height * 3 / 4).max(10).min(height - 4);
+            let x = (width - help_width) / 2;
+            let y = (height - help_height) / 2;
+
+            let bounds = Rect::new(x, y, x + help_width, y + help_height);
+            let mut help_window = HelpWindow::new(bounds, "Help", Rc::clone(help_file));
+            help_window.show_topic(topic_id);
+
+            // Set SF_MODAL flag so exec_view runs the modal loop
+            // Matches Borland: THelpWindow is displayed modally
+            let current_state = help_window.state();
+            help_window.set_state(current_state | SF_MODAL);
+
+            // Execute the help window as modal
+            self.exec_view(Box::new(help_window));
+        }
+    }
+
+    /// Show context-sensitive help
+    /// Looks up the focused view's help context and opens the appropriate topic
+    /// Matches Borland: TProgram::getEvent() F1 handling
+    pub fn show_help(&mut self) {
+        // For now, show default topic. In future, this would:
+        // 1. Get the focused view's help context
+        // 2. Look up the topic ID from help_context
+        // 3. Show that topic
+        //
+        // Since views don't have help_context field yet, we show the default topic
+        let topic_id = if let Some(ref help_file) = self.help_file {
+            help_file.borrow().get_default_topic().map(|t| t.id.clone())
+        } else {
+            None
+        };
+
+        if let Some(topic_id) = topic_id {
+            self.show_help_topic(&topic_id);
         }
     }
 

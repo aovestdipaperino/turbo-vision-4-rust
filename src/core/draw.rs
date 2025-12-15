@@ -63,6 +63,14 @@ impl DrawBuffer {
         }
     }
 
+    /// Change the attribute of a cell without changing its character
+    /// Matches Borland: TDrawBuffer::putAttribute (help.cc:109)
+    pub fn put_attribute(&mut self, pos: usize, attr: Attr) {
+        if pos < self.data.len() {
+            self.data[pos].attr = attr;
+        }
+    }
+
     /// Get the length of the buffer
     pub fn len(&self) -> usize {
         self.data.len()
