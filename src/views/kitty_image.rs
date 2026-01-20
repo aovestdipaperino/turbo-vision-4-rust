@@ -71,8 +71,8 @@ pub struct KittyImage {
     owner: Option<*const dyn View>,
     /// Z-index for layering (higher = on top)
     z_index: i32,
-    /// Last drawn position (for clearing old placements when moved)
-    last_position: Option<(i16, i16)>,
+    /// Last drawn bounds (for clearing old placements when moved/resized)
+    last_bounds: Option<Rect>,
 }
 
 impl KittyImage {
@@ -96,7 +96,7 @@ impl KittyImage {
             rows: 0,
             owner: None,
             z_index: 0,
-            last_position: None,
+            last_bounds: None,
         }
     }
 
@@ -322,13 +322,12 @@ impl View for KittyImage {
             return;
         }
 
-        let current_pos = (self.bounds.a.x, self.bounds.a.y);
-        let position_changed = self.last_position.is_none_or(|last| last != current_pos);
+        let bounds_changed = self.last_bounds.is_none_or(|last| last != self.bounds);
 
         // Only update the image placement if something changed
-        if position_changed || !self.transmitted {
-            // Delete old placements if position changed
-            if self.last_position.is_some() && position_changed {
+        if bounds_changed || !self.transmitted {
+            // Delete old placements if bounds changed (position or size)
+            if self.last_bounds.is_some() && bounds_changed {
                 let delete_seq = self.build_delete_placements_sequence();
                 let _ = terminal.write_kitty_graphics(&delete_seq);
             }
@@ -353,8 +352,8 @@ impl View for KittyImage {
             );
             let _ = terminal.write_kitty_graphics(&display_seq);
 
-            // Remember position for next draw
-            self.last_position = Some(current_pos);
+            // Remember bounds for next draw
+            self.last_bounds = Some(self.bounds);
         }
     }
 
