@@ -106,6 +106,7 @@ pub mod help_toc;
 pub mod color_selector;
 pub mod color_dialog;
 pub mod ansi_background;
+pub mod kitty_image;
 
 #[doc(inline)]
 pub use view::{View, ViewId, IdleView};

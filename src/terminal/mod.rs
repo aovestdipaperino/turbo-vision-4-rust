@@ -592,6 +592,94 @@ impl Terminal {
     pub fn capabilities(&self) -> Capabilities {
         self.backend.capabilities()
     }
+
+    /// Write raw Kitty graphics protocol data to the terminal.
+    ///
+    /// This method sends data directly to the terminal without buffering,
+    /// as Kitty graphics protocol commands need to be sent immediately
+    /// and bypass the normal double-buffered rendering.
+    ///
+    /// # Arguments
+    ///
+    /// * `data` - Raw bytes containing Kitty graphics protocol escape sequences.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if writing to the terminal fails.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// // Send a Kitty graphics command to display an image
+    /// terminal.write_kitty_graphics(b"\x1b_Ga=T,f=100;...\x1b\\")?;
+    /// ```
+    pub fn write_kitty_graphics(&mut self, data: &[u8]) -> io::Result<()> {
+        self.backend.write_raw(data)?;
+        self.backend.flush()
+    }
+
+    /// Check if the terminal supports Kitty graphics protocol.
+    ///
+    /// This is a heuristic check based on the `TERM` environment variable
+    /// and known terminal capabilities. Returns `true` for terminals known
+    /// to support Kitty graphics (kitty, wezterm, ghostty, etc.).
+    pub fn supports_kitty_graphics(&self) -> bool {
+        // Check TERM environment variable for known Kitty-compatible terminals
+        if let Ok(term) = std::env::var("TERM") {
+            let term_lower = term.to_lowercase();
+            if term_lower.contains("kitty")
+                || term_lower.contains("wezterm")
+                || term_lower.contains("ghostty")
+            {
+                return true;
+            }
+        }
+
+        // Check TERM_PROGRAM for terminals that set it
+        if let Ok(term_program) = std::env::var("TERM_PROGRAM") {
+            let prog_lower = term_program.to_lowercase();
+            if prog_lower.contains("kitty")
+                || prog_lower.contains("wezterm")
+                || prog_lower.contains("ghostty")
+            {
+                return true;
+            }
+        }
+
+        // Check for KITTY_WINDOW_ID (set by Kitty terminal)
+        if std::env::var("KITTY_WINDOW_ID").is_ok() {
+            return true;
+        }
+
+        false
+    }
+
+    /// Delete a Kitty graphics image by ID.
+    ///
+    /// Sends a command to remove a previously transmitted image from the
+    /// terminal's memory.
+    ///
+    /// # Arguments
+    ///
+    /// * `image_id` - The ID of the image to delete.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if writing to the terminal fails.
+    pub fn delete_kitty_image(&mut self, image_id: u32) -> io::Result<()> {
+        let cmd = format!("\x1b_Ga=d,d=I,i={},q=2;\x1b\\", image_id);
+        self.write_kitty_graphics(cmd.as_bytes())
+    }
+
+    /// Clear all Kitty graphics images from the terminal.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if writing to the terminal fails.
+    pub fn clear_kitty_images(&mut self) -> io::Result<()> {
+        // Delete all images: a=d,d=A (delete all)
+        self.write_kitty_graphics(b"\x1b_Ga=d,d=A,q=2;\x1b\\")
+    }
 }
 
 impl Drop for Terminal {
