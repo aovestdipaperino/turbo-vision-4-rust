@@ -421,25 +421,49 @@ pub trait View {
 
         // Step 2: Walk up the owner chain, remapping through each owner's palette.
         // Matches Borland: TView::mapColor() traverses owner->getPalette() up to TApplication.
-        // Each level's palette maps indices to the next level's indices.
-        // Views without a palette (get_palette returns None) are transparent.
-        // The chain stops when there's no owner (we've reached the root).
-        let mut current_owner = self.get_owner();
-        // Safety: owner pointers are valid for the lifetime of the view hierarchy.
-        // They are set by Group::add/Window constructor and point to parent views
-        // that outlive their children.
-        while let Some(owner_ptr) = current_owner {
-            let owner = unsafe { &*owner_ptr };
-            if let Some(palette) = owner.get_palette() {
-                if !palette.is_empty() && (color as usize) <= palette.len() {
-                    let remapped = palette.get(color as usize);
-                    if remapped == 0 {
-                        return Attr::from_u8(ERROR_ATTR);
+        // If the owner chain is available (get_owner returns Some), traverse it.
+        // Otherwise fall back to the OwnerType-based remapping for backwards compatibility
+        // with views that don't have owner pointers set.
+        if self.get_owner().is_some() {
+            // Owner chain traversal: walk get_owner() → get_palette() up to root
+            let mut current_owner = self.get_owner();
+            // Safety: owner pointers are valid for the lifetime of the view hierarchy.
+            // They are set by Group::add / Window::init_interior_owner and point to
+            // parent views that outlive their children.
+            while let Some(owner_ptr) = current_owner {
+                let owner = unsafe { &*owner_ptr };
+                if let Some(palette) = owner.get_palette() {
+                    if !palette.is_empty() && (color as usize) <= palette.len() {
+                        let remapped = palette.get(color as usize);
+                        if remapped == 0 {
+                            return Attr::from_u8(ERROR_ATTR);
+                        }
+                        color = remapped;
                     }
-                    color = remapped;
+                }
+                current_owner = owner.get_owner();
+            }
+        } else {
+            // Fallback: no owner pointer set. Use OwnerType to select a fixed palette.
+            use crate::core::palette::Palette;
+            let owner_type = self.get_owner_type();
+            if color >= 1 && color < 32 {
+                let palette_data: Option<&[u8]> = match owner_type {
+                    OwnerType::Window => Some(palettes::CP_BLUE_WINDOW),
+                    OwnerType::CyanWindow => Some(palettes::CP_CYAN_WINDOW),
+                    OwnerType::Dialog => Some(palettes::CP_GRAY_DIALOG),
+                    OwnerType::None => None,
+                };
+                if let Some(data) = palette_data {
+                    let palette = Palette::from_slice(data);
+                    if (color as usize) <= palette.len() {
+                        let remapped = palette.get(color as usize);
+                        if remapped != 0 {
+                            color = remapped;
+                        }
+                    }
                 }
             }
-            current_owner = owner.get_owner();
         }
 
         // Step 3: Resolve through application palette
