@@ -35,6 +35,10 @@ pub struct Window {
     owner: Option<*const dyn View>,
     /// Palette type (Dialog vs Editor window)
     palette_type: WindowPaletteType,
+    /// Custom palette override — if set, get_palette() returns this instead
+    /// of the built-in palette for palette_type. Enables per-window color
+    /// customization without subclassing.
+    custom_palette: Option<Vec<u8>>,
     /// Explicit drag limits (for modal dialogs not added to desktop)
     /// Used when owner is None but we still want to constrain dragging
     explicit_drag_limits: Option<Rect>,
@@ -117,14 +121,23 @@ impl Window {
             prev_bounds: None,
             owner: None,
             palette_type: window_palette,
+            custom_palette: None,
             explicit_drag_limits: None,
         };
 
-        // Set owner pointers for palette chain resolution
-        window.interior.set_owner(&window as *const _ as *const dyn View);
-        window.frame.set_owner(&window as *const _ as *const dyn View);
+        // NOTE: Do NOT set owner pointers here — the Window will move when
+        // returned from this function, stored in structs, or boxed by desktop.add().
+        // Owner pointers are set in init_interior_owner() which is called via
+        // init_after_add() once the Window is in its final heap position.
 
         window
+    }
+
+    /// Set a custom palette that overrides the built-in palette for this window.
+    /// The palette maps logical color indices (1-8) to app palette positions.
+    /// This enables per-window color customization without subclassing.
+    pub fn set_custom_palette(&mut self, palette: Vec<u8>) {
+        self.custom_palette = Some(palette);
     }
 
     pub fn add(&mut self, mut view: Box<dyn View>) -> ViewId {
@@ -387,8 +400,12 @@ impl Window {
     /// Must be called after any operation that moves the Window (adding to parent, etc.)
     /// This ensures the interior Group has a valid pointer to this Window.
     pub fn init_interior_owner(&mut self) {
-        // NOTE: We don't set interior's owner pointer to avoid unsafe casting
-        // Color palette resolution is handled without needing parent pointers
+        // Set owner pointers on Frame and interior Group to this Window.
+        // Called after the Window is in its final heap position (via init_after_add).
+        // This enables map_color() to traverse: child → Group → Window → parent.
+        let self_ptr = self as *const _ as *const dyn View;
+        self.interior.set_owner(self_ptr);
+        self.frame.set_owner(self_ptr);
     }
 }
 
@@ -702,6 +719,9 @@ impl View for Window {
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
         use crate::core::palette::{Palette, palettes};
+        if let Some(ref custom) = self.custom_palette {
+            return Some(Palette::from_slice(custom));
+        }
         match self.palette_type {
             WindowPaletteType::Blue => Some(Palette::from_slice(palettes::CP_BLUE_WINDOW)),
             WindowPaletteType::Cyan => Some(Palette::from_slice(palettes::CP_CYAN_WINDOW)),
