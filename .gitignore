@@ -30,3 +30,4 @@ sync-fork.ps1
 Thumbs.db
 calc.log
 ssh_host_key
+legacy/
