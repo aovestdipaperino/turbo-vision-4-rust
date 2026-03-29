@@ -14,11 +14,10 @@ use super::view::{View, write_line_to_terminal};
 pub struct Frame {
     bounds: Rect,
     title: String,
-    /// Palette type — retained for API compatibility. Color resolution now
-    /// traverses the owner chain (Frame → Window → App) rather than using
-    /// this field directly.
-    #[allow(dead_code)]
+    /// Palette type for color mapping (Dialog vs Editor vs other window types)
     palette_type: FramePaletteType,
+    /// Custom palette override — if set, get_palette() returns this instead
+    custom_palette: Option<Vec<u8>>,
     /// State flags (active, dragging, etc.) - matches Borland's TView state
     state: StateFlags,
     /// Whether the frame is resizable (matches Borland's wfGrow flag)
@@ -46,10 +45,16 @@ impl Frame {
             bounds,
             title: title.to_string(),
             palette_type,
+            custom_palette: None,
             state: SF_ACTIVE,  // Default to active
             resizable,
             owner: None,
         }
+    }
+
+    /// Set a custom palette that overrides the built-in palette for this frame.
+    pub fn set_custom_palette(&mut self, palette: Vec<u8>) {
+        self.custom_palette = Some(palette);
     }
 
     /// Set the frame title
@@ -265,12 +270,15 @@ impl View for Frame {
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        // The Frame is transparent in the palette chain. Its map_color calls
-        // traverse to the owner (Window), whose palette provides the mapping.
-        // This matches Borland's behavior where cpFrame maps indices to the
-        // parent Window's index space, and we achieve the same by returning
-        // None here since Frame uses the same index space as its parent.
-        None
+        use crate::core::palette::{palettes, Palette};
+        if let Some(ref custom) = self.custom_palette {
+            return Some(Palette::from_slice(custom));
+        }
+        match self.palette_type {
+            FramePaletteType::Dialog => Some(Palette::from_slice(palettes::CP_GRAY_DIALOG)),
+            FramePaletteType::Editor => Some(Palette::from_slice(palettes::CP_BLUE_WINDOW)),
+            FramePaletteType::HelpWindow => Some(Palette::from_slice(palettes::CP_CYAN_WINDOW)),
+        }
     }
 }
 

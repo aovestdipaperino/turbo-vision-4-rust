@@ -137,6 +137,10 @@ impl Window {
     /// The palette maps logical color indices (1-8) to app palette positions.
     /// This enables per-window color customization without subclassing.
     pub fn set_custom_palette(&mut self, palette: Vec<u8>) {
+        // Set on both the Window and its Frame so colors are consistent.
+        // The Frame uses its own palette directly (not through the owner chain)
+        // because it maps indices to app positions in a single step.
+        self.frame.set_custom_palette(palette.clone());
         self.custom_palette = Some(palette);
     }
 
@@ -400,12 +404,14 @@ impl Window {
     /// Must be called after any operation that moves the Window (adding to parent, etc.)
     /// This ensures the interior Group has a valid pointer to this Window.
     pub fn init_interior_owner(&mut self) {
-        // Set owner pointers on Frame and interior Group to this Window.
+        // Set owner pointer on the interior Group to this Window.
         // Called after the Window is in its final heap position (via init_after_add).
         // This enables map_color() to traverse: child → Group → Window → parent.
+        // Note: Frame is NOT included — it has its own palette (CP_BLUE_WINDOW etc.)
+        // that maps directly to app palette positions. Adding it to the chain would
+        // cause double remapping.
         let self_ptr = self as *const _ as *const dyn View;
         self.interior.set_owner(self_ptr);
-        self.frame.set_owner(self_ptr);
     }
 }
 
