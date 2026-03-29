@@ -395,9 +395,10 @@ pub trait View {
     /// # Returns
     /// The final color attribute
     fn map_color(&self, color_index: u8) -> crate::core::palette::Attr {
-        use crate::core::palette::{palettes, Attr};
+        use crate::core::palette::{palettes, Attr, Palette};
 
         // Borland's errorAttr = 0xCF (Light Red/Magenta background, White foreground)
+        // This bright color makes palette errors immediately visible
         const ERROR_ATTR: u8 = 0xCF;
 
         if color_index == 0 {
@@ -406,9 +407,10 @@ pub trait View {
 
         let mut color = color_index;
 
-        // Step 1: Remap through this view's own palette
+        // First, remap through this view's palette
         if let Some(palette) = self.get_palette() {
             if !palette.is_empty() {
+                // Borland behavior: Check bounds BEFORE remapping
                 if color as usize > palette.len() {
                     return Attr::from_u8(ERROR_ATTR);
                 }
@@ -419,64 +421,80 @@ pub trait View {
             }
         }
 
-        // Step 2: Walk up the owner chain, remapping through each owner's palette.
-        // Matches Borland: TView::mapColor() traverses owner->getPalette() up to TApplication.
-        // If the owner chain is available (get_owner returns Some), traverse it.
-        // Otherwise fall back to the OwnerType-based remapping for backwards compatibility
-        // with views that don't have owner pointers set.
-        if self.get_owner().is_some() {
-            // Owner chain traversal: walk get_owner() → get_palette() up to root
-            let mut current_owner = self.get_owner();
-            // Safety: owner pointers are valid for the lifetime of the view hierarchy.
-            // They are set by Group::add / Window::init_interior_owner and point to
-            // parent views that outlive their children.
-            while let Some(owner_ptr) = current_owner {
-                let owner = unsafe { &*owner_ptr };
-                if let Some(palette) = owner.get_palette() {
-                    if !palette.is_empty() && (color as usize) <= palette.len() {
-                        let remapped = palette.get(color as usize);
-                        if remapped == 0 {
-                            return Attr::from_u8(ERROR_ATTR);
-                        }
-                        color = remapped;
+        // NOTE: We skip the owner chain traversal to avoid unsafe pointer dereference.
+        // Instead, we apply a standard palette chain: View -> Window/Dialog -> Application
+        //
+        // Borland Turbo Vision palette layout (from program.h):
+        //    1      = TBackground
+        //    2-7    = TMenuView and TStatusLine (direct to app)
+        //    8-15   = TWindow(Blue)
+        //    16-23  = TWindow(Cyan)
+        //    24-31  = TWindow(Gray)
+        //    32-63  = TDialog (remapped through dialog palette)
+        //
+        // Apply palette remapping based on ranges
+        // This is a simplified version of Borland's owner chain traversal
+
+        // For controls in Window or Dialog (indices 1-31), remap through parent palette
+        // This includes scrollbars (4-5), static text (6), labels (7-9), buttons (10-14), etc.
+        // Note: Indices 32+ are already app palette indices and shouldn't be remapped
+        // Views with OwnerType::None (MenuBar, StatusLine, Desktop) use direct app palette
+        let owner_type = self.get_owner_type();
+        if color >= 1 && color < 32 {
+            match owner_type {
+                OwnerType::Window => {
+                    // Remap through blue window palette (standard TWindow)
+                    let window_palette = Palette::from_slice(palettes::CP_BLUE_WINDOW);
+                    // Borland behavior: Return errorAttr if index exceeds palette size
+                    if color as usize > window_palette.len() {
+                        return Attr::from_u8(ERROR_ATTR);
                     }
+                    let remapped = window_palette.get(color as usize);
+                    if remapped == 0 {
+                        return Attr::from_u8(ERROR_ATTR);
+                    }
+                    color = remapped;
                 }
-                current_owner = owner.get_owner();
-            }
-        } else {
-            // Fallback: no owner pointer set. Use OwnerType to select a fixed palette.
-            use crate::core::palette::Palette;
-            let owner_type = self.get_owner_type();
-            if color >= 1 && color < 32 {
-                let palette_data: Option<&[u8]> = match owner_type {
-                    OwnerType::Window => Some(palettes::CP_BLUE_WINDOW),
-                    OwnerType::CyanWindow => Some(palettes::CP_CYAN_WINDOW),
-                    OwnerType::Dialog => Some(palettes::CP_GRAY_DIALOG),
-                    OwnerType::None => None,
-                };
-                if let Some(data) = palette_data {
-                    let palette = Palette::from_slice(data);
-                    if (color as usize) <= palette.len() {
-                        let remapped = palette.get(color as usize);
-                        if remapped != 0 {
-                            color = remapped;
-                        }
+                OwnerType::CyanWindow => {
+                    // Remap through cyan window palette (help windows)
+                    let window_palette = Palette::from_slice(palettes::CP_CYAN_WINDOW);
+                    if color as usize > window_palette.len() {
+                        return Attr::from_u8(ERROR_ATTR);
                     }
+                    let remapped = window_palette.get(color as usize);
+                    if remapped == 0 {
+                        return Attr::from_u8(ERROR_ATTR);
+                    }
+                    color = remapped;
+                }
+                OwnerType::Dialog => {
+                    // Remap through dialog palette
+                    let dialog_palette = Palette::from_slice(palettes::CP_GRAY_DIALOG);
+                    // Borland behavior: Return errorAttr if index exceeds palette size
+                    if color as usize > dialog_palette.len() {
+                        return Attr::from_u8(ERROR_ATTR);
+                    }
+                    let remapped = dialog_palette.get(color as usize);
+                    if remapped == 0 {
+                        return Attr::from_u8(ERROR_ATTR);
+                    }
+                    color = remapped;
+                }
+                OwnerType::None => {
+                    // No remapping - use direct app palette
                 }
             }
         }
 
-        // Step 3: Resolve through application palette
+        // Reached root (Application) - color is now an index into app palette
+        // Use the application color palette to get the final attribute
         let app_palette_data = palettes::get_app_palette();
-        if (color as usize) < app_palette_data.len() {
-            let final_color = app_palette_data[color as usize];
-            if final_color == 0 {
-                return Attr::from_u8(ERROR_ATTR);
-            }
-            Attr::from_u8(final_color)
-        } else {
-            Attr::from_u8(ERROR_ATTR)
+        let app_palette = Palette::from_slice(&app_palette_data);
+        let final_color = app_palette.get(color as usize);
+        if final_color == 0 {
+            return Attr::from_u8(ERROR_ATTR);
         }
+        Attr::from_u8(final_color)
     }
 }
 

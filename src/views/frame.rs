@@ -16,12 +16,11 @@ pub struct Frame {
     title: String,
     /// Palette type for color mapping (Dialog vs Editor vs other window types)
     palette_type: FramePaletteType,
-    /// Custom palette override — if set, get_palette() returns this instead
+    /// Custom palette override — if set, get_palette() returns this instead.
     custom_palette: Option<Vec<u8>>,
     /// State flags (active, dragging, etc.) - matches Borland's TView state
     state: StateFlags,
     /// Whether the frame is resizable (matches Borland's wfGrow flag)
-    /// Resizable frames use single-line bottom corners and show resize handle
     resizable: bool,
     owner: Option<*const dyn View>,
 }
@@ -46,7 +45,7 @@ impl Frame {
             title: title.to_string(),
             palette_type,
             custom_palette: None,
-            state: SF_ACTIVE,  // Default to active
+            state: SF_ACTIVE,
             resizable,
             owner: None,
         }
