@@ -21,7 +21,7 @@
 use crate::core::geometry::Rect;
 use crate::core::event::{Event, EventType, KB_UP, KB_DOWN, KB_PGUP, KB_PGDN, KB_HOME, KB_END};
 use crate::core::draw::DrawBuffer;
-use crate::core::palette::{colors, Attr};
+use crate::core::palette::Attr;
 use crate::core::state::StateFlags;
 use crate::terminal::Terminal;
 use super::view::{View, write_line_to_terminal};
@@ -319,8 +319,8 @@ impl View for TerminalWidget {
         let visible_rows = self.get_visible_rows();
         let visible_width = self.get_visible_width();
 
-        // Use EDITOR_NORMAL for display (editor uses same color regardless of focus)
-        let default_color = colors::EDITOR_NORMAL;
+        // Terminal look: light gray text on black background
+        let default_color = Attr::new(crate::core::palette::TvColor::LightGray, crate::core::palette::TvColor::Black);
 
         // Draw visible lines
         for i in 0..visible_rows {
