@@ -225,7 +225,7 @@ impl View for TextViewer {
         self.update_scrollbars();
     }
 
-    fn draw(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) {
+    fn draw(&mut self, terminal: &mut Terminal) {
         let content_area = self.get_content_area();
         let width = content_area.width_clamped() as usize;
         let height = content_area.height_clamped() as usize;
@@ -242,7 +242,7 @@ impl View for TextViewer {
             let mut buf = DrawBuffer::new(width);
 
             // Use palette index 1 for normal text from CP_SCROLLER
-            let color = self.map_color(1, token);
+            let color = self.map_color(1);
 
             // Fill with spaces
             buf.move_char(0, ' ', color, width);
@@ -278,15 +278,15 @@ impl View for TextViewer {
 
         // Draw indicator
         if let Some(ref mut indicator) = self.indicator {
-            indicator.draw(terminal, token);
+            indicator.draw(terminal);
         }
 
         // Draw scrollbars
         if let Some(ref mut h_bar) = self.h_scrollbar {
-            h_bar.draw(terminal, token);
+            h_bar.draw(terminal);
         }
         if let Some(ref mut v_bar) = self.v_scrollbar {
-            v_bar.draw(terminal, token);
+            v_bar.draw(terminal);
         }
     }
 

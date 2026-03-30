@@ -167,12 +167,12 @@ impl MenuBar {
 
     /// Show a cascading submenu for the currently selected item
     /// Returns Some(command) if a command was selected, None if cancelled
-    pub fn check_cascading_submenu(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) -> Option<u16> {
-        self.show_cascading_submenu(terminal, token)
+    pub fn check_cascading_submenu(&mut self, terminal: &mut Terminal) -> Option<u16> {
+        self.show_cascading_submenu(terminal)
     }
 
     /// Show a cascading submenu for the currently selected item (internal)
-    fn show_cascading_submenu(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) -> Option<u16> {
+    fn show_cascading_submenu(&mut self, terminal: &mut Terminal) -> Option<u16> {
         // Get the current selected item
         let current_item = self.menu_state.get_current_item()?;
 
@@ -212,7 +212,7 @@ impl MenuBar {
 
             // Create and execute the cascading menu
             let mut menu_box = MenuBox::new(position, menu.clone());
-            let command = menu_box.execute(terminal, token);
+            let command = menu_box.execute(terminal);
 
             return Some(command);
         }
@@ -221,7 +221,7 @@ impl MenuBar {
     }
 
     /// Draw the dropdown menu
-    fn draw_dropdown(&self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken, menu_idx: usize) {
+    fn draw_dropdown(&self, terminal: &mut Terminal, menu_idx: usize) {
         if menu_idx >= self.submenus.len() || menu_idx >= self.menu_positions.len() {
             return;
         }
@@ -230,10 +230,10 @@ impl MenuBar {
         let menu_y = self.bounds.a.y + 1;
         let menu = &self.submenus[menu_idx].menu;
 
-        let normal_attr = self.map_color(MENU_NORMAL, token);
-        let selected_attr = self.map_color(MENU_SELECTED, token);
-        let disabled_attr = self.map_color(MENU_DISABLED, token);
-        let shortcut_attr = self.map_color(MENU_SHORTCUT, token);
+        let normal_attr = self.map_color(MENU_NORMAL);
+        let selected_attr = self.map_color(MENU_SELECTED);
+        let disabled_attr = self.map_color(MENU_DISABLED);
+        let shortcut_attr = self.map_color(MENU_SHORTCUT);
 
         // Calculate dropdown width
         let mut max_text_width = 12;
@@ -396,13 +396,13 @@ impl View for MenuBar {
         self.bounds = bounds;
     }
 
-    fn draw(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) {
+    fn draw(&mut self, terminal: &mut Terminal) {
         let width = self.bounds.width_clamped() as usize;
         let mut buf = DrawBuffer::new(width);
 
-        let normal_attr = self.map_color(MENU_NORMAL, token);
-        let selected_attr = self.map_color(MENU_SELECTED, token);
-        let shortcut_attr = self.map_color(MENU_SHORTCUT, token);
+        let normal_attr = self.map_color(MENU_NORMAL);
+        let selected_attr = self.map_color(MENU_SELECTED);
+        let shortcut_attr = self.map_color(MENU_SHORTCUT);
 
         buf.move_char(0, ' ', normal_attr, width);
 
@@ -446,7 +446,7 @@ impl View for MenuBar {
 
         // Draw dropdown if active
         if let Some(idx) = self.active_menu_idx {
-            self.draw_dropdown(terminal, token, idx);
+            self.draw_dropdown(terminal, idx);
         }
     }
 

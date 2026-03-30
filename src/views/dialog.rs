@@ -150,28 +150,27 @@ impl Dialog {
         // and call self.handle_event() to get proper polymorphic behavior.
         loop {
             // Create a fresh palette token for this frame
-            let token = crate::core::palette_chain::PaletteToken::new();
 
             // Draw desktop first (clears the background), then draw this dialog on top
             // This is the key: dialogs that aren't on the desktop need to draw themselves
-            app.desktop.draw(&mut app.terminal, &token);
+            app.desktop.draw(&mut app.terminal);
 
             // Draw menu bar and status line if present (so they appear on top)
             if let Some(ref mut menu_bar) = app.menu_bar {
-                menu_bar.draw(&mut app.terminal, &token);
+                menu_bar.draw(&mut app.terminal);
             }
             if let Some(ref mut status_line) = app.status_line {
-                status_line.draw(&mut app.terminal, &token);
+                status_line.draw(&mut app.terminal);
             }
 
             // Draw the dialog on top of desktop/menu/status
-            self.draw(&mut app.terminal, &token);
+            self.draw(&mut app.terminal);
 
             // Draw overlay widgets on top of everything (animations, etc.)
             // These continue to animate even during modal dialogs
             // Matches Borland: TProgram::idle() continues running during execView()
             for widget in &mut app.overlay_widgets {
-                widget.draw(&mut app.terminal, &token);
+                widget.draw(&mut app.terminal);
             }
 
             self.update_cursor(&mut app.terminal);
@@ -221,8 +220,8 @@ impl View for Dialog {
         self.window.set_bounds(bounds);
     }
 
-    fn draw(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) {
-        self.window.draw(terminal, token);
+    fn draw(&mut self, terminal: &mut Terminal) {
+        self.window.draw(terminal);
     }
 
     fn handle_event(&mut self, event: &mut Event) {

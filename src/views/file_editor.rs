@@ -164,8 +164,8 @@ impl View for FileEditor {
         self.edit_window.set_bounds(bounds);
     }
 
-    fn draw(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) {
-        self.edit_window.draw(terminal, token);
+    fn draw(&mut self, terminal: &mut Terminal) {
+        self.edit_window.draw(terminal);
     }
 
     fn handle_event(&mut self, event: &mut Event) {

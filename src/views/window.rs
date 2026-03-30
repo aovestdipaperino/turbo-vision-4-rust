@@ -393,25 +393,24 @@ impl View for Window {
         // because scrollbars need to be repositioned based on new window SIZE, not just offset
     }
 
-    fn draw(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) {
+    fn draw(&mut self, terminal: &mut Terminal) {
         // Build Window's palette chain node for safe palette traversal.
         // Window is a palette-bearing node (CP_BLUE_WINDOW, CP_GRAY_DIALOG, etc.)
         let my_chain_node = crate::core::palette_chain::PaletteChainNode::new(
-            token,
             self.get_palette(),
             self.palette_chain.clone(),
         );
 
         self.frame.set_palette_chain(Some(my_chain_node.clone()));
-        self.frame.draw(terminal, token);
+        self.frame.draw(terminal);
 
         self.interior.set_palette_chain(Some(my_chain_node.clone()));
-        self.interior.draw(terminal, token);
+        self.interior.draw(terminal);
 
         // Draw frame children (scrollbars, etc.) after interior so they appear on top
         for child in &mut self.frame_children {
             child.set_palette_chain(Some(my_chain_node.clone()));
-            child.draw(terminal, token);
+            child.draw(terminal);
         }
 
         // Draw shadow if enabled

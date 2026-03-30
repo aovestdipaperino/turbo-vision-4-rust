@@ -59,13 +59,12 @@ impl HistoryWindow {
     /// Execute the history window modally
     ///
     /// Returns the selected history item, or None if cancelled.
-    pub fn execute(&mut self, terminal: &mut Terminal, _token: &crate::core::palette_chain::PaletteToken) -> Option<String> {
+    pub fn execute(&mut self, terminal: &mut Terminal) -> Option<String> {
         loop {
             // Create fresh token per frame for QCell safety
-            let frame_token = crate::core::palette_chain::PaletteToken::new();
             // Draw window and viewer
-            self.window.draw(terminal, &frame_token);
-            self.viewer.draw(terminal, &frame_token);
+            self.window.draw(terminal);
+            self.viewer.draw(terminal);
             let _ = terminal.flush();
 
             // Handle events

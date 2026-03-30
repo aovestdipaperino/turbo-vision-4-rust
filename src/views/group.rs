@@ -325,7 +325,7 @@ impl Group {
     /// Used for Borland's drawUnderRect pattern where we only redraw views
     /// that come after (on top of) a moved view
     /// Matches Borland: TGroup::drawSubViews(TView *p, TView *bottom)
-    pub fn draw_sub_views(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken, start_index: usize, clip: Rect) {
+    pub fn draw_sub_views(&mut self, terminal: &mut Terminal, start_index: usize, clip: Rect) {
         // Set clip region to the affected area
         terminal.push_clip(clip);
 
@@ -333,7 +333,7 @@ impl Group {
         for i in start_index..self.children.len() {
             let child_bounds = self.children[i].bounds();
             if clip.intersects(&child_bounds) {
-                self.children[i].draw(terminal, token);
+                self.children[i].draw(terminal);
             }
         }
 
@@ -434,7 +434,7 @@ impl View for Group {
         }
     }
 
-    fn draw(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) {
+    fn draw(&mut self, terminal: &mut Terminal) {
         // Draw background if specified
         if let Some(bg_attr) = self.background {
             let width = self.bounds.width_clamped() as usize;
@@ -461,7 +461,6 @@ impl View for Group {
         // Build this Group's palette chain node for safe palette traversal.
         // Group is typically transparent (no palette), but carries the parent link.
         let my_chain_node = crate::core::palette_chain::PaletteChainNode::new(
-            token,
             self.get_palette(),
             self.palette_chain.clone(),
         );
@@ -472,7 +471,7 @@ impl View for Group {
             child.set_palette_chain(Some(my_chain_node.clone()));
             let child_bounds = child.bounds();
             if self.bounds.intersects(&child_bounds) {
-                child.draw(terminal, token);
+                child.draw(terminal);
             }
         }
 
@@ -777,7 +776,7 @@ mod tests {
             self.bounds = bounds;
         }
 
-        fn draw(&mut self, _terminal: &mut Terminal, _token: &crate::core::palette_chain::PaletteToken) {
+        fn draw(&mut self, _terminal: &mut Terminal) {
             *self.draw_count.borrow_mut() += 1;
         }
 

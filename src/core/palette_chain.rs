@@ -6,16 +6,31 @@
 //! palette chain nodes. Each node stores a view's palette and a link to its
 //! parent's node, faithfully reproducing Borland's `TView::mapColor()` owner
 //! chain walk without any `unsafe` code.
+//!
+//! A single `QCellOwner` lives in a `static OnceLock`, so no token parameter
+//! needs to be threaded through `draw()` or `map_color()`.
 
 use qcell::{QCell, QCellOwner};
 use std::rc::Rc;
+use std::sync::OnceLock;
 
 use crate::core::palette::Palette;
 
-/// The token that governs all palette chain access within a single draw frame.
-/// Created once per frame in `Application::draw()` and threaded through
-/// `View::draw()` and `View::map_color()` calls.
-pub type PaletteToken = QCellOwner;
+/// Global `QCellOwner` governing all palette chain access.
+///
+/// Initialized once on first use. Because `QCellOwner` is `Sync`, the static
+/// is safe. Only `&QCellOwner` is ever handed out, limiting access to
+/// `cell.ro()` (shared read). Mutable access via `cell.rw()` is impossible
+/// without `&mut QCellOwner`, which cannot be obtained from a static.
+static PALETTE_TOKEN: OnceLock<QCellOwner> = OnceLock::new();
+
+/// Get the global palette token.
+///
+/// First call initializes the `QCellOwner`; subsequent calls return instantly
+/// (single atomic load).
+pub fn palette_token() -> &'static QCellOwner {
+    PALETTE_TOKEN.get_or_init(QCellOwner::new)
+}
 
 /// A node in the palette owner chain.
 ///
@@ -24,7 +39,7 @@ pub type PaletteToken = QCellOwner;
 /// chain that mirrors Borland's `TView::owner` pointer chain.
 ///
 /// The chain is rebuilt every frame (just like Borland refreshes owner pointers)
-/// and accessed through a `PaletteToken` (`QCellOwner`) for safe borrowing.
+/// and accessed through the global `palette_token()` for safe borrowing.
 #[derive(Clone)]
 pub struct PaletteChainNode {
     inner: Rc<QCell<PaletteChainData>>,
@@ -45,16 +60,14 @@ impl PaletteChainNode {
     /// Create a new palette chain node.
     ///
     /// # Arguments
-    /// * `token` - The `QCellOwner` governing this frame's palette access
     /// * `palette` - This view's palette (from `get_palette()`), or `None` if transparent
     /// * `parent` - Link to the parent view's chain node, or `None` if top-level
     pub fn new(
-        token: &QCellOwner,
         palette: Option<Palette>,
         parent: Option<PaletteChainNode>,
     ) -> Self {
         Self {
-            inner: Rc::new(QCell::new(token, PaletteChainData { palette, parent })),
+            inner: Rc::new(QCell::new(palette_token(), PaletteChainData { palette, parent })),
         }
     }
 
@@ -72,7 +85,8 @@ impl PaletteChainNode {
     /// ```
     ///
     /// Returns the remapped color index, or 0 on error (caller maps to `ERROR_ATTR`).
-    pub fn remap_color(&self, mut color: u8, token: &QCellOwner) -> u8 {
+    pub fn remap_color(&self, mut color: u8) -> u8 {
+        let token = palette_token();
         let data = self.inner.ro(token);
 
         // Remap through this node's palette (if present and non-empty)
@@ -88,7 +102,7 @@ impl PaletteChainNode {
 
         // Continue up the chain
         if let Some(ref parent) = data.parent {
-            parent.remap_color(color, token)
+            parent.remap_color(color)
         } else {
             color
         }

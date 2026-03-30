@@ -77,8 +77,7 @@ fn run_tui_inner(mut terminal: Terminal) {
     while running {
         // Draw
         terminal.clear();
-        let token = turbo_vision::core::palette_chain::PaletteToken::new();
-        dialog.draw(&mut terminal, &token);
+        dialog.draw(&mut terminal);
         if terminal.flush().is_err() {
             break;
         }

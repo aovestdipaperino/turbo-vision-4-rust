@@ -100,11 +100,10 @@ fn main() -> turbo_vision::core::error::Result<()> {
     app.running = true;
     while app.running {
         // Draw everything
-        let token = turbo_vision::core::palette_chain::PaletteToken::new();
-        app.desktop.draw(&mut app.terminal, &token);
+        app.desktop.draw(&mut app.terminal);
 
         // Draw listbox
-        listbox.draw(&mut app.terminal, &token);
+        listbox.draw(&mut app.terminal);
 
         // Draw instructions
         for (i, line) in instructions.iter().enumerate() {
@@ -121,12 +120,12 @@ fn main() -> turbo_vision::core::error::Result<()> {
 
         // Draw menu bar
         if let Some(ref mut menu_bar) = app.menu_bar {
-            menu_bar.draw(&mut app.terminal, &token);
+            menu_bar.draw(&mut app.terminal);
         }
 
         // Draw status line
         if let Some(ref mut status_line) = app.status_line {
-            status_line.draw(&mut app.terminal, &token);
+            status_line.draw(&mut app.terminal);
         }
 
         let _ = app.terminal.flush();
@@ -158,7 +157,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
                         CM_QUIT => app.running = false,
                         CM_NEW => {
                             // Show message (in real app would open new file)
-                            app.desktop.draw(&mut app.terminal, &token);
+                            app.desktop.draw(&mut app.terminal);
                             show_message(&mut app, "New file created", 20, 10);
                         }
                         CM_OPEN => {
@@ -177,12 +176,11 @@ fn main() -> turbo_vision::core::error::Result<()> {
                                 .build();
 
                             let mut menubox = MenuBox::new(Point::new(35, 8), popup_menu);
-                            let popup_token = turbo_vision::core::palette_chain::PaletteToken::new();
-                            let selected_cmd = menubox.execute(&mut app.terminal, &popup_token);
+                            let selected_cmd = menubox.execute(&mut app.terminal);
 
                             // Redraw after popup closes
-                            app.desktop.draw(&mut app.terminal, &token);
-                            listbox.draw(&mut app.terminal, &token);
+                            app.desktop.draw(&mut app.terminal);
+                            listbox.draw(&mut app.terminal);
 
                             if selected_cmd != 0 {
                                 let msg = match selected_cmd {

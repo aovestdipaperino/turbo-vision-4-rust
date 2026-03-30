@@ -32,8 +32,8 @@ impl View for SharedScrollBar {
         self.0.borrow_mut().set_bounds(bounds);
     }
 
-    fn draw(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) {
-        self.0.borrow_mut().draw(terminal, token);
+    fn draw(&mut self, terminal: &mut Terminal) {
+        self.0.borrow_mut().draw(terminal);
     }
 
     fn handle_event(&mut self, event: &mut Event) {
@@ -58,8 +58,8 @@ impl View for SharedIndicator {
         self.0.borrow_mut().set_bounds(bounds);
     }
 
-    fn draw(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) {
-        self.0.borrow_mut().draw(terminal, token);
+    fn draw(&mut self, terminal: &mut Terminal) {
+        self.0.borrow_mut().draw(terminal);
     }
 
     fn handle_event(&mut self, _event: &mut Event) {
@@ -84,8 +84,8 @@ impl View for SharedEditor {
         self.0.borrow_mut().set_bounds(bounds);
     }
 
-    fn draw(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) {
-        self.0.borrow_mut().draw(terminal, token);
+    fn draw(&mut self, terminal: &mut Terminal) {
+        self.0.borrow_mut().draw(terminal);
     }
 
     fn handle_event(&mut self, event: &mut Event) {
@@ -337,14 +337,14 @@ impl View for EditWindow {
         self.window.update_frame_child(self.indicator_idx, ind_bounds);
     }
 
-    fn draw(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) {
+    fn draw(&mut self, terminal: &mut Terminal) {
         // IMPORTANT: Update frame children positions BEFORE drawing to prevent visual lag
         // During rapid resizing, this ensures scrollbars are always at correct positions
         self.sync_frame_children_positions();
 
         // Draw frame and interior first
-        self.window.frame_mut().draw(terminal, token);
-        self.window.interior_mut().draw(terminal, token);
+        self.window.frame_mut().draw(terminal);
+        self.window.interior_mut().draw(terminal);
 
         // Check if scrollbars are needed based on content size
         let editor = self.editor.borrow();
@@ -355,17 +355,17 @@ impl View for EditWindow {
         // Conditionally draw scrollbars only if needed
         if needs_h_scrollbar {
             if let Some(child) = self.window.get_frame_child_mut(self.h_scrollbar_idx) {
-                child.draw(terminal, token);
+                child.draw(terminal);
             }
         }
         if needs_v_scrollbar {
             if let Some(child) = self.window.get_frame_child_mut(self.v_scrollbar_idx) {
-                child.draw(terminal, token);
+                child.draw(terminal);
             }
         }
         // Always draw indicator
         if let Some(child) = self.window.get_frame_child_mut(self.indicator_idx) {
-            child.draw(terminal, token);
+            child.draw(terminal);
         }
 
         // Draw shadow if enabled

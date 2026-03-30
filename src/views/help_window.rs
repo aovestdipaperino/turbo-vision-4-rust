@@ -31,8 +31,8 @@ impl View for SharedHelpViewer {
         self.0.borrow_mut().set_bounds(bounds);
     }
 
-    fn draw(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) {
-        self.0.borrow_mut().draw(terminal, token);
+    fn draw(&mut self, terminal: &mut Terminal) {
+        self.0.borrow_mut().draw(terminal);
     }
 
     fn handle_event(&mut self, event: &mut Event) {
@@ -243,9 +243,9 @@ impl View for HelpWindow {
         self.viewer.borrow_mut().set_bounds(viewer_bounds);
     }
 
-    fn draw(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) {
+    fn draw(&mut self, terminal: &mut Terminal) {
         // Window draws itself and all children (including viewer)
-        self.window.draw(terminal, token);
+        self.window.draw(terminal);
     }
 
     fn handle_event(&mut self, event: &mut Event) {

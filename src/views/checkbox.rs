@@ -82,9 +82,9 @@ impl View for CheckBox {
         self.handle_cluster_event(event);
     }
 
-    fn draw(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) {
+    fn draw(&mut self, terminal: &mut Terminal) {
         // Use Cluster trait's standard drawing
-        self.draw_cluster(terminal, token);
+        self.draw_cluster(terminal);
     }
 
     fn can_focus(&self) -> bool {

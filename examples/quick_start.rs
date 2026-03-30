@@ -18,8 +18,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
     // Event loop
     app.running = true;
     while app.running {
-        let token = turbo_vision::core::palette_chain::PaletteToken::new();
-        app.desktop.draw(&mut app.terminal, &token);
+        app.desktop.draw(&mut app.terminal);
         app.terminal.flush()?;
         if let Ok(Some(mut event)) = app.terminal.poll_event(std::time::Duration::from_millis(50)) {
             app.desktop.handle_event(&mut event);

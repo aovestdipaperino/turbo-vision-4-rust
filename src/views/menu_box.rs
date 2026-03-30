@@ -102,12 +102,11 @@ impl MenuBox {
     ///
     /// Matches Borland: TMenuView::execute()
     /// Returns the selected command, or 0 if cancelled
-    pub fn execute(&mut self, terminal: &mut Terminal, _token: &crate::core::palette_chain::PaletteToken) -> CommandId {
+    pub fn execute(&mut self, terminal: &mut Terminal) -> CommandId {
         loop {
             // Create fresh token per frame for QCell safety
-            let frame_token = crate::core::palette_chain::PaletteToken::new();
             // Draw the menu
-            self.draw(terminal, &frame_token);
+            self.draw(terminal);
             let _ = terminal.flush();
 
             // Get event
@@ -142,7 +141,7 @@ impl View for MenuBox {
         self.bounds = bounds;
     }
 
-    fn draw(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) {
+    fn draw(&mut self, terminal: &mut Terminal) {
         let width = self.bounds.width_clamped() as usize;
         let height = self.bounds.height_clamped() as usize;
 
@@ -155,10 +154,10 @@ impl View for MenuBox {
             None => return,
         };
 
-        let normal_attr = self.map_color(MENU_NORMAL, token);
-        let selected_attr = self.map_color(MENU_SELECTED, token);
-        let disabled_attr = self.map_color(MENU_DISABLED, token);
-        let shortcut_attr = self.map_color(MENU_SHORTCUT, token);
+        let normal_attr = self.map_color(MENU_NORMAL);
+        let selected_attr = self.map_color(MENU_SELECTED);
+        let disabled_attr = self.map_color(MENU_DISABLED);
+        let shortcut_attr = self.map_color(MENU_SHORTCUT);
 
         // Draw top border
         let mut buf = DrawBuffer::new(width);

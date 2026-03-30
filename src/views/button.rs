@@ -98,7 +98,7 @@ impl View for Button {
         self.bounds = bounds;
     }
 
-    fn draw(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) {
+    fn draw(&mut self, terminal: &mut Terminal) {
         let width = self.bounds.width_clamped() as usize;
         let height = self.bounds.height_clamped() as usize;
 
@@ -120,18 +120,18 @@ impl View for Button {
         // 7: Shortcut text
         // 8: Shadow
         let button_attr = if is_disabled {
-            self.map_color(BUTTON_DISABLED, token) // Disabled
+            self.map_color(BUTTON_DISABLED) // Disabled
         } else if is_focused {
-            self.map_color(BUTTON_SELECTED, token) // Selected/focused
+            self.map_color(BUTTON_SELECTED) // Selected/focused
         } else if self.is_default {
-            self.map_color(BUTTON_DEFAULT, token) // Default but not focused
+            self.map_color(BUTTON_DEFAULT) // Default but not focused
         } else {
-            self.map_color(BUTTON_NORMAL, token) // Normal
+            self.map_color(BUTTON_NORMAL) // Normal
         };
 
         // Shadow attribute - Borland uses spaces where BG is visible, we use blocks where FG is visible
         // So we swap FG/BG: 0x70 (Black on LightGray) becomes 0x07 (LightGray on Black)
-        let mut shadow_attr = self.map_color(BUTTON_SHADOW, token);
+        let mut shadow_attr = self.map_color(BUTTON_SHADOW);
 
         // If shadow mapping failed, use a default shadow color.
         // With the QCell palette chain, this should not normally trigger.
@@ -145,9 +145,9 @@ impl View for Button {
 
         // Shortcut attributes
         let shortcut_attr = if is_disabled {
-            self.map_color(BUTTON_DISABLED, token) // Disabled shortcut same as disabled text
+            self.map_color(BUTTON_DISABLED) // Disabled shortcut same as disabled text
         } else {
-            self.map_color(BUTTON_SHORTCUT, token) // Shortcut color
+            self.map_color(BUTTON_SHORTCUT) // Shortcut color
         };
 
         // Draw all lines except the last (which is the bottom shadow)

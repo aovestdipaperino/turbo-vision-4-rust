@@ -53,8 +53,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
     let mut title_index = 0;
 
     loop {
-        let token = turbo_vision::core::palette_chain::PaletteToken::new();
-        app.desktop.draw(&mut app.terminal, &token);
+        app.desktop.draw(&mut app.terminal);
         let _ = app.terminal.flush();
 
         if let Some(mut event) = app.terminal.poll_event(Duration::from_millis(50)).ok().flatten() {

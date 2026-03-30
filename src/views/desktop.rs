@@ -144,24 +144,24 @@ impl Desktop {
     /// Draw views in the affected rectangle (Borland's drawUnderRect pattern)
     /// This is called when a window moves to redraw only the affected area
     /// Matches Borland: TView::drawUnderRect() (tview.cc:304-308)
-    pub fn draw_under_rect(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken, rect: Rect, start_from_window: usize) {
+    pub fn draw_under_rect(&mut self, terminal: &mut Terminal, rect: Rect, start_from_window: usize) {
         // +1 to account for background being at index 0
         let start_index = start_from_window + 1;
 
         // Draw background in the affected rect first
         terminal.push_clip(rect);
-        self.children.child_at_mut(0).draw(terminal, token);
+        self.children.child_at_mut(0).draw(terminal);
         terminal.pop_clip();
 
         // Then draw all windows from start_index onwards in the affected rect
-        self.children.draw_sub_views(terminal, token, start_index, rect);
+        self.children.draw_sub_views(terminal, start_index, rect);
     }
 
     /// Check for moved windows and redraw affected areas
     /// Matches Borland: TProgram::idle() checks for moved views and calls drawUnderRect
     /// This is called after event handling to redraw areas exposed by window movement
     /// Returns true if any windows were moved and redrawn
-    pub fn handle_moved_windows(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) -> bool {
+    pub fn handle_moved_windows(&mut self, terminal: &mut Terminal) -> bool {
         let mut had_movement = false;
 
         // Check each window (skip background at index 0)
@@ -172,7 +172,7 @@ impl Desktop {
                 // This window moved - redraw the union rect area
                 // Start from the moved window's position (all views behind it)
                 // Matches Borland: TView::locate() → TView::drawUnderRect()
-                self.draw_under_rect(terminal, token, union_rect, i - 1); // -1 because Desktop uses window indices, not internal indices
+                self.draw_under_rect(terminal, union_rect, i - 1); // -1 because Desktop uses window indices, not internal indices
 
                 // Clear the movement tracking after redrawing
                 self.children.child_at_mut(i).clear_move_tracking();
@@ -477,10 +477,10 @@ impl View for Desktop {
         self.children.set_bounds(bounds);
     }
 
-    fn draw(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) {
+    fn draw(&mut self, terminal: &mut Terminal) {
         // Just draw all children (background is the first child, windows come after)
         // This matches Borland's TDeskTop which is a TGroup with TBackground as first child
-        self.children.draw(terminal, token);
+        self.children.draw(terminal);
     }
 
     fn handle_event(&mut self, event: &mut Event) {

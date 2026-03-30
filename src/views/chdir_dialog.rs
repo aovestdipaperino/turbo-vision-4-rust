@@ -53,8 +53,8 @@ impl View for SharedScrollBar {
         self.0.borrow_mut().set_bounds(bounds);
     }
 
-    fn draw(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) {
-        self.0.borrow_mut().draw(terminal, token);
+    fn draw(&mut self, terminal: &mut Terminal) {
+        self.0.borrow_mut().draw(terminal);
     }
 
     fn handle_event(&mut self, event: &mut Event) {
@@ -135,11 +135,11 @@ impl View for SharedDirListBox {
         self.inner.borrow_mut().set_bounds(bounds);
     }
 
-    fn draw(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) {
+    fn draw(&mut self, terminal: &mut Terminal) {
         // Update scrollbars before drawing
         self.update_scrollbars();
 
-        self.inner.borrow_mut().draw(terminal, token);
+        self.inner.borrow_mut().draw(terminal);
     }
 
     fn handle_event(&mut self, event: &mut Event) {
@@ -451,8 +451,8 @@ impl View for ChDirDialog {
         self.dialog.set_bounds(bounds);
     }
 
-    fn draw(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) {
-        self.dialog.draw(terminal, token);
+    fn draw(&mut self, terminal: &mut Terminal) {
+        self.dialog.draw(terminal);
     }
 
     fn handle_event(&mut self, event: &mut Event) {

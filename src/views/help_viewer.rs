@@ -277,7 +277,7 @@ impl View for HelpViewer {
         self.update_scrollbar();
     }
 
-    fn draw(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) {
+    fn draw(&mut self, terminal: &mut Terminal) {
         let start_line = self.delta.y as usize;
         let h_offset = self.delta.x as usize;  // Horizontal scroll offset
 
@@ -291,12 +291,12 @@ impl View for HelpViewer {
         // Get colors from palette for rich text rendering
         // Matches Borland: THelpViewer::draw() (help.cc:54-70)
         // Extended for bold, italic, code styling
-        let normal = self.map_color(1, token);      // Normal text
-        let keyword = self.map_color(2, token);     // Link text
-        let sel_keyword = self.map_color(3, token); // Selected link
-        let bold_color = self.map_color(4, token);  // Bold text
-        let italic_color = self.map_color(5, token); // Italic text
-        let code_color = self.map_color(6, token);  // Code text
+        let normal = self.map_color(1);      // Normal text
+        let keyword = self.map_color(2);     // Link text
+        let sel_keyword = self.map_color(3); // Selected link
+        let bold_color = self.map_color(4);  // Bold text
+        let italic_color = self.map_color(5); // Italic text
+        let code_color = self.map_color(6);  // Code text
 
         for row in 0..self.bounds.height() {
             let line_num = (start_line + row as usize + 1) as i16; // 1-based line number
@@ -361,7 +361,7 @@ impl View for HelpViewer {
 
         // Draw scrollbar if present
         if let Some(ref mut sb) = self.vscrollbar {
-            sb.draw(terminal, token);
+            sb.draw(terminal);
         }
     }
 

@@ -55,13 +55,12 @@ fn run_event_loop(app: &mut Application) {
     app.running = true;
     while app.running {
         // Draw everything
-        let token = turbo_vision::core::palette_chain::PaletteToken::new();
-        app.desktop.draw(&mut app.terminal, &token);
+        app.desktop.draw(&mut app.terminal);
         if let Some(ref mut menu_bar) = app.menu_bar {
-            menu_bar.draw(&mut app.terminal, &token);
+            menu_bar.draw(&mut app.terminal);
         }
         if let Some(ref mut status_line) = app.status_line {
-            status_line.draw(&mut app.terminal, &token);
+            status_line.draw(&mut app.terminal);
         }
         let _ = app.terminal.flush();
 
@@ -99,12 +98,12 @@ fn run_event_loop(app: &mut Application) {
 
             // Redraw before showing dialog
             if event.what == EventType::Command {
-                app.desktop.draw(&mut app.terminal, &token);
+                app.desktop.draw(&mut app.terminal);
                 if let Some(ref mut menu_bar) = app.menu_bar {
-                    menu_bar.draw(&mut app.terminal, &token);
+                    menu_bar.draw(&mut app.terminal);
                 }
                 if let Some(ref mut status_line) = app.status_line {
-                    status_line.draw(&mut app.terminal, &token);
+                    status_line.draw(&mut app.terminal);
                 }
                 let _ = app.terminal.flush();
             }

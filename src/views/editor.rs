@@ -1156,16 +1156,16 @@ impl View for Editor {
         self.update_scrollbars();
     }
 
-    fn draw(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) {
+    fn draw(&mut self, terminal: &mut Terminal) {
         use crate::core::palette::{EDITOR_NORMAL, EDITOR_SELECTED, EDITOR_CURSOR};
 
         let content_area = self.get_content_area();
         let width = content_area.width_clamped() as usize;
         let height = content_area.height_clamped() as usize;
 
-        let default_color = self.map_color(EDITOR_NORMAL, token);
-        let selected_color = self.map_color(EDITOR_SELECTED, token);
-        let cursor_color = self.map_color(EDITOR_CURSOR, token);
+        let default_color = self.map_color(EDITOR_NORMAL);
+        let selected_color = self.map_color(EDITOR_SELECTED);
+        let cursor_color = self.map_color(EDITOR_CURSOR);
 
         for y in 0..height {
             let line_idx = (self.delta.y + y as i16) as usize;

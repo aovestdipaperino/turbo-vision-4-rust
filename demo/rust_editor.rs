@@ -136,13 +136,12 @@ fn main() -> turbo_vision::core::error::Result<()> {
         }
 
         // Draw everything in proper order
-        let token = turbo_vision::core::palette_chain::PaletteToken::new();
-        app.desktop.draw(&mut app.terminal, &token);
+        app.desktop.draw(&mut app.terminal);
         if let Some(ref mut menu_bar) = app.menu_bar {
-            menu_bar.draw(&mut app.terminal, &token);
+            menu_bar.draw(&mut app.terminal);
         }
         if let Some(ref mut status_line) = app.status_line {
-            status_line.draw(&mut app.terminal, &token);
+            status_line.draw(&mut app.terminal);
         }
         let _ = app.terminal.flush();
 
@@ -161,7 +160,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
 
                 // Check for cascading submenus
                 if event.what == EventType::Keyboard || event.what == EventType::MouseUp {
-                    if let Some(command) = menu_bar.check_cascading_submenu(&mut app.terminal, &token) {
+                    if let Some(command) = menu_bar.check_cascading_submenu(&mut app.terminal) {
                         if command != 0 {
                             event = turbo_vision::core::event::Event::command(command);
                         }

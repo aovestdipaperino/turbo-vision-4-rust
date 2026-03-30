@@ -87,13 +87,13 @@ impl Scroller {
     }
 
     /// Draw the scroller (draws scrollbars, subclasses override to draw content)
-    pub fn draw_scrollbars(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) {
+    pub fn draw_scrollbars(&mut self, terminal: &mut Terminal) {
         if let Some(ref mut h_bar) = self.h_scrollbar {
-            h_bar.draw(terminal, token);
+            h_bar.draw(terminal);
         }
 
         if let Some(ref mut v_bar) = self.v_scrollbar {
-            v_bar.draw(terminal, token);
+            v_bar.draw(terminal);
         }
     }
 
@@ -151,10 +151,10 @@ impl View for Scroller {
         self.update_scrollbars();
     }
 
-    fn draw(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) {
+    fn draw(&mut self, terminal: &mut Terminal) {
         // Default implementation: draw scrollbars only
         // Subclasses should override this to draw content + scrollbars
-        self.draw_scrollbars(terminal, token);
+        self.draw_scrollbars(terminal);
     }
 
     fn handle_event(&mut self, event: &mut Event) {

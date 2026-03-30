@@ -137,18 +137,18 @@ pub trait Cluster: View {
     /// Get colors based on focus state
     ///
     /// Returns (normal_color, hotkey_color)
-    fn get_colors(&self, token: &crate::core::palette_chain::PaletteToken) -> (Attr, Attr) {
+    fn get_colors(&self) -> (Attr, Attr) {
         // Cluster palette indices:
         // 1: Normal (unfocused), 2: Focused, 3: Shortcut
         if self.is_focused() {
             (
-                self.map_color(CLUSTER_FOCUSED, token),
-                self.map_color(CLUSTER_SHORTCUT, token),
+                self.map_color(CLUSTER_FOCUSED),
+                self.map_color(CLUSTER_SHORTCUT),
             )
         } else {
             (
-                self.map_color(CLUSTER_NORMAL, token),
-                self.map_color(CLUSTER_SHORTCUT, token),
+                self.map_color(CLUSTER_NORMAL),
+                self.map_color(CLUSTER_SHORTCUT),
             )
         }
     }
@@ -183,7 +183,7 @@ pub trait Cluster: View {
     /// Draw the cluster control with marker and label
     ///
     /// Provides common drawing logic for all cluster controls
-    fn draw_cluster(&self, terminal: &mut crate::terminal::Terminal, token: &crate::core::palette_chain::PaletteToken) {
+    fn draw_cluster(&self, terminal: &mut crate::terminal::Terminal) {
         use crate::core::draw::DrawBuffer;
         use crate::views::view::write_line_to_terminal;
 
@@ -191,7 +191,7 @@ pub trait Cluster: View {
         let width = bounds.width_clamped() as usize;
         let mut buffer = DrawBuffer::new(width);
 
-        let (color, hotkey_color) = self.get_colors(token);
+        let (color, hotkey_color) = self.get_colors();
 
         // Draw marker (checkbox/radio button)
         let marker = self.get_marker();

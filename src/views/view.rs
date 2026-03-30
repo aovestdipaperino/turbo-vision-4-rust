@@ -63,7 +63,7 @@ impl ViewId {
 pub trait View {
     fn bounds(&self) -> Rect;
     fn set_bounds(&mut self, bounds: Rect);
-    fn draw(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken);
+    fn draw(&mut self, terminal: &mut Terminal);
     fn handle_event(&mut self, event: &mut Event);
     fn can_focus(&self) -> bool {
         false
@@ -387,11 +387,10 @@ pub trait View {
     ///
     /// # Arguments
     /// * `color_index` - Logical color index (1-based, 0 = error color)
-    /// * `token` - The QCell palette token for safe chain traversal
     ///
     /// # Returns
     /// The final color attribute
-    fn map_color(&self, color_index: u8, token: &crate::core::palette_chain::PaletteToken) -> crate::core::palette::Attr {
+    fn map_color(&self, color_index: u8) -> crate::core::palette::Attr {
         use crate::core::palette::{palettes, Attr};
 
         // Borland's errorAttr = 0xCF (Light Red/Magenta background, White foreground)
@@ -421,7 +420,7 @@ pub trait View {
         // TApplication. Views without a palette (get_palette returns None) are
         // transparent. The chain stops when there's no parent.
         if let Some(chain_node) = self.get_palette_chain() {
-            color = chain_node.remap_color(color, token);
+            color = chain_node.remap_color(color);
             if color == 0 {
                 return Attr::from_u8(ERROR_ATTR);
             }

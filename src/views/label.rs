@@ -64,14 +64,14 @@ impl View for Label {
         self.bounds = bounds;
     }
 
-    fn draw(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) {
+    fn draw(&mut self, terminal: &mut Terminal) {
         let width = self.bounds.width_clamped() as usize;
         let mut buf = DrawBuffer::new(width);
 
         // Label palette indices:
         // 1: Normal, 2: Selected, 3: Shortcut
-        let normal_attr = self.map_color(LABEL_NORMAL, token);
-        let shortcut_attr = self.map_color(LABEL_SHORTCUT, token);
+        let normal_attr = self.map_color(LABEL_NORMAL);
+        let shortcut_attr = self.map_color(LABEL_SHORTCUT);
 
         buf.move_char(0, ' ', normal_attr, width);
         buf.move_str_with_shortcut(0, &self.text, normal_attr, shortcut_attr);

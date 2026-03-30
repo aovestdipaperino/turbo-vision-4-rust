@@ -130,18 +130,18 @@ impl View for ListBox {
         self.bounds = bounds;
     }
 
-    fn draw(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) {
+    fn draw(&mut self, terminal: &mut Terminal) {
         let width = self.bounds.width_clamped() as usize;
         let height = self.bounds.height_clamped() as usize;
 
         // ListBox palette indices:
         // 1: Normal, 2: Focused, 3: Selected, 4: Divider
         let color_normal = if self.is_focused() {
-            self.map_color(LISTBOX_FOCUSED, token) // Focused
+            self.map_color(LISTBOX_FOCUSED) // Focused
         } else {
-            self.map_color(LISTBOX_NORMAL, token) // Normal
+            self.map_color(LISTBOX_NORMAL) // Normal
         };
-        let color_selected = self.map_color(LISTBOX_SELECTED, token); // Selected
+        let color_selected = self.map_color(LISTBOX_SELECTED); // Selected
 
         // Draw visible items
         for i in 0..height {

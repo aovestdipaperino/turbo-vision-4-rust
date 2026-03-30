@@ -76,7 +76,7 @@ impl View for HistoryViewer {
         self.bounds = bounds;
     }
 
-    fn draw(&mut self, terminal: &mut Terminal, _token: &crate::core::palette_chain::PaletteToken) {
+    fn draw(&mut self, terminal: &mut Terminal) {
         
         use crate::core::draw::DrawBuffer;
         use super::view::write_line_to_terminal;

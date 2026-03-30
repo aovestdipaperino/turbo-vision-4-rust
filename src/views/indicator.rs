@@ -42,16 +42,16 @@ impl View for Indicator {
         self.bounds = bounds;
     }
 
-    fn draw(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) {
+    fn draw(&mut self, terminal: &mut Terminal) {
         let width = self.bounds.width_clamped() as usize;
         let mut buf = DrawBuffer::new(width);
 
         // Use palette indices from CP_INDICATOR
         // 1 = Normal indicator, 2 = Modified indicator
         let color = if self.modified {
-            self.map_color(2, token)
+            self.map_color(2)
         } else {
-            self.map_color(1, token)
+            self.map_color(1)
         };
 
         // Fill with spaces (background)

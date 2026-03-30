@@ -65,9 +65,7 @@ impl History {
         );
 
         let mut window = HistoryWindow::new(window_pos, self.history_id, 30);
-
-        let token = crate::core::palette_chain::PaletteToken::new();
-        if let Some(selected) = window.execute(terminal, &token) {
+        if let Some(selected) = window.execute(terminal) {
             self.selected_item = Some(selected);
         }
     }
@@ -82,7 +80,7 @@ impl View for History {
         self.bounds = bounds;
     }
 
-    fn draw(&mut self, terminal: &mut Terminal, _token: &crate::core::palette_chain::PaletteToken) {
+    fn draw(&mut self, terminal: &mut Terminal) {
         let mut buf = DrawBuffer::new(2);
 
         // Draw down arrow: ▼ (or use 'v' for ASCII-only)

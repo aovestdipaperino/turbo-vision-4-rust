@@ -102,13 +102,13 @@ impl View for ParamText {
         self.bounds = bounds;
     }
 
-    fn draw(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) {
+    fn draw(&mut self, terminal: &mut Terminal) {
         let width = self.bounds.width_clamped() as usize;
         let height = self.bounds.height_clamped() as usize;
 
         // ParamText palette indices:
         // 1: Normal text
-        let normal_attr = self.map_color(PARAM_TEXT_NORMAL, token);
+        let normal_attr = self.map_color(PARAM_TEXT_NORMAL);
 
         // Split text into lines
         let lines: Vec<&str> = self.text.lines().collect();

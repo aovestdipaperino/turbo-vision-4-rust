@@ -384,11 +384,11 @@ impl View for ScrollBar {
         self.bounds = bounds;
     }
 
-    fn draw(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) {
+    fn draw(&mut self, terminal: &mut Terminal) {
         // ScrollBar palette indices:
         // 1: Page, 2: Arrows, 3: Indicator
-        let page_attr = self.map_color(SCROLLBAR_PAGE, token);
-        let indicator_attr = self.map_color(SCROLLBAR_INDICATOR, token);
+        let page_attr = self.map_color(SCROLLBAR_PAGE);
+        let indicator_attr = self.map_color(SCROLLBAR_INDICATOR);
 
         if self.is_vertical {
             // Draw vertical scrollbar

@@ -159,7 +159,7 @@ impl View for InputLine {
         self.bounds = bounds;
     }
 
-    fn draw(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) {
+    fn draw(&mut self, terminal: &mut Terminal) {
         let width = self.bounds.width_clamped() as usize;
 
         // Don't render input lines that are too small
@@ -173,13 +173,13 @@ impl View for InputLine {
         // InputLine palette indices:
         // 1: Normal, 2: Focused, 3: Selected, 4: Arrows
         let attr = if self.is_focused() {
-            self.map_color(INPUT_FOCUSED, token) // Focused
+            self.map_color(INPUT_FOCUSED) // Focused
         } else {
-            self.map_color(INPUT_NORMAL, token) // Normal
+            self.map_color(INPUT_NORMAL) // Normal
         };
 
-        let sel_attr = self.map_color(INPUT_SELECTED, token); // Selected text
-        let arrow_attr = self.map_color(INPUT_ARROWS, token); // Arrow indicators
+        let sel_attr = self.map_color(INPUT_SELECTED); // Selected text
+        let arrow_attr = self.map_color(INPUT_ARROWS); // Arrow indicators
 
         buf.move_char(0, ' ', attr, width);
 

@@ -116,9 +116,8 @@ fn get_instructions() -> Vec<&'static str> {
 /// Draw all screen elements
 fn draw_screen(app: &mut Application, listbox: &mut SortedListBox, instructions: &[&str], case_sensitive: bool) {
     // Draw base elements
-    let token = turbo_vision::core::palette_chain::PaletteToken::new();
-    app.desktop.draw(&mut app.terminal, &token);
-    listbox.draw(&mut app.terminal, &token);
+    app.desktop.draw(&mut app.terminal);
+    listbox.draw(&mut app.terminal);
 
     // Draw instructions panel
     draw_instructions_panel(&mut app.terminal, instructions, case_sensitive);
@@ -128,7 +127,7 @@ fn draw_screen(app: &mut Application, listbox: &mut SortedListBox, instructions:
 
     // Draw status line
     if let Some(ref mut status_line) = app.status_line {
-        status_line.draw(&mut app.terminal, &token);
+        status_line.draw(&mut app.terminal);
     }
 
     let _ = app.terminal.flush();

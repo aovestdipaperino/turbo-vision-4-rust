@@ -118,7 +118,7 @@ impl View for ClockView {
         self.state = state;
     }
 
-    fn draw(&mut self, terminal: &mut Terminal, token: &turbo_vision::core::palette_chain::PaletteToken) {
+    fn draw(&mut self, terminal: &mut Terminal) {
         let width = self.bounds.width_clamped() as usize;
         let color = colors::MENU_NORMAL;
 
@@ -208,7 +208,7 @@ impl View for CrabWidget {
         self.state = state;
     }
 
-    fn draw(&mut self, terminal: &mut Terminal, token: &turbo_vision::core::palette_chain::PaletteToken) {
+    fn draw(&mut self, terminal: &mut Terminal) {
         let width = CrabWidget::WIDTH as usize;
         let mut buf = DrawBuffer::new(width);
         // Use status line colors (reverse video)
@@ -289,8 +289,8 @@ impl View for CrabWidgetWrapper {
         self.inner.borrow_mut().set_state(state);
     }
 
-    fn draw(&mut self, terminal: &mut Terminal, token: &turbo_vision::core::palette_chain::PaletteToken) {
-        self.inner.borrow_mut().draw(terminal, token);
+    fn draw(&mut self, terminal: &mut Terminal) {
+        self.inner.borrow_mut().draw(terminal);
     }
 
     fn handle_event(&mut self, event: &mut Event) {
@@ -425,7 +425,7 @@ impl View for AsciiTable {
         self.state = state;
     }
 
-    fn draw(&mut self, terminal: &mut Terminal, token: &turbo_vision::core::palette_chain::PaletteToken) {
+    fn draw(&mut self, terminal: &mut Terminal) {
         let width = self.bounds.width_clamped() as usize;
         let height = self.bounds.height_clamped() as usize;
 
@@ -680,7 +680,7 @@ impl View for CalcDisplay {
         self.options = options;
     }
 
-    fn draw(&mut self, terminal: &mut Terminal, token: &turbo_vision::core::palette_chain::PaletteToken) {
+    fn draw(&mut self, terminal: &mut Terminal) {
         let width = self.bounds.width_clamped() as usize;
         // Use LightCyan background (closest to RGB(175, 212, 250))
         let color = Attr::new(TvColor::Black, TvColor::LightCyan);
@@ -955,7 +955,7 @@ impl View for CalendarView {
         self.state = state;
     }
 
-    fn draw(&mut self, terminal: &mut Terminal, token: &turbo_vision::core::palette_chain::PaletteToken) {
+    fn draw(&mut self, terminal: &mut Terminal) {
         let width = self.bounds.width_clamped() as usize;
 
         let color = Attr::new(TvColor::Black, TvColor::Cyan);
@@ -1249,7 +1249,7 @@ impl View for PuzzleView {
         self.state = state;
     }
 
-    fn draw(&mut self, terminal: &mut Terminal, token: &turbo_vision::core::palette_chain::PaletteToken) {
+    fn draw(&mut self, terminal: &mut Terminal) {
         let width = self.bounds.width_clamped() as usize;
 
         // Color map for alternating tile colors
@@ -1469,8 +1469,7 @@ fn handle_event_routing(app: &mut Application, event: &mut Event) {
 
         // Check for cascading submenu
         if event.what == EventType::Keyboard || event.what == EventType::MouseUp {
-            let token = turbo_vision::core::palette_chain::PaletteToken::new();
-            if let Some(command) = menu_bar.check_cascading_submenu(&mut app.terminal, &token) {
+            if let Some(command) = menu_bar.check_cascading_submenu(&mut app.terminal) {
                 if command != 0 {
                     *event = Event::command(command);
                 }
@@ -1570,8 +1569,7 @@ fn run_event_loop(app: &mut Application, clock: &mut ClockView, crab_widget: &Rc
 
         // Draw everything
         app.draw();
-        let token = turbo_vision::core::palette_chain::PaletteToken::new();
-        clock.draw(&mut app.terminal, &token);
+        clock.draw(&mut app.terminal);
         app.terminal.flush()?;
 
         // Poll for events
@@ -1586,7 +1584,7 @@ fn run_event_loop(app: &mut Application, clock: &mut ClockView, crab_widget: &Rc
                 // Redraw if needed (after modal dialogs)
                 if needs_redraw {
                     app.draw();
-                    clock.draw(&mut app.terminal, &token);
+                    clock.draw(&mut app.terminal);
                     app.terminal.flush()?;
                 }
             }
@@ -1595,8 +1593,7 @@ fn run_event_loop(app: &mut Application, clock: &mut ClockView, crab_widget: &Rc
         // Idle processing and cleanup
         app.idle();
         app.desktop.remove_closed_windows();
-        let move_token = turbo_vision::core::palette_chain::PaletteToken::new();
-        app.desktop.handle_moved_windows(&mut app.terminal, &move_token);
+        app.desktop.handle_moved_windows(&mut app.terminal);
     }
 
     Ok(())
@@ -1610,15 +1607,14 @@ fn main() -> turbo_vision::core::error::Result<()> {
     let (mut app, mut clock, crab_widget) = init_application()?;
 
     // Initial draw
-    let token = turbo_vision::core::palette_chain::PaletteToken::new();
-    app.desktop.draw(&mut app.terminal, &token);
+    app.desktop.draw(&mut app.terminal);
     if let Some(ref mut menu_bar) = app.menu_bar {
-        menu_bar.draw(&mut app.terminal, &token);
+        menu_bar.draw(&mut app.terminal);
     }
     if let Some(ref mut status_line) = app.status_line {
-        status_line.draw(&mut app.terminal, &token);
+        status_line.draw(&mut app.terminal);
     }
-    clock.draw(&mut app.terminal, &token);
+    clock.draw(&mut app.terminal);
     app.terminal.flush()?;
 
     // Show about dialog on startup

@@ -212,10 +212,9 @@ fn main() -> turbo_vision::core::error::Result<()> {
     while app.running {
         // Call idle() to broadcast command set changes, then draw
         app.idle();
-        let token = turbo_vision::core::palette_chain::PaletteToken::new();
-        app.desktop.draw(&mut app.terminal, &token);
+        app.desktop.draw(&mut app.terminal);
         if let Some(ref mut status_line) = app.status_line {
-            status_line.draw(&mut app.terminal, &token);
+            status_line.draw(&mut app.terminal);
         }
         let _ = app.terminal.flush();
 

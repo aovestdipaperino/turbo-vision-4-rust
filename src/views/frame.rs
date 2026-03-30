@@ -58,7 +58,7 @@ impl Frame {
     /// Get colors for frame elements based on palette type and state
     /// Matches Borland's getColor() with palette mapping (tframe.cc:43-64)
     /// Returns (frame_attr, close_icon_attr, title_attr)
-    fn get_frame_colors(&self, token: &crate::core::palette_chain::PaletteToken) -> (Attr, Attr, Attr) {
+    fn get_frame_colors(&self) -> (Attr, Attr, Attr) {
         use crate::core::palette::{FRAME_INACTIVE, FRAME_ACTIVE_BORDER, FRAME_TITLE, FRAME_ICON};
 
         // Borland determines cFrame based on state:
@@ -72,21 +72,21 @@ impl Frame {
         if !is_active {
             // Inactive: cFrame = 0x0101, cTitle = 0x0002
             // Uses palette[1] for all elements
-            let inactive_attr = self.map_color(FRAME_INACTIVE, token);
+            let inactive_attr = self.map_color(FRAME_INACTIVE);
             (inactive_attr, inactive_attr, inactive_attr)
         } else if is_dragging {
             // Dragging: cFrame = 0x0505, cTitle = 0x0005
             // Uses palette[5] for all elements
-            let dragging_attr = self.map_color(FRAME_ICON, token);
+            let dragging_attr = self.map_color(FRAME_ICON);
             (dragging_attr, dragging_attr, dragging_attr)
         } else {
             // Active: cFrame = 0x0503, cTitle = 0x0004
             // palette[3] = frame border
             // palette[5] = close icon (highlight)
             // palette[4] = title
-            let frame_attr = self.map_color(FRAME_ACTIVE_BORDER, token);
-            let close_icon_attr = self.map_color(FRAME_ICON, token);
-            let title_attr = self.map_color(FRAME_TITLE, token);
+            let frame_attr = self.map_color(FRAME_ACTIVE_BORDER);
+            let close_icon_attr = self.map_color(FRAME_ICON);
+            let title_attr = self.map_color(FRAME_TITLE);
             (frame_attr, close_icon_attr, title_attr)
         }
     }
@@ -101,7 +101,7 @@ impl View for Frame {
         self.bounds = bounds;
     }
 
-    fn draw(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) {
+    fn draw(&mut self, terminal: &mut Terminal) {
         let width = self.bounds.width_clamped() as usize;
         let height = self.bounds.height_clamped() as usize;
 
@@ -112,7 +112,7 @@ impl View for Frame {
         }
 
         // Get frame colors from palette mapping (matches Borland's getColor())
-        let (frame_attr, close_icon_attr, title_attr) = self.get_frame_colors(token);
+        let (frame_attr, close_icon_attr, title_attr) = self.get_frame_colors();
 
         // Top border with title - using double-line box drawing
         let mut buf = DrawBuffer::new(width);
@@ -146,7 +146,7 @@ impl View for Frame {
         side_buf.put_char(width - 1, '║', frame_attr);  // Double vertical line
         // Fill interior with background color from palette chain (matches Borland)
         // Maps through Frame's palette -> Window's palette -> App palette
-        let interior_color = self.map_color(crate::core::palette::WINDOW_BACKGROUND, token);
+        let interior_color = self.map_color(crate::core::palette::WINDOW_BACKGROUND);
         for i in 1..width - 1 {
             side_buf.put_char(i, ' ', interior_color);
         }

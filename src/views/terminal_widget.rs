@@ -313,7 +313,7 @@ impl View for TerminalWidget {
         self.update_scrollbar();
     }
 
-    fn draw(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) {
+    fn draw(&mut self, terminal: &mut Terminal) {
         let visible_rows = self.get_visible_rows();
         let visible_width = self.get_visible_width();
 
@@ -352,7 +352,7 @@ impl View for TerminalWidget {
 
         // Draw scrollbar if present
         if let Some(ref mut v_bar) = self.v_scrollbar {
-            v_bar.draw(terminal, token);
+            v_bar.draw(terminal);
         }
     }
 

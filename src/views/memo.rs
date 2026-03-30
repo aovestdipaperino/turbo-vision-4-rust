@@ -561,15 +561,15 @@ impl View for Memo {
         self.update_scrollbars();
     }
 
-    fn draw(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) {
+    fn draw(&mut self, terminal: &mut Terminal) {
         let content_area = self.get_content_area();
         let width = content_area.width_clamped() as usize;
         let height = content_area.height_clamped() as usize;
 
         // Use palette indices from CP_MEMO
         // 1 = Normal text, 2 = Selected/cursor text
-        let color = self.map_color(1, token);
-        let cursor_color = self.map_color(2, token);
+        let color = self.map_color(1);
+        let cursor_color = self.map_color(2);
 
         // Draw text content
         for y in 0..height {
@@ -634,10 +634,10 @@ impl View for Memo {
 
         // Draw scrollbars
         if let Some(ref mut h_bar) = self.h_scrollbar {
-            h_bar.draw(terminal, token);
+            h_bar.draw(terminal);
         }
         if let Some(ref mut v_bar) = self.v_scrollbar {
-            v_bar.draw(terminal, token);
+            v_bar.draw(terminal);
         }
     }
 
