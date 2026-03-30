@@ -443,10 +443,11 @@ pub trait View {
             current_owner = owner.get_owner();
         }
 
-        // Step 3: Resolve through application palette
+        // Step 3: Resolve through application palette (1-indexed)
         let app_palette_data = palettes::get_app_palette();
-        if (color as usize) < app_palette_data.len() {
-            let final_color = app_palette_data[color as usize];
+        let app_index = (color as usize).wrapping_sub(1);
+        if app_index < app_palette_data.len() {
+            let final_color = app_palette_data[app_index];
             if final_color == 0 {
                 return Attr::from_u8(ERROR_ATTR);
             }
