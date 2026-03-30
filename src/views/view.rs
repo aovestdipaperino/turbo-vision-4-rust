@@ -21,15 +21,18 @@ impl ViewId {
         static NEXT_ID: AtomicUsize = AtomicUsize::new(1);
         ViewId(NEXT_ID.fetch_add(1, Ordering::Relaxed))
     }
-}
 
-/// Owner context for palette remapping
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum OwnerType {
-    None,       // Top-level view (Application)
-    Window,     // Inside a Window (blue palette)
-    CyanWindow, // Inside a Cyan Window (help windows)
-    Dialog,     // Inside a Dialog
+    /// Get the ViewId as a u16 for embedding in event fields.
+    /// ViewId values are small sequential numbers that fit in u16.
+    #[allow(clippy::cast_possible_truncation)]
+    pub fn as_u16(self) -> u16 {
+        self.0 as u16
+    }
+
+    /// Reconstruct a ViewId from a u16 value.
+    pub fn from_u16(val: u16) -> Self {
+        ViewId(val as usize)
+    }
 }
 
 /// View trait - all UI components implement this
@@ -60,7 +63,7 @@ pub enum OwnerType {
 pub trait View {
     fn bounds(&self) -> Rect;
     fn set_bounds(&mut self, bounds: Rect);
-    fn draw(&mut self, terminal: &mut Terminal);
+    fn draw(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken);
     fn handle_event(&mut self, event: &mut Event);
     fn can_focus(&self) -> bool {
         false
@@ -346,29 +349,22 @@ pub trait View {
         // Default: no action needed (only windows need this)
     }
 
-    /// Set the owner (parent) of this view
-    /// Matches Borland: TView::owner field
-    /// Called by Group when adding a child
-    fn set_owner(&mut self, _owner: *const dyn View) {
-        // Default: do nothing (views that need owner support will override)
+    /// Set the QCell-based palette chain node for this view.
+    /// Called by parent (Group/Window) during draw to establish the safe owner chain.
+    fn set_palette_chain(&mut self, _node: Option<crate::core::palette_chain::PaletteChainNode>) {
+        // Default: do nothing (views that need palette chain will override)
     }
 
-    /// Get the owner (parent) of this view
-    /// Matches Borland: TView::owner field
-    /// Returns None if this view has no owner or doesn't track it
-    fn get_owner(&self) -> Option<*const dyn View> {
-        None // Default: no owner
+    /// Get the QCell-based palette chain node for this view.
+    /// Used by `map_color()` to safely walk the owner chain.
+    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
+        None // Default: no palette chain
     }
 
-    /// Get the owner type for palette remapping
-    /// This allows views to know their context (Window vs Dialog)
-    fn get_owner_type(&self) -> OwnerType {
-        OwnerType::None // Default: no owner
-    }
-
-    /// Set the owner type for palette remapping
-    fn set_owner_type(&mut self, _owner_type: OwnerType) {
-        // Default: do nothing (views that need context will override)
+    /// Set the parent's bounds for drag/resize limit resolution.
+    /// Called by Desktop when adding windows.
+    fn set_parent_bounds(&mut self, _bounds: crate::core::geometry::Rect) {
+        // Default: do nothing (only Window needs this)
     }
 
     /// Get this view's palette for the Borland indirect palette system
@@ -391,10 +387,11 @@ pub trait View {
     ///
     /// # Arguments
     /// * `color_index` - Logical color index (1-based, 0 = error color)
+    /// * `token` - The QCell palette token for safe chain traversal
     ///
     /// # Returns
     /// The final color attribute
-    fn map_color(&self, color_index: u8) -> crate::core::palette::Attr {
+    fn map_color(&self, color_index: u8, token: &crate::core::palette_chain::PaletteToken) -> crate::core::palette::Attr {
         use crate::core::palette::{palettes, Attr};
 
         // Borland's errorAttr = 0xCF (Light Red/Magenta background, White foreground)
@@ -419,29 +416,18 @@ pub trait View {
             }
         }
 
-        // Step 2: Walk up the owner chain, remapping through each owner's palette.
+        // Step 2: Walk up the owner chain via QCell-based palette chain.
         // Matches Borland: TView::mapColor() traverses owner->getPalette() up to
         // TApplication. Views without a palette (get_palette returns None) are
-        // transparent. The chain stops when there's no owner.
-        //
-        // Safety: owner pointers are refreshed in Window::draw() every frame,
-        // so they are always valid during rendering. Views outside a Window
-        // (MenuBar, StatusLine, Desktop background) have no owner and skip
-        // this step, going directly to the app palette.
-        let mut current_owner = self.get_owner();
-        while let Some(owner_ptr) = current_owner {
-            let owner = unsafe { &*owner_ptr };
-            if let Some(palette) = owner.get_palette() {
-                if !palette.is_empty() && (color as usize) <= palette.len() {
-                    let remapped = palette.get(color as usize);
-                    if remapped == 0 {
-                        return Attr::from_u8(ERROR_ATTR);
-                    }
-                    color = remapped;
-                }
+        // transparent. The chain stops when there's no parent.
+        if let Some(chain_node) = self.get_palette_chain() {
+            color = chain_node.remap_color(color, token);
+            if color == 0 {
+                return Attr::from_u8(ERROR_ATTR);
             }
-            current_owner = owner.get_owner();
         }
+        // Views without a palette chain (top-level views like MenuBar, StatusLine)
+        // skip the chain walk and go directly to the app palette.
 
         // Step 3: Resolve through application palette (1-indexed)
         let app_palette_data = palettes::get_app_palette();

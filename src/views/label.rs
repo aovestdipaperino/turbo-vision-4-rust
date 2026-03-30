@@ -3,7 +3,6 @@
 //! Label view - static text display with optional linked control focus.
 
 use super::view::{write_line_to_terminal, View, ViewId};
-use super::group::Group;
 use crate::core::draw::DrawBuffer;
 use crate::core::event::{Event, EventType};
 use crate::core::geometry::Rect;
@@ -15,8 +14,7 @@ pub struct Label {
     bounds: Rect,
     text: String,
     link: Option<ViewId>, // ID of linked control
-    owner: Option<*const dyn View>,
-    owner_type: super::view::OwnerType,
+    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
     state: u16,
     options: u16,
 }
@@ -27,8 +25,7 @@ impl Label {
             bounds,
             text: text.to_string(),
             link: None,
-            owner: None,
-            owner_type: super::view::OwnerType::Dialog, // Labels default to Dialog context
+        palette_chain: None,
             state: 0,
             options: OF_POST_PROCESS, // Labels need PostProcess to handle keyboard shortcuts
         }
@@ -67,14 +64,14 @@ impl View for Label {
         self.bounds = bounds;
     }
 
-    fn draw(&mut self, terminal: &mut Terminal) {
+    fn draw(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) {
         let width = self.bounds.width_clamped() as usize;
         let mut buf = DrawBuffer::new(width);
 
         // Label palette indices:
         // 1: Normal, 2: Selected, 3: Shortcut
-        let normal_attr = self.map_color(LABEL_NORMAL);
-        let shortcut_attr = self.map_color(LABEL_SHORTCUT);
+        let normal_attr = self.map_color(LABEL_NORMAL, token);
+        let shortcut_attr = self.map_color(LABEL_SHORTCUT, token);
 
         buf.move_char(0, ' ', normal_attr, width);
         buf.move_str_with_shortcut(0, &self.text, normal_attr, shortcut_attr);
@@ -125,18 +122,13 @@ impl View for Label {
 
                 if let Some(expected_code) = alt_code {
                     if event.key_code == expected_code {
-                        // Hotkey matched! Focus the linked control
-                        // Matches Borland: TLabel calls link->select()
-                        if let Some(owner_ptr) = self.owner {
-                            // SAFETY: We assume the owner is a Group, which is the case
-                            // for labels added to dialogs/windows
-                            unsafe {
-                                let group = &mut *(owner_ptr as *mut Group);
-                                if group.focus_by_view_id(link_id) {
-                                    event.clear(); // Event consumed
-                                }
-                            }
-                        }
+                        // Hotkey matched! Transform event to a broadcast with the
+                        // label's linked ViewId. Group::handle_event processes
+                        // FocusLink broadcasts by calling focus_by_view_id().
+                        // This safely replaces the old unsafe owner cast to &mut Group.
+                        event.what = crate::core::event::EventType::Broadcast;
+                        event.command = crate::core::command::CM_FOCUS_LINK;
+                        event.key_code = link_id.as_u16();
                     }
                 }
             }
@@ -161,20 +153,12 @@ impl View for Label {
         self.options
     }
 
-    fn set_owner(&mut self, owner: *const dyn View) {
-        self.owner = Some(owner);
+    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
+        self.palette_chain = node;
     }
 
-    fn get_owner(&self) -> Option<*const dyn View> {
-        self.owner
-    }
-
-    fn get_owner_type(&self) -> super::view::OwnerType {
-        self.owner_type
-    }
-
-    fn set_owner_type(&mut self, owner_type: super::view::OwnerType) {
-        self.owner_type = owner_type;
+    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
+        self.palette_chain.as_ref()
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {

@@ -365,8 +365,9 @@ impl Application {
                     // After idle, draw overlay widgets (animations) if any
                     // Don't redraw everything, just flush overlay widget changes
                     if !self.overlay_widgets.is_empty() {
+                        let token = crate::core::palette_chain::PaletteToken::new();
                         for widget in &mut self.overlay_widgets {
-                            widget.draw(&mut self.terminal);
+                            widget.draw(&mut self.terminal, &token);
                         }
                         let _ = self.terminal.flush();
                     }
@@ -384,7 +385,8 @@ impl Application {
             // Check for moved windows and redraw affected areas (Borland's drawUnderRect pattern)
             // Matches Borland: TView::locate() checks for movement and calls drawUnderRect
             // This optimized redraw only redraws the union of old + new position
-            let had_moved_windows = self.desktop.handle_moved_windows(&mut self.terminal);
+            let move_token = crate::core::palette_chain::PaletteToken::new();
+            let had_moved_windows = self.desktop.handle_moved_windows(&mut self.terminal, &move_token);
             if had_moved_windows {
                 // Window movement: partial redraw already done via draw_under_rect
                 // Just flush the terminal buffer
@@ -406,21 +408,22 @@ impl Application {
     }
 
     pub fn draw(&mut self) {
+        let token = crate::core::palette_chain::PaletteToken::new();
         // Draw desktop first, then menu bar on top (so dropdown appears over desktop)
-        self.desktop.draw(&mut self.terminal);
+        self.desktop.draw(&mut self.terminal, &token);
 
         if let Some(ref mut menu_bar) = self.menu_bar {
-            menu_bar.draw(&mut self.terminal);
+            menu_bar.draw(&mut self.terminal, &token);
         }
 
         if let Some(ref mut status_line) = self.status_line {
-            status_line.draw(&mut self.terminal);
+            status_line.draw(&mut self.terminal, &token);
         }
 
         // Draw overlay widgets on top of everything
         // These continue to animate even during modal dialogs
         for widget in &mut self.overlay_widgets {
-            widget.draw(&mut self.terminal);
+            widget.draw(&mut self.terminal, &token);
         }
 
         // Update cursor after drawing all views
@@ -703,17 +706,18 @@ impl Application {
         self.terminal.resume()?;
 
         // Force complete redraw of the entire UI
+        let token = crate::core::palette_chain::PaletteToken::new();
         // Draw desktop (which includes all windows)
-        self.desktop.draw(&mut self.terminal);
+        self.desktop.draw(&mut self.terminal, &token);
 
         // Draw menu bar if present
         if let Some(ref mut menu_bar) = self.menu_bar {
-            menu_bar.draw(&mut self.terminal);
+            menu_bar.draw(&mut self.terminal, &token);
         }
 
         // Draw status line if present
         if let Some(ref mut status_line) = self.status_line {
-            status_line.draw(&mut self.terminal);
+            status_line.draw(&mut self.terminal, &token);
         }
 
         self.terminal.flush()?;

@@ -25,8 +25,7 @@ pub struct ColorSelector {
     selected_color: u8,
     /// Whether selecting foreground (true) or background (false)
     _selecting_foreground: bool,
-    owner: Option<*const dyn View>,
-    owner_type: super::view::OwnerType,
+    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
 }
 
 impl ColorSelector {
@@ -37,8 +36,7 @@ impl ColorSelector {
             state: 0,
             selected_color: 7, // White
             _selecting_foreground: true,
-            owner: None,
-            owner_type: super::view::OwnerType::None,
+        palette_chain: None,
         }
     }
 
@@ -83,7 +81,7 @@ impl View for ColorSelector {
         self.bounds = bounds;
     }
 
-    fn draw(&mut self, terminal: &mut Terminal) {
+    fn draw(&mut self, terminal: &mut Terminal, _token: &crate::core::palette_chain::PaletteToken) {
         let width = self.bounds.width_clamped() as usize;
 
         // Draw color grid (16 colors in 2 rows of 8)
@@ -184,21 +182,14 @@ impl View for ColorSelector {
         None
     }
 
-    fn set_owner(&mut self, owner: *const dyn View) {
-        self.owner = Some(owner);
+    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
+        self.palette_chain = node;
     }
 
-    fn get_owner(&self) -> Option<*const dyn View> {
-        self.owner
+    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
+        self.palette_chain.as_ref()
     }
 
-    fn get_owner_type(&self) -> super::view::OwnerType {
-        self.owner_type
-    }
-
-    fn set_owner_type(&mut self, owner_type: super::view::OwnerType) {
-        self.owner_type = owner_type;
-    }
 }
 
 /// Builder for creating color selectors with a fluent API.

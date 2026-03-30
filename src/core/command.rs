@@ -70,6 +70,9 @@ pub const CM_TOGGLE_STATUSBAR: CommandId = 133;
 pub const CM_HELP_INDEX: CommandId = 140;
 pub const CM_KEYBOARD_REF: CommandId = 141;
 
+// Internal commands
+pub const CM_FOCUS_LINK: CommandId = 66;  // Label hotkey: focus the linked control (ViewId stored in key_code)
+
 // Demo commands
 pub const CM_LISTBOX_DEMO: CommandId = 150;
 pub const CM_LISTBOX_SELECT: CommandId = 151;

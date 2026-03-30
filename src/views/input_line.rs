@@ -32,8 +32,7 @@ pub struct InputLine {
     first_pos: usize,                // First visible character position for horizontal scrolling
     validator: Option<ValidatorRef>, // Optional validator for input validation
     state: StateFlags,               // View state flags (including SF_FOCUSED)
-    owner: Option<*const dyn View>,
-    owner_type: super::view::OwnerType,
+    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
 }
 
 impl InputLine {
@@ -49,8 +48,7 @@ impl InputLine {
             first_pos: 0,
             validator: None,
             state: 0,
-            owner: None,
-            owner_type: super::view::OwnerType::Dialog, // InputLine defaults to Dialog context
+        palette_chain: None,
         }
     }
 
@@ -161,7 +159,7 @@ impl View for InputLine {
         self.bounds = bounds;
     }
 
-    fn draw(&mut self, terminal: &mut Terminal) {
+    fn draw(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) {
         let width = self.bounds.width_clamped() as usize;
 
         // Don't render input lines that are too small
@@ -175,13 +173,13 @@ impl View for InputLine {
         // InputLine palette indices:
         // 1: Normal, 2: Focused, 3: Selected, 4: Arrows
         let attr = if self.is_focused() {
-            self.map_color(INPUT_FOCUSED) // Focused
+            self.map_color(INPUT_FOCUSED, token) // Focused
         } else {
-            self.map_color(INPUT_NORMAL) // Normal
+            self.map_color(INPUT_NORMAL, token) // Normal
         };
 
-        let sel_attr = self.map_color(INPUT_SELECTED); // Selected text
-        let arrow_attr = self.map_color(INPUT_ARROWS); // Arrow indicators
+        let sel_attr = self.map_color(INPUT_SELECTED, token); // Selected text
+        let arrow_attr = self.map_color(INPUT_ARROWS, token); // Arrow indicators
 
         buf.move_char(0, ' ', attr, width);
 
@@ -439,20 +437,12 @@ impl View for InputLine {
         }
     }
 
-    fn set_owner(&mut self, owner: *const dyn View) {
-        self.owner = Some(owner);
+    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
+        self.palette_chain = node;
     }
 
-    fn get_owner(&self) -> Option<*const dyn View> {
-        self.owner
-    }
-
-    fn get_owner_type(&self) -> super::view::OwnerType {
-        self.owner_type
-    }
-
-    fn set_owner_type(&mut self, owner_type: super::view::OwnerType) {
-        self.owner_type = owner_type;
+    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
+        self.palette_chain.as_ref()
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {

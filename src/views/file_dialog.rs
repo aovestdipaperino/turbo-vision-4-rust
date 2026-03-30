@@ -245,26 +245,29 @@ impl FileDialog {
             // Update OK button state based on input field
             self.update_ok_button_state();
 
+            // Create a fresh palette token for this frame
+            let token = crate::core::palette_chain::PaletteToken::new();
+
             // Draw desktop first (background), then dialog on top
             // This matches Borland's pattern where getEvent() triggers full screen redraw
-            app.desktop.draw(&mut app.terminal);
+            app.desktop.draw(&mut app.terminal, &token);
 
             // Draw menu bar and status line if present (so they appear on top)
             if let Some(ref mut menu_bar) = app.menu_bar {
-                menu_bar.draw(&mut app.terminal);
+                menu_bar.draw(&mut app.terminal, &token);
             }
             if let Some(ref mut status_line) = app.status_line {
-                status_line.draw(&mut app.terminal);
+                status_line.draw(&mut app.terminal, &token);
             }
 
             // Draw the file dialog on top of desktop/menu/status
-            self.dialog.draw(&mut app.terminal);
+            self.dialog.draw(&mut app.terminal, &token);
 
             // Draw overlay widgets on top of everything (animations, etc.)
             // These continue to animate even during modal dialogs
             // Matches Borland: TProgram::idle() continues running during execView()
             for widget in &mut app.overlay_widgets {
-                widget.draw(&mut app.terminal);
+                widget.draw(&mut app.terminal, &token);
             }
 
             self.dialog.update_cursor(&mut app.terminal);
@@ -691,8 +694,8 @@ impl View for FileDialog {
         self.dialog.set_bounds(bounds);
     }
 
-    fn draw(&mut self, terminal: &mut Terminal) {
-        self.dialog.draw(terminal);
+    fn draw(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) {
+        self.dialog.draw(terminal, token);
     }
 
     fn handle_event(&mut self, event: &mut Event) {

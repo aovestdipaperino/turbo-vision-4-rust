@@ -47,9 +47,10 @@ fn main() -> turbo_vision::core::error::Result<()> {
 
     loop {
         // Draw everything
-        dir_list.draw(&mut app.terminal);
-        file_list.draw(&mut app.terminal);
-        status.draw(&mut app.terminal);
+        let token = turbo_vision::core::palette_chain::PaletteToken::new();
+        dir_list.draw(&mut app.terminal, &token);
+        file_list.draw(&mut app.terminal, &token);
+        status.draw(&mut app.terminal, &token);
 
         // Update cursor
         if focused_left {

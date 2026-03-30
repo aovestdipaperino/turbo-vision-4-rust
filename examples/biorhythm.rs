@@ -212,7 +212,7 @@ impl View for BiorhythmChart {
         self.state = state;
     }
 
-    fn draw(&mut self, terminal: &mut Terminal) {
+    fn draw(&mut self, terminal: &mut Terminal, token: &turbo_vision::core::palette_chain::PaletteToken) {
         if (self.state & SF_VISIBLE) == 0 {
             return;
         }
@@ -648,7 +648,8 @@ fn main() -> turbo_vision::core::error::Result<()> {
 
                 // Check for cascading submenu
                 if event.what == EventType::Keyboard || event.what == EventType::MouseUp {
-                    if let Some(command) = menu_bar.check_cascading_submenu(&mut app.terminal) {
+                    let token = turbo_vision::core::palette_chain::PaletteToken::new();
+                    if let Some(command) = menu_bar.check_cascading_submenu(&mut app.terminal, &token) {
                         if command != 0 {
                             event = Event::command(command);
                         }
@@ -674,7 +675,8 @@ fn main() -> turbo_vision::core::error::Result<()> {
 
         app.idle();
         app.desktop.remove_closed_windows();
-        app.desktop.handle_moved_windows(&mut app.terminal);
+        let move_token = turbo_vision::core::palette_chain::PaletteToken::new();
+        app.desktop.handle_moved_windows(&mut app.terminal, &move_token);
 
         // Exit if all windows are closed
         if app.desktop.child_count() == 0 {

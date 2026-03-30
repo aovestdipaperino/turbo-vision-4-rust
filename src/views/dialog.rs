@@ -149,26 +149,29 @@ impl Dialog {
         // In Rust with composition, we must implement the execute loop here
         // and call self.handle_event() to get proper polymorphic behavior.
         loop {
+            // Create a fresh palette token for this frame
+            let token = crate::core::palette_chain::PaletteToken::new();
+
             // Draw desktop first (clears the background), then draw this dialog on top
             // This is the key: dialogs that aren't on the desktop need to draw themselves
-            app.desktop.draw(&mut app.terminal);
+            app.desktop.draw(&mut app.terminal, &token);
 
             // Draw menu bar and status line if present (so they appear on top)
             if let Some(ref mut menu_bar) = app.menu_bar {
-                menu_bar.draw(&mut app.terminal);
+                menu_bar.draw(&mut app.terminal, &token);
             }
             if let Some(ref mut status_line) = app.status_line {
-                status_line.draw(&mut app.terminal);
+                status_line.draw(&mut app.terminal, &token);
             }
 
             // Draw the dialog on top of desktop/menu/status
-            self.draw(&mut app.terminal);
+            self.draw(&mut app.terminal, &token);
 
             // Draw overlay widgets on top of everything (animations, etc.)
             // These continue to animate even during modal dialogs
             // Matches Borland: TProgram::idle() continues running during execView()
             for widget in &mut app.overlay_widgets {
-                widget.draw(&mut app.terminal);
+                widget.draw(&mut app.terminal, &token);
             }
 
             self.update_cursor(&mut app.terminal);
@@ -218,8 +221,8 @@ impl View for Dialog {
         self.window.set_bounds(bounds);
     }
 
-    fn draw(&mut self, terminal: &mut Terminal) {
-        self.window.draw(terminal);
+    fn draw(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) {
+        self.window.draw(terminal, token);
     }
 
     fn handle_event(&mut self, event: &mut Event) {
@@ -354,14 +357,6 @@ impl View for Dialog {
             // Validate through window (which will validate all children)
             self.window.valid(command)
         }
-    }
-
-    fn set_owner(&mut self, owner: *const dyn View) {
-        self.window.set_owner(owner);
-    }
-
-    fn get_owner(&self) -> Option<*const dyn View> {
-        self.window.get_owner()
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {

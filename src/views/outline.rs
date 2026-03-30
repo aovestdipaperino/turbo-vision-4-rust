@@ -136,8 +136,7 @@ pub struct OutlineViewer<T> {
     list_state: ListViewerState,
     /// Function to convert data to display string
     format_fn: Box<dyn Fn(&T) -> String>,
-    owner: Option<*const dyn View>,
-    owner_type: super::view::OwnerType,
+    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
 }
 
 impl<T: 'static> OutlineViewer<T> {
@@ -155,8 +154,7 @@ impl<T: 'static> OutlineViewer<T> {
             all_nodes: Vec::new(),
             list_state: ListViewerState::new(),
             format_fn: Box::new(format_fn),
-            owner: None,
-            owner_type: super::view::OwnerType::None,
+        palette_chain: None,
         }
     }
 
@@ -290,7 +288,7 @@ impl<T: 'static> View for OutlineViewer<T> {
         self.bounds = bounds;
     }
 
-    fn draw(&mut self, terminal: &mut Terminal) {
+    fn draw(&mut self, terminal: &mut Terminal, _token: &crate::core::palette_chain::PaletteToken) {
         let width = self.bounds.width_clamped() as usize;
         let height = self.bounds.height_clamped() as usize;
 
@@ -372,12 +370,12 @@ impl<T: 'static> View for OutlineViewer<T> {
         true
     }
 
-    fn set_owner(&mut self, owner: *const dyn View) {
-        self.owner = Some(owner);
+    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
+        self.palette_chain = node;
     }
 
-    fn get_owner(&self) -> Option<*const dyn View> {
-        self.owner
+    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
+        self.palette_chain.as_ref()
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
@@ -385,13 +383,6 @@ impl<T: 'static> View for OutlineViewer<T> {
         Some(Palette::from_slice(palettes::CP_LISTBOX))
     }
 
-    fn get_owner_type(&self) -> super::view::OwnerType {
-        self.owner_type
-    }
-
-    fn set_owner_type(&mut self, owner_type: super::view::OwnerType) {
-        self.owner_type = owner_type;
-    }
 }
 
 // Implement ListViewer trait to get standard list navigation

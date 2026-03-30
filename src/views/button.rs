@@ -21,8 +21,7 @@ pub struct Button {
     is_broadcast: bool,
     state: StateFlags,
     options: u16,
-    owner: Option<*const dyn View>,
-    owner_type: super::view::OwnerType,
+    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
 }
 
 impl Button {
@@ -45,8 +44,7 @@ impl Button {
             is_broadcast: false,
             state,
             options: OF_POST_PROCESS, // Buttons process in post-process phase
-            owner: None,
-            owner_type: super::view::OwnerType::Dialog, // Buttons default to Dialog context
+            palette_chain: None,
         }
     }
 
@@ -100,7 +98,7 @@ impl View for Button {
         self.bounds = bounds;
     }
 
-    fn draw(&mut self, terminal: &mut Terminal) {
+    fn draw(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) {
         let width = self.bounds.width_clamped() as usize;
         let height = self.bounds.height_clamped() as usize;
 
@@ -122,64 +120,34 @@ impl View for Button {
         // 7: Shortcut text
         // 8: Shadow
         let button_attr = if is_disabled {
-            self.map_color(BUTTON_DISABLED) // Disabled
+            self.map_color(BUTTON_DISABLED, token) // Disabled
         } else if is_focused {
-            self.map_color(BUTTON_SELECTED) // Selected/focused
+            self.map_color(BUTTON_SELECTED, token) // Selected/focused
         } else if self.is_default {
-            self.map_color(BUTTON_DEFAULT) // Default but not focused
+            self.map_color(BUTTON_DEFAULT, token) // Default but not focused
         } else {
-            self.map_color(BUTTON_NORMAL) // Normal
+            self.map_color(BUTTON_NORMAL, token) // Normal
         };
 
         // Shadow attribute - Borland uses spaces where BG is visible, we use blocks where FG is visible
         // So we swap FG/BG: 0x70 (Black on LightGray) becomes 0x07 (LightGray on Black)
-        let mut shadow_attr = self.map_color(BUTTON_SHADOW);
+        let mut shadow_attr = self.map_color(BUTTON_SHADOW, token);
 
-        // If shadow mapping failed (button in wrong owner context like Window instead of Dialog),
-        // query the window background directly from the app palette based on owner type
+        // If shadow mapping failed, use a default shadow color.
+        // With the QCell palette chain, this should not normally trigger.
         if shadow_attr.to_u8() == 0xCF {  // ERROR_ATTR
-            use crate::core::palette::{palettes, Attr, Palette};
-
-            // Get background color by directly querying the appropriate palette
-            // All window/dialog types use index 1 for background
-            let app_palette_data = palettes::get_app_palette();
-            let app_palette = Palette::from_slice(&app_palette_data);
-
-            let bg_app_index = match self.owner_type {
-                super::view::OwnerType::Window => {
-                    // Blue Window: palette[1] = 8 → app[8] = 0x17 (White on Blue)
-                    let window_palette = Palette::from_slice(palettes::CP_BLUE_WINDOW);
-                    window_palette.get(1)
-                }
-                super::view::OwnerType::CyanWindow => {
-                    // Cyan Window: palette[1] = 16 → app[16] = 0x37 (White on Cyan)
-                    let window_palette = Palette::from_slice(palettes::CP_CYAN_WINDOW);
-                    window_palette.get(1)
-                }
-                super::view::OwnerType::Dialog => {
-                    // Dialog: palette[1] = 32 → app[32] = 0x70 (Black on LightGray)
-                    let dialog_palette = Palette::from_slice(palettes::CP_GRAY_DIALOG);
-                    dialog_palette.get(1)
-                }
-                super::view::OwnerType::None => {
-                    8  // Default to Blue Window background
-                }
-            };
-
-            let bg_color = app_palette.get(bg_app_index as usize);
-            let bg_attr = Attr::from_u8(bg_color);
-
-            // Shadow is White on owner's background color
-            shadow_attr = Attr::new(crate::core::palette::TvColor::White, bg_attr.bg);
+            use crate::core::palette::Attr;
+            // Default: White on Black (standard shadow)
+            shadow_attr = Attr::from_u8(0x07);
         }
 
         let shadow_attr = shadow_attr.swap();
 
         // Shortcut attributes
         let shortcut_attr = if is_disabled {
-            self.map_color(BUTTON_DISABLED) // Disabled shortcut same as disabled text
+            self.map_color(BUTTON_DISABLED, token) // Disabled shortcut same as disabled text
         } else {
-            self.map_color(BUTTON_SHORTCUT) // Shortcut color
+            self.map_color(BUTTON_SHORTCUT, token) // Shortcut color
         };
 
         // Draw all lines except the last (which is the bottom shadow)
@@ -345,20 +313,12 @@ impl View for Button {
         Some(self.command)
     }
 
-    fn set_owner(&mut self, owner: *const dyn View) {
-        self.owner = Some(owner);
+    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
+        self.palette_chain = node;
     }
 
-    fn get_owner(&self) -> Option<*const dyn View> {
-        self.owner
-    }
-
-    fn get_owner_type(&self) -> super::view::OwnerType {
-        self.owner_type
-    }
-
-    fn set_owner_type(&mut self, owner_type: super::view::OwnerType) {
-        self.owner_type = owner_type;
+    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
+        self.palette_chain.as_ref()
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {

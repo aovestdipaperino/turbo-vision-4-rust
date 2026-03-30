@@ -63,8 +63,7 @@ pub struct TerminalWidget {
     auto_scroll: bool,
     /// Vertical scrollbar
     v_scrollbar: Option<Box<ScrollBar>>,
-    owner: Option<*const dyn View>,
-    owner_type: super::view::OwnerType,
+    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
 }
 
 impl TerminalWidget {
@@ -78,8 +77,7 @@ impl TerminalWidget {
             top_line: 0,
             auto_scroll: true,
             v_scrollbar: None,
-            owner: None,
-            owner_type: super::view::OwnerType::None,
+        palette_chain: None,
         }
     }
 
@@ -315,7 +313,7 @@ impl View for TerminalWidget {
         self.update_scrollbar();
     }
 
-    fn draw(&mut self, terminal: &mut Terminal) {
+    fn draw(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) {
         let visible_rows = self.get_visible_rows();
         let visible_width = self.get_visible_width();
 
@@ -354,7 +352,7 @@ impl View for TerminalWidget {
 
         // Draw scrollbar if present
         if let Some(ref mut v_bar) = self.v_scrollbar {
-            v_bar.draw(terminal);
+            v_bar.draw(terminal, token);
         }
     }
 
@@ -434,21 +432,14 @@ impl View for TerminalWidget {
         Some(Palette::from_slice(palettes::CP_SCROLLER))
     }
 
-    fn set_owner(&mut self, owner: *const dyn View) {
-        self.owner = Some(owner);
+    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
+        self.palette_chain = node;
     }
 
-    fn get_owner(&self) -> Option<*const dyn View> {
-        self.owner
+    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
+        self.palette_chain.as_ref()
     }
 
-    fn get_owner_type(&self) -> super::view::OwnerType {
-        self.owner_type
-    }
-
-    fn set_owner_type(&mut self, owner_type: super::view::OwnerType) {
-        self.owner_type = owner_type;
-    }
 }
 
 /// Builder for creating terminal widgets with a fluent API.

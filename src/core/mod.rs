@@ -59,3 +59,4 @@ pub mod menu_data;
 pub mod status_data;
 pub mod history;
 pub mod error;
+pub mod palette_chain;

@@ -131,12 +131,13 @@ fn setup_welcome_message(app: &mut Application, width: i16, height: i16) {
 
 /// Redraw all UI components (desktop, menu bar, status line)
 fn redraw_screen(app: &mut Application) {
-    app.desktop.draw(&mut app.terminal);
+    let token = turbo_vision::core::palette_chain::PaletteToken::new();
+    app.desktop.draw(&mut app.terminal, &token);
     if let Some(ref mut menu_bar) = app.menu_bar {
-        menu_bar.draw(&mut app.terminal);
+        menu_bar.draw(&mut app.terminal, &token);
     }
     if let Some(ref mut status_line) = app.status_line {
-        status_line.draw(&mut app.terminal);
+        status_line.draw(&mut app.terminal, &token);
     }
     let _ = app.terminal.flush();
 }
@@ -161,7 +162,8 @@ fn run_event_loop(app: &mut Application) -> turbo_vision::core::error::Result<()
 
                 // Check for cascading submenus (e.g., Recent Files, Preferences)
                 if event.what == EventType::Keyboard || event.what == EventType::MouseUp {
-                    if let Some(command) = menu_bar.check_cascading_submenu(&mut app.terminal) {
+                    let token = turbo_vision::core::palette_chain::PaletteToken::new();
+                    if let Some(command) = menu_bar.check_cascading_submenu(&mut app.terminal, &token) {
                         if command != 0 {
                             event = Event::command(command);
                         }
@@ -283,7 +285,8 @@ fn show_popup_menu(app: &mut Application, position: Point) -> u16 {
     ]);
 
     let mut menu_box = MenuBox::new(position, popup_menu);
-    menu_box.execute(&mut app.terminal)
+    let popup_token = turbo_vision::core::palette_chain::PaletteToken::new();
+    menu_box.execute(&mut app.terminal, &popup_token)
 }
 
 /// Show a simple message dialog

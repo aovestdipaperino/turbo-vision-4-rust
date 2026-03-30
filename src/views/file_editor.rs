@@ -164,8 +164,8 @@ impl View for FileEditor {
         self.edit_window.set_bounds(bounds);
     }
 
-    fn draw(&mut self, terminal: &mut Terminal) {
-        self.edit_window.draw(terminal);
+    fn draw(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) {
+        self.edit_window.draw(terminal, token);
     }
 
     fn handle_event(&mut self, event: &mut Event) {
@@ -196,9 +196,6 @@ impl View for FileEditor {
         self.edit_window.get_palette()
     }
 
-    fn set_owner(&mut self, owner: *const dyn View) {
-        self.edit_window.set_owner(owner);
-    }
 }
 
 /// Builder for creating file editors with a fluent API.

@@ -15,8 +15,7 @@ pub struct ParamText {
     bounds: Rect,
     template: String,
     text: String,
-    owner: Option<*const dyn View>,
-    owner_type: super::view::OwnerType,
+    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
 }
 
 impl ParamText {
@@ -30,8 +29,7 @@ impl ParamText {
             bounds,
             template: template.to_string(),
             text: template.to_string(),
-            owner: None,
-            owner_type: super::view::OwnerType::None,
+        palette_chain: None,
         }
     }
 
@@ -104,13 +102,13 @@ impl View for ParamText {
         self.bounds = bounds;
     }
 
-    fn draw(&mut self, terminal: &mut Terminal) {
+    fn draw(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) {
         let width = self.bounds.width_clamped() as usize;
         let height = self.bounds.height_clamped() as usize;
 
         // ParamText palette indices:
         // 1: Normal text
-        let normal_attr = self.map_color(PARAM_TEXT_NORMAL);
+        let normal_attr = self.map_color(PARAM_TEXT_NORMAL, token);
 
         // Split text into lines
         let lines: Vec<&str> = self.text.lines().collect();
@@ -146,12 +144,12 @@ impl View for ParamText {
         // ParamText doesn't handle events
     }
 
-    fn set_owner(&mut self, owner: *const dyn View) {
-        self.owner = Some(owner);
+    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
+        self.palette_chain = node;
     }
 
-    fn get_owner(&self) -> Option<*const dyn View> {
-        self.owner
+    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
+        self.palette_chain.as_ref()
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
@@ -159,13 +157,6 @@ impl View for ParamText {
         Some(Palette::from_slice(palettes::CP_STATIC_TEXT))
     }
 
-    fn get_owner_type(&self) -> super::view::OwnerType {
-        self.owner_type
-    }
-
-    fn set_owner_type(&mut self, owner_type: super::view::OwnerType) {
-        self.owner_type = owner_type;
-    }
 }
 
 #[cfg(test)]

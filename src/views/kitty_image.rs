@@ -68,7 +68,7 @@ pub struct KittyImage {
     /// Number of rows the image should span (0 = auto based on bounds)
     rows: u16,
     /// Owner pointer for palette chain
-    owner: Option<*const dyn View>,
+    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
     /// Z-index for layering (higher = on top)
     z_index: i32,
     /// Last drawn bounds (for clearing old placements when moved/resized)
@@ -94,7 +94,7 @@ impl KittyImage {
             ),
             columns: 0,
             rows: 0,
-            owner: None,
+        palette_chain: None,
             z_index: 0,
             last_bounds: None,
         }
@@ -288,7 +288,7 @@ impl View for KittyImage {
         self.state = state;
     }
 
-    fn draw(&mut self, terminal: &mut Terminal) {
+    fn draw(&mut self, terminal: &mut Terminal, _token: &crate::core::palette_chain::PaletteToken) {
         let width = self.bounds.width_clamped() as usize;
         let height = self.bounds.height() as usize;
 
@@ -361,12 +361,12 @@ impl View for KittyImage {
         // Image view doesn't handle events
     }
 
-    fn set_owner(&mut self, owner: *const dyn View) {
-        self.owner = Some(owner);
+    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
+        self.palette_chain = node;
     }
 
-    fn get_owner(&self) -> Option<*const dyn View> {
-        self.owner
+    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
+        self.palette_chain.as_ref()
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {

@@ -33,7 +33,7 @@ pub struct StatusLine {
     selected_item: Option<usize>,    // Currently hovered/selected item
     hint_text: Option<String>,       // Context-sensitive help text
     options: u16,
-    owner: Option<*const dyn View>,
+    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
 }
 
 impl StatusLine {
@@ -47,7 +47,7 @@ impl StatusLine {
             selected_item: None,
             hint_text: None,
             options: OF_PRE_PROCESS,  // Status line processes in pre-process phase (matches Borland)
-            owner: None,
+        palette_chain: None,
         }
     }
 
@@ -57,16 +57,16 @@ impl StatusLine {
     }
 
     /// Draw the status line with optional selected item highlighting
-    fn draw_select(&mut self, terminal: &mut Terminal, selected: Option<usize>) {
+    fn draw_select(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken, selected: Option<usize>) {
         let width = self.bounds.width_clamped() as usize;
         let mut buf = DrawBuffer::new(width);
 
         // StatusLine palette indices:
         // 1: Normal, 2: Shortcut, 3: Selected, 4: Selected shortcut
-        let normal_attr = self.map_color(STATUSLINE_NORMAL);
-        let shortcut_attr = self.map_color(STATUSLINE_SHORTCUT);
-        let selected_attr = self.map_color(STATUSLINE_SELECTED);
-        let selected_shortcut_attr = self.map_color(STATUSLINE_SELECTED_SHORTCUT);
+        let normal_attr = self.map_color(STATUSLINE_NORMAL, token);
+        let shortcut_attr = self.map_color(STATUSLINE_SHORTCUT, token);
+        let selected_attr = self.map_color(STATUSLINE_SELECTED, token);
+        let selected_shortcut_attr = self.map_color(STATUSLINE_SELECTED_SHORTCUT, token);
 
         buf.move_char(0, ' ', normal_attr, width);
 
@@ -168,9 +168,9 @@ impl View for StatusLine {
         self.bounds = bounds;
     }
 
-    fn draw(&mut self, terminal: &mut Terminal) {
+    fn draw(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) {
         // Draw with current selection (if any)
-        self.draw_select(terminal, self.selected_item);
+        self.draw_select(terminal, token, self.selected_item);
     }
 
     fn handle_event(&mut self, event: &mut Event) {
@@ -241,12 +241,12 @@ impl View for StatusLine {
         self.options = options;
     }
 
-    fn set_owner(&mut self, owner: *const dyn View) {
-        self.owner = Some(owner);
+    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
+        self.palette_chain = node;
     }
 
-    fn get_owner(&self) -> Option<*const dyn View> {
-        self.owner
+    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
+        self.palette_chain.as_ref()
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {

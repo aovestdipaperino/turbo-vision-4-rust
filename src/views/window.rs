@@ -32,7 +32,7 @@ pub struct Window {
     /// Matches Borland: TView::locate() calculates union of old and new bounds
     prev_bounds: Option<Rect>,
     /// Owner (parent) view - Borland: TView::owner
-    owner: Option<*const dyn View>,
+    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
     /// Palette type (Dialog vs Editor window)
     palette_type: WindowPaletteType,
     /// Custom palette override — applied to both Window and Frame.
@@ -105,7 +105,7 @@ impl Window {
         // Don't use background - the Frame fills the interior space (matching Borland)
         let interior = Group::new(interior_bounds);
 
-        let mut window = Self {
+        let window = Self {
             bounds,
             frame,
             interior,
@@ -117,14 +117,11 @@ impl Window {
             min_size: Point::new(16, 6), // Minimum size: 16 wide, 6 tall (matches Borland's minWinSize)
             zoom_rect: bounds,           // Initialize to current bounds
             prev_bounds: None,
-            owner: None,
+        palette_chain: None,
             palette_type: window_palette,
             custom_palette: None,
             explicit_drag_limits: None,
         };
-
-        // Set the interior's owner to the window for palette chain resolution
-        window.interior.set_owner(&window as *const _ as *const dyn View);
 
         window
     }
@@ -137,16 +134,8 @@ impl Window {
         self.custom_palette = Some(palette);
     }
 
-    pub fn add(&mut self, mut view: Box<dyn View>) -> ViewId {
-        // Set the owner type based on palette type for correct color remapping
-        let owner_type = match self.palette_type {
-            WindowPaletteType::Dialog => super::view::OwnerType::Dialog,
-            WindowPaletteType::Cyan => super::view::OwnerType::CyanWindow,
-            _ => super::view::OwnerType::Window,
-        };
-        view.set_owner_type(owner_type);
-
-        // Add to interior group (which will set owner pointer for palette chain)
+    pub fn add(&mut self, view: Box<dyn View>) -> ViewId {
+        // Add to interior group (palette chain is set up during draw)
         self.interior.add(view)
     }
 
@@ -154,18 +143,8 @@ impl Window {
     /// Used for scrollbars and other frame-edge elements
     /// Matches Borland: TWindow is a TGroup, all children use window-relative coords
     pub fn add_frame_child(&mut self, mut view: Box<dyn View>) -> usize {
-        // Set the owner type based on palette type for correct color remapping
-        let owner_type = match self.palette_type {
-            WindowPaletteType::Dialog => super::view::OwnerType::Dialog,
-            WindowPaletteType::Cyan => super::view::OwnerType::CyanWindow,
-            _ => super::view::OwnerType::Window,
-        };
-        view.set_owner_type(owner_type);
-
-        // Set owner pointer for palette chain
-        view.set_owner(self as *const _ as *const dyn View);
-
         // Convert from relative to absolute coordinates (relative to window frame)
+        // Palette chain is set up during draw
         let child_bounds = view.bounds();
         let absolute_bounds = Rect::new(
             self.bounds.a.x + child_bounds.a.x,
@@ -228,21 +207,14 @@ impl Window {
         (self.min_size, max)
     }
 
-    /// Get drag limits from owner (parent bounds) or explicit limits
+    /// Get drag limits from parent bounds or explicit limits
     /// Matches Borland: TFrame::dragWindow() gets limits = owner->owner->getExtent()
-    /// Returns parent bounds if owner exists, explicit limits if set, otherwise unrestricted
+    /// Returns parent bounds if set, otherwise unrestricted
     fn get_drag_limits(&self) -> Rect {
-        // First check explicit drag limits (for modal dialogs)
         if let Some(limits) = self.explicit_drag_limits {
-            return limits;
-        }
-
-        // Then check owner pointer
-        if let Some(owner_ptr) = self.owner {
-            // Safety: owner pointer is valid during the window's lifetime
-            unsafe { (*owner_ptr).bounds() }
+            limits
         } else {
-            // No owner - unrestricted movement
+            // No parent bounds set - unrestricted movement
             Rect::new(-999, -999, 9999, 9999)
         }
     }
@@ -421,23 +393,25 @@ impl View for Window {
         // because scrollbars need to be repositioned based on new window SIZE, not just offset
     }
 
-    fn draw(&mut self, terminal: &mut Terminal) {
-        // Refresh owner pointers every frame. At draw time, self is at a stable
-        // heap address (inside Box<dyn View>), so the pointer is always valid.
-        // This replaces the fragile init_after_add approach that required every
-        // wrapper struct to forward the lifecycle hook.
-        let self_ptr = self as *const Self as *const dyn View;
-        self.frame.set_owner(self_ptr);
-        self.interior.set_owner(self_ptr);
+    fn draw(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) {
+        // Build Window's palette chain node for safe palette traversal.
+        // Window is a palette-bearing node (CP_BLUE_WINDOW, CP_GRAY_DIALOG, etc.)
+        let my_chain_node = crate::core::palette_chain::PaletteChainNode::new(
+            token,
+            self.get_palette(),
+            self.palette_chain.clone(),
+        );
 
-        self.frame.draw(terminal);
-        self.interior.draw(terminal);
+        self.frame.set_palette_chain(Some(my_chain_node.clone()));
+        self.frame.draw(terminal, token);
+
+        self.interior.set_palette_chain(Some(my_chain_node.clone()));
+        self.interior.draw(terminal, token);
 
         // Draw frame children (scrollbars, etc.) after interior so they appear on top
-        // Refresh their owner pointers too (they were set by add_frame_child which may be stale)
         for child in &mut self.frame_children {
-            child.set_owner(self_ptr);
-            child.draw(terminal);
+            child.set_palette_chain(Some(my_chain_node.clone()));
+            child.draw(terminal, token);
         }
 
         // Draw shadow if enabled
@@ -710,14 +684,16 @@ impl View for Window {
         self.interior.valid(command)
     }
 
-    fn set_owner(&mut self, owner: *const dyn View) {
-        self.owner = Some(owner);
-        // Do NOT set interior.owner here - Window might still move!
-        // Instead, init_interior_owner() must be called after Window is in final position
+    fn set_parent_bounds(&mut self, bounds: crate::core::geometry::Rect) {
+        self.explicit_drag_limits = Some(bounds);
     }
 
-    fn get_owner(&self) -> Option<*const dyn View> {
-        self.owner
+    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
+        self.palette_chain = node;
+    }
+
+    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
+        self.palette_chain.as_ref()
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {

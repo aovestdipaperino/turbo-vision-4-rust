@@ -32,8 +32,8 @@ impl View for SharedScrollBar {
         self.0.borrow_mut().set_bounds(bounds);
     }
 
-    fn draw(&mut self, terminal: &mut Terminal) {
-        self.0.borrow_mut().draw(terminal);
+    fn draw(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) {
+        self.0.borrow_mut().draw(terminal, token);
     }
 
     fn handle_event(&mut self, event: &mut Event) {
@@ -44,13 +44,6 @@ impl View for SharedScrollBar {
         self.0.borrow().get_palette()
     }
 
-    fn get_owner_type(&self) -> super::view::OwnerType {
-        self.0.borrow().get_owner_type()
-    }
-
-    fn set_owner_type(&mut self, owner_type: super::view::OwnerType) {
-        self.0.borrow_mut().set_owner_type(owner_type);
-    }
 }
 
 /// Wrapper that allows Indicator to be a child view
@@ -65,8 +58,8 @@ impl View for SharedIndicator {
         self.0.borrow_mut().set_bounds(bounds);
     }
 
-    fn draw(&mut self, terminal: &mut Terminal) {
-        self.0.borrow_mut().draw(terminal);
+    fn draw(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) {
+        self.0.borrow_mut().draw(terminal, token);
     }
 
     fn handle_event(&mut self, _event: &mut Event) {
@@ -77,13 +70,6 @@ impl View for SharedIndicator {
         self.0.borrow().get_palette()
     }
 
-    fn get_owner_type(&self) -> super::view::OwnerType {
-        self.0.borrow().get_owner_type()
-    }
-
-    fn set_owner_type(&mut self, owner_type: super::view::OwnerType) {
-        self.0.borrow_mut().set_owner_type(owner_type);
-    }
 }
 
 /// Wrapper that allows Editor to be shared between window and EditWindow
@@ -98,8 +84,8 @@ impl View for SharedEditor {
         self.0.borrow_mut().set_bounds(bounds);
     }
 
-    fn draw(&mut self, terminal: &mut Terminal) {
-        self.0.borrow_mut().draw(terminal);
+    fn draw(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) {
+        self.0.borrow_mut().draw(terminal, token);
     }
 
     fn handle_event(&mut self, event: &mut Event) {
@@ -142,13 +128,6 @@ impl View for SharedEditor {
         self.0.borrow().get_palette()
     }
 
-    fn get_owner_type(&self) -> super::view::OwnerType {
-        self.0.borrow().get_owner_type()
-    }
-
-    fn set_owner_type(&mut self, owner_type: super::view::OwnerType) {
-        self.0.borrow_mut().set_owner_type(owner_type);
-    }
 }
 
 /// EditWindow - Window containing an Editor
@@ -358,14 +337,14 @@ impl View for EditWindow {
         self.window.update_frame_child(self.indicator_idx, ind_bounds);
     }
 
-    fn draw(&mut self, terminal: &mut Terminal) {
+    fn draw(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) {
         // IMPORTANT: Update frame children positions BEFORE drawing to prevent visual lag
         // During rapid resizing, this ensures scrollbars are always at correct positions
         self.sync_frame_children_positions();
 
         // Draw frame and interior first
-        self.window.frame_mut().draw(terminal);
-        self.window.interior_mut().draw(terminal);
+        self.window.frame_mut().draw(terminal, token);
+        self.window.interior_mut().draw(terminal, token);
 
         // Check if scrollbars are needed based on content size
         let editor = self.editor.borrow();
@@ -376,17 +355,17 @@ impl View for EditWindow {
         // Conditionally draw scrollbars only if needed
         if needs_h_scrollbar {
             if let Some(child) = self.window.get_frame_child_mut(self.h_scrollbar_idx) {
-                child.draw(terminal);
+                child.draw(terminal, token);
             }
         }
         if needs_v_scrollbar {
             if let Some(child) = self.window.get_frame_child_mut(self.v_scrollbar_idx) {
-                child.draw(terminal);
+                child.draw(terminal, token);
             }
         }
         // Always draw indicator
         if let Some(child) = self.window.get_frame_child_mut(self.indicator_idx) {
-            child.draw(terminal);
+            child.draw(terminal, token);
         }
 
         // Draw shadow if enabled
@@ -501,9 +480,6 @@ impl View for EditWindow {
         self.window.set_end_state(command);
     }
 
-    fn set_owner(&mut self, owner: *const dyn View) {
-        self.window.set_owner(owner);
-    }
 }
 
 #[cfg(test)]

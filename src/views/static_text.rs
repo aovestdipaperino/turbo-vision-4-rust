@@ -13,8 +13,7 @@ pub struct StaticText {
     bounds: Rect,
     text: String,
     centered: bool,
-    owner: Option<*const dyn View>,
-    owner_type: super::view::OwnerType,
+    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
 }
 
 impl StaticText {
@@ -23,8 +22,7 @@ impl StaticText {
             bounds,
             text: text.to_string(),
             centered: false,
-            owner: None,
-            owner_type: super::view::OwnerType::Dialog, // StaticText defaults to Dialog context
+        palette_chain: None,
         }
     }
 
@@ -33,8 +31,7 @@ impl StaticText {
             bounds,
             text: text.to_string(),
             centered: true,
-            owner: None,
-            owner_type: super::view::OwnerType::Dialog, // StaticText defaults to Dialog context
+        palette_chain: None,
         }
     }
 }
@@ -48,12 +45,12 @@ impl View for StaticText {
         self.bounds = bounds;
     }
 
-    fn draw(&mut self, terminal: &mut Terminal) {
+    fn draw(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) {
         let width = self.bounds.width_clamped() as usize;
         let lines: Vec<&str> = self.text.split('\n').collect();
 
         // StaticText palette color index 1 = normal text
-        let text_attr = self.map_color(STATIC_TEXT_NORMAL);
+        let text_attr = self.map_color(STATIC_TEXT_NORMAL, token);
 
         for (i, line) in lines.iter().enumerate() {
             if i >= self.bounds.height_clamped() as usize {
@@ -84,20 +81,12 @@ impl View for StaticText {
         // Static text doesn't handle events
     }
 
-    fn set_owner(&mut self, owner: *const dyn View) {
-        self.owner = Some(owner);
+    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
+        self.palette_chain = node;
     }
 
-    fn get_owner(&self) -> Option<*const dyn View> {
-        self.owner
-    }
-
-    fn get_owner_type(&self) -> super::view::OwnerType {
-        self.owner_type
-    }
-
-    fn set_owner_type(&mut self, owner_type: super::view::OwnerType) {
-        self.owner_type = owner_type;
+    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
+        self.palette_chain.as_ref()
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
@@ -177,8 +166,7 @@ impl StaticTextBuilder {
             bounds,
             text,
             centered: self.centered,
-            owner: None,
-            owner_type: super::view::OwnerType::Dialog,
+        palette_chain: None,
         }
     }
 

@@ -37,8 +37,7 @@ pub struct HelpViewer {
     cross_refs: Vec<CrossRef>,            // Cross-references with position info
     selected: usize,                      // Currently selected cross-ref (1-based like Borland)
     current_topic: Option<String>,
-    owner: Option<*const dyn View>,
-    owner_type: super::view::OwnerType,
+    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
 }
 
 impl HelpViewer {
@@ -54,8 +53,7 @@ impl HelpViewer {
             cross_refs: Vec::new(),
             selected: 1, // 1-based, like Borland
             current_topic: None,
-            owner: None,
-            owner_type: super::view::OwnerType::None,
+        palette_chain: None,
         }
     }
 
@@ -279,7 +277,7 @@ impl View for HelpViewer {
         self.update_scrollbar();
     }
 
-    fn draw(&mut self, terminal: &mut Terminal) {
+    fn draw(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) {
         let start_line = self.delta.y as usize;
         let h_offset = self.delta.x as usize;  // Horizontal scroll offset
 
@@ -293,12 +291,12 @@ impl View for HelpViewer {
         // Get colors from palette for rich text rendering
         // Matches Borland: THelpViewer::draw() (help.cc:54-70)
         // Extended for bold, italic, code styling
-        let normal = self.map_color(1);      // Normal text
-        let keyword = self.map_color(2);     // Link text
-        let sel_keyword = self.map_color(3); // Selected link
-        let bold_color = self.map_color(4);  // Bold text
-        let italic_color = self.map_color(5); // Italic text
-        let code_color = self.map_color(6);  // Code text
+        let normal = self.map_color(1, token);      // Normal text
+        let keyword = self.map_color(2, token);     // Link text
+        let sel_keyword = self.map_color(3, token); // Selected link
+        let bold_color = self.map_color(4, token);  // Bold text
+        let italic_color = self.map_color(5, token); // Italic text
+        let code_color = self.map_color(6, token);  // Code text
 
         for row in 0..self.bounds.height() {
             let line_num = (start_line + row as usize + 1) as i16; // 1-based line number
@@ -363,7 +361,7 @@ impl View for HelpViewer {
 
         // Draw scrollbar if present
         if let Some(ref mut sb) = self.vscrollbar {
-            sb.draw(terminal);
+            sb.draw(terminal, token);
         }
     }
 
@@ -489,12 +487,12 @@ impl View for HelpViewer {
         self.state = state;
     }
 
-    fn set_owner(&mut self, owner: *const dyn View) {
-        self.owner = Some(owner);
+    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
+        self.palette_chain = node;
     }
 
-    fn get_owner(&self) -> Option<*const dyn View> {
-        self.owner
+    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
+        self.palette_chain.as_ref()
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
@@ -502,13 +500,6 @@ impl View for HelpViewer {
         Some(Palette::from_slice(palettes::CP_HELP_VIEWER))
     }
 
-    fn get_owner_type(&self) -> super::view::OwnerType {
-        self.owner_type
-    }
-
-    fn set_owner_type(&mut self, owner_type: super::view::OwnerType) {
-        self.owner_type = owner_type;
-    }
 }
 
 /// Builder for creating help viewers with a fluent API.

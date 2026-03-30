@@ -54,7 +54,7 @@ impl View for BroadcastButton {
         self.bounds = bounds;
     }
 
-    fn draw(&mut self, terminal: &mut Terminal) {
+    fn draw(&mut self, terminal: &mut Terminal, token: &turbo_vision::core::palette_chain::PaletteToken) {
         let width = self.bounds.width_clamped() as usize;
         let height = self.bounds.height();
 
@@ -145,7 +145,8 @@ fn main() -> turbo_vision::core::error::Result<()> {
     // Event loop
     loop {
         // Draw
-        app.desktop.draw(&mut app.terminal);
+        let token = turbo_vision::core::palette_chain::PaletteToken::new();
+        app.desktop.draw(&mut app.terminal, &token);
 
         // Draw title
         let mut title_buf = DrawBuffer::new(group_width as usize);
@@ -164,7 +165,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
         info_buf.move_str((group_width as usize - info.len()) / 2, info, colors::MENU_NORMAL);
         turbo_vision::views::view::write_line_to_terminal(&mut app.terminal, group_x, group_y - 1, &info_buf);
 
-        group.draw(&mut app.terminal);
+        group.draw(&mut app.terminal, &token);
         let _ = app.terminal.flush();
 
         // Poll events

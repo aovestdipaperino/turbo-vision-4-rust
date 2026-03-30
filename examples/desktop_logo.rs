@@ -67,7 +67,7 @@ impl View for CrabWidget {
         self.state = state;
     }
 
-    fn draw(&mut self, terminal: &mut Terminal) {
+    fn draw(&mut self, terminal: &mut Terminal, token: &turbo_vision::core::palette_chain::PaletteToken) {
         let mut buf = DrawBuffer::new(10);
         // Use status line colors (reverse video)
         let color = Attr::new(TvColor::Black, TvColor::LightGray);
@@ -161,7 +161,7 @@ impl View for LogoBackground {
         self.state = state;
     }
 
-    fn draw(&mut self, terminal: &mut Terminal) {
+    fn draw(&mut self, terminal: &mut Terminal, token: &turbo_vision::core::palette_chain::PaletteToken) {
         let width = self.bounds.width() as usize;
         let height = self.bounds.height() as usize;
         // Use cyan background for desktop
@@ -345,7 +345,8 @@ fn main() -> turbo_vision::core::error::Result<()> {
 
                 // Check for cascading submenu
                 if event.what == EventType::Keyboard || event.what == EventType::MouseUp {
-                    if let Some(command) = menu_bar.check_cascading_submenu(&mut app.terminal) {
+                    let token = turbo_vision::core::palette_chain::PaletteToken::new();
+                    if let Some(command) = menu_bar.check_cascading_submenu(&mut app.terminal, &token) {
                         if command != 0 {
                             event = Event::command(command);
                         }

@@ -18,7 +18,7 @@ pub struct Group {
     focused: usize,
     background: Option<Attr>,
     end_state: crate::core::command::CommandId,  // For execute() event loop (Borland: endState)
-    owner: Option<*const dyn View>,  // Borland: TView::owner field
+    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
 }
 
 impl Group {
@@ -30,7 +30,7 @@ impl Group {
             focused: 0,
             background: None,
             end_state: 0,
-            owner: None,
+        palette_chain: None,
         }
     }
 
@@ -42,15 +42,11 @@ impl Group {
             focused: 0,
             background: Some(background),
             end_state: 0,
-            owner: None,
+        palette_chain: None,
         }
     }
 
     pub fn add(&mut self, mut view: Box<dyn View>) -> ViewId {
-        // Set owner pointer for palette chain resolution
-        // Child views need to know their parent to traverse the palette chain
-        view.set_owner(self as *const _ as *const dyn View);
-
         // Convert child's bounds from relative to absolute coordinates
         // Child bounds are specified relative to this Group's interior
         let child_bounds = view.bounds();
@@ -329,7 +325,7 @@ impl Group {
     /// Used for Borland's drawUnderRect pattern where we only redraw views
     /// that come after (on top of) a moved view
     /// Matches Borland: TGroup::drawSubViews(TView *p, TView *bottom)
-    pub fn draw_sub_views(&mut self, terminal: &mut Terminal, start_index: usize, clip: Rect) {
+    pub fn draw_sub_views(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken, start_index: usize, clip: Rect) {
         // Set clip region to the affected area
         terminal.push_clip(clip);
 
@@ -337,7 +333,7 @@ impl Group {
         for i in start_index..self.children.len() {
             let child_bounds = self.children[i].bounds();
             if clip.intersects(&child_bounds) {
-                self.children[i].draw(terminal);
+                self.children[i].draw(terminal, token);
             }
         }
 
@@ -438,7 +434,7 @@ impl View for Group {
         }
     }
 
-    fn draw(&mut self, terminal: &mut Terminal) {
+    fn draw(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) {
         // Draw background if specified
         if let Some(bg_attr) = self.background {
             let width = self.bounds.width_clamped() as usize;
@@ -462,20 +458,21 @@ impl View for Group {
         clip_bounds.grow(1, 1);
         terminal.push_clip(clip_bounds);
 
-        // Refresh children's owner pointers to this Group every frame.
-        // Pointers set during Group::add may be stale if the Group moved
-        // (e.g. Window returned from constructor, wrapped in a struct, boxed).
-        let self_ptr = self as *const Self as *const dyn View;
-        for child in &mut self.children {
-            child.set_owner(self_ptr);
-        }
+        // Build this Group's palette chain node for safe palette traversal.
+        // Group is typically transparent (no palette), but carries the parent link.
+        let my_chain_node = crate::core::palette_chain::PaletteChainNode::new(
+            token,
+            self.get_palette(),
+            self.palette_chain.clone(),
+        );
 
         // Only draw children that intersect with this group's bounds
         // The clipping region ensures children can't render outside parent boundaries
         for child in &mut self.children {
+            child.set_palette_chain(Some(my_chain_node.clone()));
             let child_bounds = child.bounds();
             if self.bounds.intersects(&child_bounds) {
-                child.draw(terminal);
+                child.draw(terminal, token);
             }
         }
 
@@ -623,6 +620,14 @@ impl View for Group {
             // Broadcast events: send to ALL children
             // Other event types: send to focused child only
             if event.what == EventType::Broadcast {
+                // Handle CM_FOCUS_LINK: Label hotkey requests focus on linked control
+                if event.command == crate::core::command::CM_FOCUS_LINK {
+                    let view_id = super::view::ViewId::from_u16(event.key_code);
+                    if self.focus_by_view_id(view_id) {
+                        event.clear();
+                    }
+                    return;
+                }
                 // Matches Borland: TGroup::handleEvent() broadcasts to all children via forEach
                 for child in &mut self.children {
                     if event.what == EventType::Nothing {
@@ -686,12 +691,12 @@ impl View for Group {
         }
     }
 
-    fn set_owner(&mut self, owner: *const dyn View) {
-        self.owner = Some(owner);
+    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
+        self.palette_chain = node;
     }
 
-    fn get_owner(&self) -> Option<*const dyn View> {
-        self.owner
+    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
+        self.palette_chain.as_ref()
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
@@ -772,7 +777,7 @@ mod tests {
             self.bounds = bounds;
         }
 
-        fn draw(&mut self, _terminal: &mut Terminal) {
+        fn draw(&mut self, _terminal: &mut Terminal, _token: &crate::core::palette_chain::PaletteToken) {
             *self.draw_count.borrow_mut() += 1;
         }
 

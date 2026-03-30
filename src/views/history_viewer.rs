@@ -30,8 +30,7 @@ pub struct HistoryViewer {
     items: Vec<String>,
     list_state: ListViewerState,
     state: StateFlags,
-    owner: Option<*const dyn View>,
-    owner_type: super::view::OwnerType,
+    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
 }
 
 impl HistoryViewer {
@@ -47,8 +46,7 @@ impl HistoryViewer {
             items,
             list_state,
             state: 0,
-            owner: None,
-            owner_type: super::view::OwnerType::None,
+        palette_chain: None,
         }
     }
 
@@ -78,7 +76,7 @@ impl View for HistoryViewer {
         self.bounds = bounds;
     }
 
-    fn draw(&mut self, terminal: &mut Terminal) {
+    fn draw(&mut self, terminal: &mut Terminal, _token: &crate::core::palette_chain::PaletteToken) {
         
         use crate::core::draw::DrawBuffer;
         use super::view::write_line_to_terminal;
@@ -152,12 +150,12 @@ impl View for HistoryViewer {
         self.list_state.focused.unwrap_or(0)
     }
 
-    fn set_owner(&mut self, owner: *const dyn View) {
-        self.owner = Some(owner);
+    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
+        self.palette_chain = node;
     }
 
-    fn get_owner(&self) -> Option<*const dyn View> {
-        self.owner
+    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
+        self.palette_chain.as_ref()
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
@@ -165,13 +163,6 @@ impl View for HistoryViewer {
         Some(Palette::from_slice(palettes::CP_HISTORY_VIEWER))
     }
 
-    fn get_owner_type(&self) -> super::view::OwnerType {
-        self.owner_type
-    }
-
-    fn set_owner_type(&mut self, owner_type: super::view::OwnerType) {
-        self.owner_type = owner_type;
-    }
 }
 
 // Implement ListViewer trait for standard navigation

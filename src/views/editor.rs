@@ -107,8 +107,7 @@ pub struct Editor {
     filename: Option<String>,
     // Syntax highlighting
     highlighter: Option<Box<dyn SyntaxHighlighter>>,
-    owner: Option<*const dyn View>,
-    owner_type: super::view::OwnerType,
+    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
 }
 
 impl Editor {
@@ -135,8 +134,7 @@ impl Editor {
             last_search_options: SearchOptions::new(),
             filename: None,
             highlighter: None,
-            owner: None,
-            owner_type: super::view::OwnerType::None,
+        palette_chain: None,
         }
     }
 
@@ -549,49 +547,41 @@ impl Editor {
     }
 
     fn update_scrollbars(&mut self) {
+        let content_area = self.get_content_area();
         let max_x = self.max_line_length();
         let max_y = self.lines.len() as i16;
 
-        // value = cursor position, max = last valid position in content.
-        // The thumb moves proportionally as the cursor moves through the
-        // document, and its size reflects how many content units each
-        // track cell represents (track_size / total).
         if let Some(ref h_bar) = self.h_scrollbar {
             h_bar.borrow_mut().set_params(
-                self.cursor.x as i32,
+                self.delta.x as i32,
                 0,
-                (max_x - 1).max(0) as i32,
-                1,
+                max_x.saturating_sub(content_area.width()) as i32,
+                content_area.width() as i32,
                 1,
             );
-            h_bar.borrow_mut().set_total(max_x as i32);
         }
 
         if let Some(ref v_bar) = self.v_scrollbar {
             v_bar.borrow_mut().set_params(
-                self.cursor.y as i32,
+                self.delta.y as i32,
                 0,
-                (max_y - 1).max(0) as i32,
-                1,
+                max_y.saturating_sub(content_area.height()) as i32,
+                content_area.height() as i32,
                 1,
             );
-            v_bar.borrow_mut().set_total(max_y as i32);
         }
     }
 
-    /// Sync editor cursor from scrollbar values and ensure it's visible.
-    /// Scrollbar value represents cursor position in the document.
+    /// Sync editor's delta (scroll position) from scrollbar values
+    /// Called after scrollbar events to update editor view
     pub fn sync_from_scrollbars(&mut self) {
         if let Some(ref h_bar) = self.h_scrollbar {
-            self.cursor.x = h_bar.borrow().get_value() as i16;
+            self.delta.x = h_bar.borrow().get_value() as i16;
         }
 
         if let Some(ref v_bar) = self.v_scrollbar {
-            self.cursor.y = v_bar.borrow().get_value() as i16;
+            self.delta.y = v_bar.borrow().get_value() as i16;
         }
-
-        self.clamp_cursor();
-        self.ensure_cursor_visible();
     }
 
     fn update_indicator(&mut self) {
@@ -1166,16 +1156,16 @@ impl View for Editor {
         self.update_scrollbars();
     }
 
-    fn draw(&mut self, terminal: &mut Terminal) {
+    fn draw(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) {
         use crate::core::palette::{EDITOR_NORMAL, EDITOR_SELECTED, EDITOR_CURSOR};
 
         let content_area = self.get_content_area();
         let width = content_area.width_clamped() as usize;
         let height = content_area.height_clamped() as usize;
 
-        let default_color = self.map_color(EDITOR_NORMAL);
-        let selected_color = self.map_color(EDITOR_SELECTED);
-        let cursor_color = self.map_color(EDITOR_CURSOR);
+        let default_color = self.map_color(EDITOR_NORMAL, token);
+        let selected_color = self.map_color(EDITOR_SELECTED, token);
+        let cursor_color = self.map_color(EDITOR_CURSOR, token);
 
         for y in 0..height {
             let line_idx = (self.delta.y + y as i16) as usize;
@@ -1560,12 +1550,12 @@ impl View for Editor {
         }
     }
 
-    fn set_owner(&mut self, owner: *const dyn View) {
-        self.owner = Some(owner);
+    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
+        self.palette_chain = node;
     }
 
-    fn get_owner(&self) -> Option<*const dyn View> {
-        self.owner
+    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
+        self.palette_chain.as_ref()
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
@@ -1575,13 +1565,6 @@ impl View for Editor {
         Some(Palette::from_slice(palettes::CP_EDITOR))
     }
 
-    fn get_owner_type(&self) -> super::view::OwnerType {
-        self.owner_type
-    }
-
-    fn set_owner_type(&mut self, owner_type: super::view::OwnerType) {
-        self.owner_type = owner_type;
-    }
 }
 
 #[cfg(test)]

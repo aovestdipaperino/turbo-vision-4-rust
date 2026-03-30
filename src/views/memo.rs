@@ -35,8 +35,7 @@ pub struct Memo {
     read_only: bool,
     modified: bool,
     tab_size: usize,
-    owner: Option<*const dyn View>,
-    owner_type: super::view::OwnerType,
+    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
 }
 
 impl Memo {
@@ -55,8 +54,7 @@ impl Memo {
             read_only: false,
             modified: false,
             tab_size: 4,
-            owner: None,
-            owner_type: super::view::OwnerType::None,
+        palette_chain: None,
         }
     }
 
@@ -563,15 +561,15 @@ impl View for Memo {
         self.update_scrollbars();
     }
 
-    fn draw(&mut self, terminal: &mut Terminal) {
+    fn draw(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) {
         let content_area = self.get_content_area();
         let width = content_area.width_clamped() as usize;
         let height = content_area.height_clamped() as usize;
 
         // Use palette indices from CP_MEMO
         // 1 = Normal text, 2 = Selected/cursor text
-        let color = self.map_color(1);
-        let cursor_color = self.map_color(2);
+        let color = self.map_color(1, token);
+        let cursor_color = self.map_color(2, token);
 
         // Draw text content
         for y in 0..height {
@@ -636,10 +634,10 @@ impl View for Memo {
 
         // Draw scrollbars
         if let Some(ref mut h_bar) = self.h_scrollbar {
-            h_bar.draw(terminal);
+            h_bar.draw(terminal, token);
         }
         if let Some(ref mut v_bar) = self.v_scrollbar {
-            v_bar.draw(terminal);
+            v_bar.draw(terminal, token);
         }
     }
 
@@ -808,12 +806,12 @@ impl View for Memo {
         }
     }
 
-    fn set_owner(&mut self, owner: *const dyn View) {
-        self.owner = Some(owner);
+    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
+        self.palette_chain = node;
     }
 
-    fn get_owner(&self) -> Option<*const dyn View> {
-        self.owner
+    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
+        self.palette_chain.as_ref()
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
@@ -821,13 +819,6 @@ impl View for Memo {
         Some(Palette::from_slice(palettes::CP_MEMO))
     }
 
-    fn get_owner_type(&self) -> super::view::OwnerType {
-        self.owner_type
-    }
-
-    fn set_owner_type(&mut self, owner_type: super::view::OwnerType) {
-        self.owner_type = owner_type;
-    }
 }
 
 #[cfg(test)]

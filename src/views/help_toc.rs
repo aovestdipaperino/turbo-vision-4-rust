@@ -114,8 +114,8 @@ impl View for HelpToc {
         self.dialog.set_bounds(bounds);
     }
 
-    fn draw(&mut self, terminal: &mut Terminal) {
-        self.dialog.draw(terminal);
+    fn draw(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) {
+        self.dialog.draw(terminal, token);
     }
 
     fn handle_event(&mut self, event: &mut Event) {

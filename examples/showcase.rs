@@ -87,12 +87,12 @@ const CM_CALC_PLUS: u16 = 219;
 struct ClockView {
     bounds: Rect,
     state: StateFlags,
-    owner: Option<*const dyn View>,
+    palette_chain: Option<turbo_vision::core::palette_chain::PaletteChainNode>,
 }
 
 impl ClockView {
     fn new(bounds: Rect) -> Self {
-        Self { bounds, state: 0, owner: None }
+        Self { bounds, state: 0, palette_chain: None }
     }
 
     fn get_time_string() -> String {
@@ -118,7 +118,7 @@ impl View for ClockView {
         self.state = state;
     }
 
-    fn draw(&mut self, terminal: &mut Terminal) {
+    fn draw(&mut self, terminal: &mut Terminal, token: &turbo_vision::core::palette_chain::PaletteToken) {
         let width = self.bounds.width_clamped() as usize;
         let color = colors::MENU_NORMAL;
 
@@ -136,12 +136,12 @@ impl View for ClockView {
     fn handle_event(&mut self, _event: &mut Event) {}
     fn update_cursor(&self, _terminal: &mut Terminal) {}
 
-    fn set_owner(&mut self, owner: *const dyn View) {
-        self.owner = Some(owner);
+    fn set_palette_chain(&mut self, node: Option<turbo_vision::core::palette_chain::PaletteChainNode>) {
+        self.palette_chain = node;
     }
 
-    fn get_owner(&self) -> Option<*const dyn View> {
-        self.owner
+    fn get_palette_chain(&self) -> Option<&turbo_vision::core::palette_chain::PaletteChainNode> {
+        self.palette_chain.as_ref()
     }
 
     fn get_palette(&self) -> Option<turbo_vision::core::palette::Palette> {
@@ -208,7 +208,7 @@ impl View for CrabWidget {
         self.state = state;
     }
 
-    fn draw(&mut self, terminal: &mut Terminal) {
+    fn draw(&mut self, terminal: &mut Terminal, token: &turbo_vision::core::palette_chain::PaletteToken) {
         let width = CrabWidget::WIDTH as usize;
         let mut buf = DrawBuffer::new(width);
         // Use status line colors (reverse video)
@@ -289,8 +289,8 @@ impl View for CrabWidgetWrapper {
         self.inner.borrow_mut().set_state(state);
     }
 
-    fn draw(&mut self, terminal: &mut Terminal) {
-        self.inner.borrow_mut().draw(terminal);
+    fn draw(&mut self, terminal: &mut Terminal, token: &turbo_vision::core::palette_chain::PaletteToken) {
+        self.inner.borrow_mut().draw(terminal, token);
     }
 
     fn handle_event(&mut self, event: &mut Event) {
@@ -399,12 +399,12 @@ fn show_about_dialog(app: &mut Application) {
 struct AsciiTable {
     bounds: Rect,
     state: StateFlags,
-    owner: Option<*const dyn View>,
+    palette_chain: Option<turbo_vision::core::palette_chain::PaletteChainNode>,
 }
 
 impl AsciiTable {
     fn new(bounds: Rect) -> Self {
-        Self { bounds, state: 0, owner: None }
+        Self { bounds, state: 0, palette_chain: None }
     }
 }
 
@@ -425,7 +425,7 @@ impl View for AsciiTable {
         self.state = state;
     }
 
-    fn draw(&mut self, terminal: &mut Terminal) {
+    fn draw(&mut self, terminal: &mut Terminal, token: &turbo_vision::core::palette_chain::PaletteToken) {
         let width = self.bounds.width_clamped() as usize;
         let height = self.bounds.height_clamped() as usize;
 
@@ -462,12 +462,12 @@ impl View for AsciiTable {
     fn handle_event(&mut self, _event: &mut Event) {}
     fn update_cursor(&self, _terminal: &mut Terminal) {}
 
-    fn set_owner(&mut self, owner: *const dyn View) {
-        self.owner = Some(owner);
+    fn set_palette_chain(&mut self, node: Option<turbo_vision::core::palette_chain::PaletteChainNode>) {
+        self.palette_chain = node;
     }
 
-    fn get_owner(&self) -> Option<*const dyn View> {
-        self.owner
+    fn get_palette_chain(&self) -> Option<&turbo_vision::core::palette_chain::PaletteChainNode> {
+        self.palette_chain.as_ref()
     }
 
     fn get_palette(&self) -> Option<turbo_vision::core::palette::Palette> {
@@ -511,7 +511,7 @@ struct CalcDisplay {
     sign: char,
     operator: char,
     operand: f64,
-    owner: Option<*const dyn View>,
+    palette_chain: Option<turbo_vision::core::palette_chain::PaletteChainNode>,
 }
 
 impl CalcDisplay {
@@ -527,7 +527,7 @@ impl CalcDisplay {
             sign: ' ',
             operator: '=',
             operand: 0.0,
-            owner: None,
+        palette_chain: None,
         }
     }
 
@@ -680,7 +680,7 @@ impl View for CalcDisplay {
         self.options = options;
     }
 
-    fn draw(&mut self, terminal: &mut Terminal) {
+    fn draw(&mut self, terminal: &mut Terminal, token: &turbo_vision::core::palette_chain::PaletteToken) {
         let width = self.bounds.width_clamped() as usize;
         // Use LightCyan background (closest to RGB(175, 212, 250))
         let color = Attr::new(TvColor::Black, TvColor::LightCyan);
@@ -735,12 +735,12 @@ impl View for CalcDisplay {
 
     fn update_cursor(&self, _terminal: &mut Terminal) {}
 
-    fn set_owner(&mut self, owner: *const dyn View) {
-        self.owner = Some(owner);
+    fn set_palette_chain(&mut self, node: Option<turbo_vision::core::palette_chain::PaletteChainNode>) {
+        self.palette_chain = node;
     }
 
-    fn get_owner(&self) -> Option<*const dyn View> {
-        self.owner
+    fn get_palette_chain(&self) -> Option<&turbo_vision::core::palette_chain::PaletteChainNode> {
+        self.palette_chain.as_ref()
     }
 
     fn get_palette(&self) -> Option<turbo_vision::core::palette::Palette> {
@@ -805,7 +805,7 @@ struct CalendarView {
     cur_day: u32,
     cur_month: u32,
     cur_year: u32,
-    owner: Option<*const dyn View>,
+    palette_chain: Option<turbo_vision::core::palette_chain::PaletteChainNode>,
 }
 
 impl CalendarView {
@@ -827,7 +827,7 @@ impl CalendarView {
             cur_day: day,
             cur_month: month,
             cur_year: year,
-            owner: None,
+        palette_chain: None,
         }
     }
 
@@ -955,7 +955,7 @@ impl View for CalendarView {
         self.state = state;
     }
 
-    fn draw(&mut self, terminal: &mut Terminal) {
+    fn draw(&mut self, terminal: &mut Terminal, token: &turbo_vision::core::palette_chain::PaletteToken) {
         let width = self.bounds.width_clamped() as usize;
 
         let color = Attr::new(TvColor::Black, TvColor::Cyan);
@@ -1044,12 +1044,12 @@ impl View for CalendarView {
 
     fn update_cursor(&self, _terminal: &mut Terminal) {}
 
-    fn set_owner(&mut self, owner: *const dyn View) {
-        self.owner = Some(owner);
+    fn set_palette_chain(&mut self, node: Option<turbo_vision::core::palette_chain::PaletteChainNode>) {
+        self.palette_chain = node;
     }
 
-    fn get_owner(&self) -> Option<*const dyn View> {
-        self.owner
+    fn get_palette_chain(&self) -> Option<&turbo_vision::core::palette_chain::PaletteChainNode> {
+        self.palette_chain.as_ref()
     }
 
     fn get_palette(&self) -> Option<turbo_vision::core::palette::Palette> {
@@ -1073,7 +1073,7 @@ struct PuzzleView {
     board: [[char; 6]; 6],
     moves: u16,
     solved: bool,
-    owner: Option<*const dyn View>,
+    palette_chain: Option<turbo_vision::core::palette_chain::PaletteChainNode>,
 }
 
 impl PuzzleView {
@@ -1084,7 +1084,7 @@ impl PuzzleView {
             board: [[' '; 6]; 6],
             moves: 0,
             solved: false,
-            owner: None,
+        palette_chain: None,
         };
 
         // Initialize board with starting position
@@ -1249,7 +1249,7 @@ impl View for PuzzleView {
         self.state = state;
     }
 
-    fn draw(&mut self, terminal: &mut Terminal) {
+    fn draw(&mut self, terminal: &mut Terminal, token: &turbo_vision::core::palette_chain::PaletteToken) {
         let width = self.bounds.width_clamped() as usize;
 
         // Color map for alternating tile colors
@@ -1315,12 +1315,12 @@ impl View for PuzzleView {
 
     fn update_cursor(&self, _terminal: &mut Terminal) {}
 
-    fn set_owner(&mut self, owner: *const dyn View) {
-        self.owner = Some(owner);
+    fn set_palette_chain(&mut self, node: Option<turbo_vision::core::palette_chain::PaletteChainNode>) {
+        self.palette_chain = node;
     }
 
-    fn get_owner(&self) -> Option<*const dyn View> {
-        self.owner
+    fn get_palette_chain(&self) -> Option<&turbo_vision::core::palette_chain::PaletteChainNode> {
+        self.palette_chain.as_ref()
     }
 
     fn get_palette(&self) -> Option<turbo_vision::core::palette::Palette> {
@@ -1469,7 +1469,8 @@ fn handle_event_routing(app: &mut Application, event: &mut Event) {
 
         // Check for cascading submenu
         if event.what == EventType::Keyboard || event.what == EventType::MouseUp {
-            if let Some(command) = menu_bar.check_cascading_submenu(&mut app.terminal) {
+            let token = turbo_vision::core::palette_chain::PaletteToken::new();
+            if let Some(command) = menu_bar.check_cascading_submenu(&mut app.terminal, &token) {
                 if command != 0 {
                     *event = Event::command(command);
                 }
@@ -1569,7 +1570,8 @@ fn run_event_loop(app: &mut Application, clock: &mut ClockView, crab_widget: &Rc
 
         // Draw everything
         app.draw();
-        clock.draw(&mut app.terminal);
+        let token = turbo_vision::core::palette_chain::PaletteToken::new();
+        clock.draw(&mut app.terminal, &token);
         app.terminal.flush()?;
 
         // Poll for events
@@ -1584,7 +1586,7 @@ fn run_event_loop(app: &mut Application, clock: &mut ClockView, crab_widget: &Rc
                 // Redraw if needed (after modal dialogs)
                 if needs_redraw {
                     app.draw();
-                    clock.draw(&mut app.terminal);
+                    clock.draw(&mut app.terminal, &token);
                     app.terminal.flush()?;
                 }
             }
@@ -1593,7 +1595,8 @@ fn run_event_loop(app: &mut Application, clock: &mut ClockView, crab_widget: &Rc
         // Idle processing and cleanup
         app.idle();
         app.desktop.remove_closed_windows();
-        app.desktop.handle_moved_windows(&mut app.terminal);
+        let move_token = turbo_vision::core::palette_chain::PaletteToken::new();
+        app.desktop.handle_moved_windows(&mut app.terminal, &move_token);
     }
 
     Ok(())
@@ -1607,14 +1610,15 @@ fn main() -> turbo_vision::core::error::Result<()> {
     let (mut app, mut clock, crab_widget) = init_application()?;
 
     // Initial draw
-    app.desktop.draw(&mut app.terminal);
+    let token = turbo_vision::core::palette_chain::PaletteToken::new();
+    app.desktop.draw(&mut app.terminal, &token);
     if let Some(ref mut menu_bar) = app.menu_bar {
-        menu_bar.draw(&mut app.terminal);
+        menu_bar.draw(&mut app.terminal, &token);
     }
     if let Some(ref mut status_line) = app.status_line {
-        status_line.draw(&mut app.terminal);
+        status_line.draw(&mut app.terminal, &token);
     }
-    clock.draw(&mut app.terminal);
+    clock.draw(&mut app.terminal, &token);
     app.terminal.flush()?;
 
     // Show about dialog on startup

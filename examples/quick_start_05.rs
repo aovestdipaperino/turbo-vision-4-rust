@@ -99,12 +99,13 @@ fn handle_command(app: &mut Application, command: u16) {
 }
 
 fn redraw_screen(app: &mut Application) {
-    app.desktop.draw(&mut app.terminal);
+    let token = turbo_vision::core::palette_chain::PaletteToken::new();
+    app.desktop.draw(&mut app.terminal, &token);
     if let Some(ref mut menu_bar) = app.menu_bar {
-        menu_bar.draw(&mut app.terminal);
+        menu_bar.draw(&mut app.terminal, &token);
     }
     if let Some(ref mut status_line) = app.status_line {
-        status_line.draw(&mut app.terminal);
+        status_line.draw(&mut app.terminal, &token);
     }
     let _ = app.terminal.flush();
 }

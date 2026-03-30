@@ -32,7 +32,8 @@ fn main() -> turbo_vision::core::error::Result<()> {
     // Event loop
     while app.running {
         // Draw everything
-        app.desktop.draw(&mut app.terminal);
+        let token = turbo_vision::core::palette_chain::PaletteToken::new();
+        app.desktop.draw(&mut app.terminal, &token);
 
         // Configuration for the "box"
         let box_width = 40;
@@ -101,7 +102,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
 
         // Draw status line
         if let Some(ref mut status_line) = app.status_line {
-            status_line.draw(&mut app.terminal);
+            status_line.draw(&mut app.terminal, &token);
         }
 
         let _ = app.terminal.flush();

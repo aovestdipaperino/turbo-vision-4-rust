@@ -15,7 +15,7 @@ pub struct Background {
     bounds: Rect,
     pattern: char,
     attr: Attr,
-    owner: Option<*const dyn View>,
+    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
 }
 
 impl Background {
@@ -24,7 +24,7 @@ impl Background {
             bounds,
             pattern,
             attr,
-            owner: None,
+        palette_chain: None,
         }
     }
 }
@@ -38,7 +38,7 @@ impl View for Background {
         self.bounds = bounds;
     }
 
-    fn draw(&mut self, terminal: &mut Terminal) {
+    fn draw(&mut self, terminal: &mut Terminal, _token: &crate::core::palette_chain::PaletteToken) {
         let width = self.bounds.width_clamped() as usize;
         let mut buf = DrawBuffer::new(width);
         buf.move_char(0, self.pattern, self.attr, width);
@@ -53,12 +53,12 @@ impl View for Background {
         // Background doesn't handle events
     }
 
-    fn set_owner(&mut self, owner: *const dyn View) {
-        self.owner = Some(owner);
+    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
+        self.palette_chain = node;
     }
 
-    fn get_owner(&self) -> Option<*const dyn View> {
-        self.owner
+    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
+        self.palette_chain.as_ref()
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {

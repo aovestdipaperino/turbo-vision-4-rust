@@ -51,7 +51,7 @@ pub struct AnsiBackground {
     center_x: bool,
     /// Whether to center the image vertically.
     center_y: bool,
-    owner: Option<*const dyn View>,
+    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
 }
 
 impl AnsiBackground {
@@ -69,7 +69,7 @@ impl AnsiBackground {
             default_attr,
             center_x: true,
             center_y: true,
-            owner: None,
+        palette_chain: None,
         }
     }
 
@@ -163,7 +163,7 @@ impl View for AnsiBackground {
         self.state = state;
     }
 
-    fn draw(&mut self, terminal: &mut Terminal) {
+    fn draw(&mut self, terminal: &mut Terminal, _token: &crate::core::palette_chain::PaletteToken) {
         let width = self.bounds.width_clamped() as usize;
         let height = self.bounds.height() as usize;
 
@@ -215,12 +215,12 @@ impl View for AnsiBackground {
         // Background doesn't handle events
     }
 
-    fn set_owner(&mut self, owner: *const dyn View) {
-        self.owner = Some(owner);
+    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
+        self.palette_chain = node;
     }
 
-    fn get_owner(&self) -> Option<*const dyn View> {
-        self.owner
+    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
+        self.palette_chain.as_ref()
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {

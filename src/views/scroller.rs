@@ -17,8 +17,7 @@ pub struct Scroller {
     limit: Point,       // Maximum scroll range (content size)
     h_scrollbar: Option<Box<ScrollBar>>,
     v_scrollbar: Option<Box<ScrollBar>>,
-    owner: Option<*const dyn View>,
-    owner_type: super::view::OwnerType,
+    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
 }
 
 impl Scroller {
@@ -29,8 +28,7 @@ impl Scroller {
             limit: Point::zero(),
             h_scrollbar,
             v_scrollbar,
-            owner: None,
-            owner_type: super::view::OwnerType::None,
+        palette_chain: None,
         };
         scroller.update_scrollbars();
         scroller
@@ -89,13 +87,13 @@ impl Scroller {
     }
 
     /// Draw the scroller (draws scrollbars, subclasses override to draw content)
-    pub fn draw_scrollbars(&mut self, terminal: &mut Terminal) {
+    pub fn draw_scrollbars(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) {
         if let Some(ref mut h_bar) = self.h_scrollbar {
-            h_bar.draw(terminal);
+            h_bar.draw(terminal, token);
         }
 
         if let Some(ref mut v_bar) = self.v_scrollbar {
-            v_bar.draw(terminal);
+            v_bar.draw(terminal, token);
         }
     }
 
@@ -153,22 +151,22 @@ impl View for Scroller {
         self.update_scrollbars();
     }
 
-    fn draw(&mut self, terminal: &mut Terminal) {
+    fn draw(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) {
         // Default implementation: draw scrollbars only
         // Subclasses should override this to draw content + scrollbars
-        self.draw_scrollbars(terminal);
+        self.draw_scrollbars(terminal, token);
     }
 
     fn handle_event(&mut self, event: &mut Event) {
         self.handle_scrollbar_events(event);
     }
 
-    fn set_owner(&mut self, owner: *const dyn View) {
-        self.owner = Some(owner);
+    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
+        self.palette_chain = node;
     }
 
-    fn get_owner(&self) -> Option<*const dyn View> {
-        self.owner
+    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
+        self.palette_chain.as_ref()
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
@@ -176,13 +174,6 @@ impl View for Scroller {
         Some(Palette::from_slice(palettes::CP_SCROLLER))
     }
 
-    fn get_owner_type(&self) -> super::view::OwnerType {
-        self.owner_type
-    }
-
-    fn set_owner_type(&mut self, owner_type: super::view::OwnerType) {
-        self.owner_type = owner_type;
-    }
 }
 
 /// Builder for creating scrollers with a fluent API.

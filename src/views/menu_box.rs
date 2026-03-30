@@ -35,7 +35,7 @@ pub struct MenuBox {
     bounds: Rect,
     menu_state: MenuViewerState,
     state: StateFlags,
-    owner: Option<*const dyn View>,
+    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
     mouse_down_in_menu: bool, // Track if MouseDown occurred in this menu
 }
 
@@ -53,7 +53,7 @@ impl MenuBox {
             bounds,
             menu_state: MenuViewerState::with_menu(menu),
             state: SF_SHADOW, // MenuBox has shadow by default
-            owner: None,
+        palette_chain: None,
             mouse_down_in_menu: false,
         }
     }
@@ -102,10 +102,12 @@ impl MenuBox {
     ///
     /// Matches Borland: TMenuView::execute()
     /// Returns the selected command, or 0 if cancelled
-    pub fn execute(&mut self, terminal: &mut Terminal) -> CommandId {
+    pub fn execute(&mut self, terminal: &mut Terminal, _token: &crate::core::palette_chain::PaletteToken) -> CommandId {
         loop {
+            // Create fresh token per frame for QCell safety
+            let frame_token = crate::core::palette_chain::PaletteToken::new();
             // Draw the menu
-            self.draw(terminal);
+            self.draw(terminal, &frame_token);
             let _ = terminal.flush();
 
             // Get event
@@ -140,7 +142,7 @@ impl View for MenuBox {
         self.bounds = bounds;
     }
 
-    fn draw(&mut self, terminal: &mut Terminal) {
+    fn draw(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) {
         let width = self.bounds.width_clamped() as usize;
         let height = self.bounds.height_clamped() as usize;
 
@@ -153,10 +155,10 @@ impl View for MenuBox {
             None => return,
         };
 
-        let normal_attr = self.map_color(MENU_NORMAL);
-        let selected_attr = self.map_color(MENU_SELECTED);
-        let disabled_attr = self.map_color(MENU_DISABLED);
-        let shortcut_attr = self.map_color(MENU_SHORTCUT);
+        let normal_attr = self.map_color(MENU_NORMAL, token);
+        let selected_attr = self.map_color(MENU_SELECTED, token);
+        let disabled_attr = self.map_color(MENU_DISABLED, token);
+        let shortcut_attr = self.map_color(MENU_SHORTCUT, token);
 
         // Draw top border
         let mut buf = DrawBuffer::new(width);
@@ -413,12 +415,12 @@ impl View for MenuBox {
         self.state = state;
     }
 
-    fn set_owner(&mut self, owner: *const dyn View) {
-        self.owner = Some(owner);
+    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
+        self.palette_chain = node;
     }
 
-    fn get_owner(&self) -> Option<*const dyn View> {
-        self.owner
+    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
+        self.palette_chain.as_ref()
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {

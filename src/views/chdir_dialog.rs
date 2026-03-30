@@ -53,8 +53,8 @@ impl View for SharedScrollBar {
         self.0.borrow_mut().set_bounds(bounds);
     }
 
-    fn draw(&mut self, terminal: &mut Terminal) {
-        self.0.borrow_mut().draw(terminal);
+    fn draw(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) {
+        self.0.borrow_mut().draw(terminal, token);
     }
 
     fn handle_event(&mut self, event: &mut Event) {
@@ -65,13 +65,6 @@ impl View for SharedScrollBar {
         self.0.borrow().get_palette()
     }
 
-    fn get_owner_type(&self) -> super::view::OwnerType {
-        self.0.borrow().get_owner_type()
-    }
-
-    fn set_owner_type(&mut self, owner_type: super::view::OwnerType) {
-        self.0.borrow_mut().set_owner_type(owner_type);
-    }
 }
 
 /// Wrapper that allows DirListBox to be a child view with shared access
@@ -142,11 +135,11 @@ impl View for SharedDirListBox {
         self.inner.borrow_mut().set_bounds(bounds);
     }
 
-    fn draw(&mut self, terminal: &mut Terminal) {
+    fn draw(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) {
         // Update scrollbars before drawing
         self.update_scrollbars();
 
-        self.inner.borrow_mut().draw(terminal);
+        self.inner.borrow_mut().draw(terminal, token);
     }
 
     fn handle_event(&mut self, event: &mut Event) {
@@ -260,13 +253,6 @@ impl View for SharedDirListBox {
         self.inner.borrow().get_palette()
     }
 
-    fn get_owner_type(&self) -> super::view::OwnerType {
-        self.inner.borrow().get_owner_type()
-    }
-
-    fn set_owner_type(&mut self, owner_type: super::view::OwnerType) {
-        self.inner.borrow_mut().set_owner_type(owner_type);
-    }
 }
 
 /// Change Directory Dialog
@@ -465,8 +451,8 @@ impl View for ChDirDialog {
         self.dialog.set_bounds(bounds);
     }
 
-    fn draw(&mut self, terminal: &mut Terminal) {
-        self.dialog.draw(terminal);
+    fn draw(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) {
+        self.dialog.draw(terminal, token);
     }
 
     fn handle_event(&mut self, event: &mut Event) {

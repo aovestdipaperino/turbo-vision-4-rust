@@ -44,11 +44,9 @@ pub struct ScrollBar {
     max_val: i32,
     pg_step: i32, // Page step
     ar_step: i32, // Arrow step
-    total: i32,   // Total content size (lines or columns) for proportional thumb
     chars: [char; 5],
     is_vertical: bool,
-    owner: Option<*const dyn View>,
-    owner_type: super::view::OwnerType,
+    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
     dragging_thumb: bool,
 }
 
@@ -61,11 +59,9 @@ impl ScrollBar {
             max_val: 0,
             pg_step: 1,
             ar_step: 1,
-            total: 0,
             chars: VSCROLL_CHARS,
             is_vertical: true,
-            owner: None,
-            owner_type: super::view::OwnerType::Window,
+        palette_chain: None,
             dragging_thumb: false,
         }
     }
@@ -78,11 +74,9 @@ impl ScrollBar {
             max_val: 0,
             pg_step: 1,
             ar_step: 1,
-            total: 0,
             chars: HSCROLL_CHARS,
             is_vertical: false,
-            owner: None,
-            owner_type: super::view::OwnerType::Window,
+        palette_chain: None,
             dragging_thumb: false,
         }
     }
@@ -117,11 +111,6 @@ impl ScrollBar {
         self.value
     }
 
-    /// Set total content size (lines or columns) for proportional thumb sizing.
-    pub fn set_total(&mut self, total: i32) {
-        self.total = total.max(0);
-    }
-
     /// Get the size of the scrollbar track (not including arrows)
     fn get_size(&self) -> i32 {
         if self.is_vertical {
@@ -131,28 +120,15 @@ impl ScrollBar {
         }
     }
 
-    /// Thumb size in track cells: each content unit (line/column) maps to
-    /// `track / total` cells.  E.g. track=30, total=10 → thumb=3.
-    /// Returns at least 1.
-    fn get_thumb_size(&self) -> i32 {
-        let track = self.get_size();
-        if self.total <= 0 {
-            return track.max(1);
-        }
-        let thumb = (track as i64 / self.total as i64) as i32;
-        thumb.max(1).min(track)
-    }
-
-    /// Get the position of the indicator (first cell of the thumb).
+    /// Get the position of the indicator
     fn get_pos(&self) -> i32 {
-        let track = self.get_size();
-        let thumb = self.get_thumb_size();
-        let usable = track - thumb; // cells the thumb can slide across
-        let range = self.max_val - self.min_val;
-        if range <= 0 || usable <= 0 {
+        let s = self.get_size();
+        let range = self.max_val - self.min_val + 1;
+        if range <= 0 || s <= 0 {
+            // Safety check: invalid range or size
             0
         } else {
-            ((self.value - self.min_val) as i64 * usable as i64 / range as i64).max(0).min(usable as i64) as i32
+            ((self.value - self.min_val) * s / range).max(0).min(s - 1)
         }
     }
 
@@ -328,13 +304,19 @@ impl ScrollBar {
                     // Page area clicked - calculate position
                     let range = self.max_val - self.min_val;
                     if range > 0 {
-                        let thumb_pos = self.get_pos() as i16;
-                        let thumb_sz = self.get_thumb_size() as i16;
-                        let track_y = rel_y - 1; // 0-based track position
+                        let thumb_size = 1;
+                        let track_size = (height - 2 - thumb_size).max(1) as i32;
+                        let thumb_pos = if range > 0 {
+                            ((self.value - self.min_val) * track_size / range) as i16
+                        } else {
+                            0
+                        };
 
-                        if track_y < thumb_pos {
+                        if rel_y < thumb_pos + 1 {
+                            // Clicked above thumb - page up
                             self.value = (self.value - self.pg_step).max(self.min_val);
-                        } else if track_y >= thumb_pos + thumb_sz {
+                        } else if rel_y > thumb_pos + 1 {
+                            // Clicked below thumb - page down
                             self.value = (self.value + self.pg_step).min(self.max_val);
                         } else {
                             log::debug!("Clicked on the thumb itself");
@@ -367,13 +349,19 @@ impl ScrollBar {
                     // Page area clicked
                     let range = self.max_val - self.min_val;
                     if range > 0 {
-                        let thumb_pos = self.get_pos() as i16;
-                        let thumb_sz = self.get_thumb_size() as i16;
-                        let track_x = rel_x - 1; // 0-based track position
+                        let thumb_size = 1;
+                        let track_size = (width - 2 - thumb_size).max(1) as i32;
+                        let thumb_pos = if range > 0 {
+                            ((self.value - self.min_val) * track_size / range) as i16
+                        } else {
+                            0
+                        };
 
-                        if track_x < thumb_pos {
+                        if rel_x < thumb_pos + 1 {
+                            // Clicked left of thumb - page left
                             self.value = (self.value - self.pg_step).max(self.min_val);
-                        } else if track_x >= thumb_pos + thumb_sz {
+                        } else if rel_x > thumb_pos + 1 {
+                            // Clicked right of thumb - page right
                             self.value = (self.value + self.pg_step).min(self.max_val);
                         } else {
                             log::debug!("Clicked on the thumb itself");
@@ -396,60 +384,61 @@ impl View for ScrollBar {
         self.bounds = bounds;
     }
 
-    fn draw(&mut self, terminal: &mut Terminal) {
+    fn draw(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) {
         // ScrollBar palette indices:
         // 1: Page, 2: Arrows, 3: Indicator
-        let page_attr = self.map_color(SCROLLBAR_PAGE);
-        let indicator_attr = self.map_color(SCROLLBAR_INDICATOR);
-
-        let pos = self.get_pos();
-        let thumb = self.get_thumb_size();
-        let thumb_start = pos as i16;
-        let thumb_end = thumb_start + thumb as i16;
+        let page_attr = self.map_color(SCROLLBAR_PAGE, token);
+        let indicator_attr = self.map_color(SCROLLBAR_INDICATOR, token);
 
         if self.is_vertical {
+            // Draw vertical scrollbar
             let height = self.bounds.height();
+            let pos = self.get_pos();
 
             for y in 0..height {
                 let mut buf = DrawBuffer::new(1);
-                let track_pos = y - 1; // 0-based position in track (row 0 is up arrow)
-                let in_thumb = track_pos >= thumb_start && track_pos < thumb_end
-                    && y > 0 && y < height - 1;
-
                 let ch = if y == 0 {
                     self.chars[1] // Up arrow
                 } else if y == height - 1 {
                     self.chars[2] // Down arrow
-                } else if in_thumb {
+                } else if y - 1 == pos as i16 {
                     self.chars[0] // Indicator
                 } else {
                     self.chars[3] // Page area
                 };
 
-                let attr = if in_thumb { indicator_attr } else { page_attr };
+                let attr = if y - 1 == pos as i16 {
+                    indicator_attr
+                } else {
+                    page_attr
+                };
+
                 buf.put_char(0, ch, attr);
                 write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y + y, &buf);
             }
         } else {
+            // Draw horizontal scrollbar
             let width = self.bounds.width();
+            let pos = self.get_pos();
             let mut buf = DrawBuffer::new(width as usize);
 
             for x in 0..width {
-                let track_pos = x - 1;
-                let in_thumb = track_pos >= thumb_start && track_pos < thumb_end
-                    && x > 0 && x < width - 1;
-
                 let ch = if x == 0 {
                     self.chars[1] // Left arrow
                 } else if x == width - 1 {
                     self.chars[2] // Right arrow
-                } else if in_thumb {
+                } else if x - 1 == pos as i16 {
                     self.chars[0] // Indicator
                 } else {
                     self.chars[3] // Page area
                 };
 
-                let attr = if in_thumb { indicator_attr } else { page_attr };
+                let attr = if x - 1 == pos as i16 {
+                    indicator_attr
+                } else {
+                    page_attr
+                };
+
                 buf.put_char(x as usize, ch, attr);
             }
 
@@ -472,8 +461,7 @@ impl View for ScrollBar {
             EventType::MouseDown => {
                 if (event.mouse.buttons & MB_LEFT_BUTTON) != 0 {
                     self.left_click(event);
-                    // left_click clears the event itself when the click is
-                    // within scrollbar bounds — don't unconditionally clear.
+                    event.clear();
                 }
             }
             EventType::MouseUp => {
@@ -486,12 +474,12 @@ impl View for ScrollBar {
         }
     }
 
-    fn set_owner(&mut self, owner: *const dyn View) {
-        self.owner = Some(owner);
+    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
+        self.palette_chain = node;
     }
 
-    fn get_owner(&self) -> Option<*const dyn View> {
-        self.owner
+    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
+        self.palette_chain.as_ref()
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
@@ -499,13 +487,6 @@ impl View for ScrollBar {
         Some(Palette::from_slice(palettes::CP_SCROLLBAR))
     }
 
-    fn get_owner_type(&self) -> super::view::OwnerType {
-        self.owner_type
-    }
-
-    fn set_owner_type(&mut self, owner_type: super::view::OwnerType) {
-        self.owner_type = owner_type;
-    }
 }
 
 /// Builder for creating scrollbars with a fluent API.
@@ -645,11 +626,9 @@ impl ScrollBarBuilder {
             max_val: self.max_val.max(self.min_val),
             pg_step: self.pg_step,
             ar_step: self.ar_step,
-            total: 0,
             chars,
             is_vertical: self.is_vertical,
-            owner: None,
-            owner_type: super::view::OwnerType::Window,
+        palette_chain: None,
             dragging_thumb: false,
         }
     }

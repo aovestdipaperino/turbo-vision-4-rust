@@ -22,8 +22,7 @@ pub struct ListBox {
     list_state: ListViewerState, // Embedded state from ListViewer
     state: StateFlags,
     on_select_command: CommandId,
-    owner: Option<*const dyn View>,
-    owner_type: super::view::OwnerType,
+    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
 }
 
 impl ListBox {
@@ -35,8 +34,7 @@ impl ListBox {
             list_state: ListViewerState::new(),
             state: 0,
             on_select_command,
-            owner: None,
-            owner_type: super::view::OwnerType::None,
+        palette_chain: None,
         }
     }
 
@@ -132,18 +130,18 @@ impl View for ListBox {
         self.bounds = bounds;
     }
 
-    fn draw(&mut self, terminal: &mut Terminal) {
+    fn draw(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) {
         let width = self.bounds.width_clamped() as usize;
         let height = self.bounds.height_clamped() as usize;
 
         // ListBox palette indices:
         // 1: Normal, 2: Focused, 3: Selected, 4: Divider
         let color_normal = if self.is_focused() {
-            self.map_color(LISTBOX_FOCUSED) // Focused
+            self.map_color(LISTBOX_FOCUSED, token) // Focused
         } else {
-            self.map_color(LISTBOX_NORMAL) // Normal
+            self.map_color(LISTBOX_NORMAL, token) // Normal
         };
-        let color_selected = self.map_color(LISTBOX_SELECTED); // Selected
+        let color_selected = self.map_color(LISTBOX_SELECTED, token); // Selected
 
         // Draw visible items
         for i in 0..height {
@@ -261,25 +259,17 @@ impl View for ListBox {
         self.list_state.focused.unwrap_or(0)
     }
 
-    fn set_owner(&mut self, owner: *const dyn View) {
-        self.owner = Some(owner);
+    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
+        self.palette_chain = node;
     }
 
-    fn get_owner(&self) -> Option<*const dyn View> {
-        self.owner
+    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
+        self.palette_chain.as_ref()
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
         use crate::core::palette::{palettes, Palette};
         Some(Palette::from_slice(palettes::CP_LISTBOX))
-    }
-
-    fn get_owner_type(&self) -> super::view::OwnerType {
-        self.owner_type
-    }
-
-    fn set_owner_type(&mut self, owner_type: super::view::OwnerType) {
-        self.owner_type = owner_type;
     }
 
     fn as_any(&self) -> &dyn std::any::Any {

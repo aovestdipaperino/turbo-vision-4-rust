@@ -82,8 +82,7 @@ pub struct DirListBox {
     entries: Vec<DirEntry>,
     current_path: PathBuf,
     root_path: PathBuf,
-    owner: Option<*const dyn View>,
-    owner_type: super::view::OwnerType,
+    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
 }
 
 impl DirListBox {
@@ -96,8 +95,7 @@ impl DirListBox {
             entries: Vec::new(),
             current_path: path.to_path_buf(),
             root_path: Self::find_root(path),
-            owner: None,
-            owner_type: super::view::OwnerType::None,
+        palette_chain: None,
         };
         dlb.rebuild_tree();
         dlb
@@ -295,7 +293,7 @@ impl View for DirListBox {
         self.bounds = bounds;
     }
 
-    fn draw(&mut self, terminal: &mut Terminal) {
+    fn draw(&mut self, terminal: &mut Terminal, _token: &crate::core::palette_chain::PaletteToken) {
         let width = self.bounds.width_clamped() as usize;
         let height = self.bounds.height_clamped() as usize;
 
@@ -381,12 +379,12 @@ impl View for DirListBox {
         self.state = state;
     }
 
-    fn set_owner(&mut self, owner: *const dyn View) {
-        self.owner = Some(owner);
+    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
+        self.palette_chain = node;
     }
 
-    fn get_owner(&self) -> Option<*const dyn View> {
-        self.owner
+    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
+        self.palette_chain.as_ref()
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
@@ -394,13 +392,6 @@ impl View for DirListBox {
         Some(Palette::from_slice(palettes::CP_LISTBOX))
     }
 
-    fn get_owner_type(&self) -> super::view::OwnerType {
-        self.owner_type
-    }
-
-    fn set_owner_type(&mut self, owner_type: super::view::OwnerType) {
-        self.owner_type = owner_type;
-    }
 }
 
 #[cfg(test)]

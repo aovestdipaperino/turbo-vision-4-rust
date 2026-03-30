@@ -29,7 +29,8 @@ fn main() -> turbo_vision::core::error::Result<()> {
     app.desktop.add(Box::new(dialog));
 
     loop {
-        app.desktop.draw(&mut app.terminal);
+        let token = turbo_vision::core::palette_chain::PaletteToken::new();
+        app.desktop.draw(&mut app.terminal, &token);
         let _ = app.terminal.flush();
 
         if let Some(mut event) = app.terminal.poll_event(Duration::from_millis(50)).ok().flatten() {

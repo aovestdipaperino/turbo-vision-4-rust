@@ -78,7 +78,7 @@ pub struct MenuBar {
     active_menu_idx: Option<usize>, // Which submenu is currently open
     menu_state: MenuViewerState,    // State for dropdown menu items
     state: StateFlags,
-    owner: Option<*const dyn View>,
+    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
 }
 
 impl MenuBar {
@@ -90,7 +90,7 @@ impl MenuBar {
             active_menu_idx: None,
             menu_state: MenuViewerState::new(),
             state: 0,
-            owner: None,
+        palette_chain: None,
         }
     }
 
@@ -167,12 +167,12 @@ impl MenuBar {
 
     /// Show a cascading submenu for the currently selected item
     /// Returns Some(command) if a command was selected, None if cancelled
-    pub fn check_cascading_submenu(&mut self, terminal: &mut Terminal) -> Option<u16> {
-        self.show_cascading_submenu(terminal)
+    pub fn check_cascading_submenu(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) -> Option<u16> {
+        self.show_cascading_submenu(terminal, token)
     }
 
     /// Show a cascading submenu for the currently selected item (internal)
-    fn show_cascading_submenu(&mut self, terminal: &mut Terminal) -> Option<u16> {
+    fn show_cascading_submenu(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) -> Option<u16> {
         // Get the current selected item
         let current_item = self.menu_state.get_current_item()?;
 
@@ -212,7 +212,7 @@ impl MenuBar {
 
             // Create and execute the cascading menu
             let mut menu_box = MenuBox::new(position, menu.clone());
-            let command = menu_box.execute(terminal);
+            let command = menu_box.execute(terminal, token);
 
             return Some(command);
         }
@@ -221,7 +221,7 @@ impl MenuBar {
     }
 
     /// Draw the dropdown menu
-    fn draw_dropdown(&self, terminal: &mut Terminal, menu_idx: usize) {
+    fn draw_dropdown(&self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken, menu_idx: usize) {
         if menu_idx >= self.submenus.len() || menu_idx >= self.menu_positions.len() {
             return;
         }
@@ -230,10 +230,10 @@ impl MenuBar {
         let menu_y = self.bounds.a.y + 1;
         let menu = &self.submenus[menu_idx].menu;
 
-        let normal_attr = self.map_color(MENU_NORMAL);
-        let selected_attr = self.map_color(MENU_SELECTED);
-        let disabled_attr = self.map_color(MENU_DISABLED);
-        let shortcut_attr = self.map_color(MENU_SHORTCUT);
+        let normal_attr = self.map_color(MENU_NORMAL, token);
+        let selected_attr = self.map_color(MENU_SELECTED, token);
+        let disabled_attr = self.map_color(MENU_DISABLED, token);
+        let shortcut_attr = self.map_color(MENU_SHORTCUT, token);
 
         // Calculate dropdown width
         let mut max_text_width = 12;
@@ -396,13 +396,13 @@ impl View for MenuBar {
         self.bounds = bounds;
     }
 
-    fn draw(&mut self, terminal: &mut Terminal) {
+    fn draw(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) {
         let width = self.bounds.width_clamped() as usize;
         let mut buf = DrawBuffer::new(width);
 
-        let normal_attr = self.map_color(MENU_NORMAL);
-        let selected_attr = self.map_color(MENU_SELECTED);
-        let shortcut_attr = self.map_color(MENU_SHORTCUT);
+        let normal_attr = self.map_color(MENU_NORMAL, token);
+        let selected_attr = self.map_color(MENU_SELECTED, token);
+        let shortcut_attr = self.map_color(MENU_SHORTCUT, token);
 
         buf.move_char(0, ' ', normal_attr, width);
 
@@ -446,7 +446,7 @@ impl View for MenuBar {
 
         // Draw dropdown if active
         if let Some(idx) = self.active_menu_idx {
-            self.draw_dropdown(terminal, idx);
+            self.draw_dropdown(terminal, token, idx);
         }
     }
 
@@ -696,12 +696,12 @@ impl View for MenuBar {
         self.state = state;
     }
 
-    fn set_owner(&mut self, owner: *const dyn View) {
-        self.owner = Some(owner);
+    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
+        self.palette_chain = node;
     }
 
-    fn get_owner(&self) -> Option<*const dyn View> {
-        self.owner
+    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
+        self.palette_chain.as_ref()
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {

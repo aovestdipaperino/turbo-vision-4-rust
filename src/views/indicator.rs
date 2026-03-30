@@ -14,8 +14,7 @@ pub struct Indicator {
     bounds: Rect,
     location: Point,  // Width x Height for window size display
     modified: bool,   // Has the document been modified?
-    owner: Option<*const dyn View>,
-    owner_type: super::view::OwnerType,
+    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
 }
 
 impl Indicator {
@@ -24,8 +23,7 @@ impl Indicator {
             bounds,
             location: Point::new(1, 1),
             modified: false,
-            owner: None,
-            owner_type: super::view::OwnerType::None,
+        palette_chain: None,
         }
     }
 
@@ -44,16 +42,16 @@ impl View for Indicator {
         self.bounds = bounds;
     }
 
-    fn draw(&mut self, terminal: &mut Terminal) {
+    fn draw(&mut self, terminal: &mut Terminal, token: &crate::core::palette_chain::PaletteToken) {
         let width = self.bounds.width_clamped() as usize;
         let mut buf = DrawBuffer::new(width);
 
         // Use palette indices from CP_INDICATOR
         // 1 = Normal indicator, 2 = Modified indicator
         let color = if self.modified {
-            self.map_color(2)
+            self.map_color(2, token)
         } else {
-            self.map_color(1)
+            self.map_color(1, token)
         };
 
         // Fill with spaces (background)
@@ -85,12 +83,12 @@ impl View for Indicator {
         // Indicator doesn't handle events
     }
 
-    fn set_owner(&mut self, owner: *const dyn View) {
-        self.owner = Some(owner);
+    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
+        self.palette_chain = node;
     }
 
-    fn get_owner(&self) -> Option<*const dyn View> {
-        self.owner
+    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
+        self.palette_chain.as_ref()
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
@@ -98,13 +96,6 @@ impl View for Indicator {
         Some(Palette::from_slice(palettes::CP_INDICATOR))
     }
 
-    fn get_owner_type(&self) -> super::view::OwnerType {
-        self.owner_type
-    }
-
-    fn set_owner_type(&mut self, owner_type: super::view::OwnerType) {
-        self.owner_type = owner_type;
-    }
 }
 
 /// Builder for creating indicators with a fluent API.
