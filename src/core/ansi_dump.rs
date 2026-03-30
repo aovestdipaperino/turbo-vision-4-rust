@@ -58,6 +58,7 @@ fn color_to_rgb(color: TvColor) -> (u8, u8, u8) {
         TvColor::LightMagenta => (255, 85, 255),
         TvColor::Yellow => (255, 255, 85),
         TvColor::White => (255, 255, 255),
+        TvColor::Rgb { r, g, b } => (r, g, b),
     }
 }
 

@@ -97,9 +97,23 @@ pub enum TvColor {
     LightMagenta = 13,
     Yellow = 14,
     White = 15,
+    /// True-color RGB value, bypasses CGA palette mapping.
+    Rgb { r: u8, g: u8, b: u8 } = 16,
 }
 
 impl TvColor {
+    /// Returns the CGA palette index (0-15). Rgb returns 0.
+    pub fn to_index(self) -> u8 {
+        match self {
+            TvColor::Black => 0, TvColor::Blue => 1, TvColor::Green => 2,
+            TvColor::Cyan => 3, TvColor::Red => 4, TvColor::Magenta => 5,
+            TvColor::Brown => 6, TvColor::LightGray => 7, TvColor::DarkGray => 8,
+            TvColor::LightBlue => 9, TvColor::LightGreen => 10, TvColor::LightCyan => 11,
+            TvColor::LightRed => 12, TvColor::LightMagenta => 13, TvColor::Yellow => 14,
+            TvColor::White => 15, TvColor::Rgb { .. } => 0,
+        }
+    }
+
     /// Converts TvColor to ANSI 256-color code.
     ///
     /// Turbo Vision uses CGA/DOS color ordering which differs from ANSI:
@@ -126,6 +140,7 @@ impl TvColor {
             TvColor::LightMagenta => 13,
             TvColor::Yellow => 11,     // TV 14 -> ANSI 11
             TvColor::White => 15,
+            TvColor::Rgb { .. } => 0, // RGB colors don't map to ANSI indices
         }
     }
 
@@ -196,6 +211,7 @@ impl TvColor {
                 g: 255,
                 b: 255,
             },
+            TvColor::Rgb { r, g, b } => Color::Rgb { r, g, b },
         }
     }
 
@@ -218,6 +234,7 @@ impl TvColor {
             TvColor::LightMagenta => (255, 85, 255),
             TvColor::Yellow => (255, 255, 85),
             TvColor::White => (255, 255, 255),
+            TvColor::Rgb { r, g, b } => (r, g, b),
         }
     }
 
@@ -324,7 +341,7 @@ impl Attr {
     }
 
     pub fn to_u8(self) -> u8 {
-        (self.fg as u8) | ((self.bg as u8) << 4)
+        self.fg.to_index() | (self.bg.to_index() << 4)
     }
 
     /// Swaps foreground and background colors

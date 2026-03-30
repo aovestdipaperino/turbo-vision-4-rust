@@ -228,6 +228,11 @@ impl Editor {
         self.lines.len()
     }
 
+    /// Get the current scroll offset (top-left visible position).
+    pub fn get_delta(&self) -> Point {
+        self.delta
+    }
+
     /// Get the maximum line width (length of the longest line)
     pub fn max_line_width(&self) -> usize {
         self.lines.iter().map(|line| line.len()).max().unwrap_or(0)
@@ -547,41 +552,45 @@ impl Editor {
     }
 
     fn update_scrollbars(&mut self) {
-        let content_area = self.get_content_area();
         let max_x = self.max_line_length();
         let max_y = self.lines.len() as i16;
 
         if let Some(ref h_bar) = self.h_scrollbar {
             h_bar.borrow_mut().set_params(
-                self.delta.x as i32,
+                self.cursor.x as i32,
                 0,
-                max_x.saturating_sub(content_area.width()) as i32,
-                content_area.width() as i32,
+                (max_x - 1).max(0) as i32,
+                1,
                 1,
             );
+            h_bar.borrow_mut().set_total(max_x as i32);
         }
 
         if let Some(ref v_bar) = self.v_scrollbar {
             v_bar.borrow_mut().set_params(
-                self.delta.y as i32,
+                self.cursor.y as i32,
                 0,
-                max_y.saturating_sub(content_area.height()) as i32,
-                content_area.height() as i32,
+                (max_y - 1).max(0) as i32,
+                1,
                 1,
             );
+            v_bar.borrow_mut().set_total(max_y as i32);
         }
     }
 
-    /// Sync editor's delta (scroll position) from scrollbar values
-    /// Called after scrollbar events to update editor view
+    /// Sync editor cursor from scrollbar values and ensure it's visible.
+    /// Scrollbar value represents cursor position in the document.
     pub fn sync_from_scrollbars(&mut self) {
         if let Some(ref h_bar) = self.h_scrollbar {
-            self.delta.x = h_bar.borrow().get_value() as i16;
+            self.cursor.x = h_bar.borrow().get_value() as i16;
         }
 
         if let Some(ref v_bar) = self.v_scrollbar {
-            self.delta.y = v_bar.borrow().get_value() as i16;
+            self.cursor.y = v_bar.borrow().get_value() as i16;
         }
+
+        self.clamp_cursor();
+        self.ensure_cursor_visible();
     }
 
     fn update_indicator(&mut self) {
@@ -1390,6 +1399,27 @@ impl View for Editor {
 
             event.clear();
             return;
+        }
+
+        // Mouse wheel scrolling
+        if event.what == EventType::MouseWheelUp {
+            let content_area = self.get_content_area();
+            if content_area.contains(event.mouse.pos) {
+                self.delta.y = (self.delta.y - 3).max(0);
+                self.update_scrollbars();
+                event.clear();
+                return;
+            }
+        }
+        if event.what == EventType::MouseWheelDown {
+            let content_area = self.get_content_area();
+            if content_area.contains(event.mouse.pos) {
+                let max_y = (self.lines.len() as i16).saturating_sub(content_area.height());
+                self.delta.y = (self.delta.y + 3).min(max_y).max(0);
+                self.update_scrollbars();
+                event.clear();
+                return;
+            }
         }
 
         if event.what == EventType::Keyboard {
