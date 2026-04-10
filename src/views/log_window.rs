@@ -199,11 +199,8 @@ impl View for LogWindow {
     fn bounds(&self) -> Rect { self.window.bounds() }
     fn set_bounds(&mut self, bounds: Rect) {
         self.window.set_bounds(bounds);
-        let widget_bounds = Rect::new(
-            bounds.a.x + 1, bounds.a.y + 1,
-            bounds.b.x - 1, bounds.b.y - 1,
-        );
-        self.widget.borrow_mut().set_bounds(widget_bounds);
+        // Window handles interior repositioning; widget bounds are updated
+        // by the window's interior Group during draw
     }
     fn draw(&mut self, terminal: &mut Terminal) {
         self.drain_logs();
@@ -282,10 +279,11 @@ impl LogWindowBuilder {
             97, 98, 99, 100, 101, 102, 103, 104, // Black window frame/text colors
         ]);
 
-        let widget_bounds = Rect::new(
-            bounds.a.x + 1, bounds.a.y + 1,
-            bounds.b.x - 1, bounds.b.y - 1,
-        );
+        // Widget bounds are RELATIVE to the window interior (starts at 0,0)
+        // Window.add() converts relative → absolute via Group::add()
+        let interior_width = bounds.width() - 2;
+        let interior_height = bounds.height() - 2;
+        let widget_bounds = Rect::new(0, 0, interior_width, interior_height);
         let mut widget = TerminalWidget::new(widget_bounds);
         widget = widget.with_scrollbar();
         widget.set_max_lines(self.max_lines);
