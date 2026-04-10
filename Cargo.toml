@@ -52,6 +52,7 @@ chrono = "0.4.42"
 qcell = "0.5"
 log = "0.4.29"
 simplelog = "0.12.2"
+tracing = "0.1"
 base64 = "0.22"
 
 # SSH support (optional)
