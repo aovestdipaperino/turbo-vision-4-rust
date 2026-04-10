@@ -238,6 +238,25 @@ impl HelpViewer {
         self.current_topic.as_deref()
     }
 
+    /// Get the current scroll state (scroll position and selected cross-ref).
+    pub fn get_scroll_state(&self) -> (Point, usize) {
+        (self.delta, self.selected)
+    }
+
+    /// Restore a previously saved scroll state.
+    pub fn set_scroll_state(&mut self, delta: Point, selected: usize) {
+        self.delta = Point::new(
+            delta.x.max(0).min(self.limit.x),
+            delta.y.max(0).min(self.limit.y),
+        );
+        self.selected = if selected > 0 && selected <= self.cross_refs.len() {
+            selected
+        } else {
+            1
+        };
+        self.update_scrollbar();
+    }
+
     /// Clear the viewer
     pub fn clear(&mut self) {
         self.styled_lines.clear();
