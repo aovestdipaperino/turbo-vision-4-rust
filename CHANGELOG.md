@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] - 2026-04-10
+
+### Added
+- **Public Window Palette Selection** (#96)
+  - `Window::new_with_type(bounds, title, WindowPaletteType)` constructor for creating Blue, Cyan, Gray, or Dialog windows directly
+  - `WindowBuilder::palette_type()` setter for fluent window construction with any palette type
+
+- **Palette-Integrated Syntax Highlighting** (#98)
+  - Syntax highlighting colors now flow through the palette chain (Editor -> Window -> App) instead of being hardcoded to blue background
+  - Editors in Cyan or Gray windows automatically get syntax colors matching the window background
+  - Extended CP_APP_COLOR with 33 new entries (positions 64-96) for syntax colors across Blue, Cyan, and Gray backgrounds
+  - Extended CP_BLUE_WINDOW, CP_CYAN_WINDOW, CP_GRAY_WINDOW from 8 to 19 entries
+  - Extended CP_EDITOR from 2 to 13 entries (normal, selected, plus 11 syntax token types)
+  - New `TokenType::palette_index()` method for palette-based color resolution
+
+- **Desktop Bring-to-Front API** (#103)
+  - `Desktop::bring_to_front(ViewId)` to bring a specific window to the front of the Z-order
+  - `Group::view_id_at(index)` helper for ViewId lookup by index
+
+- **HelpWindow UX Improvements** (#97)
+  - Single-click on hyperlinks now follows them (previously required double-click)
+  - Up/Down arrow keys cycle through visible hyperlinks with automatic scrolling
+  - Backspace (go_back) restores scroll position and selected hyperlink
+  - History entries now store full view state (topic, scroll offset, selected link)
+
+### Fixed
+- **HelpWindow Click-to-Focus** (#97): `HelpWindow` now delegates `options()` and `set_options()` to the inner `Window`, restoring `OF_TOP_SELECT` so Desktop click-to-focus works correctly
+- **Group View ID Sync**: `Group::bring_to_front()` and `send_to_back()` now keep `view_ids` in sync with `children` after z-order changes, fixing silent lookup bugs
+
 ## [1.0.2] - 2025-12-15
 
 ### Added
