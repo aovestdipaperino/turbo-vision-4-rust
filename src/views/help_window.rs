@@ -316,6 +316,14 @@ impl View for HelpWindow {
         self.window.get_palette()
     }
 
+    fn options(&self) -> u16 {
+        self.window.options()
+    }
+
+    fn set_options(&mut self, options: u16) {
+        self.window.set_options(options);
+    }
+
     fn get_end_state(&self) -> crate::core::command::CommandId {
         self.window.get_end_state()
     }
@@ -378,6 +386,30 @@ mod tests {
         let mut window = HelpWindow::new(bounds, "Help", help);
 
         assert!(!window.show_topic("nonexistent"));
+    }
+
+    #[test]
+    fn test_help_window_options_delegation() {
+        use crate::core::state::{OF_SELECTABLE, OF_TOP_SELECT, OF_TILEABLE};
+
+        let (_file, help) = create_test_help_file();
+        let bounds = Rect::new(10, 5, 70, 20);
+        let window = HelpWindow::new(bounds, "Help", help);
+
+        let options = window.options();
+        assert_ne!(options, 0, "HelpWindow should delegate options() to inner window");
+        assert!(
+            (options & OF_SELECTABLE) != 0,
+            "HelpWindow should have OF_SELECTABLE"
+        );
+        assert!(
+            (options & OF_TOP_SELECT) != 0,
+            "HelpWindow should have OF_TOP_SELECT for click-to-focus"
+        );
+        assert!(
+            (options & OF_TILEABLE) != 0,
+            "HelpWindow should have OF_TILEABLE"
+        );
     }
 }
 
