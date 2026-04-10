@@ -7,7 +7,7 @@
 //
 // A window containing a HelpViewer with navigation and topic selection.
 
-use crate::core::geometry::Rect;
+use crate::core::geometry::{Point, Rect};
 use crate::core::event::{Event, EventType, KB_ALT_F1, KB_BACKSPACE, KB_ENTER, KB_ESC, MB_LEFT_BUTTON};
 use crate::core::state::StateFlags;
 use crate::core::command::{CM_CANCEL, CommandId};
@@ -57,6 +57,13 @@ impl View for SharedHelpViewer {
 
 }
 
+/// History entry storing topic ID with scroll state for restoration.
+struct HistoryEntry {
+    topic_id: String,
+    delta: Point,
+    selected: usize,
+}
+
 /// HelpWindow - Window containing help viewer
 ///
 /// Matches Borland: THelpWindow (parent-child hierarchy)
@@ -65,7 +72,7 @@ pub struct HelpWindow {
     viewer: Rc<RefCell<HelpViewer>>,  // Shared reference for API access
     help_file: Rc<RefCell<HelpFile>>,
     /// Topic history for back/forward navigation
-    history: Vec<String>,
+    history: Vec<HistoryEntry>,
     /// Current position in history
     history_pos: usize,
 }
@@ -135,24 +142,27 @@ impl HelpWindow {
     /// Matches Borland: THelpViewer::switchToTopic()
     /// This is the method to use for hyperlink navigation
     pub fn switch_to_topic(&mut self, topic_id: &str) -> bool {
-        // Only proceed if topic exists
         let help = self.help_file.borrow();
         if help.get_topic(topic_id).is_none() {
             return false;
         }
         drop(help);
 
-        // If we're not at the end of history, truncate future history
+        // Truncate future history if not at the end
         if self.history_pos < self.history.len() {
             self.history.truncate(self.history_pos);
         }
 
-        // Add current topic to history before switching
-        if let Some(current) = self.viewer.borrow().current_topic() {
-            self.history.push(current.to_string());
+        // Save current topic + scroll state to history before switching
+        if let Some(current) = self.viewer.borrow().current_topic().map(|s| s.to_string()) {
+            let (delta, selected) = self.viewer.borrow().get_scroll_state();
+            self.history.push(HistoryEntry {
+                topic_id: current,
+                delta,
+                selected,
+            });
         }
 
-        // Show the new topic
         let success = self.show_topic(topic_id);
         if success {
             self.history_pos = self.history.len();
@@ -165,8 +175,12 @@ impl HelpWindow {
     pub fn go_back(&mut self) -> bool {
         if self.history_pos > 0 {
             self.history_pos -= 1;
-            let topic_id = self.history[self.history_pos].clone();
+            let entry = &self.history[self.history_pos];
+            let topic_id = entry.topic_id.clone();
+            let delta = entry.delta;
+            let selected = entry.selected;
             self.show_topic(&topic_id);
+            self.viewer.borrow_mut().set_scroll_state(delta, selected);
             true
         } else {
             false
@@ -177,9 +191,13 @@ impl HelpWindow {
     /// Returns true if navigation occurred
     pub fn go_forward(&mut self) -> bool {
         if self.history_pos < self.history.len() {
-            let topic_id = self.history[self.history_pos].clone();
+            let entry = &self.history[self.history_pos];
+            let topic_id = entry.topic_id.clone();
+            let delta = entry.delta;
+            let selected = entry.selected;
             self.history_pos += 1;
             self.show_topic(&topic_id);
+            self.viewer.borrow_mut().set_scroll_state(delta, selected);
             true
         } else {
             false
