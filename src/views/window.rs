@@ -191,6 +191,12 @@ impl Window {
         self.frame.set_title(title);
     }
 
+    /// Set whether the window is resizable.
+    /// Resizable windows show single-line bottom corners and a resize handle.
+    pub fn set_resizable(&mut self, resizable: bool) {
+        self.frame.set_resizable(resizable);
+    }
+
     /// Set minimum window size (matches Borland: minWinSize)
     /// Prevents window from being resized smaller than these dimensions
     pub fn set_min_size(&mut self, min_size: Point) {
