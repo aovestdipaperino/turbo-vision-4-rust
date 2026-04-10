@@ -16,6 +16,32 @@ Other C++ implementations:
 This port achieves **100% API parity** with
 kloczek port of Borland Turbo Vision C++. All features from the original framework have been implemented. While the codebase is complete and production-ready, it may contain bugs. Please report any issues you encounter!
 
+## Screenshots
+
+### Showcase: Multiple Windows
+
+The showcase demo with Calculator, Calendar, ASCII Table, and Puzzle windows demonstrating overlapping window management, z-ordering, and shadows.
+
+![Showcase](screenshots/showcase.png)
+
+### Code Editor
+
+A full-featured text editor (`rust_editor`) editing its own source code, with menu bar, status line, and scrollable editing area.
+
+![Code Editor](screenshots/code-editor.png)
+
+### Help Window
+
+Context-sensitive help system (F1) with scrollable content, rendered over the editor window.
+
+![Help Window](screenshots/help-window.png)
+
+### File Chooser Dialog
+
+The built-in file dialog with directory navigation, file list, and keyboard/mouse support.
+
+![File Dialog](screenshots/file-dialog.png)
+
 ## Features
 
 - **Complete UI Component Set**: Windows, dialogs, buttons, input fields, menus, status bars, scrollbars
