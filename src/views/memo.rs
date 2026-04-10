@@ -198,6 +198,9 @@ impl Memo {
             self.delta.x = self.cursor.x - width + 1;
         }
 
+        self.delta.x = self.delta.x.max(0);
+        self.delta.y = self.delta.y.max(0);
+
         self.update_scrollbars();
     }
 
