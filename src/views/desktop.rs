@@ -445,8 +445,6 @@ impl Desktop {
     /// Returns true if the window was found and moved, false if not found.
     /// Matches Borland: TView::makeFirst() / TView::select()
     pub fn bring_to_front(&mut self, view_id: ViewId) -> bool {
-        use crate::core::state::OF_TOP_SELECT;
-
         // Search children (skip background at index 0) for matching ViewId
         let found_index = (1..self.children.len()).find(|&i| {
             self.children.view_id_at(i) == Some(view_id)
@@ -460,12 +458,6 @@ impl Desktop {
         let last_idx = self.children.len() - 1;
         if index == last_idx {
             return true; // Already on top
-        }
-
-        // Check if the window has OF_TOP_SELECT
-        let options = self.children.child_at(index).options();
-        if (options & OF_TOP_SELECT) == 0 {
-            return false;
         }
 
         // Unfocus current top window
