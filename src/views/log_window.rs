@@ -275,18 +275,11 @@ impl LogWindowBuilder {
         let bounds = self.bounds.expect("LogWindow bounds must be set");
         let title = self.title.unwrap_or_else(|| "Log".to_string());
 
-        // Black background palette: override the window palette entries
-        // Window palette indices 1-8 map to app palette, but we want black bg
-        // Use custom_palette to force black background for all window colors
+        // Use blue window as base, then override palette to black-background entries
+        // App palette positions 97-104 are the black window colors
         let mut window = Window::new_with_type(bounds, &title, WindowPaletteType::Blue);
-        // Override with a custom palette that uses black-background entries from app palette
-        // Since we're writing directly with Attr, we use the TerminalWidget's per-line color
-        // and just need the frame to look reasonable. Use a dark frame style.
         window.set_custom_palette(vec![
-            // Frame/window colors remapped to dark theme
-            // 1: Frame passive  2: Frame active  3: Frame icon  4: ScrollBar page
-            // 5: ScrollBar arrows  6: Normal text  7: Selected text  8: Reserved
-            8, 9, 10, 11, 12, 13, 14, 15, // Keep blue window frame colors
+            97, 98, 99, 100, 101, 102, 103, 104, // Black window frame/text colors
         ]);
 
         let widget_bounds = Rect::new(

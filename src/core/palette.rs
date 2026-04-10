@@ -537,6 +537,10 @@ pub mod palettes {
     //     16-23  = TWindow(Cyan)
     //     24-31  = TWindow(Gray)
     //     32-63  = TDialog
+    //     64-74  = Syntax highlighting (Blue bg)
+    //     75-85  = Syntax highlighting (Cyan bg)
+    //     86-96  = Syntax highlighting (Gray bg)
+    //     97-104 = Black Window (LogWindow)
     #[rustfmt::skip]
     pub const CP_APP_COLOR: &[u8] = &[
         0x71, 0x70, 0x78, 0x74, 0x20, 0x28, 0x24, 0x17, // 1-8: Desktop colors
@@ -550,6 +554,18 @@ pub mod palettes {
         0x7E, 0x20, 0x2B, 0x2F, 0x78, 0x2E, 0x70, 0x30, // 40-47: Dialog (controls)
         0x3F, 0x3E, 0x1F, 0x2F, 0x1A, 0x20, 0x72, 0x31, // 48-55: Dialog (InputLine, Button, etc.)
         0x31, 0x30, 0x2F, 0x3E, 0x31, 0x13, 0x38, 0x00, // 56-63: Dialog (remaining)
+        // 64-74: Syntax highlighting - Blue background
+        // Normal, Keyword, String, Comment, Number, Operator, Identifier, Type, Preprocessor, Function, Special
+        0x17, 0x1E, 0x1C, 0x1F, 0x1D, 0x1F, 0x17, 0x1A, 0x1F, 0x1B, 0x1F,
+        // 75-85: Syntax highlighting - Cyan background
+        0x37, 0x3E, 0x3C, 0x3F, 0x3D, 0x3F, 0x37, 0x3A, 0x3F, 0x3B, 0x3F,
+        // 86-96: Syntax highlighting - Gray (LightGray) background
+        0x70, 0x7E, 0x7C, 0x78, 0x7D, 0x70, 0x70, 0x72, 0x78, 0x71, 0x74,
+        // 97-104: Black Window (for LogWindow and similar dark-themed windows)
+        // Same layout as Blue/Cyan/Gray window entries 1-8:
+        // 1: Frame passive, 2: Frame active, 3: Frame icon, 4: ScrollBar page
+        // 5: ScrollBar arrows, 6: Normal text, 7: Selected text, 8: Reserved
+        0x07, 0x0F, 0x0A, 0x08, 0x08, 0x0F, 0x07, 0x00,
     ];
 
     // Window palettes - map window color indices to app palette
