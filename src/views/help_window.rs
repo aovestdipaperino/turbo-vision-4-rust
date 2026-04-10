@@ -280,16 +280,22 @@ impl View for HelpWindow {
                 }
             }
             EventType::MouseDown => {
-                // Handle double-click on links to follow them
-                // Matches Borland: THelpViewer double-click behavior
-                if event.mouse.double_click && event.mouse.buttons & MB_LEFT_BUTTON != 0 {
-                    // Check if viewer has a selected link (it would have been set by single-click)
+                if event.mouse.buttons & MB_LEFT_BUTTON != 0 {
+                    // Let the window (and viewer) handle the click first
+                    self.window.handle_event(event);
+
+                    // If a link was clicked, follow it
                     let target = self.viewer.borrow().get_selected_target().map(|s| s.to_string());
                     if let Some(target) = target {
-                        self.switch_to_topic(&target);
-                        event.clear();
-                        return;
+                        // Check if click was actually on a cross-ref
+                        let mouse_pos = event.mouse.pos;
+                        let hit = self.viewer.borrow().get_cross_ref_at_public(mouse_pos.x, mouse_pos.y);
+                        if hit > 0 {
+                            self.switch_to_topic(&target);
+                        }
                     }
+                    event.clear();
+                    return;
                 }
             }
             _ => {}

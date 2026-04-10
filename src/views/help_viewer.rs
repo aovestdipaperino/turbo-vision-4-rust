@@ -198,6 +198,12 @@ impl HelpViewer {
         0 // No cross-ref at this position
     }
 
+    /// Check if a cross-reference exists at screen position (public API for HelpWindow).
+    /// Returns 1-based index or 0 if none found.
+    pub fn get_cross_ref_at_public(&self, screen_x: i16, screen_y: i16) -> usize {
+        self.get_cross_ref_at(screen_x, screen_y)
+    }
+
     /// Get the current topic ID
     pub fn current_topic(&self) -> Option<&str> {
         self.current_topic.as_deref()
@@ -443,15 +449,8 @@ impl View for HelpViewer {
                     if hit_ref > 0 {
                         // Select the clicked link
                         self.selected = hit_ref;
-
-                        if event.mouse.double_click {
-                            // Double-click follows the link
-                            // Don't clear event - let HelpWindow handle navigation
-                            // Convert to ENTER-like behavior
-                        } else {
-                            // Single click just selects
-                            event.clear();
-                        }
+                        // Don't clear event — let HelpWindow follow the link
+                        // (both single-click and double-click)
                     } else {
                         event.clear();
                     }
