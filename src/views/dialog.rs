@@ -85,6 +85,13 @@ impl Dialog {
         self.window.set_title(title);
     }
 
+    /// Set whether the dialog is resizable.
+    /// Resizable dialogs show single-line bottom corners and a resize handle.
+    /// By default, dialogs are not resizable (matching Borland's TDialog).
+    pub fn set_resizable(&mut self, resizable: bool) {
+        self.window.set_resizable(resizable);
+    }
+
     /// Get the current end_state (0 if dialog is still running, command ID if ended)
     /// Used by custom execute() loops to check if dialog should close
     /// Matches Borland: TGroup::endState field
@@ -427,11 +434,19 @@ impl Dialog {
 ///     .title("Modal Dialog")
 ///     .modal(true)
 ///     .build_boxed();
+///
+/// // Create a resizable dialog (e.g. for FileDialog)
+/// let mut dialog = DialogBuilder::new()
+///     .bounds(Rect::new(10, 5, 60, 20))
+///     .title("File Open")
+///     .resizable(true)
+///     .build();
 /// ```
 pub struct DialogBuilder {
     bounds: Option<Rect>,
     title: Option<String>,
     modal: bool,
+    resizable: bool,
 }
 
 impl DialogBuilder {
@@ -441,6 +456,7 @@ impl DialogBuilder {
             bounds: None,
             title: None,
             modal: false,
+            resizable: false,
         }
     }
 
@@ -466,6 +482,14 @@ impl DialogBuilder {
         self
     }
 
+    /// Sets whether the dialog is resizable (default: false).
+    /// Resizable dialogs show single-line bottom corners and a resize handle.
+    #[must_use]
+    pub fn resizable(mut self, resizable: bool) -> Self {
+        self.resizable = resizable;
+        self
+    }
+
     /// Builds the Dialog.
     ///
     /// # Panics
@@ -476,6 +500,10 @@ impl DialogBuilder {
         let title = self.title.expect("Dialog title must be set");
 
         let mut dialog = Dialog::new(bounds, &title);
+
+        if self.resizable {
+            dialog.set_resizable(true);
+        }
 
         if self.modal {
             use crate::core::state::SF_MODAL;
@@ -668,5 +696,36 @@ mod tests {
             0,
             "Non-modal dialog should not set end_state for internal commands"
         );
+    }
+
+    #[test]
+    fn test_dialog_set_resizable() {
+        let mut dialog = Dialog::new(Rect::new(0, 0, 40, 10), "Test");
+        // Default: not resizable
+        dialog.set_resizable(true);
+        // Should not panic; verify bounds still valid
+        assert_eq!(dialog.bounds(), Rect::new(0, 0, 40, 10));
+    }
+
+    #[test]
+    fn test_dialog_builder_resizable() {
+        let dialog = DialogBuilder::new()
+            .bounds(Rect::new(5, 5, 50, 20))
+            .title("Resizable Dialog")
+            .resizable(true)
+            .build();
+        assert_eq!(dialog.bounds(), Rect::new(5, 5, 50, 20));
+    }
+
+    #[test]
+    fn test_dialog_builder_resizable_modal() {
+        let dialog = DialogBuilder::new()
+            .bounds(Rect::new(5, 5, 50, 20))
+            .title("Resizable Modal")
+            .resizable(true)
+            .modal(true)
+            .build();
+        assert_eq!(dialog.bounds(), Rect::new(5, 5, 50, 20));
+        assert_ne!(dialog.state() & SF_MODAL, 0, "Should be modal");
     }
 }
