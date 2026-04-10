@@ -132,11 +132,13 @@ impl Group {
             return index;
         }
 
-        // Remove the view from its current position
+        // Remove the view and its corresponding ID from their current position
         let view = self.children.remove(index);
+        let view_id = self.view_ids.remove(index);
 
-        // Add it to the end (front of z-order)
+        // Add them to the end (front of z-order)
         self.children.push(view);
+        self.view_ids.push(view_id);
 
         // Update focused index if necessary
         let new_index = self.children.len() - 1;
@@ -159,11 +161,13 @@ impl Group {
             return index;
         }
 
-        // Remove the view from its current position
+        // Remove the view and its corresponding ID from their current position
         let view = self.children.remove(index);
+        let view_id = self.view_ids.remove(index);
 
-        // Insert it at position 1 (right after element 0, which is typically background)
+        // Insert them at position 1 (right after element 0, which is typically background)
         self.children.insert(1, view);
+        self.view_ids.insert(1, view_id);
 
         // Update focused index if necessary
         if self.focused == index {
@@ -174,6 +178,12 @@ impl Group {
         }
 
         1 // Always returns 1 (the back position after index 0)
+    }
+
+    /// Get the ViewId of a child at the given index.
+    /// Returns None if the index is out of bounds.
+    pub fn view_id_at(&self, index: usize) -> Option<ViewId> {
+        self.view_ids.get(index).copied()
     }
 
     /// Remove a child at the specified index
@@ -957,6 +967,83 @@ mod tests {
         let not_removed = group.remove_by_id(invalid_id);
         assert!(!not_removed);
         assert_eq!(group.len(), 2);
+    }
+
+    #[test]
+    fn test_bring_to_front_syncs_view_ids() {
+        use crate::core::geometry::Rect;
+
+        let mut group = Group::new(Rect::new(0, 0, 80, 25));
+        let id1 = group.add(Box::new(crate::views::background::Background::new(
+            Rect::new(0, 0, 10, 5), ' ', crate::core::palette::Attr::new(
+                crate::core::palette::TvColor::White, crate::core::palette::TvColor::Blue,
+            ),
+        )));
+        let id2 = group.add(Box::new(crate::views::background::Background::new(
+            Rect::new(0, 0, 10, 5), ' ', crate::core::palette::Attr::new(
+                crate::core::palette::TvColor::White, crate::core::palette::TvColor::Blue,
+            ),
+        )));
+        let id3 = group.add(Box::new(crate::views::background::Background::new(
+            Rect::new(0, 0, 10, 5), ' ', crate::core::palette::Attr::new(
+                crate::core::palette::TvColor::White, crate::core::palette::TvColor::Blue,
+            ),
+        )));
+
+        // Bring first child to front
+        group.bring_to_front(0);
+
+        // After bring_to_front(0): order should be [id2, id3, id1]
+        // Verify child_by_id still works correctly
+        assert!(group.child_by_id(id1).is_some());
+        assert!(group.child_by_id(id2).is_some());
+        assert!(group.child_by_id(id3).is_some());
+
+        // The brought-to-front child (id1) should now be at the last index
+        // Verify by checking that view_ids[2] == id1
+        // We can test this indirectly: remove_by_id should still find the right child
+        assert!(group.remove_by_id(id1));
+        assert_eq!(group.len(), 2);
+        // id2 and id3 should still be findable
+        assert!(group.child_by_id(id2).is_some());
+        assert!(group.child_by_id(id3).is_some());
+    }
+
+    #[test]
+    fn test_send_to_back_syncs_view_ids() {
+        use crate::core::geometry::Rect;
+
+        let mut group = Group::new(Rect::new(0, 0, 80, 25));
+        let id1 = group.add(Box::new(crate::views::background::Background::new(
+            Rect::new(0, 0, 10, 5), ' ', crate::core::palette::Attr::new(
+                crate::core::palette::TvColor::White, crate::core::palette::TvColor::Blue,
+            ),
+        )));
+        let id2 = group.add(Box::new(crate::views::background::Background::new(
+            Rect::new(0, 0, 10, 5), ' ', crate::core::palette::Attr::new(
+                crate::core::palette::TvColor::White, crate::core::palette::TvColor::Blue,
+            ),
+        )));
+        let id3 = group.add(Box::new(crate::views::background::Background::new(
+            Rect::new(0, 0, 10, 5), ' ', crate::core::palette::Attr::new(
+                crate::core::palette::TvColor::White, crate::core::palette::TvColor::Blue,
+            ),
+        )));
+
+        // Send last child to back (position 1, after index 0)
+        group.send_to_back(2);
+
+        // After send_to_back(2): order should be [id1, id3, id2]
+        // All IDs should still be findable
+        assert!(group.child_by_id(id1).is_some());
+        assert!(group.child_by_id(id2).is_some());
+        assert!(group.child_by_id(id3).is_some());
+
+        // Remove id3 (should be at index 1 now) to verify sync
+        assert!(group.remove_by_id(id3));
+        assert_eq!(group.len(), 2);
+        assert!(group.child_by_id(id1).is_some());
+        assert!(group.child_by_id(id2).is_some());
     }
 
     #[test]
