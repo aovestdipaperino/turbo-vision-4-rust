@@ -839,12 +839,17 @@ impl WindowBuilder {
             WindowPaletteType::Gray | WindowPaletteType::Dialog => super::frame::FramePaletteType::Dialog,
         };
 
+        let resizable = match self.palette_type {
+            WindowPaletteType::Dialog => false,
+            _ => self.resizable,
+        };
+
         Window::new_with_palette(
             bounds,
             &title,
             frame_palette,
             self.palette_type,
-            self.resizable,
+            resizable,
         )
     }
 }
