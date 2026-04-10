@@ -66,11 +66,8 @@ fn main() -> turbo_vision::core::error::Result<()> {
 
     app.running = true;
     while app.running {
-        // Draw everything
-        app.desktop.draw(&mut app.terminal);
-        if let Some(ref mut status_line) = app.status_line {
-            status_line.draw(&mut app.terminal);
-        }
+        // Draw everything (desktop, menu bar, status line, overlays)
+        app.draw();
         let _ = app.terminal.flush();
 
         // Poll for events with timeout (allows periodic heartbeat)
