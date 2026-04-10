@@ -109,7 +109,14 @@ Index Range | Usage
 16-23       | TWindow (Cyan)
 24-31       | TWindow (Gray)
 32-63       | TDialog
+64-74       | Syntax highlighting (Blue bg) [Rust port extension]
+75-85       | Syntax highlighting (Cyan bg) [Rust port extension]
+86-96       | Syntax highlighting (Gray bg) [Rust port extension]
 ```
+
+> **Note:** Indices 64-96 are extensions added by the Rust port. The original Borland TV
+> had no syntax highlighting support. Window palettes have been extended from 8 to 19
+> entries to map syntax color indices (9-19) through the palette chain.
 
 ## Container Palettes
 
