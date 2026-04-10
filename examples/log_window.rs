@@ -7,10 +7,11 @@
 
 use turbo_vision::app::Application;
 use turbo_vision::core::command::CM_QUIT;
-use turbo_vision::core::event::{KB_ALT_X, KB_F5};
+use turbo_vision::core::event::{EventType, KB_ALT_X, KB_F5};
 use turbo_vision::core::geometry::Rect;
 use turbo_vision::views::log_window::LogWindowBuilder;
 use turbo_vision::views::status_line::{StatusItem, StatusLine};
+use turbo_vision::views::View;
 
 use std::time::{Duration, Instant};
 
@@ -33,7 +34,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
 
     // Create the LogWindow — this installs the tracing subscriber
     let log_window = LogWindowBuilder::new()
-        .bounds(Rect::new(2, 2, width - 2, height - 2))
+        .bounds(Rect::new(2, 1, width - 2, height - 2))
         .title("Application Log")
         .min_level(tracing::Level::TRACE)
         .build();
@@ -65,11 +66,25 @@ fn main() -> turbo_vision::core::error::Result<()> {
 
     app.running = true;
     while app.running {
-        app.draw();
+        // Draw everything
+        app.desktop.draw(&mut app.terminal);
+        if let Some(ref mut status_line) = app.status_line {
+            status_line.draw(&mut app.terminal);
+        }
+        let _ = app.terminal.flush();
 
-        let event = app.get_event();
-        if let Some(mut event) = event {
-            if event.what == turbo_vision::core::event::EventType::Command {
+        // Poll for events with timeout (allows periodic heartbeat)
+        if let Ok(Some(mut event)) = app.terminal.poll_event(Duration::from_millis(100)) {
+            // Desktop handles window focus, dragging, etc.
+            app.desktop.handle_event(&mut event);
+
+            // Status line converts key shortcuts to commands (KB_F5 -> CM_BURST)
+            if let Some(ref mut status_line) = app.status_line {
+                status_line.handle_event(&mut event);
+            }
+
+            // Handle commands after status line has had a chance to convert keys
+            if event.what == EventType::Command {
                 match event.command {
                     CM_QUIT => app.running = false,
                     CM_BURST => {
@@ -89,7 +104,11 @@ fn main() -> turbo_vision::core::error::Result<()> {
                     _ => {}
                 }
             }
-            app.handle_event(&mut event);
+
+            // Handle Alt-X at keyboard level
+            if event.what == EventType::Keyboard && event.key_code == KB_ALT_X {
+                app.running = false;
+            }
         }
 
         // Periodic log every 5 seconds
