@@ -49,6 +49,11 @@ impl Frame {
         }
     }
 
+    /// Set whether the frame is resizable (matches Borland's wfGrow flag).
+    pub fn set_resizable(&mut self, resizable: bool) {
+        self.resizable = resizable;
+    }
+
     /// Set the frame title
     /// Matches Borland: TFrame::setTitle() allows changing window title dynamically
     pub fn set_title(&mut self, title: &str) {
