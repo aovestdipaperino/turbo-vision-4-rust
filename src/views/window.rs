@@ -88,6 +88,19 @@ impl Window {
         )
     }
 
+    /// Create a window with a specific palette type.
+    /// This allows users to create Gray, Cyan, or Blue windows without
+    /// being constrained to the preset constructors.
+    pub fn new_with_type(bounds: Rect, title: &str, palette_type: WindowPaletteType) -> Self {
+        let (frame_palette, resizable) = match palette_type {
+            WindowPaletteType::Blue => (super::frame::FramePaletteType::Editor, true),
+            WindowPaletteType::Cyan => (super::frame::FramePaletteType::HelpWindow, true),
+            WindowPaletteType::Gray => (super::frame::FramePaletteType::Dialog, true),
+            WindowPaletteType::Dialog => (super::frame::FramePaletteType::Dialog, false),
+        };
+        Self::new_with_palette(bounds, title, frame_palette, palette_type, resizable)
+    }
+
     fn new_with_palette(
         bounds: Rect,
         title: &str,
@@ -767,6 +780,7 @@ pub struct WindowBuilder {
     bounds: Option<Rect>,
     title: Option<String>,
     resizable: bool,
+    palette_type: WindowPaletteType,
 }
 
 impl WindowBuilder {
@@ -776,6 +790,7 @@ impl WindowBuilder {
             bounds: None,
             title: None,
             resizable: true, // Default to resizable (matches Borland TWindow with wfGrow)
+            palette_type: WindowPaletteType::Blue,
         }
     }
 
@@ -802,6 +817,13 @@ impl WindowBuilder {
         self
     }
 
+    /// Sets the window palette type (default: Blue).
+    #[must_use]
+    pub fn palette_type(mut self, palette_type: WindowPaletteType) -> Self {
+        self.palette_type = palette_type;
+        self
+    }
+
     /// Builds the Window.
     ///
     /// # Panics
@@ -811,11 +833,17 @@ impl WindowBuilder {
         let bounds = self.bounds.expect("Window bounds must be set");
         let title = self.title.expect("Window title must be set");
 
+        let frame_palette = match self.palette_type {
+            WindowPaletteType::Blue => super::frame::FramePaletteType::Editor,
+            WindowPaletteType::Cyan => super::frame::FramePaletteType::HelpWindow,
+            WindowPaletteType::Gray | WindowPaletteType::Dialog => super::frame::FramePaletteType::Dialog,
+        };
+
         Window::new_with_palette(
             bounds,
             &title,
-            super::frame::FramePaletteType::Editor,
-            WindowPaletteType::Blue,
+            frame_palette,
+            self.palette_type,
             self.resizable,
         )
     }
@@ -824,5 +852,50 @@ impl WindowBuilder {
 impl Default for WindowBuilder {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_new_with_type_gray() {
+        let window = Window::new_with_type(
+            Rect::new(5, 5, 40, 20),
+            "Gray Panel",
+            WindowPaletteType::Gray,
+        );
+        assert_eq!(window.bounds(), Rect::new(5, 5, 40, 20));
+    }
+
+    #[test]
+    fn test_new_with_type_cyan() {
+        let window = Window::new_with_type(
+            Rect::new(5, 5, 40, 20),
+            "Cyan Window",
+            WindowPaletteType::Cyan,
+        );
+        assert_eq!(window.bounds(), Rect::new(5, 5, 40, 20));
+    }
+
+    #[test]
+    fn test_new_with_type_blue() {
+        let window = Window::new_with_type(
+            Rect::new(5, 5, 40, 20),
+            "Blue Window",
+            WindowPaletteType::Blue,
+        );
+        assert_eq!(window.bounds(), Rect::new(5, 5, 40, 20));
+    }
+
+    #[test]
+    fn test_builder_with_palette_type() {
+        let window = WindowBuilder::new()
+            .bounds(Rect::new(5, 5, 40, 20))
+            .title("Gray Window")
+            .palette_type(WindowPaletteType::Gray)
+            .build();
+        assert_eq!(window.bounds(), Rect::new(5, 5, 40, 20));
     }
 }
