@@ -168,6 +168,35 @@ impl HelpViewer {
         self.make_select_visible();
     }
 
+    /// Find the next or previous visible cross-reference relative to the current selection.
+    /// Returns 1-based index of the next/prev visible cross-ref, or None if none found.
+    fn find_visible_cross_ref(&self, forward: bool) -> Option<usize> {
+        if self.cross_refs.is_empty() {
+            return None;
+        }
+
+        let visible_start = self.delta.y + 1; // 1-based line number
+        let visible_end = visible_start + self.bounds.height();
+
+        // Collect visible cross-refs (1-based indices)
+        let visible: Vec<usize> = self.cross_refs.iter().enumerate()
+            .filter(|(_, cr)| cr.line >= visible_start && cr.line < visible_end)
+            .map(|(i, _)| i + 1) // Convert to 1-based
+            .collect();
+
+        if visible.is_empty() {
+            return None;
+        }
+
+        if forward {
+            // Find the first visible cross-ref after current selection
+            visible.iter().find(|&&idx| idx > self.selected).copied()
+        } else {
+            // Find the last visible cross-ref before current selection
+            visible.iter().rev().find(|&&idx| idx < self.selected).copied()
+        }
+    }
+
     /// Find cross-reference at the given screen position
     /// Returns 1-based index (like Borland) or 0 if none found
     /// Matches Borland: THelpViewer::getNumRows() pattern for hit testing
@@ -378,11 +407,31 @@ impl View for HelpViewer {
             EventType::Keyboard => {
                 match event.key_code {
                     KB_UP => {
-                        self.scroll_by(0, -1);
+                        if !self.cross_refs.is_empty() {
+                            if let Some(prev) = self.find_visible_cross_ref(false) {
+                                self.selected = prev;
+                                self.make_select_visible();
+                            } else {
+                                // At first visible link or no visible links — scroll up
+                                self.scroll_by(0, -1);
+                            }
+                        } else {
+                            self.scroll_by(0, -1);
+                        }
                         event.clear();
                     }
                     KB_DOWN => {
-                        self.scroll_by(0, 1);
+                        if !self.cross_refs.is_empty() {
+                            if let Some(next) = self.find_visible_cross_ref(true) {
+                                self.selected = next;
+                                self.make_select_visible();
+                            } else {
+                                // At last visible link or no visible links — scroll down
+                                self.scroll_by(0, 1);
+                            }
+                        } else {
+                            self.scroll_by(0, 1);
+                        }
                         event.clear();
                     }
                     KB_LEFT => {
