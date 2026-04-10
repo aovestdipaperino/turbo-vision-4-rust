@@ -441,6 +441,46 @@ impl Desktop {
         self.children.child_at_mut(top_window_idx).zoom(desktop_bounds);
     }
 
+    /// Bring a specific window to the front of the Z-order by its ViewId.
+    /// Returns true if the window was found and moved, false if not found.
+    /// Matches Borland: TView::makeFirst() / TView::select()
+    pub fn bring_to_front(&mut self, view_id: ViewId) -> bool {
+        use crate::core::state::OF_TOP_SELECT;
+
+        // Search children (skip background at index 0) for matching ViewId
+        let found_index = (1..self.children.len()).find(|&i| {
+            self.children.view_id_at(i) == Some(view_id)
+        });
+
+        let index = match found_index {
+            Some(i) => i,
+            None => return false,
+        };
+
+        let last_idx = self.children.len() - 1;
+        if index == last_idx {
+            return true; // Already on top
+        }
+
+        // Check if the window has OF_TOP_SELECT
+        let options = self.children.child_at(index).options();
+        if (options & OF_TOP_SELECT) == 0 {
+            return false;
+        }
+
+        // Unfocus current top window
+        self.children.child_at_mut(last_idx).set_focus(false);
+
+        // Bring the target window to front
+        self.children.bring_to_front(index);
+
+        // Focus the new top window
+        let new_top = self.children.len() - 1;
+        self.children.child_at_mut(new_top).set_focus(true);
+
+        true
+    }
+
     /// Remove closed windows (those with SF_CLOSED flag)
     /// In Borland, views call CLY_destroy() which removes them from the owner
     /// In Rust, views set SF_CLOSED flag and the parent removes them
@@ -637,5 +677,31 @@ impl DesktopBuilder {
 impl Default for DesktopBuilder {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::views::window::Window;
+
+    #[test]
+    fn test_bring_to_front_by_view_id() {
+        let mut desktop = Desktop::new(Rect::new(0, 1, 80, 24));
+
+        let id1 = desktop.add(Box::new(Window::new(Rect::new(5, 5, 30, 15), "Win 1")));
+        let id2 = desktop.add(Box::new(Window::new(Rect::new(10, 6, 35, 16), "Win 2")));
+        let _id3 = desktop.add(Box::new(Window::new(Rect::new(15, 7, 40, 17), "Win 3")));
+
+        // Win 3 is on top (last added). Bring Win 1 to front.
+        assert!(desktop.bring_to_front(id1));
+
+        // Win 1 should now be the top window (last child, excluding background).
+        // Verify by bringing id2 to front and confirming it also works.
+        assert!(desktop.bring_to_front(id2));
+
+        // Non-existent ViewId returns false
+        let fake_id = crate::views::view::ViewId::from_u16(9999);
+        assert!(!desktop.bring_to_front(fake_id));
     }
 }
