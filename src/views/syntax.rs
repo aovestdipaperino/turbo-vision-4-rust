@@ -62,6 +62,26 @@ impl TokenType {
             TokenType::Special => SYNTAX_SPECIAL,
         }
     }
+
+    /// Get the palette index for this token type (editor-relative).
+    /// Used by the editor's draw method to resolve colors through the palette chain.
+    /// Maps through CP_EDITOR → window palette → app palette.
+    pub fn palette_index(&self) -> u8 {
+        use crate::core::palette::*;
+        match self {
+            TokenType::Normal => SYNTAX_NORMAL_IDX,
+            TokenType::Keyword => SYNTAX_KEYWORD_IDX,
+            TokenType::String => SYNTAX_STRING_IDX,
+            TokenType::Comment => SYNTAX_COMMENT_IDX,
+            TokenType::Number => SYNTAX_NUMBER_IDX,
+            TokenType::Operator => SYNTAX_OPERATOR_IDX,
+            TokenType::Identifier => SYNTAX_IDENTIFIER_IDX,
+            TokenType::Type => SYNTAX_TYPE_IDX,
+            TokenType::Preprocessor => SYNTAX_PREPROCESSOR_IDX,
+            TokenType::Function => SYNTAX_FUNCTION_IDX,
+            TokenType::Special => SYNTAX_SPECIAL_IDX,
+        }
+    }
 }
 
 /// Represents a highlighted token (span of text with a type)
@@ -333,6 +353,22 @@ mod tests {
         // Verify each token type has a color
         assert_ne!(TokenType::Keyword.default_color(), Attr::new(TvColor::Black, TvColor::Black));
         assert_ne!(TokenType::String.default_color(), Attr::new(TvColor::Black, TvColor::Black));
+    }
+
+    #[test]
+    fn test_token_type_palette_index() {
+        use crate::core::palette::*;
+        assert_eq!(TokenType::Normal.palette_index(), SYNTAX_NORMAL_IDX);
+        assert_eq!(TokenType::Keyword.palette_index(), SYNTAX_KEYWORD_IDX);
+        assert_eq!(TokenType::String.palette_index(), SYNTAX_STRING_IDX);
+        assert_eq!(TokenType::Comment.palette_index(), SYNTAX_COMMENT_IDX);
+        assert_eq!(TokenType::Number.palette_index(), SYNTAX_NUMBER_IDX);
+        assert_eq!(TokenType::Operator.palette_index(), SYNTAX_OPERATOR_IDX);
+        assert_eq!(TokenType::Identifier.palette_index(), SYNTAX_IDENTIFIER_IDX);
+        assert_eq!(TokenType::Type.palette_index(), SYNTAX_TYPE_IDX);
+        assert_eq!(TokenType::Preprocessor.palette_index(), SYNTAX_PREPROCESSOR_IDX);
+        assert_eq!(TokenType::Function.palette_index(), SYNTAX_FUNCTION_IDX);
+        assert_eq!(TokenType::Special.palette_index(), SYNTAX_SPECIAL_IDX);
     }
 
     #[test]
