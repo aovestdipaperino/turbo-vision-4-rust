@@ -77,6 +77,20 @@ pub const EDITOR_NORMAL: u8 = 1; // Normal editor text - cpEditor position 1 →
 pub const EDITOR_SELECTED: u8 = 2; // Selected text - cpEditor position 2 → app palette 7
 pub const EDITOR_CURSOR: u8 = 2; // Cursor - same as selected
 
+// Syntax highlighting palette indices (editor-relative, map through CP_EDITOR → window palette → app)
+// Index 1-2 are normal/selected text. Indices 3-13 are syntax token colors.
+pub const SYNTAX_NORMAL_IDX: u8 = 3;
+pub const SYNTAX_KEYWORD_IDX: u8 = 4;
+pub const SYNTAX_STRING_IDX: u8 = 5;
+pub const SYNTAX_COMMENT_IDX: u8 = 6;
+pub const SYNTAX_NUMBER_IDX: u8 = 7;
+pub const SYNTAX_OPERATOR_IDX: u8 = 8;
+pub const SYNTAX_IDENTIFIER_IDX: u8 = 9;
+pub const SYNTAX_TYPE_IDX: u8 = 10;
+pub const SYNTAX_PREPROCESSOR_IDX: u8 = 11;
+pub const SYNTAX_FUNCTION_IDX: u8 = 12;
+pub const SYNTAX_SPECIAL_IDX: u8 = 13;
+
 /// 16-color palette matching Turbo Vision
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
@@ -572,19 +586,22 @@ pub mod palettes {
     // BlueWindow: indices 8-15
     #[rustfmt::skip]
     pub const CP_BLUE_WINDOW: &[u8] = &[
-        8, 9, 10, 11, 12, 13, 14, 15,  // Maps to app palette 8-15
+        8, 9, 10, 11, 12, 13, 14, 15,                   // 1-8: Original window entries
+        64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74,     // 9-19: Syntax colors (blue bg)
     ];
 
     // CyanWindow: indices 16-23
     #[rustfmt::skip]
     pub const CP_CYAN_WINDOW: &[u8] = &[
-        16, 17, 18, 19, 20, 21, 22, 23,  // Maps to app palette 16-23
+        16, 17, 18, 19, 20, 21, 22, 23,                 // 1-8: Original window entries
+        75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85,     // 9-19: Syntax colors (cyan bg)
     ];
 
     // GrayWindow: indices 24-31
     #[rustfmt::skip]
     pub const CP_GRAY_WINDOW: &[u8] = &[
-        24, 25, 26, 27, 28, 29, 30, 31,  // Maps to app palette 24-31
+        24, 25, 26, 27, 28, 29, 30, 31,                 // 1-8: Original window entries
+        86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96,     // 9-19: Syntax colors (gray bg)
     ];
 
     // Gray dialog palette - maps dialog color indices to app palette
@@ -704,7 +721,8 @@ pub mod palettes {
     // Same as CP_SCROLLER - editors use window background colors
     #[rustfmt::skip]
     pub const CP_EDITOR: &[u8] = &[
-        6, 7,  // 1-2: Normal text, Selected text
+        6, 7,                                          // 1-2: Normal text, Selected text
+        9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,   // 3-13: Syntax colors (window-relative)
     ];
 
     // History Viewer palette (THistoryViewer)

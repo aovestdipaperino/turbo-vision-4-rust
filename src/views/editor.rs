@@ -1245,7 +1245,7 @@ impl View for EditorWindow {
                                 buf.move_str(
                                     token_start,
                                     &token_text,
-                                    token.token_type.default_color(),
+                                    self.map_color(token.token_type.palette_index()),
                                 );
                             }
 
