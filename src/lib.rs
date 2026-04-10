@@ -208,7 +208,7 @@
 //!
 //! # See Also
 //!
-//! - [Examples](https://github.com/anthropics/turbo-vision/tree/main/examples) - Complete working examples
+//! - [Examples](https://github.com/aovestdipaperino/turbo-vision-4-rust/tree/main/examples) - Complete working examples
 //! - [Borland TV Documentation](https://github.com/magiblot/tvision) - Original reference
 
 // Core modules
