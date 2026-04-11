@@ -60,10 +60,13 @@ impl View for StaticText {
             buf.move_char(0, ' ', text_attr, width);
 
             // Calculate starting position based on centering
+            // Strip control characters and ~ shortcut markers for display width calculation
             let start_pos = if self.centered {
-                let line_len = line.len();
-                if width > line_len {
-                    (width - line_len) / 2
+                let display_len = line.chars()
+                    .filter(|c| !c.is_control() && *c != '~')
+                    .count();
+                if width > display_len {
+                    (width - display_len) / 2
                 } else {
                     0
                 }
