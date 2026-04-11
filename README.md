@@ -26,7 +26,7 @@ The showcase demo with Calculator, Calendar, ASCII Table, and Puzzle windows dem
 
 ### Code Editor
 
-A full-featured text editor (`rust_editor`) editing its own source code, with menu bar, status line, and scrollable editing area.
+A full-featured text editor (`pascal_ide`) editing its own source code, with menu bar, status line, and scrollable editing area.
 
 ![Code Editor](screenshots/code-editor.png)
 
@@ -150,7 +150,7 @@ If you're new to Turbo Vision frameworks, follow this path:
 2. **[Examples Overview](examples/README.md)** - Browse 30+ working examples
    ```bash
    cargo run --example showcase    # Comprehensive feature showcase
-   cargo run --bin rust_editor     # Full-featured text editor
+   cargo run --bin pascal_ide     # Full-featured text editor
    ```
 3. **[User Guide - Chapter 1](docs/user-guide/Chapter-01-Stepping-into-Turbo-Vision.md)** - Learn the basics
 4. **[User Guide - Chapter 2](docs/user-guide/Chapter-02-Responding-to-Commands.md)** - Handle events and commands
@@ -165,7 +165,7 @@ For practical application development:
 1. **[Custom Application Example](docs/CUSTOM-APPLICATION-RUST-EXAMPLE.md)** - Complete walkthrough
 2. **[Biorhythm Calculator Tutorial](docs/BIORHYTHM-CALCULATOR-TUTORIAL.md)** - Build a real app step-by-step
 3. **[examples/showcase.rs](examples/showcase.rs)** - Study the comprehensive demo
-4. **[rust_editor source](demo/rust_editor.rs)** - See a production-ready editor
+4. **[pascal_ide source](demo/pascal_ide.rs)** - See a production-ready editor
 
 ### 🔧 Coming from Borland/C++ Turbo Vision?
 
@@ -233,7 +233,7 @@ examples/
 └── ... (30+ more examples)
 
 demo/
-└── rust_editor.rs                      # Production text editor
+└── pascal_ide.rs                      # Production text editor
 ```
 
 ### 🔗 Quick Links

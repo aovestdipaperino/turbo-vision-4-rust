@@ -10,6 +10,7 @@ use crate::core::command::CM_CLOSE;
 use crate::core::state::{StateFlags, SF_ACTIVE, SF_DRAGGING, SF_RESIZING};
 use crate::terminal::Terminal;
 use super::view::{View, write_line_to_terminal};
+use unicode_width::UnicodeWidthStr;
 
 pub struct Frame {
     bounds: Rect,
@@ -140,7 +141,8 @@ impl View for Frame {
         }
 
         // Add title after close button
-        if !self.title.is_empty() && width > self.title.len() + 8 {
+        let title_display_width = self.title.width();
+        if !self.title.is_empty() && width > title_display_width + 8 {
             buf.move_str(6, &format!(" {} ", self.title), title_attr);
         }
         write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y, &buf);
