@@ -22,31 +22,31 @@ kloczek port of Borland Turbo Vision C++. All features from the original framewo
 
 The showcase demo with Calculator, Calendar, ASCII Table, and Puzzle windows demonstrating overlapping window management, z-ordering, and shadows.
 
-![Showcase](screenshots/showcase.png)
+![Showcase](screenshots/showcase-v2.png)
 
 ### Code Editor
 
 A full-featured text editor (`pascal_ide`) editing its own source code, with menu bar, status line, and scrollable editing area.
 
-![Code Editor](screenshots/code-editor.png)
+![Code Editor](screenshots/code-editor-v2.png)
 
 ### Help Window
 
 Context-sensitive help system (F1) with scrollable content, rendered over the editor window.
 
-![Help Window](screenshots/help-window.png)
+![Help Window](screenshots/help-window-v2.png)
 
 ### File System Tree
 
 A tree view widget displaying a hierarchical file system with expandable/collapsible directories, keyboard navigation, and selection highlighting.
 
-![File System Tree](screenshots/file-tree.png)
+![File System Tree](screenshots/file-tree-v2.png)
 
 ### File Chooser Dialog
 
 The built-in file dialog with directory navigation, file list, and keyboard/mouse support.
 
-![File Dialog](screenshots/file-dialog.png)
+![File Dialog](screenshots/file-dialog-v2.png)
 
 ## Features
 
