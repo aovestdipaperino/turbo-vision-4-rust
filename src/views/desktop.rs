@@ -57,16 +57,20 @@ impl Desktop {
             self.center_view(&mut *view, options);
         }
 
-        // Constrain window to Desktop bounds (prevents centering from placing window out of bounds)
-        // This ensures windows with shadows don't extend below status bar
-        // Matches Borland: TView::locate() constrains position to owner bounds
-        view.constrain_to_parent_bounds();
-
         let view_id = self.children.add(view);
+
+        // Constrain window to Desktop bounds AFTER Group::add() has converted
+        // relative bounds to absolute. Constraining before the conversion would
+        // apply absolute limits to relative coordinates, causing a double offset.
+        // (See GitHub issue #95)
+        let num_children = self.children.len();
+        if num_children > 0 {
+            let last_idx = num_children - 1;
+            self.children.child_at_mut(last_idx).constrain_to_parent_bounds();
+        }
 
         // Initialize internal owner pointers after view is in final position
         // This is critical for views like Dialog that contain Groups by value
-        let num_children = self.children.len();
         if num_children > 0 {
             let last_idx = num_children - 1;
             self.children.child_at_mut(last_idx).init_after_add();
