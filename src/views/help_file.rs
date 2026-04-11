@@ -394,6 +394,17 @@ impl HelpFile {
         Ok(help_file)
     }
 
+    /// Create a help file from an in-memory markdown string
+    pub fn from_content(content: &str) -> Self {
+        let mut help_file = Self {
+            path: String::new(),
+            topics: HashMap::new(),
+            default_topic: None,
+        };
+        help_file.parse_markdown(content);
+        help_file
+    }
+
     /// Load and parse markdown file
     fn load(&mut self) -> std::io::Result<()> {
         let content = fs::read_to_string(&self.path)?;

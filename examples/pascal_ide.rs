@@ -9,15 +9,20 @@
 // - Sample Pascal program loaded on startup
 
 use turbo_vision::app::Application;
-use turbo_vision::core::command::{CM_QUIT, CM_CLOSE};
+use turbo_vision::core::command::{CM_QUIT, CM_CLOSE, CM_HELP_INDEX};
 use turbo_vision::core::event::KB_F10;
 use turbo_vision::core::geometry::Rect;
 use turbo_vision::core::menu_data::{Menu, MenuItem};
 use turbo_vision::views::edit_window::EditWindow;
+use turbo_vision::views::help_file::HelpFile;
 use turbo_vision::views::menu_bar::{MenuBar, SubMenu};
 use turbo_vision::views::msgbox::message_box_ok;
 use turbo_vision::views::status_line::{StatusItem, StatusLine};
 use turbo_vision::views::syntax::{SyntaxHighlighter, Token, TokenType};
+
+// Help context IDs
+const HC_FILE_MENU: u16 = 1;
+const HC_EDITOR: u16 = 2;
 
 // ── Pascal Syntax Highlighter ────────────────────────────
 // From bruto-pascal-lang (https://github.com/aovestdipaperino/bruto-pascal-lang)
@@ -286,6 +291,74 @@ begin
 end.
 "#;
 
+// ── Help Content ────────────────────────────────────────
+
+const HELP_CONTENT: &str = r#"# Bruto Pascal IDE {#welcome}
+
+Welcome to the **Bruto Pascal IDE**, a Mini-Pascal
+development environment built with Turbo Vision for Rust.
+
+Press **F1** at any time for context-sensitive help.
+
+  [File Menu](#file-menu)
+  [Editor](#editor)
+  [Keyboard Shortcuts](#shortcuts)
+  [About Pascal](#pascal-lang)
+
+# File Menu {#file-menu}
+
+The **File** menu provides these commands:
+
+  **Close**      `Alt+F3`   Close the current editor
+  **Exit**       `Alt+X`    Quit the IDE
+
+# Editor {#editor}
+
+The editor supports **Pascal syntax highlighting**
+with the following token categories:
+
+  **Keywords**    `program`, `begin`, `end`, `if`...
+  **Types**       `integer`, `string`, `boolean`...
+  **Strings**     Single-quoted: `'Hello'`
+  **Numbers**     Decimal and hex: `42`, `$FF`
+  **Comments**    `{ ... }`, `(* ... *)`, `// ...`
+  **Operators**   `:=`, `+`, `-`, `*`, `<>`, ...
+
+Use the mouse or keyboard to scroll and edit text.
+
+  [Keyboard Shortcuts](#shortcuts)
+
+# Keyboard Shortcuts {#shortcuts}
+
+  **F1**         Open help
+  **F10**        Activate the menu bar
+  **Alt+F3**     Close current window
+  **Alt+X**      Exit the IDE
+  **Arrow keys** Move the cursor
+  **Home/End**   Go to line start / end
+  **PgUp/PgDn**  Scroll page up / down
+
+  [Back to Welcome](#welcome)
+
+# About Pascal {#pascal-lang}
+
+Pascal is a structured programming language designed
+by Niklaus Wirth in 1970. It emphasizes clear syntax,
+strong typing, and structured control flow.
+
+Key features of the language:
+
+  - Block structure with `begin` / `end`
+  - Procedures and functions
+  - Records, arrays, and pointer types
+  - `repeat..until` and `while..do` loops
+
+The sample program demonstrates arrays, records,
+pointer allocation, and formatted output.
+
+  [Back to Welcome](#welcome)
+"#;
+
 // ── Main ─────────────────────────────────────────────────
 
 fn main() -> turbo_vision::core::error::Result<()> {
@@ -294,12 +367,21 @@ fn main() -> turbo_vision::core::error::Result<()> {
     let w = width as i16;
     let h = height as i16;
 
+    // Help system
+    let help = HelpFile::from_content(HELP_CONTENT);
+    app.set_help(help);
+    app.register_help_context(HC_FILE_MENU, "file-menu");
+    app.register_help_context(HC_EDITOR, "editor");
+
     // Menu bar
     let mut menu_bar = MenuBar::new(Rect::new(0, 0, w, 1));
     menu_bar.add_submenu(SubMenu::new("~F~ile", Menu::from_items(vec![
-        MenuItem::with_shortcut("~C~lose", CM_CLOSE, 0, "Alt+F3", 0),
+        MenuItem::with_shortcut("~C~lose", CM_CLOSE, 0, "Alt+F3", HC_FILE_MENU),
         MenuItem::separator(),
-        MenuItem::with_shortcut("E~x~it", CM_QUIT, 0, "Alt+X", 0),
+        MenuItem::with_shortcut("E~x~it", CM_QUIT, 0, "Alt+X", HC_FILE_MENU),
+    ])));
+    menu_bar.add_submenu(SubMenu::new("~H~elp", Menu::from_items(vec![
+        MenuItem::with_shortcut("~C~ontents", CM_HELP_INDEX, 0, "F1", 0),
     ])));
     app.set_menu_bar(menu_bar);
 
@@ -307,6 +389,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
     app.set_status_line(StatusLine::new(
         Rect::new(0, h - 1, w, h),
         vec![
+            StatusItem::new("~F1~ Help", 0, CM_HELP_INDEX),
             StatusItem::new("~F10~ Menu", KB_F10, 0),
             StatusItem::new("~Alt+X~ Exit", 0x012D, CM_QUIT),
         ],
