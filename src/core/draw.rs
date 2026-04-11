@@ -130,6 +130,10 @@ impl DrawBuffer {
                     }
                     put_wide(&mut self.data, &mut pos, shortcut_ch, shortcut_attr);
                 }
+            } else if ch.is_control() {
+                // Skip control characters (e.g. \x03 centering directive)
+                // These are directives, not renderable glyphs
+                continue;
             } else {
                 put_wide(&mut self.data, &mut pos, ch, normal_attr);
             }

@@ -396,7 +396,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
     ));
 
     // Editor window with Pascal syntax highlighting and sample program
-    let edit_window = EditWindow::new(Rect::new(2, 1, w - 2, h - 2), "Untitled.pas");
+    let edit_window = EditWindow::new(Rect::new(0, 0, w, h - 2), "Untitled.pas");
     edit_window.editor_rc().borrow_mut().set_highlighter(Box::new(PascalHighlighter::new()));
     edit_window.editor_rc().borrow_mut().set_text(SAMPLE_PROGRAM);
     app.desktop.add(Box::new(edit_window));

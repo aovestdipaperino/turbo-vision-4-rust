@@ -1058,9 +1058,13 @@ impl View for CalendarView {
 }
 
 fn show_calendar_placeholder(app: &mut Application) {
-    let mut window = WindowBuilder::new().bounds(Rect::new(1, 1, 24, 11)).title("Calendar").build();
+    let mut window = WindowBuilder::new()
+        .bounds(Rect::new(1, 1, 24, 11))
+        .title("Calendar")
+        .resizable(false)
+        .build();
 
-    let calendar_view = CalendarView::new(Rect::new(0, 0, 22, 10));
+    let calendar_view = CalendarView::new(Rect::new(0, 0, 21, 9));
     window.add(Box::new(calendar_view));
 
     app.desktop.add(Box::new(window));
