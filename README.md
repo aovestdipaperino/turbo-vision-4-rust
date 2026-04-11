@@ -36,6 +36,12 @@ Context-sensitive help system (F1) with scrollable content, rendered over the ed
 
 ![Help Window](screenshots/help-window.png)
 
+### File System Tree
+
+A tree view widget displaying a hierarchical file system with expandable/collapsible directories, keyboard navigation, and selection highlighting.
+
+![File System Tree](screenshots/file-tree.png)
+
 ### File Chooser Dialog
 
 The built-in file dialog with directory navigation, file list, and keyboard/mouse support.

@@ -4,7 +4,7 @@
 //! Manages the main application window, menu bar, status line, and desktop.
 //! Provides the central event loop and command dispatching system.
 
-use crate::core::command::{CM_CANCEL, CM_CASCADE, CM_COMMAND_SET_CHANGED, CM_QUIT, CM_TILE, CommandId};
+use crate::core::command::{CM_CANCEL, CM_CASCADE, CM_COMMAND_SET_CHANGED, CM_HELP_INDEX, CM_QUIT, CM_TILE, CommandId};
 use crate::core::command_set;
 use crate::core::error::Result;
 use crate::core::event::{Event, EventType, KB_ALT_X, KB_F1};
@@ -429,6 +429,15 @@ impl Application {
     }
 
     pub fn handle_event(&mut self, event: &mut Event) {
+        // Handle F1 for context-sensitive help before dispatching to views
+        // Matches Borland: TProgram::getEvent() pre-processes F1 (tprogram.cc:145-165)
+        // Must happen first because the editor's catch-all would consume the key code
+        if event.what == EventType::Keyboard && event.key_code == KB_F1 {
+            self.show_help();
+            event.clear();
+            return;
+        }
+
         // Menu bar gets first shot
         if let Some(ref mut menu_bar) = self.menu_bar {
             menu_bar.handle_event(event);
@@ -466,6 +475,10 @@ impl Application {
                     self.cascade();
                     event.clear();
                 }
+                CM_HELP_INDEX => {
+                    self.show_help();
+                    event.clear();
+                }
                 _ => {}
             }
         }
@@ -475,13 +488,6 @@ impl Application {
             // Treat these as quit command
             *event = Event::command(CM_QUIT);
             self.running = false;
-        }
-
-        // Handle F1 for context-sensitive help
-        // Matches Borland: TProgram::getEvent() F1 handling (tprogram.cc:145-165)
-        if event.what == EventType::Keyboard && event.key_code == KB_F1 {
-            self.show_help();
-            event.clear();
         }
     }
 
@@ -505,6 +511,11 @@ impl Application {
         let help_file = HelpFile::new(path)?;
         self.help_file = Some(Rc::new(RefCell::new(help_file)));
         Ok(())
+    }
+
+    /// Set a pre-built help file for F1 context-sensitive help
+    pub fn set_help(&mut self, help_file: HelpFile) {
+        self.help_file = Some(Rc::new(RefCell::new(help_file)));
     }
 
     /// Register a help context mapping (context ID to topic ID)
