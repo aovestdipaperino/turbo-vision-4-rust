@@ -40,10 +40,6 @@ ssh = ["dep:russh", "dep:russh-keys", "dep:async-trait", "dep:parking_lot", "dep
 name = "key_debug"
 path = "debug/key_debug.rs"
 
-[[bin]]
-name = "rust_editor"
-path = "demo/rust_editor.rs"
-
 [dependencies]
 crossterm = "0.29"
 unicode-width = "0.1"

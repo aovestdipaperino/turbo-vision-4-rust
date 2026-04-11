@@ -85,7 +85,7 @@ impl Application {
             menu_bar: None,
             status_line: None,
             desktop,
-            running: false,
+            running: true,
             needs_redraw: true, // Initial draw needed
             overlay_widgets: Vec::new(),
             help_file: None,

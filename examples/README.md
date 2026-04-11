@@ -9,11 +9,11 @@ This directory contains 16 examples demonstrating various features of the Turbo 
 - **`dialogs.rs`** - Modal dialogs with buttons and controls
 
 ### Editor
-- **`editor.rs`** ⭐ **NEW v0.2.6** - Comprehensive editor demonstrations:
-  - Basic editing (undo/redo/clipboard)
-  - Search and replace
-  - Syntax highlighting (Rust)
-  - File I/O operations (load/save)
+- **`pascal_ide.rs`** - IDE editor from the [Bruto-Pascal](https://github.com/aovestdipaperino/bruto-pascal) project:
+  - IdeEditorWindow with breakpoint gutter and code editor side-by-side
+  - Pascal syntax highlighting
+  - Click the gutter to toggle breakpoints
+  - Sample Pascal program loaded on startup
 
 ### Validation
 - **`validator.rs`** ⭐ **NEW v0.2.6** - All validator types:
@@ -50,7 +50,7 @@ This directory contains 16 examples demonstrating various features of the Turbo 
 
 | Feature | Example | Lines | Description |
 |---------|---------|-------|-------------|
-| **All Editor Features** | editor.rs | 290 | Editing, undo/redo, search, syntax highlighting, file I/O |
+| **Pascal IDE Editor** | pascal_ide.rs | 490 | IDE editor with breakpoint gutter, Pascal syntax highlighting |
 | **All Validators** | validator.rs | 320 | Filter, Range, Picture validators |
 | **File Browser** | file_browser.rs | 120 | Directory tree + file list |
 | **Help System** | help_system.rs | 120 | Markdown help with topics |
@@ -65,7 +65,7 @@ This directory contains 16 examples demonstrating various features of the Turbo 
 
 ```bash
 # Run any example
-cargo run --example editor
+cargo run --example pascal_ide
 cargo run --example validator
 cargo run --example file_browser
 
@@ -81,7 +81,7 @@ cargo run --example
 Best examples to start with:
 1. **menu.rs** - See the full application structure
 2. **dialogs.rs** - Learn basic dialogs
-3. **editor.rs** - See advanced editor features (syntax highlighting, search, file I/O)
+3. **pascal_ide.rs** - See the IDE editor with breakpoint gutter and Pascal syntax highlighting
 4. **validator.rs** - Learn all input validation patterns
 
 ## Notes

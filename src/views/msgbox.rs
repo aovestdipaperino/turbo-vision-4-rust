@@ -52,10 +52,10 @@ pub fn message_box(app: &mut Application, message: &str, options: u16) -> Comman
 pub fn message_box_rect(app: &mut Application, bounds: Rect, message: &str, options: u16) -> CommandId {
     // Determine title based on message type
     let title = match options & 0x03 {
-        MF_WARNING => "Warning",
-        MF_ERROR => "Error",
-        MF_INFORMATION => "Information",
-        MF_CONFIRMATION => "Confirm",
+        MF_WARNING => "\u{26A0} Warning",
+        MF_ERROR => "\u{274C} Error",
+        MF_INFORMATION => "\u{2139}\u{FE0F} Information",
+        MF_CONFIRMATION => "\u{2753} Confirm",
         _ => "Message",
     };
 

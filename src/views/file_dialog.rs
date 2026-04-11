@@ -135,7 +135,8 @@ pub struct FileDialog {
 
 impl FileDialog {
     pub fn new(bounds: Rect, title: &str, wildcard: &str, initial_dir: Option<PathBuf>) -> Self {
-        let dialog = Dialog::new(bounds, title);
+        let mut dialog = Dialog::new(bounds, title);
+        dialog.set_resizable(true);
 
         let current_path = initial_dir
             .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
@@ -736,6 +737,7 @@ pub struct FileDialogBuilder {
     wildcard: String,
     initial_dir: Option<PathBuf>,
     button_label: String,
+    resizable: bool,
 }
 
 impl FileDialogBuilder {
@@ -747,6 +749,7 @@ impl FileDialogBuilder {
             wildcard: "*".to_string(),
             initial_dir: None,
             button_label: "~O~pen".to_string(),
+            resizable: true, // Resizable by default
         }
     }
 
@@ -789,6 +792,13 @@ impl FileDialogBuilder {
         self
     }
 
+    /// Sets whether the file dialog is resizable (default: true).
+    #[must_use]
+    pub fn resizable(mut self, resizable: bool) -> Self {
+        self.resizable = resizable;
+        self
+    }
+
     /// Builds the FileDialog.
     ///
     /// # Panics
@@ -797,9 +807,11 @@ impl FileDialogBuilder {
     pub fn build(self) -> FileDialog {
         let bounds = self.bounds.expect("FileDialog bounds must be set");
         let title = self.title.expect("FileDialog title must be set");
-        FileDialog::new(bounds, &title, &self.wildcard, self.initial_dir)
+        let mut fd = FileDialog::new(bounds, &title, &self.wildcard, self.initial_dir)
             .with_button_label(&self.button_label)
-            .build()
+            .build();
+        fd.dialog.set_resizable(self.resizable);
+        fd
     }
 
     /// Builds the FileDialog as a Box.

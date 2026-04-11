@@ -196,6 +196,13 @@ impl View for FileEditor {
         self.edit_window.get_palette()
     }
 
+    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
+        self.edit_window.set_palette_chain(node);
+    }
+
+    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
+        self.edit_window.get_palette_chain()
+    }
 }
 
 /// Builder for creating file editors with a fluent API.

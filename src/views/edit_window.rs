@@ -44,6 +44,14 @@ impl View for SharedScrollBar {
         self.0.borrow().get_palette()
     }
 
+    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
+        self.0.borrow_mut().set_palette_chain(node);
+    }
+
+    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
+        // Cannot return a reference into RefCell; scrollbar palette chain is set before draw
+        None
+    }
 }
 
 /// Wrapper that allows Indicator to be a child view
@@ -70,6 +78,13 @@ impl View for SharedIndicator {
         self.0.borrow().get_palette()
     }
 
+    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
+        self.0.borrow_mut().set_palette_chain(node);
+    }
+
+    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
+        None
+    }
 }
 
 /// Wrapper that allows Editor to be shared between window and EditWindow
@@ -128,6 +143,13 @@ impl View for SharedEditor {
         self.0.borrow().get_palette()
     }
 
+    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
+        self.0.borrow_mut().set_palette_chain(node);
+    }
+
+    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
+        None
+    }
 }
 
 /// EditWindow - Window containing an Editor
@@ -342,8 +364,19 @@ impl View for EditWindow {
         // During rapid resizing, this ensures scrollbars are always at correct positions
         self.sync_frame_children_positions();
 
-        // Draw frame and interior first
+        // Build palette chain node for this window (same as Window::draw).
+        // EditWindow bypasses Window::draw() for conditional scrollbar rendering,
+        // so it must propagate the palette chain to children itself.
+        let my_chain_node = crate::core::palette_chain::PaletteChainNode::new(
+            self.window.get_palette(),
+            self.window.get_palette_chain().cloned(),
+        );
+
+        // Draw frame and interior with palette chain
+        self.window.frame_mut().set_palette_chain(Some(my_chain_node.clone()));
         self.window.frame_mut().draw(terminal);
+
+        self.window.interior_mut().set_palette_chain(Some(my_chain_node.clone()));
         self.window.interior_mut().draw(terminal);
 
         // Check if scrollbars are needed based on content size
@@ -355,16 +388,19 @@ impl View for EditWindow {
         // Conditionally draw scrollbars only if needed
         if needs_h_scrollbar {
             if let Some(child) = self.window.get_frame_child_mut(self.h_scrollbar_idx) {
+                child.set_palette_chain(Some(my_chain_node.clone()));
                 child.draw(terminal);
             }
         }
         if needs_v_scrollbar {
             if let Some(child) = self.window.get_frame_child_mut(self.v_scrollbar_idx) {
+                child.set_palette_chain(Some(my_chain_node.clone()));
                 child.draw(terminal);
             }
         }
         // Always draw indicator
         if let Some(child) = self.window.get_frame_child_mut(self.indicator_idx) {
+            child.set_palette_chain(Some(my_chain_node));
             child.draw(terminal);
         }
 
@@ -470,6 +506,14 @@ impl View for EditWindow {
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
         self.window.get_palette()
+    }
+
+    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
+        self.window.set_palette_chain(node);
+    }
+
+    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
+        self.window.get_palette_chain()
     }
 
     fn get_end_state(&self) -> crate::core::command::CommandId {

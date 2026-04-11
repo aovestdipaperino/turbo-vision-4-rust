@@ -476,6 +476,10 @@ impl Terminal {
                 // Write the changed characters
                 for i in start_x..x {
                     let ch = self.buffer[y][i].ch;
+                    // Skip zero-width padding cells (placed after wide characters)
+                    if ch == '\0' {
+                        continue;
+                    }
                     // Encode character as UTF-8
                     let mut buf = [0u8; 4];
                     let encoded = ch.encode_utf8(&mut buf);

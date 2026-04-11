@@ -40,13 +40,27 @@ impl DrawBuffer {
 
     /// Write a string with the given attribute
     pub fn move_str(&mut self, pos: usize, s: &str, attr: Attr) {
+        use unicode_width::UnicodeWidthChar;
         let mut i = pos;
         for ch in s.chars() {
             if i >= self.data.len() {
                 break;
             }
+            let w = ch.width().unwrap_or(0);
             self.data[i] = Cell::new(ch, attr);
             i += 1;
+            // Wide characters (emojis, CJK) occupy 2 cells — fill the
+            // second cell with a zero-width padding space so the cursor
+            // advances correctly.
+            if w > 1 {
+                for _ in 1..w {
+                    if i >= self.data.len() {
+                        break;
+                    }
+                    self.data[i] = Cell::new('\0', attr);
+                    i += 1;
+                }
+            }
         }
     }
 
@@ -85,8 +99,22 @@ impl DrawBuffer {
     /// Format: "~X~" highlights X with shortcut_attr, rest uses normal_attr
     /// Example: "~F~ile" displays "File" with "F" highlighted
     pub fn move_str_with_shortcut(&mut self, mut pos: usize, s: &str, normal_attr: Attr, shortcut_attr: Attr) -> usize {
+        use unicode_width::UnicodeWidthChar;
         let mut chars = s.chars();
         let start_pos = pos;
+
+        // Helper: write a char at `pos`, advancing by its display width
+        let put_wide = |data: &mut [Cell], pos: &mut usize, ch: char, attr: Attr| {
+            if *pos >= data.len() { return; }
+            let w = ch.width().unwrap_or(0);
+            data[*pos] = Cell::new(ch, attr);
+            *pos += 1;
+            for _ in 1..w {
+                if *pos >= data.len() { break; }
+                data[*pos] = Cell::new('\0', attr);
+                *pos += 1;
+            }
+        };
 
         // Parse string character by character, handling ~X~ shortcut highlighting
         while let Some(ch) = chars.next() {
@@ -100,18 +128,14 @@ impl DrawBuffer {
                     if shortcut_ch == '~' {
                         break;  // Found closing tilde
                     }
-                    if pos < self.data.len() {
-                        self.data[pos] = Cell::new(shortcut_ch, shortcut_attr);
-                        pos += 1;
-                    }
+                    put_wide(&mut self.data, &mut pos, shortcut_ch, shortcut_attr);
                 }
             } else {
-                self.data[pos] = Cell::new(ch, normal_attr);
-                pos += 1;
+                put_wide(&mut self.data, &mut pos, ch, normal_attr);
             }
         }
 
-        pos - start_pos  // Return number of characters written
+        pos - start_pos  // Return number of cells written
     }
 }
 
