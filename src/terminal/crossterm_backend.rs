@@ -235,12 +235,16 @@ impl Backend for CrosstermBackend {
                     Ok(self.convert_mouse_event(mouse))
                 }
                 CTEvent::Resize(_, _) => {
-                    // Resize events are handled by querying size() directly
-                    Ok(None)
+                    // Emit a broadcast so the application can re-layout
+                    Ok(Some(Event::broadcast(crate::core::command::CM_REDRAW)))
                 }
                 _ => Ok(None),
             }
         } else {
+            // No crossterm event — check if a pending ESC has timed out
+            if let Some(key_code) = self.esc_tracker.check_timeout() {
+                return Ok(Some(Event::keyboard(key_code)));
+            }
             Ok(None)
         }
     }

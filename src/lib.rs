@@ -243,6 +243,7 @@ pub mod prelude {
         CM_NO,
         CM_DEFAULT,
         // Internal view system commands
+        CM_REDRAW,
         CM_COMMAND_SET_CHANGED,
         CM_RECEIVED_FOCUS,
         CM_RELEASED_FOCUS,

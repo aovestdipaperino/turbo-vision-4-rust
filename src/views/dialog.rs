@@ -187,6 +187,14 @@ impl Dialog {
             // This blocks until an event arrives or timeout occurs
             match app.terminal.poll_event(Duration::from_millis(20)).ok().flatten() {
                 Some(mut event) => {
+                    // Handle CM_REDRAW at the application level first
+                    if event.what == EventType::Broadcast
+                        && event.command == crate::core::command::CM_REDRAW
+                    {
+                        app.handle_redraw();
+                        continue;
+                    }
+
                     // Event received - handle it immediately without calling idle()
                     // Matches magiblot: idle() is NOT called when events are present
                     self.handle_event(&mut event);

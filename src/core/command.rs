@@ -23,6 +23,7 @@ pub const CM_NO: CommandId = 13;
 pub const CM_DEFAULT: CommandId = 14;
 
 // Broadcast commands
+pub const CM_REDRAW: CommandId = 53;               // Full screen redraw needed (terminal resize, palette change, etc.)
 pub const CM_COMMAND_SET_CHANGED: CommandId = 52;  // Borland: cmCommandSetChanged
 pub const CM_RECEIVED_FOCUS: CommandId = 50;       // Borland: cmReceivedFocus
 pub const CM_RELEASED_FOCUS: CommandId = 51;       // Borland: cmReleasedFocus
