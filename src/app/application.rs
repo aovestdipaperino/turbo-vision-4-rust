@@ -4,7 +4,7 @@
 //! Manages the main application window, menu bar, status line, and desktop.
 //! Provides the central event loop and command dispatching system.
 
-use crate::core::command::{CM_CANCEL, CM_CASCADE, CM_COMMAND_SET_CHANGED, CM_HELP_INDEX, CM_QUIT, CM_TILE, CommandId};
+use crate::core::command::{CM_CANCEL, CM_CASCADE, CM_COMMAND_SET_CHANGED, CM_HELP_INDEX, CM_QUIT, CM_REDRAW, CM_TILE, CommandId};
 use crate::core::command_set;
 use crate::core::error::Result;
 use crate::core::event::{Event, EventType, KB_ALT_X, KB_F1};
@@ -173,6 +173,32 @@ impl Application {
     /// Request a full redraw on the next frame
     /// Call this after changing the palette or other global settings
     pub fn needs_redraw(&mut self) {
+        self.needs_redraw = true;
+    }
+
+    /// Handle a full screen redraw (terminal resize, palette change, etc.).
+    ///
+    /// Queries the actual terminal size, resizes internal buffers, and
+    /// re-lays out the menu bar, status line, and desktop to match.
+    pub fn handle_redraw(&mut self) {
+        if let Ok((w, h)) = Terminal::query_size() {
+            let (cur_w, cur_h) = self.terminal.size();
+            if w != cur_w || h != cur_h {
+                self.terminal.resize(w as u16, h as u16);
+
+                // Re-layout menu bar and status line to the new width
+                if let Some(ref mut menu_bar) = self.menu_bar {
+                    let mb = menu_bar.bounds();
+                    menu_bar.set_bounds(Rect::new(0, mb.a.y, w, mb.b.y));
+                }
+                if let Some(ref mut status_line) = self.status_line {
+                    let sb = status_line.bounds();
+                    status_line.set_bounds(Rect::new(0, h - sb.height(), w, h));
+                }
+
+                self.update_desktop_bounds();
+            }
+        }
         self.needs_redraw = true;
     }
 
@@ -429,13 +455,31 @@ impl Application {
     }
 
     pub fn handle_event(&mut self, event: &mut Event) {
-        // Handle F1 for context-sensitive help before dispatching to views
-        // Matches Borland: TProgram::getEvent() pre-processes F1 (tprogram.cc:145-165)
-        // Must happen first because the editor's catch-all would consume the key code
-        if event.what == EventType::Keyboard && event.key_code == KB_F1 {
-            self.show_help();
+        // Handle CM_REDRAW before anything else — resize the terminal buffers
+        // and re-layout all top-level views so subsequent drawing is correct.
+        if event.what == EventType::Broadcast && event.command == CM_REDRAW {
+            self.handle_redraw();
             event.clear();
             return;
+        }
+
+        // Pre-dispatch global shortcuts — these must be handled before any
+        // view sees the event, because focused views (e.g. the editor) would
+        // otherwise consume the key code.
+        if event.what == EventType::Keyboard {
+            match event.key_code {
+                KB_F1 => {
+                    self.show_help();
+                    event.clear();
+                    return;
+                }
+                KB_ALT_X => {
+                    *event = Event::command(CM_QUIT);
+                    self.running = false;
+                    return;
+                }
+                _ => {}
+            }
         }
 
         // Menu bar gets first shot
@@ -483,12 +527,6 @@ impl Application {
             }
         }
 
-        // Handle Alt+X (or ESC+X) at application level
-        if event.what == EventType::Keyboard && (event.key_code == KB_ALT_X) {
-            // Treat these as quit command
-            *event = Event::command(CM_QUIT);
-            self.running = false;
-        }
     }
 
     // Help System Methods

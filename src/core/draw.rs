@@ -47,6 +47,13 @@ impl DrawBuffer {
                 break;
             }
             let w = ch.width().unwrap_or(0);
+            // Skip zero-width characters (combining marks, variation
+            // selectors like U+FE0F).  They must not occupy their own
+            // cell — otherwise the buffer width diverges from what the
+            // terminal actually renders, misaligning subsequent content.
+            if w == 0 {
+                continue;
+            }
             self.data[i] = Cell::new(ch, attr);
             i += 1;
             // Wide characters (emojis, CJK) occupy 2 cells — fill the
@@ -107,6 +114,7 @@ impl DrawBuffer {
         let put_wide = |data: &mut [Cell], pos: &mut usize, ch: char, attr: Attr| {
             if *pos >= data.len() { return; }
             let w = ch.width().unwrap_or(0);
+            if w == 0 { return; }
             data[*pos] = Cell::new(ch, attr);
             *pos += 1;
             for _ in 1..w {

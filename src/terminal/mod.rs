@@ -163,7 +163,6 @@ impl Terminal {
         backend.init()?;
 
         let (width, height) = backend.size()?;
-
         let empty_cell = Cell::new(' ', Attr::from_u8(0x07));
         let buffer = vec![vec![empty_cell; width as usize]; height as usize];
         let prev_buffer = vec![vec![empty_cell; width as usize]; height as usize];

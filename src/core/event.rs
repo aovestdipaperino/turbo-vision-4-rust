@@ -346,8 +346,28 @@ impl EscSequenceTracker {
         self.timeout_ms = timeout_ms;
     }
 
-    /// Process a key event, handling ESC sequences
-    /// Returns the appropriate KeyCode
+    /// Check whether a pending ESC has timed out without a follow-up key.
+    ///
+    /// Call this from `poll_event` when no crossterm event is available.
+    /// Returns `Some(KB_ESC)` if the ESC timeout expired and the pending
+    /// ESC should be delivered as a standalone key press.
+    pub fn check_timeout(&mut self) -> Option<KeyCode> {
+        if self.waiting_for_char {
+            if let Some(last_time) = self.last_esc_time {
+                if Instant::now().duration_since(last_time) > Duration::from_millis(self.timeout_ms) {
+                    self.last_esc_time = None;
+                    self.waiting_for_char = false;
+                    return Some(KB_ESC);
+                }
+            }
+        }
+        None
+    }
+
+    /// Process a key event, handling ESC sequences.
+    ///
+    /// Returns 0 when ESC is held pending (waiting for a follow-up key),
+    /// or the resolved `KeyCode` otherwise.
     pub fn process_key(&mut self, key: KeyEvent) -> KeyCode {
         // Check if this is ESC
         if matches!(key.code, CKC::Esc) {
@@ -388,20 +408,10 @@ impl EscSequenceTracker {
                 }
             }
 
-            // Timeout expired - process as normal key
+            // Timeout expired or non-letter follow-up — deliver as normal key.
+            // The pending ESC was already lost; check_timeout() handles the
+            // case where no follow-up key arrives at all.
             return crossterm_to_keycode(key);
-        }
-
-        // Check if ESC timeout expired (user pressed ESC but waited too long)
-        if let Some(last_time) = self.last_esc_time {
-            if Instant::now().duration_since(last_time) > Duration::from_millis(self.timeout_ms) {
-                self.last_esc_time = None;
-                self.waiting_for_char = false;
-                // Too late, treat as single ESC
-                if matches!(key.code, CKC::Char(_)) {
-                    return crossterm_to_keycode(key);
-                }
-            }
         }
 
         crossterm_to_keycode(key)

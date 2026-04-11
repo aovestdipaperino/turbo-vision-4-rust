@@ -1550,13 +1550,18 @@ impl View for EditorWindow {
                     event.clear();
                 }
                 key_code => {
-                    // Accept all printable characters including Unicode (è, à, etc.)
-                    // Key codes represent Unicode codepoints, so convert directly to char
-                    if let Some(ch) = char::from_u32(key_code as u32) {
-                        // Only insert if it's a printable character (not control characters)
-                        if !ch.is_control() {
-                            self.insert_char(ch);
-                            event.clear();
+                    // Accept printable characters (Unicode BMP, excludes control chars).
+                    // Key codes above 0xFF with a zero low byte are special keys
+                    // (Alt combos, function keys, arrow keys) that must NOT be
+                    // inserted as text — they need to propagate to the menu bar
+                    // and application for shortcut handling.
+                    let is_special = key_code > 0xFF && (key_code & 0xFF) == 0;
+                    if !is_special {
+                        if let Some(ch) = char::from_u32(key_code as u32) {
+                            if !ch.is_control() {
+                                self.insert_char(ch);
+                                event.clear();
+                            }
                         }
                     }
                 }
