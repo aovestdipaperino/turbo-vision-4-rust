@@ -1,6 +1,6 @@
 # Turbo Vision - Rust TUI Library
 
-![Turbo Vision Logo](https://raw.githubusercontent.com/aovestdipaperino/turbo-vision-4-rust/main/logo.png)
+<img src="https://raw.githubusercontent.com/aovestdipaperino/turbo-vision-4-rust/main/logo.png" alt="Turbo Vision Logo" width="512" align="right" />
 
 A Rust implementation of the classic Borland Turbo Vision text user interface framework.
 
