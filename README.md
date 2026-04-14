@@ -376,6 +376,16 @@ Generated with [tokei](https://github.com/XAMPPRocky/tokei) - includes inline do
 
 **226 unit tests** - all passing ✅
 
+## Star History
+
+<a href="https://www.star-history.com/#aovestdipaperino/turbo-vision-4-rust&Date">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=aovestdipaperino/turbo-vision-4-rust&type=Date&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=aovestdipaperino/turbo-vision-4-rust&type=Date" />
+   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=aovestdipaperino/turbo-vision-4-rust&type=Date" />
+ </picture>
+</a>
+
 ## License
 
 MIT License - see [LICENSE](LICENSE) file for details.
