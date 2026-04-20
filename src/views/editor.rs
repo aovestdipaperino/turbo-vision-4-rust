@@ -233,6 +233,15 @@ impl Editor {
         self.delta
     }
 
+    /// Scroll the editor so that the given 0-based line is visible,
+    /// moving the cursor to the beginning of that line.
+    pub fn scroll_to_line(&mut self, line: usize) {
+        self.cursor.y = line as i16;
+        self.cursor.x = 0;
+        self.clamp_cursor();
+        self.ensure_cursor_visible();
+    }
+
     /// Get the maximum line width (length of the longest line)
     pub fn max_line_width(&self) -> usize {
         self.lines.iter().map(|line| line.len()).max().unwrap_or(0)
