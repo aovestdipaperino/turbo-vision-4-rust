@@ -36,3 +36,4 @@ calc.log
 ssh_host_key
 legacy/
 .tokensave/tokensave.db
+.tokensave

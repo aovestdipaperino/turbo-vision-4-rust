@@ -1,4 +1,4 @@
-// (C) 2025 - Enzo Lombardi
+// (C) 2026 - Enzo Lombardi
 
 //! Application structure and event loop implementation.
 //! Manages the main application window, menu bar, status line, and desktop.
