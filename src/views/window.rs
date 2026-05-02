@@ -93,7 +93,7 @@ impl Window {
     /// being constrained to the preset constructors.
     pub fn new_with_type(bounds: Rect, title: &str, palette_type: WindowPaletteType) -> Self {
         let (frame_palette, resizable) = match palette_type {
-            WindowPaletteType::Blue => (super::frame::FramePaletteType::Editor, true),
+            WindowPaletteType::Blue => (super::frame::FramePaletteType::EditorWindow, true),
             WindowPaletteType::Cyan => (super::frame::FramePaletteType::HelpWindow, true),
             WindowPaletteType::Gray => (super::frame::FramePaletteType::Dialog, true),
             WindowPaletteType::Dialog => (super::frame::FramePaletteType::Dialog, false),
@@ -834,7 +834,7 @@ impl WindowBuilder {
         let title = self.title.expect("Window title must be set");
 
         let frame_palette = match self.palette_type {
-            WindowPaletteType::Blue => super::frame::FramePaletteType::Editor,
+            WindowPaletteType::Blue => super::frame::FramePaletteType::EditorWindow,
             WindowPaletteType::Cyan => super::frame::FramePaletteType::HelpWindow,
             WindowPaletteType::Gray | WindowPaletteType::Dialog => super::frame::FramePaletteType::Dialog,
         };
