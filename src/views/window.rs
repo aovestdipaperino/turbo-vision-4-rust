@@ -33,7 +33,7 @@ pub struct Window {
     prev_bounds: Option<Rect>,
     /// Owner (parent) view - Borland: TView::owner
     palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
-    /// Palette type (Dialog vs Editor window)
+    /// Palette type (Dialog vs EditorWindow window)
     palette_type: WindowPaletteType,
     /// Custom palette override — applied to both Window and Frame.
     custom_palette: Option<Vec<u8>>,
@@ -58,7 +58,7 @@ impl Window {
         Self::new_with_palette(
             bounds,
             title,
-            super::frame::FramePaletteType::Editor,
+            super::frame::FramePaletteType::EditorWindow,
             WindowPaletteType::Blue,
             true, // resizable
         )
@@ -808,7 +808,7 @@ impl WindowBuilder {
         Window::new_with_palette(
             bounds,
             &title,
-            super::frame::FramePaletteType::Editor,
+            super::frame::FramePaletteType::EditorWindow,
             WindowPaletteType::Blue,
             self.resizable,
         )

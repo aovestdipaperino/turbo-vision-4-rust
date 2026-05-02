@@ -18,7 +18,7 @@
 //!
 //! ## Input Widgets
 //! - [`InputLine`](input_line::InputLine) - Single-line text input with validation
-//! - [`Editor`](editor::Editor) - Multi-line text editor with syntax highlighting
+//! - [`EditorWindow`](editor::EditorWindow) - Multi-line text editor with syntax highlighting
 //! - [`Button`](button::Button) - Clickable button that emits commands
 //! - [`CheckBox`](checkbox::CheckBox) - Binary on/off checkbox
 //! - [`RadioButton`](radiobutton::RadioButton) - Mutually exclusive radio buttons
@@ -86,6 +86,7 @@ pub mod memo;
 pub mod editor;
 pub mod edit_window;
 pub mod file_editor;
+pub mod editor_traits;
 pub mod file_dialog;
 pub mod file_list;
 pub mod dir_listbox;

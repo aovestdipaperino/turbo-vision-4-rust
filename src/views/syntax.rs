@@ -3,7 +3,7 @@
 //! Syntax highlighting system - extensible token-based syntax coloring for editors.
 // Syntax Highlighting System
 //
-// Provides extensible syntax highlighting for the Editor component.
+// Provides extensible syntax highlighting for the EditorWindow component.
 // Supports multiple programming languages with token-based coloring.
 //
 // Architecture:

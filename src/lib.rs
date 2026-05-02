@@ -92,7 +92,7 @@
 //!   - [`View`](views::View) - Base trait for all UI components
 //!   - [`Window`](views::window::Window), [`Dialog`](views::dialog::Dialog) - Containers
 //!   - [`Button`](views::button::Button), [`InputLine`](views::input_line::InputLine) - Controls
-//!   - [`Editor`](views::editor::Editor) - Multi-line text editor
+//!   - [`EditorWindow`](views::editor::EditorWindow) - Multi-line text editor
 //!   - [`MenuBar`](views::menu_bar::MenuBar), [`StatusLine`](views::status_line::StatusLine) - Navigation
 //!
 //! - **[`app`]** - Application infrastructure

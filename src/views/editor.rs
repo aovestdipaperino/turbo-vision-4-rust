@@ -1,6 +1,6 @@
 // (C) 2025 - Enzo Lombardi
 
-//! Editor view - advanced multi-line text editor with syntax highlighting support.
+//! EditorWindow view - advanced multi-line text editor with syntax highlighting support.
 
 use crate::core::geometry::{Point, Rect};
 use crate::core::event::{Event, EventType, KB_UP, KB_DOWN, KB_LEFT, KB_RIGHT, KB_PGUP, KB_PGDN, KB_HOME, KB_END, KB_ENTER, KB_BACKSPACE, KB_DEL, KB_TAB, MB_LEFT_BUTTON};
@@ -80,10 +80,10 @@ impl EditAction {
     }
 }
 
-/// Editor - Advanced multi-line text editor with undo/redo and find/replace
+/// EditorWindow - Advanced multi-line text editor with undo/redo and find/replace
 ///
 /// Matches Borland: TEditor receives pointers to scrollbars/indicator created by parent window
-pub struct Editor {
+pub struct EditorWindow {
     bounds: Rect,
     lines: Vec<String>,
     cursor: Point,
@@ -110,7 +110,7 @@ pub struct Editor {
     palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
 }
 
-impl Editor {
+impl EditorWindow {
     /// Create a new editor control
     pub fn new(bounds: Rect) -> Self {
         Self {
@@ -1161,14 +1161,14 @@ impl Editor {
     }
 }
 
-impl View for Editor {
+impl View for EditorWindow {
     fn bounds(&self) -> Rect {
         self.bounds
     }
 
     fn set_bounds(&mut self, bounds: Rect) {
         self.bounds = bounds;
-        // Note: Scrollbars and indicator are now children of the Window, not the Editor
+        // Note: Scrollbars and indicator are now children of the Window, not the EditorWindow
         // The Window's interior Group automatically handles their positioning
         // We only need to update our internal state
         self.update_scrollbars();
@@ -1309,7 +1309,7 @@ impl View for Editor {
         }
 
         // Note: Scrollbars and indicator are now drawn by the Window's interior Group
-        // They are separate child views, not owned by the Editor
+        // They are separate child views, not owned by the EditorWindow
     }
 
     fn handle_event(&mut self, event: &mut Event) {
@@ -1599,7 +1599,7 @@ impl View for Editor {
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
         use crate::core::palette::{palettes, Palette};
-        // Editor uses cpEditor palette for proper color remapping through window hierarchy
+        // EditorWindow uses cpEditor palette for proper color remapping through window hierarchy
         // Matches Borland: cpEditor = [6, 7] for normal and selected text
         Some(Palette::from_slice(palettes::CP_EDITOR))
     }
@@ -1621,7 +1621,7 @@ mod tests {
         file.flush().unwrap();
 
         let bounds = Rect::new(0, 0, 80, 25);
-        let mut editor = Editor::new(bounds);
+        let mut editor = EditorWindow::new(bounds);
 
         editor.load_file(file.path().to_str().unwrap()).unwrap();
 
@@ -1634,7 +1634,7 @@ mod tests {
     #[test]
     fn test_editor_save_as() {
         let bounds = Rect::new(0, 0, 80, 25);
-        let mut editor = Editor::new(bounds);
+        let mut editor = EditorWindow::new(bounds);
 
         editor.set_text("Hello\nWorld");
 
@@ -1652,7 +1652,7 @@ mod tests {
     #[test]
     fn test_editor_save_file() {
         let bounds = Rect::new(0, 0, 80, 25);
-        let mut editor = Editor::new(bounds);
+        let mut editor = EditorWindow::new(bounds);
 
         // Should fail without filename
         assert!(editor.save_file().is_err());
@@ -1678,7 +1678,7 @@ mod tests {
     #[test]
     fn test_editor_modified_flag() {
         let bounds = Rect::new(0, 0, 80, 25);
-        let mut editor = Editor::new(bounds);
+        let mut editor = EditorWindow::new(bounds);
 
         assert!(!editor.is_modified());
 
@@ -1697,11 +1697,11 @@ mod tests {
         // Don't write anything - file is empty
 
         let bounds = Rect::new(0, 0, 80, 25);
-        let mut editor = Editor::new(bounds);
+        let mut editor = EditorWindow::new(bounds);
 
         editor.load_file(file.path().to_str().unwrap()).unwrap();
 
-        assert_eq!(editor.line_count(), 1); // Editor always has at least one line
+        assert_eq!(editor.line_count(), 1); // EditorWindow always has at least one line
         assert_eq!(editor.get_text(), "");
         assert!(!editor.is_modified());
     }

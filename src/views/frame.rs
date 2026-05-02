@@ -29,7 +29,7 @@ pub struct Frame {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FramePaletteType {
     Dialog,     // Uses cpDialog palette (LightGreen close button)
-    Editor,     // Uses cpBlueWindow palette (blue window)
+    EditorWindow,     // Uses cpBlueWindow palette (blue window)
     HelpWindow, // Uses cpCyanWindow palette (cyan help window)
 }
 
@@ -288,8 +288,8 @@ impl View for Frame {
 /// // Create a resizable editor frame
 /// let frame = FrameBuilder::new()
 ///     .bounds(Rect::new(0, 0, 80, 25))
-///     .title("Editor")
-///     .palette_type(FramePaletteType::Editor)
+///     .title("EditorWindow")
+///     .palette_type(FramePaletteType::EditorWindow)
 ///     .resizable(true)
 ///     .build();
 /// ```

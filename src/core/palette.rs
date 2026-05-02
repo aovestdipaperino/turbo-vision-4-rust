@@ -69,8 +69,8 @@ pub const FRAME_ICON: u8 = 3; // Close icon and dragging state (LightGreen on Li
 pub const WINDOW_BACKGROUND: u8 = 1; // Window interior/background color (maps differently per window type)
 pub const BLUE_WINDOW_BACKGROUND: u8 = 5; // Blue window interior (Yellow on Blue)
 
-// Editor palette indices (cpEditor palette-relative indices)
-// Editor now uses CP_EDITOR palette [6, 7] with proper parent-child hierarchy
+// EditorWindow palette indices (cpEditor palette-relative indices)
+// EditorWindow now uses CP_EDITOR palette [6, 7] with proper parent-child hierarchy
 // Index 1 → CP_EDITOR[0] = 6 → App palette position 6 (Normal text)
 // Index 2 → CP_EDITOR[1] = 7 → App palette position 7 (Selected text)
 pub const EDITOR_NORMAL: u8 = 1; // Normal editor text - cpEditor position 1 → app palette 6
@@ -412,7 +412,7 @@ pub mod colors {
     pub const INPUT_SELECTED: Attr = Attr::new(TvColor::Cyan, TvColor::Cyan); // cpDialog[20] = 0x33
     pub const INPUT_ARROWS: Attr = Attr::new(TvColor::Red, TvColor::Cyan); // cpDialog[21] = 0x34
 
-    // Editor colors (matching original Turbo Vision)
+    // EditorWindow colors (matching original Turbo Vision)
     pub const EDITOR_NORMAL: Attr = Attr::new(TvColor::White, TvColor::Blue);
     pub const EDITOR_SELECTED: Attr = Attr::new(TvColor::Black, TvColor::Cyan);
 
@@ -683,7 +683,7 @@ pub mod palettes {
         4,  // 6: Code text -> CP_CYAN[3] = 19 -> 0x13 (blue bg, cyan fg)
     ];
 
-    // Editor palette (TEditor view)
+    // EditorWindow palette (TEditor view)
     // Borland: cpEditor = "\x06\x07" (6, 7)
     // Same as CP_SCROLLER - editors use window background colors
     #[rustfmt::skip]

@@ -1,11 +1,11 @@
 // (C) 2025 - Enzo Lombardi
 
 //! EditWindow view - window container for editor with title bar showing filename.
-// EditWindow - Window wrapper for Editor
+// EditWindow - Window wrapper for EditorWindow
 //
 // Matches Borland: TEditWindow (teditor.h)
 //
-// A simple window that contains an Editor with scrollbars and indicator.
+// A simple window that contains an EditorWindow with scrollbars and indicator.
 // Provides a ready-to-use editor window for text editing.
 
 use crate::core::geometry::{Point, Rect};
@@ -13,7 +13,7 @@ use crate::core::event::{Event, EventType};
 use crate::core::state::StateFlags;
 use crate::terminal::Terminal;
 use super::window::Window;
-use super::editor::Editor;
+use super::editor::EditorWindow;
 use super::scrollbar::ScrollBar;
 use super::indicator::Indicator;
 use super::view::View;
@@ -72,8 +72,8 @@ impl View for SharedIndicator {
 
 }
 
-/// Wrapper that allows Editor to be shared between window and EditWindow
-struct SharedEditor(Rc<RefCell<Editor>>);
+/// Wrapper that allows EditorWindow to be shared between window and EditWindow
+struct SharedEditor(Rc<RefCell<EditorWindow>>);
 
 impl View for SharedEditor {
     fn bounds(&self) -> Rect {
@@ -130,13 +130,13 @@ impl View for SharedEditor {
 
 }
 
-/// EditWindow - Window containing an Editor
+/// EditWindow - Window containing an EditorWindow
 ///
 /// Matches Borland: TEditWindow (parent-child hierarchy)
-/// The Editor is inserted as a child of the Window, matching Borland's structure.
+/// The EditorWindow is inserted as a child of the Window, matching Borland's structure.
 pub struct EditWindow {
     window: Window,
-    editor: Rc<RefCell<Editor>>,  // Shared reference for API access
+    editor: Rc<RefCell<EditorWindow>>,  // Shared reference for API access
     #[allow(dead_code)] // Used for initialization, stored for lifetime management
     h_scrollbar: Rc<RefCell<ScrollBar>>,
     #[allow(dead_code)] // Used for initialization, stored for lifetime management
@@ -177,10 +177,10 @@ impl EditWindow {
 
         // Create editor with bounds relative to interior
         // Interior is the window content area (inset by 1 from frame)
-        // Editor bounds are RELATIVE, so start at (0,0) within interior
+        // EditorWindow bounds are RELATIVE, so start at (0,0) within interior
         // The editor will overlap with scrollbars at the edges, scrollbars draw on top
         let editor_bounds = Rect::new(0, 0, interior_width, interior_height);
-        let editor = Rc::new(RefCell::new(Editor::with_scrollbars(
+        let editor = Rc::new(RefCell::new(EditorWindow::with_scrollbars(
             editor_bounds,
             Some(Rc::clone(&h_scrollbar)),
             Some(Rc::clone(&v_scrollbar)),
@@ -195,7 +195,7 @@ impl EditWindow {
         let indicator_idx = window.add_frame_child(Box::new(SharedIndicator(Rc::clone(&indicator))));
 
         // Set initial indicator value to cursor position (1:1)
-        // Editor cursor starts at (0,0) internally, displayed as (1,1) for user
+        // EditorWindow cursor starts at (0,0) internally, displayed as (1,1) for user
         indicator.borrow_mut().set_value(
             Point::new(1, 1),
             false,
@@ -244,7 +244,7 @@ impl EditWindow {
     }
 
     /// Get a cloned Rc to the editor for advanced access
-    pub fn editor_rc(&self) -> Rc<RefCell<Editor>> {
+    pub fn editor_rc(&self) -> Rc<RefCell<EditorWindow>> {
         Rc::clone(&self.editor)
     }
 
@@ -293,7 +293,7 @@ impl EditWindow {
                 bounds.a.y + window_height,
             );
             self.window.update_frame_child(self.indicator_idx, ind_bounds);
-            // Note: Indicator value (cursor position) is updated by the Editor itself
+            // Note: Indicator value (cursor position) is updated by the EditorWindow itself
         }
     }
 }
@@ -379,7 +379,7 @@ impl View for EditWindow {
         let old_bounds = self.window.bounds();
 
         // Pass mouse events to scrollbars (if they're visible and the event hasn't been handled)
-        // IMPORTANT: Only mouse events! Keyboard events (UP/DOWN/etc.) should go to the Editor,
+        // IMPORTANT: Only mouse events! Keyboard events (UP/DOWN/etc.) should go to the EditorWindow,
         // not to scrollbars. This allows cursor movement before scrolling.
         if event.what == EventType::MouseDown || event.what == EventType::MouseMove || event.what == EventType::MouseUp {
             let editor = self.editor.borrow();
@@ -426,8 +426,8 @@ impl View for EditWindow {
             let window_width = new_bounds.width();
             let window_height = new_bounds.height();
 
-            // Update Editor bounds to match new interior size
-            // Editor is a child of the interior Group, which uses ABSOLUTE coordinates
+            // Update EditorWindow bounds to match new interior size
+            // EditorWindow is a child of the interior Group, which uses ABSOLUTE coordinates
             // Interior starts at (window.x + 1, window.y + 1), accounting for frame
             let interior_width = window_width.saturating_sub(2);  // Subtract frame
             let interior_height = window_height.saturating_sub(2);
@@ -491,7 +491,7 @@ mod tests {
     #[test]
     fn test_edit_window_creation() {
         let bounds = Rect::new(0, 0, 80, 25);
-        let window = EditWindow::new(bounds, "Test Editor");
+        let window = EditWindow::new(bounds, "Test EditorWindow");
 
         assert_eq!(window.bounds(), bounds);
         assert!(!window.is_modified());
@@ -500,7 +500,7 @@ mod tests {
     #[test]
     fn test_edit_window_file_operations() {
         let bounds = Rect::new(0, 0, 80, 25);
-        let mut window = EditWindow::new(bounds, "Test Editor");
+        let mut window = EditWindow::new(bounds, "Test EditorWindow");
 
         // Create temp file
         let mut file = NamedTempFile::new().unwrap();
@@ -525,7 +525,7 @@ mod tests {
     #[test]
     fn test_edit_window_editor_access() {
         let bounds = Rect::new(0, 0, 80, 25);
-        let window = EditWindow::new(bounds, "Test Editor");
+        let window = EditWindow::new(bounds, "Test EditorWindow");
 
         // Test access via Rc
         let editor = window.editor_rc();

@@ -201,6 +201,19 @@ impl FileDialog {
         file_list.set_items(self.files.clone());
         self.dialog.add(Box::new(file_list));
 
+        // Mirror the initial listbox selection into file_name_data so the input
+        // field and OK button reflect a real selection on first frame, instead
+        // of waiting for the user to click an item.
+        if let Some(first_item) = self.files.first() {
+            let display_text = if first_item.starts_with('[') && first_item.ends_with(']') {
+                let dir_name = &first_item[1..first_item.len() - 1];
+                format!("{}/{}", dir_name, self.wildcard)
+            } else {
+                first_item.clone()
+            };
+            *self.file_name_data.borrow_mut() = display_text;
+        }
+
         // Buttons on the right side (vertically stacked)
         let button_x = dialog_width - 14; // 15 = 12 (button width) + 2 (right margin) + 1 (end space)
         let mut button_y = 6;
@@ -313,9 +326,20 @@ impl FileDialog {
                     // We read the ListBox selection after it has processed navigation events
                     self.sync_inputline_with_listbox();
 
-                    // Check if dialog should close based on command
-                    if event.what == EventType::Command {
-                        match event.command {
+                    // Effective command: Dialog::handle_event clears `event` for CM_OK/
+                    // CM_CANCEL/CM_YES/CM_NO and stashes the command in end_state, so we
+                    // pull it from there when the event field is no longer a Command.
+                    // ListBox commands (>= 1000, e.g. CMD_FILE_SELECTED) survive in `event`.
+                    let effective_command = if event.what == EventType::Command {
+                        Some(event.command)
+                    } else if end_state != 0 {
+                        Some(end_state)
+                    } else {
+                        None
+                    };
+
+                    if let Some(cmd) = effective_command {
+                        match cmd {
                             CM_OK => {
                                 // User clicked OK button or pressed Enter (while not in listbox)
                                 // Matches Borland: TFileDialog::valid(cmFileOpen) (tfiledia.cc:251-302)
@@ -515,12 +539,11 @@ impl FileDialog {
 
         let file_name = self.file_name_data.borrow().clone();
 
-        // OK button should only be enabled when a regular file is selected
-        // Disable for: empty input, directories ([dirname]), parent (..), or dir/wildcard paths (dirname/*.rs)
-        let should_disable = file_name.is_empty()
-            || file_name == ".."
-            || file_name.starts_with('[') && file_name.ends_with(']')
-            || file_name.contains('/');
+        // OK button is enabled whenever the input is non-empty. The CM_OK handler
+        // routes the action: handle_selection navigates into directories and `..`,
+        // applies wildcard patterns, or returns a file path. Disabling for those
+        // cases blocked the obvious "select folder, click Open to enter it" flow.
+        let should_disable = file_name.is_empty();
 
         // Get the OK button and update its disabled state
         // Matches Borland's TView::setState(sfDisabled, enable) pattern
