@@ -138,6 +138,14 @@ impl Desktop {
         self.children.child_at_mut(index + 1)  // +1 to skip background
     }
 
+    /// True if a window with this `ViewId` is currently a child of the desktop.
+    /// Lets owners that hold a saved id (e.g. an IDE that wants to know when a
+    /// re-openable panel like Watches/Output has been closed) check presence
+    /// without iterating + downcasting.
+    pub fn contains_id(&self, view_id: ViewId) -> bool {
+        self.children.child_by_id(view_id).is_some()
+    }
+
     /// Remove a child view by index
     /// Note: Index 0 refers to the first window (background is at internal index 0)
     /// Used by Application::exec_view() to remove modal dialogs after they close
