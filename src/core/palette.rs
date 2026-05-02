@@ -57,6 +57,7 @@ pub const STATUSLINE_NORMAL: u8 = 1; // Normal text
 pub const STATUSLINE_SHORTCUT: u8 = 2; // Shortcut letter
 pub const STATUSLINE_SELECTED: u8 = 3; // Selected item
 pub const STATUSLINE_SELECTED_SHORTCUT: u8 = 4; // Selected shortcut
+pub const STATUSLINE_DISABLED: u8 = 5; // Disabled item (command_set::command_enabled == false)
 
 // Frame palette indices (maps to Window/Dialog palette based on frame type)
 // Borland: cFrame values use these palette indices
@@ -678,6 +679,11 @@ pub mod palettes {
     #[rustfmt::skip]
     pub const CP_STATUSLINE: &[u8] = &[
         2, 4, 45, 41,  // 1-4: Normal, shortcut, selected, selected_shortcut
+        // 5: Disabled — DarkGray on LightGray. Mirrors Borland's
+        // cpStatusLine[1] (cNormDisabled), which points at app-palette
+        // position 3 (`0x78`) so disabled status items grey out against
+        // the same light-gray bar background.
+        3,
     ];
 
     // MenuBar palette (gray background, matching desktop colors)

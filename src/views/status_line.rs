@@ -6,7 +6,8 @@ use crate::core::geometry::Rect;
 use crate::core::event::{Event, EventType, KeyCode, MB_LEFT_BUTTON};
 use crate::core::draw::DrawBuffer;
 use crate::core::command::CommandId;
-use crate::core::palette::{STATUSLINE_NORMAL, STATUSLINE_SHORTCUT, STATUSLINE_SELECTED, STATUSLINE_SELECTED_SHORTCUT};
+use crate::core::command_set;
+use crate::core::palette::{STATUSLINE_DISABLED, STATUSLINE_NORMAL, STATUSLINE_SELECTED, STATUSLINE_SELECTED_SHORTCUT, STATUSLINE_SHORTCUT};
 use crate::terminal::Terminal;
 use super::view::{View, write_line_to_terminal};
 
@@ -62,11 +63,12 @@ impl StatusLine {
         let mut buf = DrawBuffer::new(width);
 
         // StatusLine palette indices:
-        // 1: Normal, 2: Shortcut, 3: Selected, 4: Selected shortcut
+        // 1: Normal, 2: Shortcut, 3: Selected, 4: Selected shortcut, 5: Disabled
         let normal_attr = self.map_color(STATUSLINE_NORMAL);
         let shortcut_attr = self.map_color(STATUSLINE_SHORTCUT);
         let selected_attr = self.map_color(STATUSLINE_SELECTED);
         let selected_shortcut_attr = self.map_color(STATUSLINE_SELECTED_SHORTCUT);
+        let disabled_attr = self.map_color(STATUSLINE_DISABLED);
 
         buf.move_char(0, ' ', normal_attr, width);
 
@@ -79,14 +81,22 @@ impl StatusLine {
                 // Hit area starts at the leading space (matches Borland tstatusl.cc:204)
                 let start_x = x as i16;
 
-                // Determine color based on selection
+                // Determine color based on selection AND command-enable state.
+                // Disabled items grey out (text + shortcut both render in
+                // disabled_attr) so the user can see at a glance which shortcuts
+                // are currently active. Mirrors Borland's tstatusl.cc:87-96.
                 let is_selected = selected == Some(idx);
-                let item_normal = if is_selected {
+                let is_enabled = command_set::command_enabled(item.command);
+                let item_normal = if !is_enabled {
+                    disabled_attr
+                } else if is_selected {
                     selected_attr
                 } else {
                     normal_attr
                 };
-                let item_shortcut = if is_selected {
+                let item_shortcut = if !is_enabled {
+                    disabled_attr
+                } else if is_selected {
                     selected_shortcut_attr
                 } else {
                     shortcut_attr
