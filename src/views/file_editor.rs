@@ -1,161 +1,170 @@
 // (C) 2025 - Enzo Lombardi
 
-//! FileEditor view - text editor with file loading, saving, and modified state tracking.
-// FileEditor - EditWindow with file management and save prompts
-//
-// Matches Borland: TFileEditor (tfileedi.h, tfileedi.cc)
-//
-// Extends EditWindow with:
-// - File name tracking
-// - Modified flag tracking
-// - valid(cmClose) for save prompts
-// - Load/Save/SaveAs operations
-//
-// Architecture:
-// Editor (core editing) -> EditWindow (adds frame/scrollbars) -> FileEditor (adds file I/O)
+//! `FileEditorWindow` — `EditWindow` plus file binding (load/save) and
+//! save-on-close prompt. Implements the [`Editor`] and [`FileEditor`] traits.
+//!
+//! Architecture:
+//! `EditorWindow` (core editing) → `EditWindow` (frame/scrollbars) →
+//! `FileEditorWindow` (adds file I/O + save-prompt)
+//!
+//! Matches Borland: `TFileEditor` (tfileedi.h, tfileedi.cc).
 
 use std::path::PathBuf;
-use crate::core::geometry::Rect;
+use std::time::SystemTime;
+
+use crate::app::Application;
+use crate::core::command::CommandId;
 use crate::core::event::Event;
-use crate::core::command::{CommandId, CM_YES, CM_NO};
+use crate::core::geometry::Rect;
 use crate::core::state::StateFlags;
 use crate::terminal::Terminal;
-use crate::app::Application;
-use super::edit_window::EditWindow;
-use super::view::View;
-use super::msgbox::confirmation_box;
 
-/// FileEditor - EditWindow with file management
-///
-/// Matches Borland: TFileEditor
-pub struct FileEditor {
+use super::edit_window::EditWindow;
+use super::editor_traits::{confirm_save_on_close, Editor, ExternalState, FileEditor};
+use super::view::View;
+
+pub struct FileEditorWindow {
     edit_window: EditWindow,
     filename: Option<PathBuf>,
+    /// mtime captured at the last successful load/save, used by
+    /// [`FileEditor::poll_external_changes`] to detect outside edits.
+    last_mtime: Option<SystemTime>,
 }
 
-impl FileEditor {
-    /// Create a new file editor window
-    ///
-    /// Matches Borland: TFileEditor(bounds, hScrollBar, vScrollBar, indicator, fileName)
+impl FileEditorWindow {
     pub fn new(bounds: Rect, title: &str) -> Self {
         Self {
             edit_window: EditWindow::new(bounds, title),
             filename: None,
+            last_mtime: None,
         }
     }
 
-    /// Load a file
-    ///
-    /// Matches Borland: TFileEditor::loadFile()
-    pub fn load_file(&mut self, path: PathBuf) -> std::io::Result<()> {
-        self.edit_window.load_file(&path)?;
-        self.filename = Some(path);
-        Ok(())
-    }
-
-    /// Save the current file
-    ///
-    /// Matches Borland: TFileEditor::save()
-    pub fn save(&mut self) -> std::io::Result<bool> {
-        if self.filename.is_some() {
-            self.edit_window.save_file()?;
-            Ok(true)
-        } else {
-            Ok(false) // Need to call save_as
-        }
-    }
-
-    /// Save as a new file
-    ///
-    /// Matches Borland: TFileEditor::saveAs()
-    pub fn save_as(&mut self, path: PathBuf) -> std::io::Result<()> {
-        self.edit_window.save_as(&path)?;
-        self.filename = Some(path);
-        Ok(())
-    }
-
-    /// Get the filename
-    pub fn filename(&self) -> Option<&PathBuf> {
-        self.filename.as_ref()
-    }
-
-    /// Get display name for title
-    ///
-    /// Returns "Untitled" if no filename
-    pub fn get_title(&self) -> String {
-        self.filename
-            .as_ref()
-            .and_then(|p| p.file_name())
-            .and_then(|n| n.to_str())
-            .unwrap_or("Untitled")
-            .to_string()
-    }
-
-    /// Check if modified
-    pub fn is_modified(&self) -> bool {
-        self.edit_window.is_modified()
-    }
-
-    /// Refresh the window title based on current filename
-    ///
-    /// Updates the window's title bar to show the current filename
-    /// (or "Untitled" if no file is loaded)
+    /// Update the window's title bar from the current filename.
     pub fn refresh_title(&mut self) {
-        let title = self.get_title();
+        let title = self.display_name();
         self.edit_window.set_title(&title);
     }
 
-    /// Set text content
     pub fn set_text(&mut self, text: &str) {
         self.edit_window.editor_rc().borrow_mut().set_text(text);
     }
 
-    /// Validate before close
-    ///
-    /// Matches Borland: TFileEditor::valid(command)
-    /// Returns true if close is allowed, false if cancelled
-    pub fn valid(&mut self, app: &mut Application, command: CommandId) -> bool {
-        // Only prompt for cmClose when modified
-        if command == crate::core::command::CM_CLOSE && self.is_modified() {
-            let message = format!("Save changes to {}?", self.get_title());
-            match confirmation_box(app, &message) {
-                cmd if cmd == CM_YES => {
-                    // Try to save
-                    if let Some(_) = &self.filename {
-                        self.save().is_ok()
-                    } else {
-                        // TODO: Need to show save_as dialog
-                        // For now, just allow close
-                        true
-                    }
-                }
-                cmd if cmd == CM_NO => {
-                    // Don't save, allow close
-                    true
-                }
-                _ => {
-                    // Cancel
-                    false
-                }
-            }
-        } else {
-            // Not modified or not closing, allow
-            true
-        }
-    }
-
-    /// Get mutable reference to the underlying edit window
-    pub fn edit_window_mut(&mut self) -> &mut EditWindow {
-        &mut self.edit_window
-    }
-
-    /// Get reference to the underlying edit window
     pub fn edit_window(&self) -> &EditWindow {
         &self.edit_window
     }
+
+    pub fn edit_window_mut(&mut self) -> &mut EditWindow {
+        &mut self.edit_window
+    }
 }
 
-impl View for FileEditor {
+impl Editor for FileEditorWindow {
+    fn valid_close(&mut self, app: &mut Application, command: CommandId) -> bool {
+        confirm_save_on_close(self, app, command)
+    }
+}
+
+impl FileEditor for FileEditorWindow {
+    fn file_path(&self) -> Option<PathBuf> {
+        self.filename.clone()
+    }
+
+    fn set_file_path(&mut self, path: Option<PathBuf>) {
+        self.filename = path;
+    }
+
+    fn is_dirty(&self) -> bool {
+        self.edit_window.is_modified()
+    }
+
+    fn save(&mut self) -> std::io::Result<()> {
+        match self.filename.clone() {
+            Some(path) => {
+                self.edit_window.save_file()?;
+                self.last_mtime = read_mtime(&path);
+                Ok(())
+            }
+            None => Err(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "no filename set; use save_as",
+            )),
+        }
+    }
+
+    fn save_as(&mut self, path: PathBuf) -> std::io::Result<()> {
+        self.edit_window.save_as(&path)?;
+        self.last_mtime = read_mtime(&path);
+        self.filename = Some(path);
+        Ok(())
+    }
+
+    fn load(&mut self, path: PathBuf) -> std::io::Result<()> {
+        self.edit_window.load_file(&path)?;
+        self.last_mtime = read_mtime(&path);
+        self.filename = Some(path);
+        Ok(())
+    }
+
+    fn new_buffer(&mut self) {
+        self.edit_window.editor_rc().borrow_mut().set_text("");
+        self.edit_window.editor_rc().borrow_mut().clear_modified();
+        self.filename = None;
+        self.last_mtime = None;
+    }
+
+    fn last_known_mtime(&self) -> Option<SystemTime> {
+        self.last_mtime
+    }
+
+    fn poll_external_changes(&self) -> ExternalState {
+        let Some(path) = self.filename.as_ref() else {
+            return ExternalState::NoFile;
+        };
+        match read_mtime(path) {
+            Some(disk) => match self.last_mtime {
+                Some(known) if disk == known => ExternalState::Unchanged,
+                Some(_) | None => ExternalState::Modified,
+            },
+            None => ExternalState::Deleted,
+        }
+    }
+
+    fn reload(&mut self) -> std::io::Result<()> {
+        let Some(path) = self.filename.clone() else {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "no filename to reload",
+            ));
+        };
+        self.edit_window.load_file(&path)?;
+        self.last_mtime = read_mtime(&path);
+        Ok(())
+    }
+
+    fn prompt_save_as(&mut self, app: &mut Application) -> bool {
+        use super::file_dialog::FileDialogBuilder;
+
+        let (tw, th) = app.terminal.size();
+        let dw = 64i16.min(tw as i16 - 4);
+        let dh = 18i16.min(th as i16 - 4);
+        let x = ((tw as i16) - dw) / 2;
+        let y = ((th as i16) - dh) / 2;
+        let bounds = Rect::new(x, y, x + dw, y + dh);
+        let mut dialog = FileDialogBuilder::new()
+            .bounds(bounds)
+            .title("Save As")
+            .wildcard("*")
+            .button_label("~S~ave")
+            .build();
+        match dialog.execute(app) {
+            Some(path) => self.save_as(path).is_ok(),
+            None => false,
+        }
+    }
+}
+
+impl View for FileEditorWindow {
     fn bounds(&self) -> Rect {
         self.edit_window.bounds()
     }
@@ -231,12 +240,12 @@ impl FileEditorBuilder {
         self
     }
 
-    pub fn build(self) -> FileEditor {
-        let bounds = self.bounds.expect("FileEditor bounds must be set");
-        FileEditor::new(bounds, &self.title)
+    pub fn build(self) -> FileEditorWindow {
+        let bounds = self.bounds.expect("FileEditorWindow bounds must be set");
+        FileEditorWindow::new(bounds, &self.title)
     }
 
-    pub fn build_boxed(self) -> Box<FileEditor> {
+    pub fn build_boxed(self) -> Box<FileEditorWindow> {
         Box::new(self.build())
     }
 }
@@ -245,4 +254,8 @@ impl Default for FileEditorBuilder {
     fn default() -> Self {
         Self::new()
     }
+}
+
+fn read_mtime(path: &std::path::Path) -> Option<SystemTime> {
+    std::fs::metadata(path).ok().and_then(|m| m.modified().ok())
 }

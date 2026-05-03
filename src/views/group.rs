@@ -191,6 +191,12 @@ impl Group {
     pub fn remove(&mut self, index: usize) {
         if index < self.children.len() {
             self.children.remove(index);
+            // `view_ids` is a parallel vec — must stay in lock-step with
+            // `children`. Forgetting it leaves stale ids that point past the
+            // end of `children`, so `child_by_id` indexes out of bounds.
+            if index < self.view_ids.len() {
+                self.view_ids.remove(index);
+            }
 
             // Update focused index if needed
             if self.focused >= index && self.focused > 0 {

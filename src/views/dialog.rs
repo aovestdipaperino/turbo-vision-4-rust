@@ -241,12 +241,12 @@ impl View for Dialog {
 
     fn handle_event(&mut self, event: &mut Event) {
         // First let the window (and its children) handle the event
-        // This is critical: if a focused Memo/Editor handles Enter, it will clear the event
+        // This is critical: if a focused Memo/EditorWindow handles Enter, it will clear the event
         // Borland's TDialog calls TWindow::handleEvent() FIRST (tdialog.cc line 47)
         self.window.handle_event(event);
 
         // Now check if the event is still active after children processed it
-        // If a child (like Memo/Editor) handled Enter, event.what will be EventType::None
+        // If a child (like Memo/EditorWindow) handled Enter, event.what will be EventType::None
         // This matches Borland's TDialog architecture (tdialog.cc lines 48-86)
 
         // Handle Keyboard events (if not already handled by children)

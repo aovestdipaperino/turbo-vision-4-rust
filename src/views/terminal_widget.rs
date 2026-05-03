@@ -16,7 +16,7 @@
 //! - Large scrollback buffer (configurable)
 //! - Efficient append operations
 //! - Optional ANSI color code support
-//! - Read-only (unlike Editor)
+//! - Read-only (unlike EditorWindow)
 
 use crate::core::geometry::Rect;
 use crate::core::event::{Event, EventType, KB_UP, KB_DOWN, KB_PGUP, KB_PGDN, KB_HOME, KB_END};

@@ -33,13 +33,21 @@ pub struct Window {
     prev_bounds: Option<Rect>,
     /// Owner (parent) view - Borland: TView::owner
     palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
-    /// Palette type (Dialog vs Editor window)
+    /// Palette type (Dialog vs EditorWindow window)
     palette_type: WindowPaletteType,
     /// Custom palette override — applied to both Window and Frame.
     custom_palette: Option<Vec<u8>>,
     /// Explicit drag limits (for modal dialogs not added to desktop)
     /// Used when owner is None but we still want to constrain dragging
     explicit_drag_limits: Option<Rect>,
+    /// When true (default), a non-modal `CM_CLOSE` makes the window mark
+    /// itself `SF_CLOSED` + clear the event, so the next
+    /// `Desktop::remove_closed_windows()` sweep removes it. Set to `false`
+    /// for windows whose owner needs to intercept the close (e.g. an editor
+    /// that wants to prompt "save changes?" first); in that case `CM_CLOSE`
+    /// bubbles up uncleared and the owner is responsible for both the
+    /// validation and the eventual `set_state(SF_CLOSED)`.
+    auto_close: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -58,7 +66,7 @@ impl Window {
         Self::new_with_palette(
             bounds,
             title,
-            super::frame::FramePaletteType::Editor,
+            super::frame::FramePaletteType::EditorWindow,
             WindowPaletteType::Blue,
             true, // resizable
         )
@@ -93,7 +101,7 @@ impl Window {
     /// being constrained to the preset constructors.
     pub fn new_with_type(bounds: Rect, title: &str, palette_type: WindowPaletteType) -> Self {
         let (frame_palette, resizable) = match palette_type {
-            WindowPaletteType::Blue => (super::frame::FramePaletteType::Editor, true),
+            WindowPaletteType::Blue => (super::frame::FramePaletteType::EditorWindow, true),
             WindowPaletteType::Cyan => (super::frame::FramePaletteType::HelpWindow, true),
             WindowPaletteType::Gray => (super::frame::FramePaletteType::Dialog, true),
             WindowPaletteType::Dialog => (super::frame::FramePaletteType::Dialog, false),
@@ -134,6 +142,7 @@ impl Window {
             palette_type: window_palette,
             custom_palette: None,
             explicit_drag_limits: None,
+            auto_close: true,
         };
 
         window
@@ -209,6 +218,24 @@ impl Window {
     pub fn set_resizable(&mut self, resizable: bool) {
         self.frame.set_resizable(resizable);
     }
+
+    /// Control whether the window self-closes on a non-modal `CM_CLOSE`.
+    ///
+    /// Default is `true`: clicking the frame's close button marks the window
+    /// `SF_CLOSED` and clears the event, so the next
+    /// [`Desktop::remove_closed_windows`] sweep removes it. Mirrors Borland's
+    /// `TWindow::close()` flow with a trivial `valid()` (auto-accept).
+    ///
+    /// Set to `false` for windows whose owner needs to intercept the close —
+    /// e.g. an editor that prompts "save changes?" before destroying the
+    /// buffer. With auto-close off, `CM_CLOSE` bubbles up uncleared and the
+    /// owner is responsible for both validation and the eventual
+    /// `set_state(SF_CLOSED)`. Modal windows ignore this flag (they always
+    /// `end_modal(CM_CANCEL)` on `CM_CLOSE`).
+    pub fn set_auto_close(&mut self, auto_close: bool) {
+        self.auto_close = auto_close;
+    }
+
 
     /// Set minimum window size (matches Borland: minWinSize)
     /// Prevents window from being resized smaller than these dimensions
@@ -598,27 +625,26 @@ impl View for Window {
             }
         }
 
-        // Handle CM_CLOSE command (Borland: twindow.cc lines 104-118, 70-78)
-        // Frame generates CM_CLOSE when close button is clicked
+        // Handle CM_CLOSE command (Borland: twindow.cc TWindow::handleEvent ~118-132)
+        // Frame generates CM_CLOSE on close-button MouseUp.
         if event.what == EventType::Command && event.command == CM_CLOSE {
-            // Check if this window is modal
             if (self.state & SF_MODAL) != 0 {
-                // Modal window: end modal loop with CM_CANCEL
-                // Borland: event.message.command = cmCancel; putEvent(event);
+                // Modal: end_modal with CM_CANCEL (Borland converts cmClose → cmCancel)
                 self.end_modal(CM_CANCEL);
                 event.clear();
+            } else if self.auto_close {
+                // Non-modal default: self-close. Mirrors Borland's
+                // TWindow::close() with a trivial valid() — clear the event so
+                // it doesn't double-fire, mark SF_CLOSED so the next
+                // Desktop::remove_closed_windows() sweep removes the window.
+                use crate::core::state::SF_CLOSED;
+                self.state |= SF_CLOSED;
+                event.clear();
             } else {
-                // Non-modal window: Let the event bubble up to the application level
-                // The application will handle validation (showing "Save changes?" dialog)
-                // and removal of the window.
-                //
-                // Note: In Borland, TWindow::close() calls valid(cmClose) and destroys itself.
-                // In our Rust architecture, we can't show dialogs in valid() because we don't
-                // have access to Application/Terminal. So we let CM_CLOSE bubble up to the
-                // application where it can show dialogs and handle the removal.
-                //
-                // DO NOT clear the event - application needs to see it!
-                // DO NOT mark as SF_CLOSED here - application will remove the window after validation
+                // Owner opted out of auto-close (set_auto_close(false)) — used
+                // by editors that need to prompt "save changes?" before
+                // destruction. Leave event uncleared so it bubbles up; owner
+                // handles validation and eventual SF_CLOSED.
             }
             return; // Don't pass CM_CLOSE to interior
         }
@@ -834,7 +860,7 @@ impl WindowBuilder {
         let title = self.title.expect("Window title must be set");
 
         let frame_palette = match self.palette_type {
-            WindowPaletteType::Blue => super::frame::FramePaletteType::Editor,
+            WindowPaletteType::Blue => super::frame::FramePaletteType::EditorWindow,
             WindowPaletteType::Cyan => super::frame::FramePaletteType::HelpWindow,
             WindowPaletteType::Gray | WindowPaletteType::Dialog => super::frame::FramePaletteType::Dialog,
         };

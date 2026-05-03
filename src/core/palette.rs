@@ -57,6 +57,7 @@ pub const STATUSLINE_NORMAL: u8 = 1; // Normal text
 pub const STATUSLINE_SHORTCUT: u8 = 2; // Shortcut letter
 pub const STATUSLINE_SELECTED: u8 = 3; // Selected item
 pub const STATUSLINE_SELECTED_SHORTCUT: u8 = 4; // Selected shortcut
+pub const STATUSLINE_DISABLED: u8 = 5; // Disabled item (command_set::command_enabled == false)
 
 // Frame palette indices (maps to Window/Dialog palette based on frame type)
 // Borland: cFrame values use these palette indices
@@ -69,8 +70,8 @@ pub const FRAME_ICON: u8 = 3; // Close icon and dragging state (LightGreen on Li
 pub const WINDOW_BACKGROUND: u8 = 1; // Window interior/background color (maps differently per window type)
 pub const BLUE_WINDOW_BACKGROUND: u8 = 5; // Blue window interior (Yellow on Blue)
 
-// Editor palette indices (cpEditor palette-relative indices)
-// Editor now uses CP_EDITOR palette [6, 7] with proper parent-child hierarchy
+// EditorWindow palette indices (cpEditor palette-relative indices)
+// EditorWindow now uses CP_EDITOR palette [6, 7] with proper parent-child hierarchy
 // Index 1 → CP_EDITOR[0] = 6 → App palette position 6 (Normal text)
 // Index 2 → CP_EDITOR[1] = 7 → App palette position 7 (Selected text)
 pub const EDITOR_NORMAL: u8 = 1; // Normal editor text - cpEditor position 1 → app palette 6
@@ -426,7 +427,7 @@ pub mod colors {
     pub const INPUT_SELECTED: Attr = Attr::new(TvColor::Cyan, TvColor::Cyan); // cpDialog[20] = 0x33
     pub const INPUT_ARROWS: Attr = Attr::new(TvColor::Red, TvColor::Cyan); // cpDialog[21] = 0x34
 
-    // Editor colors (matching original Turbo Vision)
+    // EditorWindow colors (matching original Turbo Vision)
     pub const EDITOR_NORMAL: Attr = Attr::new(TvColor::White, TvColor::Blue);
     pub const EDITOR_SELECTED: Attr = Attr::new(TvColor::Black, TvColor::Cyan);
 
@@ -678,6 +679,11 @@ pub mod palettes {
     #[rustfmt::skip]
     pub const CP_STATUSLINE: &[u8] = &[
         2, 4, 45, 41,  // 1-4: Normal, shortcut, selected, selected_shortcut
+        // 5: Disabled — DarkGray on LightGray. Mirrors Borland's
+        // cpStatusLine[1] (cNormDisabled), which points at app-palette
+        // position 3 (`0x78`) so disabled status items grey out against
+        // the same light-gray bar background.
+        3,
     ];
 
     // MenuBar palette (gray background, matching desktop colors)
@@ -716,7 +722,7 @@ pub mod palettes {
         4,  // 6: Code text -> CP_CYAN[3] = 19 -> 0x13 (blue bg, cyan fg)
     ];
 
-    // Editor palette (TEditor view)
+    // EditorWindow palette (TEditor view)
     // Borland: cpEditor = "\x06\x07" (6, 7)
     // Same as CP_SCROLLER - editors use window background colors
     #[rustfmt::skip]
