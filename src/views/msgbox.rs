@@ -29,23 +29,116 @@ pub const MF_CANCEL_BUTTON: u16 = 0x0800;
 pub const MF_YES_NO_CANCEL: u16 = MF_YES_BUTTON | MF_NO_BUTTON | MF_CANCEL_BUTTON;
 pub const MF_OK_CANCEL: u16 = MF_OK_BUTTON | MF_CANCEL_BUTTON;
 
-/// Display a message box with the given message and options
+/// Display a message box with the given message and options.
+///
+/// Long messages are word-wrapped to fit the dialog's text area —
+/// `StaticText` itself only honours explicit `\n`, so without this the
+/// tail of a long line would be clipped right at the frame. The
+/// dialog stays at a fixed 60-column max width; long messages grow
+/// the dialog vertically instead.
 pub fn message_box(app: &mut Application, message: &str, options: u16) -> CommandId {
-    // Calculate dialog size based on message
-    let msg_width = message.lines().map(|l| l.len()).max().unwrap_or(20);
-    let msg_height = message.lines().count().max(1);
-
-    let width = (msg_width + 6).min(60).max(30);
-    let height = msg_height + 6;
-
-    // Center on screen
     let (screen_w, screen_h) = app.terminal.size();
+
+    // Fixed dialog width — keep modal dialogs neat and consistent.
+    let target_w = 60usize;
+    // Inner text area: x=3, x_end=W-2 in message_box_rect → 5 chars
+    // of frame/margins. Leave one extra column of breathing room so a
+    // wrapped line never sits flush against the right frame.
+    let inner_w = target_w.saturating_sub(6).max(10);
+
+    let wrapped = wrap_message(message, inner_w);
+
+    let msg_width = wrapped.lines().map(|l| l.chars().count()).max().unwrap_or(20);
+    let msg_height = wrapped.lines().count().max(1);
+
+    let width = (msg_width + 6).min(target_w).max(30);
+    let max_height = (screen_h as usize).saturating_sub(2).max(7);
+    let height = (msg_height + 6).min(max_height).max(7);
+
     let x = (screen_w - width as i16) / 2;
     let y = (screen_h - height as i16) / 2;
 
     let bounds = Rect::new(x, y, x + width as i16, y + height as i16);
 
-    message_box_rect(app, bounds, message, options)
+    message_box_rect(app, bounds, &wrapped, options)
+}
+
+/// Word-wrap `message` so every line is at most `max_width` characters
+/// wide. Existing newlines act as hard breaks; words longer than
+/// `max_width` (e.g. file paths) are split character-wise rather than
+/// dropped, so the user always sees the full content.
+#[allow(unused_assignments)] // line_len / first_word_in_line are dead
+                             // on the last iteration of the inner loop
+                             // but used on every other.
+fn wrap_message(message: &str, max_width: usize) -> String {
+    let max_width = max_width.max(1);
+    let mut out = String::new();
+
+    for (i, paragraph) in message.split('\n').enumerate() {
+        if i > 0 {
+            out.push('\n');
+        }
+        if paragraph.chars().count() <= max_width {
+            out.push_str(paragraph);
+            continue;
+        }
+
+        let mut line_len = 0usize;
+        let mut first_word_in_line = true;
+
+        for word in paragraph.split_whitespace() {
+            let word_chars: Vec<char> = word.chars().collect();
+            let word_len = word_chars.len();
+
+            // Words longer than the wrap width can't fit on a single
+            // line — break them forcibly so we never lose content.
+            if word_len > max_width {
+                if !first_word_in_line {
+                    out.push('\n');
+                    line_len = 0;
+                    first_word_in_line = true;
+                }
+                let mut start = 0;
+                while start < word_len {
+                    let end = (start + max_width).min(word_len);
+                    if start > 0 {
+                        out.push('\n');
+                    }
+                    for ch in &word_chars[start..end] {
+                        out.push(*ch);
+                    }
+                    start = end;
+                }
+                line_len = (word_len % max_width).max(if word_len % max_width == 0 {
+                    max_width
+                } else {
+                    0
+                });
+                first_word_in_line = false;
+                continue;
+            }
+
+            let needed = if first_word_in_line {
+                word_len
+            } else {
+                line_len + 1 + word_len
+            };
+            if needed > max_width {
+                out.push('\n');
+                out.push_str(word);
+                line_len = word_len;
+            } else {
+                if !first_word_in_line {
+                    out.push(' ');
+                    line_len += 1;
+                }
+                out.push_str(word);
+                line_len += word_len;
+            }
+            first_word_in_line = false;
+        }
+    }
+    out
 }
 
 /// Display a message box at a specific location
@@ -61,9 +154,12 @@ pub fn message_box_rect(app: &mut Application, bounds: Rect, message: &str, opti
 
     let mut dialog = Dialog::new(bounds, title);
 
-    // Add static text with message (one row higher)
+    // Add static text with message (one row higher). Left-align so
+    // wrapped lines hang from a consistent left margin instead of
+    // each being independently centered (which makes a wrapped
+    // diagnostic look like staggered poetry).
     let text_bounds = Rect::new(3, 1, bounds.width() - 2, bounds.height() - 4);
-    dialog.add(Box::new(StaticText::new_centered(text_bounds, message)));
+    dialog.add(Box::new(StaticText::new(text_bounds, message)));
 
     // Determine which buttons to show
     let button_configs = [
@@ -402,5 +498,45 @@ pub fn goto_line_box(app: &mut Application, title: &str) -> Option<usize> {
         text.parse::<usize>().ok()
     } else {
         None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::wrap_message;
+
+    #[test]
+    fn wraps_long_lines_at_word_boundaries() {
+        let out = wrap_message(
+            "Parse error: line 1:1: expected 'program', found identifier 'hello'",
+            30,
+        );
+        for line in out.lines() {
+            assert!(line.chars().count() <= 30, "line too long: {line:?}");
+        }
+        // Round-tripping by re-joining whitespace must give the original
+        // message back — wrapping must not lose or reorder words.
+        let original_words: Vec<&str> = "Parse error: line 1:1: expected 'program', found identifier 'hello'"
+            .split_whitespace()
+            .collect();
+        let wrapped_words: Vec<&str> = out.split_whitespace().collect();
+        assert_eq!(original_words, wrapped_words);
+    }
+
+    #[test]
+    fn preserves_existing_newlines() {
+        let out = wrap_message("first paragraph\nsecond paragraph", 40);
+        assert_eq!(out, "first paragraph\nsecond paragraph");
+    }
+
+    #[test]
+    fn breaks_overlong_words_character_wise() {
+        let path = "averylongfilenameWithoutSpaces.txt";
+        let out = wrap_message(path, 10);
+        for line in out.lines() {
+            assert!(line.chars().count() <= 10);
+        }
+        let recombined: String = out.lines().collect();
+        assert_eq!(recombined, path);
     }
 }
