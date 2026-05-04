@@ -244,6 +244,12 @@ impl EditorWindow {
         self.delta
     }
 
+    /// Cursor position in document coordinates (0-based line, 0-based
+    /// character column).
+    pub fn cursor(&self) -> Point {
+        self.cursor
+    }
+
     /// Scroll the editor so that the given 0-based line is visible,
     /// moving the cursor to the beginning of that line.
     pub fn scroll_to_line(&mut self, line: usize) {

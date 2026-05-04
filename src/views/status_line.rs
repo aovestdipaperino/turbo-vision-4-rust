@@ -138,14 +138,30 @@ impl StatusLine {
             }
         }
 
-        // Display hint text if available and there's space
+        // Display hint text if available. Renders as many characters
+        // as fit and ellipsises the tail on narrow terminals. No
+        // leading separator — the hint starts where the items end so
+        // the whole status row reads like one continuous line.
         if let Some(ref hint) = self.hint_text {
-            if x + hint.len() + 2 < width {
-                buf.move_str(x, "- ", normal_attr);
-                x += 2;
-                let hint_len = (width - x).min(hint.len());
-                for (i, ch) in hint.chars().take(hint_len).enumerate() {
-                    buf.put_char(x + i, ch, normal_attr);
+            if x + 1 < width {
+                let avail = width - x;
+                let chars: Vec<char> = hint.chars().collect();
+                if chars.len() <= avail {
+                    for (i, ch) in chars.iter().enumerate() {
+                        buf.put_char(x + i, *ch, normal_attr);
+                    }
+                } else if avail >= 4 {
+                    let take = avail - 3;
+                    for (i, ch) in chars.iter().take(take).enumerate() {
+                        buf.put_char(x + i, *ch, normal_attr);
+                    }
+                    for (i, ch) in "...".chars().enumerate() {
+                        buf.put_char(x + take + i, ch, normal_attr);
+                    }
+                } else {
+                    for (i, ch) in chars.iter().take(avail).enumerate() {
+                        buf.put_char(x + i, *ch, normal_attr);
+                    }
                 }
             }
         }
