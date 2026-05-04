@@ -63,6 +63,46 @@ impl Editor for FileEditorWindow {
     fn valid_close(&mut self, app: &mut Application, command: CommandId) -> bool {
         confirm_save_on_close(self, app, command)
     }
+
+    fn undo(&mut self) {
+        self.edit_window.editor_rc().borrow_mut().undo();
+    }
+
+    fn redo(&mut self) {
+        self.edit_window.editor_rc().borrow_mut().redo();
+    }
+
+    fn can_undo(&self) -> bool {
+        self.edit_window.editor_rc().borrow().can_undo()
+    }
+
+    fn can_redo(&self) -> bool {
+        self.edit_window.editor_rc().borrow().can_redo()
+    }
+
+    fn cut(&mut self) -> bool {
+        self.edit_window.editor_rc().borrow_mut().clip_cut()
+    }
+
+    fn copy(&mut self) -> bool {
+        self.edit_window.editor_rc().borrow_mut().clip_copy()
+    }
+
+    fn paste(&mut self) -> bool {
+        self.edit_window.editor_rc().borrow_mut().clip_paste()
+    }
+
+    fn select_all(&mut self) {
+        self.edit_window.editor_rc().borrow_mut().select_all();
+    }
+
+    fn clear_selection(&mut self) {
+        self.edit_window.editor_rc().borrow_mut().delete_selection();
+    }
+
+    fn has_selection(&self) -> bool {
+        self.edit_window.editor_rc().borrow().has_selection()
+    }
 }
 
 impl FileEditor for FileEditorWindow {

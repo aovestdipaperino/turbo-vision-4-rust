@@ -64,6 +64,10 @@ enum EditAction {
     DeleteText { pos: Point, text: String },
     InsertLine { line: usize, text: String },
     DeleteLine { line: usize, text: String },
+    /// A sequence of edits that must undo / redo as a single step. Used for
+    /// composite operations like paste-over-selection (delete + insert) and
+    /// find/replace, so one Ctrl+Z reverses the whole thing.
+    Compound(Vec<EditAction>),
 }
 
 impl EditAction {
@@ -76,6 +80,13 @@ impl EditAction {
             EditAction::DeleteText { pos, text } => EditAction::InsertText { pos: *pos, text: text.clone() },
             EditAction::InsertLine { line, text } => EditAction::DeleteLine { line: *line, text: text.clone() },
             EditAction::DeleteLine { line, text } => EditAction::InsertLine { line: *line, text: text.clone() },
+            EditAction::Compound(actions) => {
+                // Reverse order + invert each: undoing a forward
+                // [delete, insert] sequence means inserting the deleted
+                // text first (last-out, first-in) then deleting the
+                // inserted text.
+                EditAction::Compound(actions.iter().rev().map(|a| a.inverse()).collect())
+            }
         }
     }
 }
@@ -317,6 +328,18 @@ impl EditorWindow {
             self.apply_action(&action);
             self.undo_stack.push(action);
         }
+    }
+
+    /// True when the undo stack has at least one entry.
+    pub fn can_undo(&self) -> bool {
+        !self.undo_stack.is_empty()
+    }
+
+    /// True when the redo stack has at least one entry. The redo stack is
+    /// cleared on every fresh edit (see [`Self::push_undo`]), so this only
+    /// returns true between an undo and the next mutation.
+    pub fn can_redo(&self) -> bool {
+        !self.redo_stack.is_empty()
     }
 
     /// Find text in the editor with options
@@ -706,6 +729,14 @@ impl EditorWindow {
                 self.cursor.x += text.chars().count() as i16;
                 self.delete_selection_internal();
             }
+            EditAction::Compound(actions) => {
+                // Replay each step in order. `inverse()` already reversed
+                // the order for undo, so this loop is correct in both
+                // directions.
+                for inner in actions {
+                    self.apply_action(inner);
+                }
+            }
             _ => {}
         }
         self.ensure_cursor_visible();
@@ -911,7 +942,7 @@ impl EditorWindow {
         self.ensure_cursor_visible();
     }
 
-    fn has_selection(&self) -> bool {
+    pub fn has_selection(&self) -> bool {
         self.selection_start.is_some()
     }
 
@@ -999,7 +1030,7 @@ impl EditorWindow {
         Some(result)
     }
 
-    fn select_all(&mut self) {
+    pub fn select_all(&mut self) {
         self.selection_start = Some(Point::zero());
         self.cursor = Point::new(
             self.lines.last().map(|l| l.chars().count()).unwrap_or(0) as i16,
@@ -1053,7 +1084,7 @@ impl EditorWindow {
         self.ensure_cursor_visible();
     }
 
-    fn delete_selection(&mut self) {
+    pub fn delete_selection(&mut self) {
         if !self.has_selection() {
             return;
         }
@@ -1094,22 +1125,55 @@ impl EditorWindow {
 
     /// Paste from clipboard
     /// Matches Borland: TEditor::clipPaste()
+    ///
+    /// Pushes exactly one undo entry — a `Compound` covering both the
+    /// deletion of any active selection and the subsequent insert — so
+    /// a single Ctrl+Z reverts the whole paste in one step.
     pub fn clip_paste(&mut self) -> bool {
         if self.read_only {
             return false;
         }
 
         let text = clipboard::get_clipboard();
-        if !text.is_empty() {
-            // Delete selection first if there is one
-            if self.has_selection() {
-                self.delete_selection();
-            }
-            self.insert_text(&text);
-            true
-        } else {
-            false
+        if text.is_empty() {
+            return false;
         }
+
+        let mut actions: Vec<EditAction> = Vec::new();
+
+        // Capture and delete the active selection without going through
+        // `delete_selection`, which would push its own undo entry and
+        // break atomicity.
+        if self.has_selection() {
+            if let Some(selected) = self.get_selection() {
+                let start = self.selection_start.unwrap();
+                let end = self.cursor;
+                let pos = if start.y < end.y || (start.y == end.y && start.x < end.x) {
+                    start
+                } else {
+                    end
+                };
+                actions.push(EditAction::DeleteText { pos, text: selected });
+                self.delete_selection_internal();
+            }
+        }
+
+        // After delete_selection_internal the cursor sits at the canonical
+        // top-left of the now-removed selection — that's also the insert
+        // anchor.
+        let insert_pos = self.cursor;
+        actions.push(EditAction::InsertText { pos: insert_pos, text: text.clone() });
+        self.insert_text_internal(&text);
+
+        // Avoid wrapping a single insert in a Compound — keeps the
+        // undo stack flat for the no-selection case.
+        let entry = if actions.len() == 1 {
+            actions.into_iter().next().unwrap()
+        } else {
+            EditAction::Compound(actions)
+        };
+        self.push_undo(entry);
+        true
     }
 
     fn insert_text_internal(&mut self, text: &str) {
@@ -1697,6 +1761,116 @@ mod tests {
         let file = NamedTempFile::new().unwrap();
         editor.save_as(file.path().to_str().unwrap()).unwrap();
         assert!(!editor.is_modified());
+    }
+
+    #[test]
+    fn paste_over_selection_undoes_in_one_step() {
+        // Regression: clip_paste used to push two undo entries when a
+        // selection was active (delete_selection + insert_text), so a
+        // single Ctrl+Z only un-inserted but left the original
+        // selection still gone.
+        let bounds = Rect::new(0, 0, 80, 25);
+        let mut editor = EditorWindow::new(bounds);
+        editor.set_text("hello world");
+
+        // Select "world" and put "RUST" on the clipboard.
+        editor.cursor = Point::new(6, 0);
+        editor.selection_start = Some(Point::new(6, 0));
+        editor.cursor.x = 11;
+        clipboard::set_clipboard("RUST");
+
+        assert!(editor.clip_paste());
+        assert_eq!(editor.get_text(), "hello RUST");
+
+        // One Ctrl+Z must restore the original buffer entirely.
+        editor.undo();
+        assert_eq!(editor.get_text(), "hello world");
+
+        // And one redo must reapply the whole paste.
+        editor.redo();
+        assert_eq!(editor.get_text(), "hello RUST");
+    }
+
+    #[test]
+    fn paste_without_selection_is_single_undo_entry() {
+        let bounds = Rect::new(0, 0, 80, 25);
+        let mut editor = EditorWindow::new(bounds);
+        editor.set_text("abc");
+        editor.cursor = Point::new(3, 0);
+        clipboard::set_clipboard("XYZ");
+
+        assert!(editor.clip_paste());
+        assert_eq!(editor.get_text(), "abcXYZ");
+        editor.undo();
+        assert_eq!(editor.get_text(), "abc");
+    }
+
+    #[test]
+    fn two_stacks_preserve_undo_history_through_redo_cycle() {
+        // Verifies the stack-position semantics the IDE menu enablement
+        // relies on: after N edits you can undo N times, after which
+        // can_undo flips off and can_redo stays on; redoing brings the
+        // actions back; a fresh edit then clears the redo branch.
+        let bounds = Rect::new(0, 0, 80, 25);
+        let mut editor = EditorWindow::new(bounds);
+        editor.set_text("");
+        assert!(!editor.can_undo());
+        assert!(!editor.can_redo());
+
+        editor.cursor = Point::new(0, 0);
+        editor.insert_char('A');
+        editor.insert_char('B');
+        assert_eq!(editor.get_text(), "AB");
+        assert!(editor.can_undo());
+        assert!(!editor.can_redo());
+
+        editor.undo();
+        assert_eq!(editor.get_text(), "A");
+        assert!(editor.can_undo());
+        assert!(editor.can_redo());
+
+        editor.undo();
+        assert_eq!(editor.get_text(), "");
+        // Undo stack is now empty — but the actions are NOT lost; they
+        // live on the redo stack.
+        assert!(!editor.can_undo());
+        assert!(editor.can_redo());
+
+        editor.redo();
+        assert_eq!(editor.get_text(), "A");
+        assert!(editor.can_undo());
+        assert!(editor.can_redo());
+
+        editor.redo();
+        assert_eq!(editor.get_text(), "AB");
+        assert!(editor.can_undo());
+        assert!(!editor.can_redo());
+
+        // Undo once, then make a fresh edit: the redo branch must be
+        // discarded (push_undo clears redo_stack).
+        editor.undo();
+        assert!(editor.can_redo());
+        editor.insert_char('C');
+        assert_eq!(editor.get_text(), "AC");
+        assert!(editor.can_undo());
+        assert!(!editor.can_redo());
+    }
+
+    #[test]
+    fn cut_undoes_and_redoes_atomically() {
+        let bounds = Rect::new(0, 0, 80, 25);
+        let mut editor = EditorWindow::new(bounds);
+        editor.set_text("foo bar");
+        editor.cursor = Point::new(4, 0);
+        editor.selection_start = Some(Point::new(4, 0));
+        editor.cursor.x = 7;
+
+        assert!(editor.clip_cut());
+        assert_eq!(editor.get_text(), "foo ");
+        editor.undo();
+        assert_eq!(editor.get_text(), "foo bar");
+        editor.redo();
+        assert_eq!(editor.get_text(), "foo ");
     }
 
     #[test]

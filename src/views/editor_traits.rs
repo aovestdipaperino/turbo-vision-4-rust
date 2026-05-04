@@ -39,11 +39,61 @@ pub enum ExternalState {
 
 /// Window-level editor contract. The default `valid_close` allows the close to
 /// proceed; override to abort it (e.g. after asking the user to save).
+///
+/// The clipboard / undo / selection methods carry no-op defaults so non-text
+/// editors that implement this trait (e.g. read-only output panes) don't have
+/// to bother. Real text editors override every method to delegate to the
+/// underlying [`crate::views::editor::EditorWindow`]. The IDE event loop
+/// dispatches `CM_UNDO` / `CM_CUT` / ... to whichever editor is focused via
+/// these methods, so the Edit menu and the editor's own keyboard shortcuts
+/// (Ctrl+Z, Ctrl+X, ...) end up calling the same code paths.
 pub trait Editor: View {
     /// Called by the event loop when this editor's frame requests a close.
     /// Returns true if the window should be removed.
     fn valid_close(&mut self, _app: &mut Application, _command: CommandId) -> bool {
         true
+    }
+
+    /// Pop the most recent edit from the undo stack and revert it.
+    fn undo(&mut self) {}
+    /// Re-apply the most recent undone edit.
+    fn redo(&mut self) {}
+    /// True when the undo stack has at least one entry. Used by the IDE
+    /// to grey out the Undo menu item when there's nothing to revert.
+    fn can_undo(&self) -> bool {
+        false
+    }
+    /// True when the redo stack has at least one entry. Cleared by any
+    /// fresh edit, so this is only briefly true between an undo and the
+    /// next mutation.
+    fn can_redo(&self) -> bool {
+        false
+    }
+    /// Cut the current selection to the clipboard. Returns false when there
+    /// was nothing to cut (no selection or read-only buffer).
+    fn cut(&mut self) -> bool {
+        false
+    }
+    /// Copy the current selection to the clipboard. Returns false when there
+    /// was no selection.
+    fn copy(&mut self) -> bool {
+        false
+    }
+    /// Insert the clipboard contents at the cursor (replacing any active
+    /// selection). Returns false on read-only editors or when the clipboard
+    /// is empty.
+    fn paste(&mut self) -> bool {
+        false
+    }
+    /// Select the entire buffer.
+    fn select_all(&mut self) {}
+    /// Delete the current selection without copying it to the clipboard.
+    /// No-op when there's no selection.
+    fn clear_selection(&mut self) {}
+    /// True when there's a non-empty selection. Used by the IDE to grey out
+    /// Cut / Copy / Clear menu entries.
+    fn has_selection(&self) -> bool {
+        false
     }
 }
 
