@@ -19,5 +19,8 @@ fn main() -> turbo_vision::core::error::Result<()> {
 fn setup_status_line(app: &Application) -> StatusLine {
     let (w, h) = app.terminal.size();
 
-    StatusLine::new(Rect::new(0, h as i16 - 1, w as i16, h as i16), vec![StatusItem::new("~Alt-X~ Exit", KB_ALT_X, CM_QUIT)])
+    StatusLine::new(
+        Rect::new(0, h as i16 - 1, w as i16, h as i16),
+        vec![StatusItem::new("~Alt-X~ Exit", KB_ALT_X, CM_QUIT)],
+    )
 }

@@ -2,33 +2,37 @@
 
 //! Scroller view - scrollable viewport base for text viewers and editors.
 
-use crate::core::geometry::{Point, Rect};
-use crate::core::event::Event;
-use crate::terminal::Terminal;
-use super::view::View;
 use super::scrollbar::ScrollBar;
+use super::view::View;
+use crate::core::event::Event;
+use crate::core::geometry::{Point, Rect};
+use crate::terminal::Terminal;
 
 /// Scroller is a base class for scrollable views.
 /// It manages scroll offsets (delta) and content size (limit),
 /// and coordinates with horizontal and vertical scrollbars.
 pub struct Scroller {
     bounds: Rect,
-    delta: Point,       // Current scroll offset
-    limit: Point,       // Maximum scroll range (content size)
+    delta: Point, // Current scroll offset
+    limit: Point, // Maximum scroll range (content size)
     h_scrollbar: Option<Box<ScrollBar>>,
     v_scrollbar: Option<Box<ScrollBar>>,
     palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
 }
 
 impl Scroller {
-    pub fn new(bounds: Rect, h_scrollbar: Option<Box<ScrollBar>>, v_scrollbar: Option<Box<ScrollBar>>) -> Self {
+    pub fn new(
+        bounds: Rect,
+        h_scrollbar: Option<Box<ScrollBar>>,
+        v_scrollbar: Option<Box<ScrollBar>>,
+    ) -> Self {
         let mut scroller = Self {
             bounds,
             delta: Point::zero(),
             limit: Point::zero(),
             h_scrollbar,
             v_scrollbar,
-        palette_chain: None,
+            palette_chain: None,
         };
         scroller.update_scrollbars();
         scroller
@@ -129,22 +133,12 @@ impl View for Scroller {
 
         // Update scrollbar positions (they are typically at edges)
         if let Some(ref mut h_bar) = self.h_scrollbar {
-            let h_bounds = Rect::new(
-                bounds.a.x,
-                bounds.b.y - 1,
-                bounds.b.x - 1,
-                bounds.b.y,
-            );
+            let h_bounds = Rect::new(bounds.a.x, bounds.b.y - 1, bounds.b.x - 1, bounds.b.y);
             h_bar.set_bounds(h_bounds);
         }
 
         if let Some(ref mut v_bar) = self.v_scrollbar {
-            let v_bounds = Rect::new(
-                bounds.b.x - 1,
-                bounds.a.y,
-                bounds.b.x,
-                bounds.b.y - 1,
-            );
+            let v_bounds = Rect::new(bounds.b.x - 1, bounds.a.y, bounds.b.x, bounds.b.y - 1);
             v_bar.set_bounds(v_bounds);
         }
 
@@ -170,10 +164,9 @@ impl View for Scroller {
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        use crate::core::palette::{palettes, Palette};
+        use crate::core::palette::{Palette, palettes};
         Some(Palette::from_slice(palettes::CP_SCROLLER))
     }
-
 }
 
 /// Builder for creating scrollers with a fluent API.

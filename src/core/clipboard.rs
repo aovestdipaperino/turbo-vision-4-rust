@@ -89,7 +89,8 @@ pub fn get_clipboard() -> String {
     }
 
     // Fall back to in-memory clipboard
-    CLIPBOARD.lock()
+    CLIPBOARD
+        .lock()
         .map(|clipboard| clipboard.clone())
         .unwrap_or_default()
 }
@@ -107,7 +108,8 @@ pub fn has_clipboard_content() -> bool {
     }
 
     // Fall back to in-memory clipboard
-    CLIPBOARD.lock()
+    CLIPBOARD
+        .lock()
         .map(|clipboard| !clipboard.is_empty())
         .unwrap_or(false)
 }

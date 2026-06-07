@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use parking_lot::Mutex;
-use russh::server::{Auth, Handler, Handle, Msg, Session};
+use russh::server::{Auth, Handle, Handler, Msg, Session};
 use russh::{Channel, ChannelId, CryptoVec};
 use russh_keys::PublicKey;
 use tokio::sync::mpsc;
@@ -29,7 +29,11 @@ async fn forward_output(
     // Forward output until the TUI exits (channel closes)
     while let Some(data) = output_rx.recv().await {
         if !data.is_empty() {
-            if handle.data(channel_id, CryptoVec::from(data)).await.is_err() {
+            if handle
+                .data(channel_id, CryptoVec::from(data))
+                .await
+                .is_err()
+            {
                 break;
             }
         }
@@ -79,7 +83,11 @@ where
     }
 
     /// Start the TUI application (called by shell_request or exec_request).
-    async fn start_tui(&mut self, channel_id: ChannelId, session: &mut Session) -> Result<(), russh::Error> {
+    async fn start_tui(
+        &mut self,
+        channel_id: ChannelId,
+        session: &mut Session,
+    ) -> Result<(), russh::Error> {
         if let Some(ref mut s) = self.session {
             if s.channel_id == channel_id {
                 // Start output forwarding first
@@ -115,12 +123,12 @@ where
     ///
     /// Override this in your implementation to add real authentication.
     /// Default accepts all passwords (NOT SECURE - for demo only).
-    async fn auth_password(
-        &mut self,
-        user: &str,
-        _password: &str,
-    ) -> Result<Auth, Self::Error> {
-        log::info!("Password auth attempt from {:?} for user '{}'", self.peer_addr, user);
+    async fn auth_password(&mut self, user: &str, _password: &str) -> Result<Auth, Self::Error> {
+        log::info!(
+            "Password auth attempt from {:?} for user '{}'",
+            self.peer_addr,
+            user
+        );
         // WARNING: This accepts all passwords - implement real auth!
         Ok(Auth::Accept)
     }
@@ -129,12 +137,12 @@ where
     ///
     /// Override this in your implementation to add real authentication.
     /// Default accepts all keys (NOT SECURE - for demo only).
-    async fn auth_publickey(
-        &mut self,
-        user: &str,
-        _key: &PublicKey,
-    ) -> Result<Auth, Self::Error> {
-        log::info!("Pubkey auth attempt from {:?} for user '{}'", self.peer_addr, user);
+    async fn auth_publickey(&mut self, user: &str, _key: &PublicKey) -> Result<Auth, Self::Error> {
+        log::info!(
+            "Pubkey auth attempt from {:?} for user '{}'",
+            self.peer_addr,
+            user
+        );
         // WARNING: This accepts all keys - implement real auth!
         Ok(Auth::Accept)
     }
@@ -152,11 +160,7 @@ where
         let (output_tx, output_rx) = mpsc::unbounded_channel();
         let size = Arc::new(Mutex::new((80u16, 24u16)));
 
-        let backend = crate::terminal::SshBackend::new(
-            output_tx,
-            event_rx,
-            Arc::clone(&size),
-        );
+        let backend = crate::terminal::SshBackend::new(output_tx, event_rx, Arc::clone(&size));
 
         // Create a dummy output_rx for the handle (the real one goes to the forwarding task)
         let (_dummy_tx, dummy_rx) = mpsc::unbounded_channel();
@@ -191,10 +195,7 @@ where
         _modes: &[(russh::Pty, u32)],
         session: &mut Session,
     ) -> Result<(), Self::Error> {
-        log::debug!(
-            "PTY request: {}x{} term={}",
-            col_width, row_height, term
-        );
+        log::debug!("PTY request: {}x{} term={}", col_width, row_height, term);
 
         if let Some(ref mut s) = self.session {
             if s.channel_id == channel_id {

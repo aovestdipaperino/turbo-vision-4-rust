@@ -2,22 +2,22 @@
 
 //! Group view - container for managing multiple child views with focus handling.
 
-use crate::core::geometry::Rect;
-use crate::core::event::{Event, EventType, KB_TAB, KB_SHIFT_TAB};
+use super::view::{View, ViewId, write_line_to_terminal};
 use crate::core::draw::DrawBuffer;
+use crate::core::event::{Event, EventType, KB_SHIFT_TAB, KB_TAB};
+use crate::core::geometry::Rect;
 use crate::core::palette::Attr;
 use crate::terminal::Terminal;
-use super::view::{View, ViewId, write_line_to_terminal};
 
 /// Group - a container for child views
 /// Matches Borland: TGroup (tgroup.h/tgroup.cc)
 pub struct Group {
     bounds: Rect,
     children: Vec<Box<dyn View>>,
-    view_ids: Vec<ViewId>,  // Parallel vec storing ID for each child
+    view_ids: Vec<ViewId>, // Parallel vec storing ID for each child
     focused: usize,
     background: Option<Attr>,
-    end_state: crate::core::command::CommandId,  // For execute() event loop (Borland: endState)
+    end_state: crate::core::command::CommandId, // For execute() event loop (Borland: endState)
     palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
 }
 
@@ -30,7 +30,7 @@ impl Group {
             focused: 0,
             background: None,
             end_state: 0,
-        palette_chain: None,
+            palette_chain: None,
         }
     }
 
@@ -42,7 +42,7 @@ impl Group {
             focused: 0,
             background: Some(background),
             end_state: 0,
-        palette_chain: None,
+            palette_chain: None,
         }
     }
 
@@ -213,7 +213,9 @@ impl Group {
     /// Get an immutable reference to a child by its ViewId
     /// Returns None if the ViewId is not found
     pub fn child_by_id(&self, view_id: ViewId) -> Option<&dyn View> {
-        self.view_ids.iter().position(|&id| id == view_id)
+        self.view_ids
+            .iter()
+            .position(|&id| id == view_id)
             .map(|index| &*self.children[index])
     }
 
@@ -255,7 +257,10 @@ impl Group {
     ///
     /// This is used by Dialog, Window, and any other container that needs
     /// modal execution.
-    pub fn execute(&mut self, app: &mut crate::app::Application) -> crate::core::command::CommandId {
+    pub fn execute(
+        &mut self,
+        app: &mut crate::app::Application,
+    ) -> crate::core::command::CommandId {
         self.end_state = 0;
 
         loop {
@@ -461,12 +466,7 @@ impl View for Group {
             for y in 0..height {
                 let mut buf = DrawBuffer::new(width);
                 buf.move_char(0, ' ', bg_attr, width);
-                write_line_to_terminal(
-                    terminal,
-                    self.bounds.a.x,
-                    self.bounds.a.y + y as i16,
-                    &buf,
-                );
+                write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y + y as i16, &buf);
             }
         }
 
@@ -498,21 +498,29 @@ impl View for Group {
     }
 
     fn handle_event(&mut self, event: &mut Event) {
-        use crate::core::state::{OF_PRE_PROCESS, OF_POST_PROCESS};
+        use crate::core::state::{OF_POST_PROCESS, OF_PRE_PROCESS};
 
         // Mouse events: positional events (no three-phase processing)
         // Search in REVERSE order (top-most child first) - matches Borland's z-order
         // Matches Borland: TGroup::handleEvent() processes mouse events from front to back
-        if event.what == EventType::MouseDown || event.what == EventType::MouseMove || event.what == EventType::MouseUp {
+        if event.what == EventType::MouseDown
+            || event.what == EventType::MouseMove
+            || event.what == EventType::MouseUp
+        {
             let mouse_pos = event.mouse.pos;
 
             // For MouseMove and MouseUp, check if the focused child is dragging or resizing
             // If so, send the event to it even if mouse is outside its bounds
             // This allows dragging and resizing beyond window boundaries (matches Borland behavior)
-            if (event.what == EventType::MouseMove || event.what == EventType::MouseUp) && self.focused < self.children.len() {
+            if (event.what == EventType::MouseMove || event.what == EventType::MouseUp)
+                && self.focused < self.children.len()
+            {
                 // Check if focused child is in dragging or resizing state
                 let child_state = self.children[self.focused].state();
-                if (child_state & (crate::core::state::SF_DRAGGING | crate::core::state::SF_RESIZING)) != 0 {
+                if (child_state
+                    & (crate::core::state::SF_DRAGGING | crate::core::state::SF_RESIZING))
+                    != 0
+                {
                     self.children[self.focused].handle_event(event);
                     return;
                 }
@@ -535,12 +543,13 @@ impl View for Group {
                     // If so, focus the linked control instead of the label
                     if let Some(link_id) = self.children[i].label_link() {
                         // Find the child with the matching ViewId
-                        if let Some(link_index) = self.view_ids.iter().position(|&id| id == link_id) {
+                        if let Some(link_index) = self.view_ids.iter().position(|&id| id == link_id)
+                        {
                             if self.children[link_index].can_focus() {
                                 self.clear_all_focus();
                                 self.focused = link_index;
                                 self.children[link_index].set_focus(true);
-                                event.clear();  // Event consumed by focus transfer
+                                event.clear(); // Event consumed by focus transfer
                                 return;
                             }
                         }
@@ -731,7 +740,10 @@ pub struct GroupBuilder {
 
 impl GroupBuilder {
     pub fn new() -> Self {
-        Self { bounds: None, background: None }
+        Self {
+            bounds: None,
+            background: None,
+        }
     }
 
     #[must_use]
@@ -983,18 +995,27 @@ mod tests {
 
         let mut group = Group::new(Rect::new(0, 0, 80, 25));
         let id1 = group.add(Box::new(crate::views::background::Background::new(
-            Rect::new(0, 0, 10, 5), ' ', crate::core::palette::Attr::new(
-                crate::core::palette::TvColor::White, crate::core::palette::TvColor::Blue,
+            Rect::new(0, 0, 10, 5),
+            ' ',
+            crate::core::palette::Attr::new(
+                crate::core::palette::TvColor::White,
+                crate::core::palette::TvColor::Blue,
             ),
         )));
         let id2 = group.add(Box::new(crate::views::background::Background::new(
-            Rect::new(0, 0, 10, 5), ' ', crate::core::palette::Attr::new(
-                crate::core::palette::TvColor::White, crate::core::palette::TvColor::Blue,
+            Rect::new(0, 0, 10, 5),
+            ' ',
+            crate::core::palette::Attr::new(
+                crate::core::palette::TvColor::White,
+                crate::core::palette::TvColor::Blue,
             ),
         )));
         let id3 = group.add(Box::new(crate::views::background::Background::new(
-            Rect::new(0, 0, 10, 5), ' ', crate::core::palette::Attr::new(
-                crate::core::palette::TvColor::White, crate::core::palette::TvColor::Blue,
+            Rect::new(0, 0, 10, 5),
+            ' ',
+            crate::core::palette::Attr::new(
+                crate::core::palette::TvColor::White,
+                crate::core::palette::TvColor::Blue,
             ),
         )));
 
@@ -1023,18 +1044,27 @@ mod tests {
 
         let mut group = Group::new(Rect::new(0, 0, 80, 25));
         let id1 = group.add(Box::new(crate::views::background::Background::new(
-            Rect::new(0, 0, 10, 5), ' ', crate::core::palette::Attr::new(
-                crate::core::palette::TvColor::White, crate::core::palette::TvColor::Blue,
+            Rect::new(0, 0, 10, 5),
+            ' ',
+            crate::core::palette::Attr::new(
+                crate::core::palette::TvColor::White,
+                crate::core::palette::TvColor::Blue,
             ),
         )));
         let id2 = group.add(Box::new(crate::views::background::Background::new(
-            Rect::new(0, 0, 10, 5), ' ', crate::core::palette::Attr::new(
-                crate::core::palette::TvColor::White, crate::core::palette::TvColor::Blue,
+            Rect::new(0, 0, 10, 5),
+            ' ',
+            crate::core::palette::Attr::new(
+                crate::core::palette::TvColor::White,
+                crate::core::palette::TvColor::Blue,
             ),
         )));
         let id3 = group.add(Box::new(crate::views::background::Background::new(
-            Rect::new(0, 0, 10, 5), ' ', crate::core::palette::Attr::new(
-                crate::core::palette::TvColor::White, crate::core::palette::TvColor::Blue,
+            Rect::new(0, 0, 10, 5),
+            ' ',
+            crate::core::palette::Attr::new(
+                crate::core::palette::TvColor::White,
+                crate::core::palette::TvColor::Blue,
             ),
         )));
 

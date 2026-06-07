@@ -250,16 +250,11 @@ where
 ///     }).await.unwrap();
 /// }
 /// ```
-pub async fn run_ssh_server<F>(
-    addr: &str,
-    app_factory: F,
-) -> Result<(), Box<dyn std::error::Error>>
+pub async fn run_ssh_server<F>(addr: &str, app_factory: F) -> Result<(), Box<dyn std::error::Error>>
 where
     F: Fn() -> Box<dyn FnOnce(Box<dyn crate::terminal::Backend>) + Send> + Send + Sync + 'static,
 {
-    let config = SshServerConfig::new()
-        .bind_addr(addr)
-        .generate_key();
+    let config = SshServerConfig::new().bind_addr(addr).generate_key();
 
     let server = SshServer::new(config, app_factory);
     server.run().await

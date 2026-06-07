@@ -14,12 +14,12 @@
 //       // User selected an item
 //   }
 
-use crate::core::geometry::{Point, Rect};
-use crate::core::event::{EventType, KB_ENTER, KB_ESC};
-use crate::terminal::Terminal;
 use super::history_viewer::HistoryViewer;
 use super::view::View;
 use super::window::Window;
+use crate::core::event::{EventType, KB_ENTER, KB_ESC};
+use crate::core::geometry::{Point, Rect};
+use crate::terminal::Terminal;
 
 /// HistoryWindow - Modal popup for selecting from history
 ///
@@ -85,7 +85,9 @@ impl HistoryWindow {
                     }
                     EventType::MouseDown => {
                         // Check if double-click on viewer
-                        if event.mouse.double_click && self.viewer.bounds().contains(event.mouse.pos) {
+                        if event.mouse.double_click
+                            && self.viewer.bounds().contains(event.mouse.pos)
+                        {
                             return self.viewer.get_selected_item().map(|s| s.to_string());
                         }
                     }
@@ -140,7 +142,11 @@ mod tests {
         assert_eq!(window.viewer.item_count(), 15);
         // Viewer bounds height should be at most 10
         let viewer_height = window.viewer.bounds().height();
-        assert!(viewer_height >= 1 && viewer_height <= 11, "viewer height was {}", viewer_height);
+        assert!(
+            viewer_height >= 1 && viewer_height <= 11,
+            "viewer height was {}",
+            viewer_height
+        );
     }
 }
 
@@ -153,7 +159,11 @@ pub struct HistoryWindowBuilder {
 
 impl HistoryWindowBuilder {
     pub fn new() -> Self {
-        Self { pos: None, history_id: None, width: 30 }
+        Self {
+            pos: None,
+            history_id: None,
+            width: 30,
+        }
     }
 
     #[must_use]
@@ -176,7 +186,9 @@ impl HistoryWindowBuilder {
 
     pub fn build(self) -> HistoryWindow {
         let pos = self.pos.expect("HistoryWindow pos must be set");
-        let history_id = self.history_id.expect("HistoryWindow history_id must be set");
+        let history_id = self
+            .history_id
+            .expect("HistoryWindow history_id must be set");
         HistoryWindow::new(pos, history_id, self.width)
     }
 

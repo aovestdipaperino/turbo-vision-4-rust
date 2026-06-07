@@ -62,12 +62,12 @@ impl PaletteChainNode {
     /// # Arguments
     /// * `palette` - This view's palette (from `get_palette()`), or `None` if transparent
     /// * `parent` - Link to the parent view's chain node, or `None` if top-level
-    pub fn new(
-        palette: Option<Palette>,
-        parent: Option<PaletteChainNode>,
-    ) -> Self {
+    pub fn new(palette: Option<Palette>, parent: Option<PaletteChainNode>) -> Self {
         Self {
-            inner: Rc::new(QCell::new(palette_token(), PaletteChainData { palette, parent })),
+            inner: Rc::new(QCell::new(
+                palette_token(),
+                PaletteChainData { palette, parent },
+            )),
         }
     }
 

@@ -6,18 +6,18 @@
 //!
 //! Provides a tree view of help topics organized hierarchically.
 
-use crate::core::geometry::Rect;
-use crate::core::event::Event;
-use crate::core::command::{CM_OK, CM_CANCEL};
-use crate::terminal::Terminal;
-use super::dialog::Dialog;
-use super::outline::{OutlineViewer, Node};
 use super::button::Button;
+use super::dialog::Dialog;
+use super::help_file::HelpFile;
+use super::outline::{Node, OutlineViewer};
 use super::static_text::StaticText;
 use super::{View, ViewId};
-use super::help_file::HelpFile;
-use std::rc::Rc;
+use crate::core::command::{CM_CANCEL, CM_OK};
+use crate::core::event::Event;
+use crate::core::geometry::Rect;
+use crate::terminal::Terminal;
 use std::cell::RefCell;
+use std::rc::Rc;
 
 /// Help Table of Contents
 /// Matches Borland: THelpToc
@@ -36,13 +36,13 @@ impl HelpToc {
         // Instructions
         dialog.add(Box::new(StaticText::new(
             Rect::new(2, 2, bounds.width() - 4, 3),
-            "Browse help topics:"
+            "Browse help topics:",
         )));
 
         // Create outline viewer with topic tree
         let mut outline = OutlineViewer::new(
             Rect::new(2, 4, bounds.width() - 4, bounds.height() - 6),
-            |title: &String| title.clone()
+            |title: &String| title.clone(),
         );
 
         // Build topic tree from help file
@@ -63,17 +63,27 @@ impl HelpToc {
 
         // Buttons
         dialog.add(Box::new(Button::new(
-            Rect::new(bounds.width() - 24, bounds.height() - 4, bounds.width() - 14, bounds.height() - 2),
+            Rect::new(
+                bounds.width() - 24,
+                bounds.height() - 4,
+                bounds.width() - 14,
+                bounds.height() - 2,
+            ),
             "View",
             CM_OK,
-            true
+            true,
         )));
 
         dialog.add(Box::new(Button::new(
-            Rect::new(bounds.width() - 12, bounds.height() - 4, bounds.width() - 2, bounds.height() - 2),
+            Rect::new(
+                bounds.width() - 12,
+                bounds.height() - 4,
+                bounds.width() - 2,
+                bounds.height() - 2,
+            ),
             "Close",
             CM_CANCEL,
-            false
+            false,
         )));
 
         Self {
@@ -148,7 +158,11 @@ pub struct HelpTocBuilder {
 
 impl HelpTocBuilder {
     pub fn new() -> Self {
-        Self { bounds: None, title: None, help_file: None }
+        Self {
+            bounds: None,
+            title: None,
+            help_file: None,
+        }
     }
 
     #[must_use]

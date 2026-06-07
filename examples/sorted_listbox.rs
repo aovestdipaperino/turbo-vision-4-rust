@@ -40,7 +40,10 @@ fn main() -> turbo_vision::core::error::Result<()> {
         draw_screen(&mut app, &mut listbox, &instructions, case_sensitive);
 
         // Handle events
-        if let Ok(Some(mut event)) = app.terminal.poll_event(std::time::Duration::from_millis(50)) {
+        if let Ok(Some(mut event)) = app
+            .terminal
+            .poll_event(std::time::Duration::from_millis(50))
+        {
             handle_event(&mut app, &mut listbox, &mut event, &mut case_sensitive);
         }
     }
@@ -68,7 +71,10 @@ fn setup_status_line(app: &Application) -> StatusLine {
 fn setup_listbox() -> SortedListBox {
     use turbo_vision::views::sorted_listbox::SortedListBoxBuilder;
 
-    let mut listbox = SortedListBoxBuilder::new().bounds(Rect::new(5, 3, 35, 18)).on_select_command(1000).build();
+    let mut listbox = SortedListBoxBuilder::new()
+        .bounds(Rect::new(5, 3, 35, 18))
+        .on_select_command(1000)
+        .build();
 
     // Add items in random order - they'll be automatically sorted
     listbox.add_item("Zebra".to_string());
@@ -114,7 +120,12 @@ fn get_instructions() -> Vec<&'static str> {
 }
 
 /// Draw all screen elements
-fn draw_screen(app: &mut Application, listbox: &mut SortedListBox, instructions: &[&str], case_sensitive: bool) {
+fn draw_screen(
+    app: &mut Application,
+    listbox: &mut SortedListBox,
+    instructions: &[&str],
+    case_sensitive: bool,
+) {
     // Draw base elements
     app.desktop.draw(&mut app.terminal);
     listbox.draw(&mut app.terminal);
@@ -142,7 +153,11 @@ fn draw_instructions_panel(terminal: &mut Terminal, instructions: &[&str], case_
     for (i, line) in instructions.iter().enumerate() {
         // Update case sensitivity status line dynamically
         let display_line = if i == 12 && line.starts_with("- Currently:") {
-            if case_sensitive { "- Currently: Case-SENSITIVE" } else { "- Currently: Case-INSENSITIVE" }
+            if case_sensitive {
+                "- Currently: Case-SENSITIVE"
+            } else {
+                "- Currently: Case-INSENSITIVE"
+            }
         } else {
             line
         };
@@ -177,7 +192,12 @@ fn draw_selection_info(terminal: &mut Terminal, listbox: &SortedListBox) {
 }
 
 /// Handle all events (keyboard, commands, etc.)
-fn handle_event(app: &mut Application, listbox: &mut SortedListBox, event: &mut turbo_vision::core::event::Event, case_sensitive: &mut bool) {
+fn handle_event(
+    app: &mut Application,
+    listbox: &mut SortedListBox,
+    event: &mut turbo_vision::core::event::Event,
+    case_sensitive: &mut bool,
+) {
     // Listbox handles navigation
     listbox.handle_event(event);
 

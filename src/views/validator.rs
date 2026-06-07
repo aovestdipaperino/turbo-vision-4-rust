@@ -1,6 +1,7 @@
 // (C) 2025 - Enzo Lombardi
 
 //! Validator - input validation system for InputLine controls.
+use std::cell::RefCell;
 /// Validator module - Input validation for InputLine
 /// Matches Borland's TValidator architecture from validate.h and tvalidat.cc
 ///
@@ -9,15 +10,13 @@
 /// - Final validation (is the complete value valid?)
 /// - Error messages when validation fails
 /// - Data transfer (converting between string and typed values)
-
 use std::rc::Rc;
-use std::cell::RefCell;
 
 /// Validator options flags
 /// Matches Borland's validator option flags (validate.h:21-25)
-pub const VO_FILL: u16 = 0x0001;       // Fill with default on empty
-pub const VO_TRANSFER: u16 = 0x0002;   // Enable data transfer
-pub const VO_ON_APPEND: u16 = 0x0004;  // Validate on each character append
+pub const VO_FILL: u16 = 0x0001; // Fill with default on empty
+pub const VO_TRANSFER: u16 = 0x0002; // Enable data transfer
+pub const VO_ON_APPEND: u16 = 0x0004; // Validate on each character append
 
 /// Validator status constants
 /// Matches Borland's validator status (validate.h:17-20)
@@ -182,7 +181,10 @@ impl RangeValidator {
         }
 
         // Support octal (0 prefix, but not just "0")
-        if trimmed.starts_with('0') && trimmed.len() > 1 && !trimmed.contains(|c: char| c == '8' || c == '9') {
+        if trimmed.starts_with('0')
+            && trimmed.len() > 1
+            && !trimmed.contains(|c: char| c == '8' || c == '9')
+        {
             return i64::from_str_radix(&trimmed[1..], 8);
         }
 
@@ -215,14 +217,18 @@ impl Validator for RangeValidator {
         // Smart validation: only allow hex letters (a-f, A-F) if user has typed "0x" prefix
         // This prevents confusing UX where users can type letters for decimal ranges like 1-12
 
-        let is_hex_input = input.starts_with("0x") || input.starts_with("0X") ||
-                          input.starts_with("+0x") || input.starts_with("+0X") ||
-                          input.starts_with("-0x") || input.starts_with("-0X");
+        let is_hex_input = input.starts_with("0x")
+            || input.starts_with("0X")
+            || input.starts_with("+0x")
+            || input.starts_with("+0X")
+            || input.starts_with("-0x")
+            || input.starts_with("-0X");
 
         for ch in input.chars() {
             // Always allow: digits, signs, and 'x'/'X' for hex prefix
-            if self.valid_chars.contains(ch) &&
-               (ch.is_ascii_digit() || ch == '+' || ch == '-' || ch == 'x' || ch == 'X') {
+            if self.valid_chars.contains(ch)
+                && (ch.is_ascii_digit() || ch == '+' || ch == '-' || ch == 'x' || ch == 'X')
+            {
                 continue;
             }
 
@@ -275,7 +281,9 @@ impl FilterValidatorBuilder {
     }
 
     pub fn build(self) -> FilterValidator {
-        let valid_chars = self.valid_chars.expect("FilterValidator valid_chars must be set");
+        let valid_chars = self
+            .valid_chars
+            .expect("FilterValidator valid_chars must be set");
         FilterValidator::new(&valid_chars)
     }
 
@@ -350,7 +358,8 @@ mod tests {
 
     #[test]
     fn test_filter_validator_alphanumeric() {
-        let validator = FilterValidator::new("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789");
+        let validator =
+            FilterValidator::new("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789");
         assert!(validator.is_valid("abc123"));
         assert!(validator.is_valid("Test123"));
         assert!(!validator.is_valid("test@example.com"));
@@ -393,13 +402,13 @@ mod tests {
         assert!(validator.is_valid("0xFF"));
         assert!(validator.is_valid("0x00"));
         assert!(validator.is_valid("0xAB"));
-        assert!(!validator.is_valid("0x100"));  // 256, out of range
+        assert!(!validator.is_valid("0x100")); // 256, out of range
     }
 
     #[test]
     fn test_range_validator_octal() {
         let validator = RangeValidator::new(0, 100);
-        assert!(validator.is_valid("077"));  // 63 in decimal
+        assert!(validator.is_valid("077")); // 63 in decimal
         assert!(validator.is_valid("0100")); // 64 in decimal
         assert!(!validator.is_valid("0200")); // 128 in decimal, out of range
     }

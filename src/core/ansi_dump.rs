@@ -36,8 +36,8 @@
 
 use super::draw::Cell;
 use super::palette::TvColor;
-use std::io::{self, Write};
 use std::fs::File;
+use std::io::{self, Write};
 
 /// Convert TvColor to RGB values for 24-bit ANSI codes
 fn color_to_rgb(color: TvColor) -> (u8, u8, u8) {

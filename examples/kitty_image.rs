@@ -21,11 +21,11 @@ use turbo_vision::core::command::{CM_QUIT, CommandId};
 use turbo_vision::core::event::{Event, EventType, KB_ALT_X, KB_ESC, KB_ESC_ESC};
 use turbo_vision::core::geometry::Rect;
 use turbo_vision::core::palette::{Attr, TvColor};
+use turbo_vision::views::View;
 use turbo_vision::views::kitty_image::KittyImage;
 use turbo_vision::views::label::LabelBuilder;
 use turbo_vision::views::status_line::{StatusItem, StatusLine};
 use turbo_vision::views::window::WindowBuilder;
-use turbo_vision::views::View;
 
 // Command IDs for this demo
 const CM_RELOAD: CommandId = 1000;
@@ -49,13 +49,13 @@ fn generate_test_png() -> Vec<u8> {
 
     // IHDR chunk (image header)
     let mut ihdr_data = Vec::new();
-    ihdr_data.extend_from_slice(&width.to_be_bytes());    // Width
-    ihdr_data.extend_from_slice(&height.to_be_bytes());   // Height
-    ihdr_data.push(8);    // Bit depth
-    ihdr_data.push(2);    // Color type (RGB)
-    ihdr_data.push(0);    // Compression method
-    ihdr_data.push(0);    // Filter method
-    ihdr_data.push(0);    // Interlace method
+    ihdr_data.extend_from_slice(&width.to_be_bytes()); // Width
+    ihdr_data.extend_from_slice(&height.to_be_bytes()); // Height
+    ihdr_data.push(8); // Bit depth
+    ihdr_data.push(2); // Color type (RGB)
+    ihdr_data.push(0); // Compression method
+    ihdr_data.push(0); // Filter method
+    ihdr_data.push(0); // Interlace method
 
     write_png_chunk(&mut png_data, b"IHDR", &ihdr_data);
 
@@ -219,7 +219,12 @@ fn main() -> turbo_vision::core::error::Result<()> {
     let window_y = (height - window_height) / 2;
 
     let mut window = WindowBuilder::new()
-        .bounds(Rect::new(window_x, window_y, window_x + window_width, window_y + window_height))
+        .bounds(Rect::new(
+            window_x,
+            window_y,
+            window_x + window_width,
+            window_y + window_height,
+        ))
         .title("Kitty Image Demo")
         .build();
 
@@ -248,21 +253,17 @@ fn main() -> turbo_vision::core::error::Result<()> {
 
     // Load or generate image
     let png_data = match image_path {
-        Some(path) => {
-            std::fs::read(path).unwrap_or_else(|e| {
-                eprintln!("Failed to load image: {}", e);
-                generate_test_png()
-            })
-        }
+        Some(path) => std::fs::read(path).unwrap_or_else(|e| {
+            eprintln!("Failed to load image: {}", e);
+            generate_test_png()
+        }),
         None => generate_test_png(),
     };
 
     // Create Kitty image view
     // Position it inside the window (coordinates relative to window interior)
-    let image_view = KittyImage::from_bytes(
-        Rect::new(2, 4, 56, 18),
-        png_data,
-    ).background(Attr::new(TvColor::Black, TvColor::DarkGray));
+    let image_view = KittyImage::from_bytes(Rect::new(2, 4, 56, 18), png_data)
+        .background(Attr::new(TvColor::Black, TvColor::DarkGray));
 
     window.add(Box::new(image_view));
 
@@ -281,7 +282,10 @@ fn main() -> turbo_vision::core::error::Result<()> {
         app.desktop.draw(&mut app.terminal);
         let _ = app.terminal.flush();
 
-        if let Ok(Some(mut event)) = app.terminal.poll_event(std::time::Duration::from_millis(50)) {
+        if let Ok(Some(mut event)) = app
+            .terminal
+            .poll_event(std::time::Duration::from_millis(50))
+        {
             // Handle keyboard events
             if event.what == EventType::Keyboard {
                 match event.key_code {

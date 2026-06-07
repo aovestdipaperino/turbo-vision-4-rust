@@ -20,12 +20,12 @@
 //       "Enable feature",
 //   );
 
+use super::cluster::{Cluster, ClusterState};
+use super::view::View;
 use crate::core::event::Event;
 use crate::core::geometry::Rect;
 use crate::core::state::StateFlags;
 use crate::terminal::Terminal;
-use super::view::View;
-use super::cluster::{Cluster, ClusterState};
 
 /// CheckBox - A boolean selection control with a label
 ///
@@ -48,7 +48,7 @@ impl CheckBox {
             label: label.to_string(),
             cluster_state: ClusterState::new(),
             state: 0,
-        palette_chain: None,
+            palette_chain: None,
         }
     }
 
@@ -111,7 +111,6 @@ impl View for CheckBox {
         use crate::core::palette::{Palette, palettes};
         Some(Palette::from_slice(palettes::CP_CLUSTER))
     }
-
 }
 
 // Implement Cluster trait
@@ -129,11 +128,7 @@ impl Cluster for CheckBox {
     }
 
     fn get_marker(&self) -> &str {
-        if self.is_checked() {
-            "[X] "
-        } else {
-            "[ ] "
-        }
+        if self.is_checked() { "[X] " } else { "[ ] " }
     }
 
     /// Checkboxes toggle on space (default behavior)

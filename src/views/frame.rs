@@ -2,14 +2,14 @@
 
 //! Frame view - window border with title and close button.
 
-use crate::core::geometry::Rect;
-use crate::core::event::{Event, EventType, MB_LEFT_BUTTON};
-use crate::core::draw::DrawBuffer;
-use crate::core::palette::Attr;
-use crate::core::command::CM_CLOSE;
-use crate::core::state::{StateFlags, SF_ACTIVE, SF_DRAGGING, SF_RESIZING};
-use crate::terminal::Terminal;
 use super::view::{View, write_line_to_terminal};
+use crate::core::command::CM_CLOSE;
+use crate::core::draw::DrawBuffer;
+use crate::core::event::{Event, EventType, MB_LEFT_BUTTON};
+use crate::core::geometry::Rect;
+use crate::core::palette::Attr;
+use crate::core::state::{SF_ACTIVE, SF_DRAGGING, SF_RESIZING, StateFlags};
+use crate::terminal::Terminal;
 use unicode_width::UnicodeWidthStr;
 
 pub struct Frame {
@@ -29,9 +29,9 @@ pub struct Frame {
 /// Matches Borland's palette hierarchy (cpDialog, cpBlueWindow, etc.)
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FramePaletteType {
-    Dialog,     // Uses cpDialog palette (LightGreen close button)
-    EditorWindow,     // Uses cpBlueWindow palette (blue window)
-    HelpWindow, // Uses cpCyanWindow palette (cyan help window)
+    Dialog,       // Uses cpDialog palette (LightGreen close button)
+    EditorWindow, // Uses cpBlueWindow palette (blue window)
+    HelpWindow,   // Uses cpCyanWindow palette (cyan help window)
 }
 
 impl Frame {
@@ -39,14 +39,19 @@ impl Frame {
         Self::with_palette(bounds, title, FramePaletteType::Dialog, resizable)
     }
 
-    pub fn with_palette(bounds: Rect, title: &str, palette_type: FramePaletteType, resizable: bool) -> Self {
+    pub fn with_palette(
+        bounds: Rect,
+        title: &str,
+        palette_type: FramePaletteType,
+        resizable: bool,
+    ) -> Self {
         Self {
             bounds,
             title: title.to_string(),
             palette_type,
             state: SF_ACTIVE,
             resizable,
-        palette_chain: None,
+            palette_chain: None,
         }
     }
 
@@ -65,7 +70,7 @@ impl Frame {
     /// Matches Borland's getColor() with palette mapping (tframe.cc:43-64)
     /// Returns (frame_attr, close_icon_attr, title_attr)
     fn get_frame_colors(&self) -> (Attr, Attr, Attr) {
-        use crate::core::palette::{FRAME_INACTIVE, FRAME_ACTIVE_BORDER, FRAME_TITLE, FRAME_ICON};
+        use crate::core::palette::{FRAME_ACTIVE_BORDER, FRAME_ICON, FRAME_INACTIVE, FRAME_TITLE};
 
         // Borland determines cFrame based on state:
         // - Inactive: cFrame = 0x0101 (both bytes use palette[1])
@@ -122,10 +127,10 @@ impl View for Frame {
 
         // Top border with title - using double-line box drawing
         let mut buf = DrawBuffer::new(width);
-        buf.put_char(0, '╔', frame_attr);  // Double top-left corner
-        buf.put_char(width - 1, '╗', frame_attr);  // Double top-right corner
+        buf.put_char(0, '╔', frame_attr); // Double top-left corner
+        buf.put_char(width - 1, '╗', frame_attr); // Double top-right corner
         for i in 1..width - 1 {
-            buf.put_char(i, '═', frame_attr);  // Double horizontal line
+            buf.put_char(i, '═', frame_attr); // Double horizontal line
         }
 
         // Add close button at position 2: [■]
@@ -136,7 +141,7 @@ impl View for Frame {
         // See local-only/about.png and tframe.cc:123 (b.moveCStr(2, closeIcon, cFrame))
         if width > 5 {
             buf.put_char(2, '[', frame_attr);
-            buf.put_char(3, '■', close_icon_attr);  // Uses palette highlight color
+            buf.put_char(3, '■', close_icon_attr); // Uses palette highlight color
             buf.put_char(4, ']', frame_attr);
         }
 
@@ -149,8 +154,8 @@ impl View for Frame {
 
         // Middle rows - using double vertical lines
         let mut side_buf = DrawBuffer::new(width);
-        side_buf.put_char(0, '║', frame_attr);  // Double vertical line
-        side_buf.put_char(width - 1, '║', frame_attr);  // Double vertical line
+        side_buf.put_char(0, '║', frame_attr); // Double vertical line
+        side_buf.put_char(width - 1, '║', frame_attr); // Double vertical line
         // Fill interior with background color from palette chain (matches Borland)
         // Maps through Frame's palette -> Window's palette -> App palette
         let interior_color = self.map_color(crate::core::palette::WINDOW_BACKGROUND);
@@ -158,7 +163,12 @@ impl View for Frame {
             side_buf.put_char(i, ' ', interior_color);
         }
         for y in 1..height - 1 {
-            write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y + y as i16, &side_buf);
+            write_line_to_terminal(
+                terminal,
+                self.bounds.a.x,
+                self.bounds.a.y + y as i16,
+                &side_buf,
+            );
         }
 
         // Bottom border - using single-line for resizable, double-line for non-resizable
@@ -167,15 +177,15 @@ impl View for Frame {
         let mut bottom_buf = DrawBuffer::new(width);
         if self.resizable {
             // Resizable: single-line bottom corners (matches Borland TWindow with wfGrow)
-            bottom_buf.put_char(0, '└', frame_attr);  // Single bottom-left corner
-            bottom_buf.put_char(width - 1, '┘', frame_attr);  // Single bottom-right corner
+            bottom_buf.put_char(0, '└', frame_attr); // Single bottom-left corner
+            bottom_buf.put_char(width - 1, '┘', frame_attr); // Single bottom-right corner
         } else {
             // Non-resizable: double-line bottom corners (matches Borland TDialog without wfGrow)
-            bottom_buf.put_char(0, '╚', frame_attr);  // Double bottom-left corner
-            bottom_buf.put_char(width - 1, '╝', frame_attr);  // Double bottom-right corner
+            bottom_buf.put_char(0, '╚', frame_attr); // Double bottom-left corner
+            bottom_buf.put_char(width - 1, '╝', frame_attr); // Double bottom-right corner
         }
         for i in 1..width - 1 {
-            bottom_buf.put_char(i, '═', frame_attr);  // Double horizontal line
+            bottom_buf.put_char(i, '═', frame_attr); // Double horizontal line
         }
 
         // Add resize handle for resizable windows when active
@@ -188,7 +198,12 @@ impl View for Frame {
             bottom_buf.put_char(width - 2, '◢', frame_attr);
         }
 
-        write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y + height as i16 - 1, &bottom_buf);
+        write_line_to_terminal(
+            terminal,
+            self.bounds.a.x,
+            self.bounds.a.y + height as i16 - 1,
+            &bottom_buf,
+        );
     }
 
     fn handle_event(&mut self, event: &mut Event) {
@@ -201,7 +216,10 @@ impl View for Frame {
             // Check if click is on the resize corner (bottom-right, matching Borland tframe.cc:214)
             // Borland: mouse.x >= size.x - 2 && mouse.y >= size.y - 1
             // Only allow resize on resizable frames (matches Borland's wfGrow flag check)
-            if self.resizable && mouse_pos.x >= self.bounds.b.x - 2 && mouse_pos.y >= self.bounds.b.y - 1 {
+            if self.resizable
+                && mouse_pos.x >= self.bounds.b.x - 2
+                && mouse_pos.y >= self.bounds.b.y - 1
+            {
                 // Resize corner - set resizing state
                 self.state |= SF_RESIZING;
                 // DON'T clear event - let Window handle it to initialize resize_start_size

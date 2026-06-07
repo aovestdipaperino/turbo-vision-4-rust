@@ -100,7 +100,6 @@
 /// - Any other text: `"~C~ustom"`
 ///
 /// The `~` character indicates the hotkey underline in the button text.
-
 use super::View;
 use super::button::Button;
 use super::dialog::Dialog;
@@ -129,8 +128,8 @@ pub struct FileDialog {
     file_name_data: Rc<RefCell<String>>,
     files: Vec<String>,
     selected_file_index: usize, // Track ListBox selection
-    title: String, // Store title for rebuilds
-    button_label: String, // "Open", "Save", etc.
+    title: String,              // Store title for rebuilds
+    button_label: String,       // "Open", "Save", etc.
 }
 
 impl FileDialog {
@@ -317,7 +316,8 @@ impl FileDialog {
                     // If it's a wildcard, we stay open and update the filter
                     // Only close if it's actually a file selection (after wildcard check)
                     if end_state == crate::core::command::CM_CANCEL
-                        || end_state == crate::core::command::CM_CLOSE {
+                        || end_state == crate::core::command::CM_CLOSE
+                    {
                         // CLOSE CONDITION 3: User cancels via cancel button or close button
                         return None;
                     }

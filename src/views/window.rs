@@ -8,7 +8,7 @@ use super::view::{View, ViewId};
 use crate::core::command::{CM_CANCEL, CM_CLOSE};
 use crate::core::event::{Event, EventType};
 use crate::core::geometry::{Point, Rect};
-use crate::core::state::{SF_DRAGGING, SF_MODAL, SF_RESIZING, SF_SHADOW, shadow_size, StateFlags};
+use crate::core::state::{SF_DRAGGING, SF_MODAL, SF_RESIZING, SF_SHADOW, StateFlags, shadow_size};
 use crate::terminal::Terminal;
 
 pub struct Window {
@@ -138,7 +138,7 @@ impl Window {
             min_size: Point::new(16, 6), // Minimum size: 16 wide, 6 tall (matches Borland's minWinSize)
             zoom_rect: bounds,           // Initialize to current bounds
             prev_bounds: None,
-        palette_chain: None,
+            palette_chain: None,
             palette_type: window_palette,
             custom_palette: None,
             explicit_drag_limits: None,
@@ -235,7 +235,6 @@ impl Window {
     pub fn set_auto_close(&mut self, auto_close: bool) {
         self.auto_close = auto_close;
     }
-
 
     /// Set minimum window size (matches Borland: minWinSize)
     /// Prevents window from being resized smaller than these dimensions
@@ -389,7 +388,10 @@ impl Window {
     /// Execute a modal event loop
     /// Delegates to the interior Group's execute() method
     /// Matches Borland: Window and Dialog both inherit TGroup's execute()
-    pub fn execute(&mut self, app: &mut crate::app::Application) -> crate::core::command::CommandId {
+    pub fn execute(
+        &mut self,
+        app: &mut crate::app::Application,
+    ) -> crate::core::command::CommandId {
         self.interior.execute(app)
     }
 
@@ -482,7 +484,10 @@ impl View for Window {
             // Frame just started dragging - record offset
             if event.what == EventType::MouseDown || event.what == EventType::MouseMove {
                 let mouse_pos = event.mouse.pos;
-                self.drag_offset = Some(Point::new(mouse_pos.x - self.bounds.a.x, mouse_pos.y - self.bounds.a.y));
+                self.drag_offset = Some(Point::new(
+                    mouse_pos.x - self.bounds.a.x,
+                    mouse_pos.y - self.bounds.a.y,
+                ));
                 self.state |= SF_DRAGGING;
                 event.clear(); // Mark event as handled
                 return;
@@ -495,7 +500,10 @@ impl View for Window {
                 let mouse_pos = event.mouse.pos;
                 // Calculate offset from bottom-right corner
                 // Borland: p = size - event.mouse.where (tview.cc:235)
-                self.resize_start_size = Some(Point::new(self.bounds.b.x - mouse_pos.x, self.bounds.b.y - mouse_pos.y));
+                self.resize_start_size = Some(Point::new(
+                    self.bounds.b.x - mouse_pos.x,
+                    self.bounds.b.y - mouse_pos.y,
+                ));
                 self.state |= SF_RESIZING;
                 event.clear(); // Mark event as handled
                 return;
@@ -862,7 +870,9 @@ impl WindowBuilder {
         let frame_palette = match self.palette_type {
             WindowPaletteType::Blue => super::frame::FramePaletteType::EditorWindow,
             WindowPaletteType::Cyan => super::frame::FramePaletteType::HelpWindow,
-            WindowPaletteType::Gray | WindowPaletteType::Dialog => super::frame::FramePaletteType::Dialog,
+            WindowPaletteType::Gray | WindowPaletteType::Dialog => {
+                super::frame::FramePaletteType::Dialog
+            }
         };
 
         let resizable = match self.palette_type {
@@ -870,13 +880,7 @@ impl WindowBuilder {
             _ => self.resizable,
         };
 
-        Window::new_with_palette(
-            bounds,
-            &title,
-            frame_palette,
-            self.palette_type,
-            resizable,
-        )
+        Window::new_with_palette(bounds, &title, frame_palette, self.palette_type, resizable)
     }
 }
 

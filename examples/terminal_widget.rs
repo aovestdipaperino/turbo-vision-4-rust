@@ -45,7 +45,10 @@ const BUILD_LOG: &[(&str, u8)] = &[
     ("[00:02.101]  --> src/config.rs:12:5", 0x08),
     ("[00:02.345] Compiling network v0.5.0", 0x0E),
     ("[00:03.123] Compiling database v2.1.0", 0x0E),
-    ("[00:03.456] warning: field is never read: `timestamp`", 0x0C),
+    (
+        "[00:03.456] warning: field is never read: `timestamp`",
+        0x0C,
+    ),
     ("[00:03.457]  --> src/database/model.rs:45:5", 0x08),
     ("[00:04.000] Compiling api v1.0.0", 0x0E),
     ("[00:05.234] Compiling server v0.8.0", 0x0E),
@@ -103,7 +106,9 @@ impl LogState {
     }
 
     fn should_update(&self) -> bool {
-        self.playing && self.index < BUILD_LOG.len() && self.last_update.elapsed() >= Duration::from_millis(150)
+        self.playing
+            && self.index < BUILD_LOG.len()
+            && self.last_update.elapsed() >= Duration::from_millis(150)
     }
 }
 
@@ -117,14 +122,41 @@ fn get_terminal_widget(app: &mut Application, term_vid: ViewId) -> Option<&mut T
 
 /// Create and setup the main dialog with terminal and buttons
 fn create_dialog() -> (Box<Dialog>, ViewId) {
-    let mut dialog = DialogBuilder::new().bounds(Rect::new(5, 2, 75, 22)).title("Build Output Terminal").build();
+    let mut dialog = DialogBuilder::new()
+        .bounds(Rect::new(5, 2, 75, 22))
+        .title("Build Output Terminal")
+        .build();
 
     // Add control buttons
-    dialog.add(Box::new(ButtonBuilder::new().bounds(Rect::new(54, 15, 66, 17)).title("~Q~uit").command(CM_QUIT).build()));
-    dialog.add(Box::new(ButtonBuilder::new().bounds(Rect::new(2, 15, 14, 17)).title("~S~tart Log").command(CM_START_LOG).build()));
-    dialog.add(Box::new(ButtonBuilder::new().bounds(Rect::new(16, 15, 28, 17)).title("S~t~op Log").command(CM_STOP_LOG).build()));
+    dialog.add(Box::new(
+        ButtonBuilder::new()
+            .bounds(Rect::new(54, 15, 66, 17))
+            .title("~Q~uit")
+            .command(CM_QUIT)
+            .build(),
+    ));
+    dialog.add(Box::new(
+        ButtonBuilder::new()
+            .bounds(Rect::new(2, 15, 14, 17))
+            .title("~S~tart Log")
+            .command(CM_START_LOG)
+            .build(),
+    ));
+    dialog.add(Box::new(
+        ButtonBuilder::new()
+            .bounds(Rect::new(16, 15, 28, 17))
+            .title("S~t~op Log")
+            .command(CM_STOP_LOG)
+            .build(),
+    ));
     command_set::disable_command(CM_STOP_LOG);
-    dialog.add(Box::new(ButtonBuilder::new().bounds(Rect::new(30, 15, 42, 17)).title("~C~lear Log").command(CM_CLEAR_LOG).build()));
+    dialog.add(Box::new(
+        ButtonBuilder::new()
+            .bounds(Rect::new(30, 15, 42, 17))
+            .title("~C~lear Log")
+            .command(CM_CLEAR_LOG)
+            .build(),
+    ));
     command_set::disable_command(CM_CLEAR_LOG);
 
     // Create terminal widget with welcome message
@@ -197,7 +229,10 @@ fn main() -> turbo_vision::core::error::Result<()> {
 
     // Create status line
     let (width, height) = app.terminal.size();
-    let status_line = StatusLine::new(Rect::new(0, height - 1, width, height), vec![StatusItem::new("~Alt+X~ Exit", KB_ALT_X, CM_QUIT)]);
+    let status_line = StatusLine::new(
+        Rect::new(0, height - 1, width, height),
+        vec![StatusItem::new("~Alt+X~ Exit", KB_ALT_X, CM_QUIT)],
+    );
     app.set_status_line(status_line);
 
     // Create and add dialog
@@ -222,7 +257,12 @@ fn main() -> turbo_vision::core::error::Result<()> {
         update_log_streaming(&mut app, term_vid, &mut log_state);
 
         // Handle events
-        if let Some(mut event) = app.terminal.poll_event(Duration::from_millis(50)).ok().flatten() {
+        if let Some(mut event) = app
+            .terminal
+            .poll_event(Duration::from_millis(50))
+            .ok()
+            .flatten()
+        {
             app.desktop.handle_event(&mut event);
 
             if let Some(ref mut status_line) = app.status_line {

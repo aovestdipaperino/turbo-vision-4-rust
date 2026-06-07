@@ -66,8 +66,8 @@ impl fmt::Display for Point {
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Rect {
-    pub a: Point,  // top-left (inclusive)
-    pub b: Point,  // bottom-right (exclusive)
+    pub a: Point, // top-left (inclusive)
+    pub b: Point, // bottom-right (exclusive)
 }
 
 impl Rect {
@@ -178,8 +178,10 @@ impl Rect {
     /// Check if this rectangle intersects (overlaps) with another
     pub fn intersects(&self, other: &Rect) -> bool {
         // Two rectangles intersect if they overlap on both axes
-        !(self.b.x <= other.a.x || self.a.x >= other.b.x ||
-          self.b.y <= other.a.y || self.a.y >= other.b.y)
+        !(self.b.x <= other.a.x
+            || self.a.x >= other.b.x
+            || self.b.y <= other.a.y
+            || self.a.y >= other.b.y)
     }
 
     /// Calculate the union of this rectangle with another
@@ -201,7 +203,11 @@ impl Default for Rect {
 
 impl fmt::Display for Rect {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "[{}, {}, {}, {}]", self.a.x, self.a.y, self.b.x, self.b.y)
+        write!(
+            f,
+            "[{}, {}, {}, {}]",
+            self.a.x, self.a.y, self.b.x, self.b.y
+        )
     }
 }
 
@@ -237,7 +243,7 @@ mod tests {
     fn test_rect_contains_zero_dimensions() {
         // Zero-height rectangle (single row control like Label or InputLine)
         let single_row = Rect::new(2, 4, 15, 4);
-        assert!(single_row.contains(Point::new(2, 4)));  // Left edge
+        assert!(single_row.contains(Point::new(2, 4))); // Left edge
         assert!(single_row.contains(Point::new(10, 4))); // Middle
         assert!(single_row.contains(Point::new(14, 4))); // Right edge-1
         assert!(!single_row.contains(Point::new(15, 4))); // Right edge (excluded)
@@ -246,9 +252,9 @@ mod tests {
 
         // Zero-width rectangle (single column)
         let single_col = Rect::new(5, 2, 5, 10);
-        assert!(single_col.contains(Point::new(5, 2)));  // Top
-        assert!(single_col.contains(Point::new(5, 5)));  // Middle
-        assert!(single_col.contains(Point::new(5, 9)));  // Bottom-1
+        assert!(single_col.contains(Point::new(5, 2))); // Top
+        assert!(single_col.contains(Point::new(5, 5))); // Middle
+        assert!(single_col.contains(Point::new(5, 9))); // Bottom-1
         assert!(!single_col.contains(Point::new(5, 10))); // Bottom (excluded)
         assert!(!single_col.contains(Point::new(4, 5))); // Column left
         assert!(!single_col.contains(Point::new(6, 5))); // Column right
@@ -337,9 +343,9 @@ mod tests {
 
         // Inverted rectangle (negative dimensions)
         let r2 = Rect::new(10, 10, 5, 5);
-        assert_eq!(r2.width(), -5);  // Raw width is negative
+        assert_eq!(r2.width(), -5); // Raw width is negative
         assert_eq!(r2.height(), -5); // Raw height is negative
-        assert_eq!(r2.width_clamped(), 0);  // Clamped to 0
+        assert_eq!(r2.width_clamped(), 0); // Clamped to 0
         assert_eq!(r2.height_clamped(), 0); // Clamped to 0
 
         // Partially inverted

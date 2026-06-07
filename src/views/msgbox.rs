@@ -48,7 +48,11 @@ pub fn message_box(app: &mut Application, message: &str, options: u16) -> Comman
 
     let wrapped = wrap_message(message, inner_w);
 
-    let msg_width = wrapped.lines().map(|l| l.chars().count()).max().unwrap_or(20);
+    let msg_width = wrapped
+        .lines()
+        .map(|l| l.chars().count())
+        .max()
+        .unwrap_or(20);
     let msg_height = wrapped.lines().count().max(1);
 
     let width = (msg_width + 6).min(target_w).max(30);
@@ -68,8 +72,8 @@ pub fn message_box(app: &mut Application, message: &str, options: u16) -> Comman
 /// `max_width` (e.g. file paths) are split character-wise rather than
 /// dropped, so the user always sees the full content.
 #[allow(unused_assignments)] // line_len / first_word_in_line are dead
-                             // on the last iteration of the inner loop
-                             // but used on every other.
+// on the last iteration of the inner loop
+// but used on every other.
 fn wrap_message(message: &str, max_width: usize) -> String {
     let max_width = max_width.max(1);
     let mut out = String::new();
@@ -142,7 +146,12 @@ fn wrap_message(message: &str, max_width: usize) -> String {
 }
 
 /// Display a message box at a specific location
-pub fn message_box_rect(app: &mut Application, bounds: Rect, message: &str, options: u16) -> CommandId {
+pub fn message_box_rect(
+    app: &mut Application,
+    bounds: Rect,
+    message: &str,
+    options: u16,
+) -> CommandId {
     // Determine title based on message type
     let title = match options & 0x03 {
         MF_WARNING => "\u{26A0} Warning",
@@ -187,7 +196,12 @@ pub fn message_box_rect(app: &mut Application, bounds: Rect, message: &str, opti
         let button_width = label.len() as i16;
         let button_bounds = Rect::new(x as i16, button_y, x as i16 + button_width, button_y + 2);
         let is_this_default = is_default && (i == 0 || *cmd == CM_OK);
-        dialog.add(Box::new(Button::new(button_bounds, label, *cmd, is_this_default)));
+        dialog.add(Box::new(Button::new(
+            button_bounds,
+            label,
+            *cmd,
+            is_this_default,
+        )));
         x += button_width as usize + 2;
     }
 
@@ -263,7 +277,13 @@ pub fn confirmation_box_ok_cancel(app: &mut Application, message: &str) -> Comma
 }
 
 /// Display an input box that prompts the user for a string
-pub fn input_box(app: &mut Application, title: &str, label: &str, initial: &str, max_length: usize) -> Option<String> {
+pub fn input_box(
+    app: &mut Application,
+    title: &str,
+    label: &str,
+    initial: &str,
+    max_length: usize,
+) -> Option<String> {
     // Calculate dialog size
     let label_len = label.len();
     let width = (label_len + max_length + 12).min(60).max(30);
@@ -280,7 +300,14 @@ pub fn input_box(app: &mut Application, title: &str, label: &str, initial: &str,
 }
 
 /// Display an input box at a specific location
-pub fn input_box_rect(app: &mut Application, bounds: Rect, title: &str, label: &str, initial: &str, max_length: usize) -> Option<String> {
+pub fn input_box_rect(
+    app: &mut Application,
+    bounds: Rect,
+    title: &str,
+    label: &str,
+    initial: &str,
+    max_length: usize,
+) -> Option<String> {
     let mut dialog = Dialog::new(bounds, title);
 
     // Create shared data for input line
@@ -296,7 +323,11 @@ pub fn input_box_rect(app: &mut Application, bounds: Rect, title: &str, label: &
     let input_x = label_x + label_width + 1;
     let input_width = (bounds.width() - input_x - 3).min(max_length as i16 + 2);
     let input_bounds = Rect::new(input_x, 2, input_x + input_width, 3);
-    dialog.add(Box::new(InputLine::new(input_bounds, max_length, data.clone())));
+    dialog.add(Box::new(InputLine::new(
+        input_bounds,
+        max_length,
+        data.clone(),
+    )));
 
     // Add OK button
     let button_y = bounds.height() - 4;
@@ -307,13 +338,22 @@ pub fn input_box_rect(app: &mut Application, bounds: Rect, title: &str, label: &
     // Add Cancel button
     let cancel_x = ok_x + 12;
     let cancel_bounds = Rect::new(cancel_x, button_y, cancel_x + 10, button_y + 2);
-    dialog.add(Box::new(Button::new(cancel_bounds, " ~C~ancel", CM_CANCEL, false)));
+    dialog.add(Box::new(Button::new(
+        cancel_bounds,
+        " ~C~ancel",
+        CM_CANCEL,
+        false,
+    )));
 
     dialog.set_initial_focus();
 
     let result = dialog.execute(app);
 
-    if result == CM_OK { Some(data.borrow().clone()) } else { None }
+    if result == CM_OK {
+        Some(data.borrow().clone())
+    } else {
+        None
+    }
 }
 
 /// Display a search dialog that prompts the user for search text
@@ -359,7 +399,12 @@ pub fn search_box(app: &mut Application, title: &str) -> Option<String> {
 
     // Add Cancel button
     let cancel_bounds = Rect::new(27, 5, 37, 7);
-    dialog.add(Box::new(Button::new(cancel_bounds, " ~C~ancel", CM_CANCEL, false)));
+    dialog.add(Box::new(Button::new(
+        cancel_bounds,
+        " ~C~ancel",
+        CM_CANCEL,
+        false,
+    )));
 
     dialog.set_initial_focus();
 
@@ -409,7 +454,11 @@ pub fn search_replace_box(app: &mut Application, title: &str) -> Option<(String,
 
     // Add find input line
     let input1_bounds = Rect::new(2, 3, width - 4, 4);
-    dialog.add(Box::new(InputLine::new(input1_bounds, 100, find_data.clone())));
+    dialog.add(Box::new(InputLine::new(
+        input1_bounds,
+        100,
+        find_data.clone(),
+    )));
 
     // Add replace label
     let label2_bounds = Rect::new(2, 5, 20, 6);
@@ -417,7 +466,11 @@ pub fn search_replace_box(app: &mut Application, title: &str) -> Option<(String,
 
     // Add replace input line
     let input2_bounds = Rect::new(2, 6, width - 4, 7);
-    dialog.add(Box::new(InputLine::new(input2_bounds, 100, replace_data.clone())));
+    dialog.add(Box::new(InputLine::new(
+        input2_bounds,
+        100,
+        replace_data.clone(),
+    )));
 
     // Add OK button
     let ok_bounds = Rect::new(15, 9, 25, 11);
@@ -425,7 +478,12 @@ pub fn search_replace_box(app: &mut Application, title: &str) -> Option<(String,
 
     // Add Cancel button
     let cancel_bounds = Rect::new(27, 9, 37, 11);
-    dialog.add(Box::new(Button::new(cancel_bounds, " ~C~ancel", CM_CANCEL, false)));
+    dialog.add(Box::new(Button::new(
+        cancel_bounds,
+        " ~C~ancel",
+        CM_CANCEL,
+        false,
+    )));
 
     dialog.set_initial_focus();
 
@@ -487,7 +545,12 @@ pub fn goto_line_box(app: &mut Application, title: &str) -> Option<usize> {
 
     // Add Cancel button
     let cancel_bounds = Rect::new(22, 5, 32, 7);
-    dialog.add(Box::new(Button::new(cancel_bounds, " ~C~ancel", CM_CANCEL, false)));
+    dialog.add(Box::new(Button::new(
+        cancel_bounds,
+        " ~C~ancel",
+        CM_CANCEL,
+        false,
+    )));
 
     dialog.set_initial_focus();
 
@@ -516,9 +579,10 @@ mod tests {
         }
         // Round-tripping by re-joining whitespace must give the original
         // message back — wrapping must not lose or reorder words.
-        let original_words: Vec<&str> = "Parse error: line 1:1: expected 'program', found identifier 'hello'"
-            .split_whitespace()
-            .collect();
+        let original_words: Vec<&str> =
+            "Parse error: line 1:1: expected 'program', found identifier 'hello'"
+                .split_whitespace()
+                .collect();
         let wrapped_words: Vec<&str> = out.split_whitespace().collect();
         assert_eq!(original_words, wrapped_words);
     }

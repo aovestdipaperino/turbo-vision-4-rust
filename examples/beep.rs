@@ -14,7 +14,10 @@ const CMD_BEEP: u16 = 100;
 fn main() -> turbo_vision::core::error::Result<()> {
     let mut app = Application::new()?;
 
-    let mut dialog = DialogBuilder::new().bounds(Rect::new(20, 8, 60, 19)).title("Beep Demo").build();
+    let mut dialog = DialogBuilder::new()
+        .bounds(Rect::new(20, 8, 60, 19))
+        .title("Beep Demo")
+        .build();
 
     dialog.add(Box::new(
         StaticTextBuilder::new()
@@ -23,8 +26,22 @@ fn main() -> turbo_vision::core::error::Result<()> {
             .build(),
     ));
 
-    dialog.add(Box::new(ButtonBuilder::new().bounds(Rect::new(8, 6, 18, 8)).title("Beep!").command(CMD_BEEP).default(false).build()));
-    dialog.add(Box::new(ButtonBuilder::new().bounds(Rect::new(21, 6, 31, 8)).title("Close").command(CM_OK).default(true).build()));
+    dialog.add(Box::new(
+        ButtonBuilder::new()
+            .bounds(Rect::new(8, 6, 18, 8))
+            .title("Beep!")
+            .command(CMD_BEEP)
+            .default(false)
+            .build(),
+    ));
+    dialog.add(Box::new(
+        ButtonBuilder::new()
+            .bounds(Rect::new(21, 6, 31, 8))
+            .title("Close")
+            .command(CM_OK)
+            .default(true)
+            .build(),
+    ));
 
     loop {
         let result = dialog.execute(&mut app);

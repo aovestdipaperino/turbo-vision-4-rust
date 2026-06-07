@@ -22,13 +22,13 @@
 //       sorted.set_selection(idx);
 //   }
 
-use crate::core::geometry::Rect;
-use crate::core::event::Event;
-use crate::core::state::StateFlags;
-use crate::core::command::CommandId;
-use crate::terminal::Terminal;
-use super::view::View;
 use super::list_viewer::{ListViewer, ListViewerState};
+use super::view::View;
+use crate::core::command::CommandId;
+use crate::core::event::Event;
+use crate::core::geometry::Rect;
+use crate::core::state::StateFlags;
+use crate::terminal::Terminal;
 
 /// SortedListBox - A list that maintains items in sorted order
 ///
@@ -54,7 +54,7 @@ impl SortedListBox {
             state: 0,
             _on_select_command: on_select_command,
             case_sensitive: false,
-        palette_chain: None,
+            palette_chain: None,
         }
     }
 
@@ -94,7 +94,9 @@ impl SortedListBox {
 
     /// Get the currently selected item text
     pub fn get_selected_item(&self) -> Option<&str> {
-        self.list_state.focused.and_then(|idx| self.items.get(idx).map(|s| s.as_str()))
+        self.list_state
+            .focused
+            .and_then(|idx| self.items.get(idx).map(|s| s.as_str()))
     }
 
     /// Set the selected item by index
@@ -115,11 +117,13 @@ impl SortedListBox {
     /// Returns the index of the item if found using binary search.
     pub fn find_exact(&self, text: &str) -> Option<usize> {
         if self.case_sensitive {
-            self.items.binary_search_by(|item| item.as_str().cmp(text)).ok()
+            self.items
+                .binary_search_by(|item| item.as_str().cmp(text))
+                .ok()
         } else {
-            self.items.binary_search_by(|item| {
-                item.to_lowercase().as_str().cmp(&text.to_lowercase())
-            }).ok()
+            self.items
+                .binary_search_by(|item| item.to_lowercase().as_str().cmp(&text.to_lowercase()))
+                .ok()
         }
     }
 
@@ -150,14 +154,18 @@ impl SortedListBox {
             Ok(idx) => {
                 // Found exact prefix match, walk backwards to find the first match
                 let mut first_idx = idx;
-                while first_idx > 0 && compare_fn(&self.items[first_idx - 1]) == std::cmp::Ordering::Equal {
+                while first_idx > 0
+                    && compare_fn(&self.items[first_idx - 1]) == std::cmp::Ordering::Equal
+                {
                     first_idx -= 1;
                 }
                 Some(first_idx)
             }
             Err(insertion_point) => {
                 // Check if the item at insertion_point starts with prefix
-                if insertion_point < self.items.len() && self.items[insertion_point].starts_with(prefix) {
+                if insertion_point < self.items.len()
+                    && self.items[insertion_point].starts_with(prefix)
+                {
                     Some(insertion_point)
                 } else {
                     None
@@ -179,7 +187,9 @@ impl SortedListBox {
             Ok(idx) => {
                 // Found exact prefix match, walk backwards to find the first match
                 let mut first_idx = idx;
-                while first_idx > 0 && compare_fn(&self.items[first_idx - 1]) == std::cmp::Ordering::Equal {
+                while first_idx > 0
+                    && compare_fn(&self.items[first_idx - 1]) == std::cmp::Ordering::Equal
+                {
                     first_idx -= 1;
                 }
                 Some(first_idx)
@@ -219,19 +229,21 @@ impl SortedListBox {
         if self.case_sensitive {
             self.items.sort();
         } else {
-            self.items.sort_by(|a, b| a.to_lowercase().cmp(&b.to_lowercase()));
+            self.items
+                .sort_by(|a, b| a.to_lowercase().cmp(&b.to_lowercase()));
         }
     }
 
     /// Find the insertion point for a new item using binary search
     fn find_insertion_point(&self, item: &str) -> usize {
         if self.case_sensitive {
-            self.items.binary_search_by(|probe| probe.as_str().cmp(item))
+            self.items
+                .binary_search_by(|probe| probe.as_str().cmp(item))
                 .unwrap_or_else(|idx| idx)
         } else {
-            self.items.binary_search_by(|probe| {
-                probe.to_lowercase().as_str().cmp(&item.to_lowercase())
-            }).unwrap_or_else(|idx| idx)
+            self.items
+                .binary_search_by(|probe| probe.to_lowercase().as_str().cmp(&item.to_lowercase()))
+                .unwrap_or_else(|idx| idx)
         }
     }
 }
@@ -246,9 +258,8 @@ impl View for SortedListBox {
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        
-        use crate::core::draw::DrawBuffer;
         use super::view::write_line_to_terminal;
+        use crate::core::draw::DrawBuffer;
 
         let width = self.bounds.width_clamped() as usize;
         let height = self.bounds.height_clamped() as usize;
@@ -271,7 +282,11 @@ impl View for SortedListBox {
 
             if item_idx < self.items.len() {
                 let is_selected = Some(item_idx) == self.list_state.focused;
-                let color = if is_selected { color_selected } else { color_normal };
+                let color = if is_selected {
+                    color_selected
+                } else {
+                    color_normal
+                };
 
                 let text = &self.items[item_idx];
                 buf.move_str(0, text, color);
@@ -327,10 +342,9 @@ impl View for SortedListBox {
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        use crate::core::palette::{palettes, Palette};
+        use crate::core::palette::{Palette, palettes};
         Some(Palette::from_slice(palettes::CP_LISTBOX))
     }
-
 }
 
 // Implement ListViewer trait for standard navigation
@@ -357,7 +371,11 @@ pub struct SortedListBoxBuilder {
 
 impl SortedListBoxBuilder {
     pub fn new() -> Self {
-        Self { bounds: None, on_select_command: 0, case_sensitive: false }
+        Self {
+            bounds: None,
+            on_select_command: 0,
+            case_sensitive: false,
+        }
     }
 
     #[must_use]

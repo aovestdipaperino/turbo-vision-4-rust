@@ -17,10 +17,12 @@
 // Rust composition:
 //   View trait + MenuViewer trait → MenuBar, MenuBox (embed MenuViewerState)
 
-use crate::core::geometry::Rect;
-use crate::core::event::{Event, EventType, KeyCode, KB_UP, KB_DOWN, KB_ENTER, KB_ESC, MB_LEFT_BUTTON};
-use crate::core::menu_data::{Menu, MenuItem};
 use super::view::View;
+use crate::core::event::{
+    Event, EventType, KB_DOWN, KB_ENTER, KB_ESC, KB_UP, KeyCode, MB_LEFT_BUTTON,
+};
+use crate::core::geometry::Rect;
+use crate::core::menu_data::{Menu, MenuItem};
 
 /// State management for menu viewer components
 ///
@@ -191,12 +193,18 @@ impl MenuViewerState {
                     // Check if this item matches the key code
                     // For now, we'll just check MenuItem::Regular key_code
                     match item {
-                        MenuItem::Regular { key_code: item_key, enabled: true, .. } => {
+                        MenuItem::Regular {
+                            key_code: item_key,
+                            enabled: true,
+                            ..
+                        } => {
                             if *item_key == key_code {
                                 return Some(i);
                             }
                         }
-                        MenuItem::SubMenu { key_code: item_key, .. } => {
+                        MenuItem::SubMenu {
+                            key_code: item_key, ..
+                        } => {
                             if *item_key == key_code {
                                 return Some(i);
                             }

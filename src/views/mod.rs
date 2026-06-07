@@ -53,72 +53,72 @@
 //! window.add(Box::new(button));
 //! ```
 
-pub mod view;
-pub mod group;
-pub mod window;
-pub mod frame;
-pub mod dialog;
-pub mod desktop;
-pub mod status_line;
-pub mod menu_bar;
-pub mod menu_viewer;
-pub mod menu_box;
-pub mod button;
-pub mod static_text;
-pub mod input_line;
-pub mod label;
-pub mod scrollbar;
-pub mod scroller;
-pub mod indicator;
-pub mod text_viewer;
-pub mod cluster;
-pub mod checkbox;
-pub mod radiobutton;
-pub mod listbox;
-pub mod sorted_listbox;
-pub mod list_viewer;
-pub mod history_viewer;
-pub mod history_window;
-pub mod history;
-pub mod paramtext;
+pub mod ansi_background;
 pub mod background;
-pub mod memo;
-pub mod editor;
+pub mod button;
+pub mod chdir_dialog;
+pub mod checkbox;
+pub mod cluster;
+pub mod color_dialog;
+pub mod color_selector;
+pub mod desktop;
+pub mod dialog;
+pub mod dir_listbox;
 pub mod edit_window;
-pub mod file_editor;
+pub mod editor;
 pub mod editor_traits;
 pub mod file_dialog;
+pub mod file_editor;
 pub mod file_list;
-pub mod dir_listbox;
-pub mod msgbox;
-pub mod validator;
-pub mod lookup_validator;
-pub mod picture_validator;
-pub mod syntax;
-pub mod help_file;
-pub mod help_viewer;
-pub mod help_window;
+pub mod frame;
+pub mod group;
 pub mod help_context;
-pub mod outline;
-pub mod terminal_widget;
-pub mod log_window;
-pub mod chdir_dialog;
+pub mod help_file;
 pub mod help_index;
 pub mod help_toc;
-pub mod color_selector;
-pub mod color_dialog;
-pub mod ansi_background;
+pub mod help_viewer;
+pub mod help_window;
+pub mod history;
+pub mod history_viewer;
+pub mod history_window;
+pub mod indicator;
+pub mod input_line;
 pub mod kitty_image;
+pub mod label;
+pub mod list_viewer;
+pub mod listbox;
+pub mod log_window;
+pub mod lookup_validator;
+pub mod memo;
+pub mod menu_bar;
+pub mod menu_box;
+pub mod menu_viewer;
+pub mod msgbox;
+pub mod outline;
+pub mod paramtext;
+pub mod picture_validator;
+pub mod radiobutton;
+pub mod scrollbar;
+pub mod scroller;
+pub mod sorted_listbox;
+pub mod static_text;
+pub mod status_line;
+pub mod syntax;
+pub mod terminal_widget;
+pub mod text_viewer;
+pub mod validator;
+pub mod view;
+pub mod window;
 
-#[doc(inline)]
-pub use view::{View, ViewId, IdleView};
-#[doc(inline)]
-pub use list_viewer::{ListViewer, ListViewerState};
-#[doc(inline)]
-pub use menu_viewer::{MenuViewer, MenuViewerState};
-#[doc(inline)]
-pub use menu_box::MenuBox;
 #[doc(inline)]
 pub use cluster::{Cluster, ClusterState};
 #[doc(inline)]
 pub use label::Label;
+#[doc(inline)]
+pub use list_viewer::{ListViewer, ListViewerState};
+#[doc(inline)]
+pub use menu_box::MenuBox;
+#[doc(inline)]
+pub use menu_viewer::{MenuViewer, MenuViewerState};
+#[doc(inline)]
+pub use view::{IdleView, View, ViewId};

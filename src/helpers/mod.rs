@@ -6,8 +6,7 @@ pub mod msgbox;
 
 // Re-export commonly used functions and constants
 pub use msgbox::{
-    message_box, message_box_rect, input_box, input_box_rect,
-    MF_WARNING, MF_ERROR, MF_INFORMATION, MF_CONFIRMATION, MF_ABOUT,
-    MF_YES_BUTTON, MF_NO_BUTTON, MF_OK_BUTTON, MF_CANCEL_BUTTON,
-    MF_YES_NO_CANCEL, MF_OK_CANCEL,
+    MF_ABOUT, MF_CANCEL_BUTTON, MF_CONFIRMATION, MF_ERROR, MF_INFORMATION, MF_NO_BUTTON,
+    MF_OK_BUTTON, MF_OK_CANCEL, MF_WARNING, MF_YES_BUTTON, MF_YES_NO_CANCEL, input_box,
+    input_box_rect, message_box, message_box_rect,
 };

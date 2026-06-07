@@ -2,7 +2,7 @@
 
 //! Label view - static text display with optional linked control focus.
 
-use super::view::{write_line_to_terminal, View, ViewId};
+use super::view::{View, ViewId, write_line_to_terminal};
 use crate::core::draw::DrawBuffer;
 use crate::core::event::{Event, EventType};
 use crate::core::geometry::Rect;
@@ -25,7 +25,7 @@ impl Label {
             bounds,
             text: text.to_string(),
             link: None,
-        palette_chain: None,
+            palette_chain: None,
             state: 0,
             options: OF_POST_PROCESS, // Labels need PostProcess to handle keyboard shortcuts
         }
@@ -162,7 +162,7 @@ impl View for Label {
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        use crate::core::palette::{palettes, Palette};
+        use crate::core::palette::{Palette, palettes};
         Some(Palette::from_slice(palettes::CP_LABEL))
     }
 }
@@ -176,7 +176,11 @@ pub struct LabelBuilder {
 
 impl LabelBuilder {
     pub fn new() -> Self {
-        Self { bounds: None, text: None, link: None }
+        Self {
+            bounds: None,
+            text: None,
+            link: None,
+        }
     }
 
     #[must_use]

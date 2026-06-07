@@ -6,20 +6,20 @@
 // - RangeValidator (numeric ranges)
 // - PictureValidator (format masks)
 
-use turbo_vision::app::Application;
-use turbo_vision::core::geometry::Rect;
-use turbo_vision::core::command::{CM_OK, CM_CANCEL};
-use turbo_vision::views::{
-    dialog::DialogBuilder,
-    button::ButtonBuilder,
-    static_text::StaticTextBuilder,
-    label::LabelBuilder,
-    input_line::InputLineBuilder,
-    validator::{FilterValidator, RangeValidator, Validator},
-    picture_validator::PictureValidator,
-};
-use std::rc::Rc;
 use std::cell::RefCell;
+use std::rc::Rc;
+use turbo_vision::app::Application;
+use turbo_vision::core::command::{CM_CANCEL, CM_OK};
+use turbo_vision::core::geometry::Rect;
+use turbo_vision::views::{
+    button::ButtonBuilder,
+    dialog::DialogBuilder,
+    input_line::InputLineBuilder,
+    label::LabelBuilder,
+    picture_validator::PictureValidator,
+    static_text::StaticTextBuilder,
+    validator::{FilterValidator, RangeValidator, Validator},
+};
 
 fn main() -> turbo_vision::core::error::Result<()> {
     let mut app = Application::new()?;
@@ -40,7 +40,12 @@ fn demo_all_validators(app: &mut Application) {
     let dialog_y = (height - dialog_height) / 2;
 
     let mut dialog = DialogBuilder::new()
-        .bounds(Rect::new(dialog_x, dialog_y, dialog_x + dialog_width, dialog_y + dialog_height))
+        .bounds(Rect::new(
+            dialog_x,
+            dialog_y,
+            dialog_x + dialog_width,
+            dialog_y + dialog_height,
+        ))
         .title("All Validator Types")
         .build();
 
@@ -158,11 +163,9 @@ fn demo_all_validators(app: &mut Application) {
         .max_length(20)
         .data(phone_data.clone())
         .build();
-    phone_input.set_validator(
-        Rc::new(RefCell::new(
-            PictureValidator::new("(###) ###-####")
-        ))
-    );
+    phone_input.set_validator(Rc::new(RefCell::new(PictureValidator::new(
+        "(###) ###-####",
+    ))));
     dialog.add(Box::new(phone_input));
 
     let phone_hint = StaticTextBuilder::new()
@@ -185,11 +188,7 @@ fn demo_all_validators(app: &mut Application) {
         .max_length(10)
         .data(date_data.clone())
         .build();
-    date_input.set_validator(
-        Rc::new(RefCell::new(
-            PictureValidator::new("##/##/####")
-        ))
-    );
+    date_input.set_validator(Rc::new(RefCell::new(PictureValidator::new("##/##/####"))));
     dialog.add(Box::new(date_input));
 
     let date_hint = StaticTextBuilder::new()
@@ -212,11 +211,7 @@ fn demo_all_validators(app: &mut Application) {
         .max_length(9)
         .data(code_data.clone())
         .build();
-    code_input.set_validator(
-        Rc::new(RefCell::new(
-            PictureValidator::new("@@@@-####")
-        ))
-    );
+    code_input.set_validator(Rc::new(RefCell::new(PictureValidator::new("@@@@-####"))));
     dialog.add(Box::new(code_input));
 
     let code_hint = StaticTextBuilder::new()
@@ -265,22 +260,38 @@ fn demo_all_validators(app: &mut Application) {
         // Filter/Range validators
         let field1_text = field1_data.borrow().clone();
         let field1_valid = field1_validator.borrow().is_valid(&field1_text);
-        println!("Field 1 (Digits only): \"{}\" - {}", field1_text, if field1_valid { "VALID" } else { "INVALID" });
+        println!(
+            "Field 1 (Digits only): \"{}\" - {}",
+            field1_text,
+            if field1_valid { "VALID" } else { "INVALID" }
+        );
         all_valid &= field1_valid;
 
         let field2_text = field2_data.borrow().clone();
         let field2_valid = field2_validator.borrow().is_valid(&field2_text);
-        println!("Field 2 (0-100): \"{}\" - {}", field2_text, if field2_valid { "VALID" } else { "INVALID" });
+        println!(
+            "Field 2 (0-100): \"{}\" - {}",
+            field2_text,
+            if field2_valid { "VALID" } else { "INVALID" }
+        );
         all_valid &= field2_valid;
 
         let field3_text = field3_data.borrow().clone();
         let field3_valid = field3_validator.borrow().is_valid(&field3_text);
-        println!("Field 3 (-50 to 50): \"{}\" - {}", field3_text, if field3_valid { "VALID" } else { "INVALID" });
+        println!(
+            "Field 3 (-50 to 50): \"{}\" - {}",
+            field3_text,
+            if field3_valid { "VALID" } else { "INVALID" }
+        );
         all_valid &= field3_valid;
 
         let field4_text = field4_data.borrow().clone();
         let field4_valid = field4_validator.borrow().is_valid(&field4_text);
-        println!("Field 4 (0x00-0xFF): \"{}\" - {}", field4_text, if field4_valid { "VALID" } else { "INVALID" });
+        println!(
+            "Field 4 (0x00-0xFF): \"{}\" - {}",
+            field4_text,
+            if field4_valid { "VALID" } else { "INVALID" }
+        );
         all_valid &= field4_valid;
 
         // Picture mask validators
@@ -289,7 +300,14 @@ fn demo_all_validators(app: &mut Application) {
         println!("Date: {}", date_data.borrow());
         println!("Code: {}", code_data.borrow());
 
-        println!("\nOverall: {}", if all_valid { "ALL FIELDS VALID" } else { "SOME FIELDS INVALID" });
+        println!(
+            "\nOverall: {}",
+            if all_valid {
+                "ALL FIELDS VALID"
+            } else {
+                "SOME FIELDS INVALID"
+            }
+        );
     } else {
         println!("\nDialog cancelled");
     }

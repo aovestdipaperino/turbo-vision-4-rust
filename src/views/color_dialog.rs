@@ -6,16 +6,16 @@
 //!
 //! Provides a dialog for interactive color selection with live preview.
 
-use crate::core::geometry::Rect;
-use crate::core::event::Event;
-use crate::core::command::{CM_OK, CM_CANCEL};
-use crate::core::palette::Attr;
-use crate::terminal::Terminal;
-use super::dialog::Dialog;
-use super::color_selector::ColorSelector;
 use super::button::Button;
+use super::color_selector::ColorSelector;
+use super::dialog::Dialog;
 use super::static_text::StaticText;
 use super::{View, ViewId};
+use crate::core::command::{CM_CANCEL, CM_OK};
+use crate::core::event::Event;
+use crate::core::geometry::Rect;
+use crate::core::palette::Attr;
+use crate::terminal::Terminal;
 
 /// Color Dialog
 /// Matches Borland: TColorDialog (simplified implementation)
@@ -40,13 +40,13 @@ impl ColorDialog {
         // Instructions
         dialog.add(Box::new(StaticText::new(
             Rect::new(2, 2, bounds.width() - 4, 3),
-            "Select foreground and background colors:"
+            "Select foreground and background colors:",
         )));
 
         // Foreground color selector
         dialog.add(Box::new(StaticText::new(
             Rect::new(2, 4, 20, 5),
-            "Foreground:"
+            "Foreground:",
         )));
 
         let fg_selector = ColorSelector::new(Rect::new(2, 5, 26, 8));
@@ -55,7 +55,7 @@ impl ColorDialog {
         // Background color selector
         dialog.add(Box::new(StaticText::new(
             Rect::new(2, 9, 20, 10),
-            "Background:"
+            "Background:",
         )));
 
         let bg_selector = ColorSelector::new(Rect::new(2, 10, 26, 13));
@@ -64,26 +64,36 @@ impl ColorDialog {
         // Preview area (would show the colors in action)
         dialog.add(Box::new(StaticText::new(
             Rect::new(28, 5, bounds.width() - 4, 6),
-            "Preview:"
+            "Preview:",
         )));
         dialog.add(Box::new(StaticText::new(
             Rect::new(28, 6, bounds.width() - 4, 8),
-            "Sample text with\nselected colors"
+            "Sample text with\nselected colors",
         )));
 
         // Buttons
         dialog.add(Box::new(Button::new(
-            Rect::new(bounds.width() - 24, bounds.height() - 4, bounds.width() - 14, bounds.height() - 2),
+            Rect::new(
+                bounds.width() - 24,
+                bounds.height() - 4,
+                bounds.width() - 14,
+                bounds.height() - 2,
+            ),
             "OK",
             CM_OK,
-            true
+            true,
         )));
 
         dialog.add(Box::new(Button::new(
-            Rect::new(bounds.width() - 12, bounds.height() - 4, bounds.width() - 2, bounds.height() - 2),
+            Rect::new(
+                bounds.width() - 12,
+                bounds.height() - 4,
+                bounds.width() - 2,
+                bounds.height() - 2,
+            ),
             "Cancel",
             CM_CANCEL,
-            false
+            false,
         )));
 
         Self {

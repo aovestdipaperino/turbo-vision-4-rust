@@ -2,12 +2,12 @@
 
 //! Dialog view - modal window for user interaction with OK/Cancel buttons.
 
-use crate::core::geometry::Rect;
-use crate::core::event::{Event, EventType, KB_ESC_ESC, KB_ENTER};
-use crate::core::command::{CommandId, CM_CANCEL};
-use crate::terminal::Terminal;
 use super::view::{View, ViewId};
 use super::window::Window;
+use crate::core::command::{CM_CANCEL, CommandId};
+use crate::core::event::{Event, EventType, KB_ENTER, KB_ESC_ESC};
+use crate::core::geometry::Rect;
+use crate::terminal::Terminal;
 use std::time::Duration;
 
 pub struct Dialog {
@@ -185,7 +185,12 @@ impl Dialog {
 
             // Poll for event with 20ms timeout (matches magiblot's eventTimeoutMs)
             // This blocks until an event arrives or timeout occurs
-            match app.terminal.poll_event(Duration::from_millis(20)).ok().flatten() {
+            match app
+                .terminal
+                .poll_event(Duration::from_millis(20))
+                .ok()
+                .flatten()
+            {
                 Some(mut event) => {
                     // Handle CM_REDRAW at the application level first
                     if event.what == EventType::Broadcast
@@ -289,7 +294,7 @@ impl View for Dialog {
         // Non-modal dialogs (added to desktop) should let commands pass through
         // Matches Borland: TDialog::handleEvent() checks for these commands
         if event.what == EventType::Command {
-            use crate::core::command::{CM_CANCEL, CM_OK, CM_YES, CM_NO};
+            use crate::core::command::{CM_CANCEL, CM_NO, CM_OK, CM_YES};
             use crate::core::state::SF_MODAL;
 
             // Only intercept commands if this dialog is modal
@@ -364,7 +369,9 @@ impl View for Dialog {
     fn valid(&mut self, command: CommandId) -> bool {
         // Dialogs validate on OK/Yes (but not Cancel/No)
         // Matches Borland: TDialog::valid() (tdialog.cc:88-104)
-        if command == CM_CANCEL || command == 13 /* CM_NO */ {
+        if command == CM_CANCEL || command == 13
+        /* CM_NO */
+        {
             // Cancel/No always succeeds without validation
             return true;
         } else {
@@ -653,7 +660,7 @@ mod tests {
 
         // Test 4: Standard commands (OK, Cancel, etc.) should still work
         {
-            use crate::core::command::{CM_OK, CM_CANCEL, CM_YES, CM_NO};
+            use crate::core::command::{CM_CANCEL, CM_NO, CM_OK, CM_YES};
 
             for cmd in [CM_OK, CM_CANCEL, CM_YES, CM_NO] {
                 let mut dialog = Dialog::new(Rect::new(0, 0, 40, 10), "Test");

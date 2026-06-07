@@ -77,7 +77,7 @@ impl PictureValidator {
             '#' => ch.is_ascii_digit(),
             '@' => ch.is_ascii_alphabetic(),
             '!' => true,
-            '*' => true, // Optional marker - accept anything
+            '*' => true,        // Optional marker - accept anything
             _ => ch == mask_ch, // Literal must match
         }
     }
@@ -365,7 +365,7 @@ mod tests {
 
         // Invalid dates
         assert!(!validator.is_valid("12-25-2023")); // Wrong separator
-        assert!(!validator.is_valid("1/1/2023"));   // Missing leading zeros
+        assert!(!validator.is_valid("1/1/2023")); // Missing leading zeros
     }
 
     #[test]
@@ -438,9 +438,7 @@ mod tests {
 
     #[test]
     fn test_picture_validator_builder() {
-        let validator = PictureValidatorBuilder::new()
-            .mask("##/##/####")
-            .build();
+        let validator = PictureValidatorBuilder::new().mask("##/##/####").build();
 
         assert!(validator.is_valid("12/25/2023"));
         assert_eq!(validator.mask(), "##/##/####");

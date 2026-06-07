@@ -8,7 +8,10 @@
 
 use turbo_vision::app::Application;
 use turbo_vision::core::command::{CM_NO, CM_YES};
-use turbo_vision::views::msgbox::{confirmation_box, confirmation_box_ok_cancel, confirmation_box_yes_no, input_box, message_box_error, message_box_ok, message_box_warning};
+use turbo_vision::views::msgbox::{
+    confirmation_box, confirmation_box_ok_cancel, confirmation_box_yes_no, input_box,
+    message_box_error, message_box_ok, message_box_warning,
+};
 
 fn main() -> turbo_vision::core::error::Result<()> {
     let mut app = Application::new()?;

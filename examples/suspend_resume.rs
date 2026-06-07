@@ -17,7 +17,10 @@ const CMD_SUSPEND: u16 = 100;
 fn main() -> turbo_vision::core::error::Result<()> {
     let mut app = Application::new()?;
 
-    let mut dialog = DialogBuilder::new().bounds(Rect::new(10, 3, 65, 18)).title("Suspend/Resume Demo").build();
+    let mut dialog = DialogBuilder::new()
+        .bounds(Rect::new(10, 3, 65, 18))
+        .title("Suspend/Resume Demo")
+        .build();
 
     dialog.add(Box::new(
         StaticTextBuilder::new()
@@ -31,8 +34,21 @@ fn main() -> turbo_vision::core::error::Result<()> {
             .build(),
     ));
 
-    dialog.add(Box::new(ButtonBuilder::new().bounds(Rect::new(33, 9, 44, 11)).title("Quit").command(CM_QUIT).default(true).build()));
-    dialog.add(Box::new(ButtonBuilder::new().bounds(Rect::new(11, 9, 22, 11)).title("Suspend").command(CMD_SUSPEND).build()));
+    dialog.add(Box::new(
+        ButtonBuilder::new()
+            .bounds(Rect::new(33, 9, 44, 11))
+            .title("Quit")
+            .command(CM_QUIT)
+            .default(true)
+            .build(),
+    ));
+    dialog.add(Box::new(
+        ButtonBuilder::new()
+            .bounds(Rect::new(11, 9, 22, 11))
+            .title("Suspend")
+            .command(CMD_SUSPEND)
+            .build(),
+    ));
 
     app.desktop.add(Box::new(dialog));
 
@@ -40,7 +56,12 @@ fn main() -> turbo_vision::core::error::Result<()> {
         app.desktop.draw(&mut app.terminal);
         let _ = app.terminal.flush();
 
-        if let Some(mut event) = app.terminal.poll_event(Duration::from_millis(50)).ok().flatten() {
+        if let Some(mut event) = app
+            .terminal
+            .poll_event(Duration::from_millis(50))
+            .ok()
+            .flatten()
+        {
             app.desktop.handle_event(&mut event);
 
             if event.what == EventType::Command {
@@ -66,7 +87,11 @@ fn main() -> turbo_vision::core::error::Result<()> {
                         app.resume()?;
 
                         // Show a message that we're back
-                        message_box(&mut app, "Welcome back! Application resumed.", MF_INFORMATION | MF_OK_BUTTON);
+                        message_box(
+                            &mut app,
+                            "Welcome back! Application resumed.",
+                            MF_INFORMATION | MF_OK_BUTTON,
+                        );
                     }
                     CM_QUIT => break,
                     _ => {}

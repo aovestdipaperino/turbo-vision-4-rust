@@ -191,7 +191,11 @@ struct BiorhythmChart {
 impl BiorhythmChart {
     /// Create a new biorhythm chart view with the given bounds and shared data
     fn new(bounds: Rect, biorhythm: Rc<RefCell<Option<Biorhythm>>>) -> Self {
-        Self { bounds, biorhythm, state: SF_VISIBLE }
+        Self {
+            bounds,
+            biorhythm,
+            state: SF_VISIBLE,
+        }
     }
 }
 
@@ -270,18 +274,34 @@ impl View for BiorhythmChart {
                     // Draw cycles with colored blocks and different scaling factors
                     let cycles: [(char, Attr, f64, fn(&Biorhythm, i32) -> f64); 3] = [
                         // Physical: scale by 1.1 to extend range (taller peaks/troughs)
-                        ('■', Attr::new(TvColor::Red, TvColor::LightGray), 0.9, |b, d| b.physical(d)),
+                        (
+                            '■',
+                            Attr::new(TvColor::Red, TvColor::LightGray),
+                            0.9,
+                            |b, d| b.physical(d),
+                        ),
                         // Emotional: scale by 0.9 to compress range (shorter peaks/troughs)
-                        ('■', Attr::new(TvColor::Green, TvColor::LightGray), 1.0, |b, d| b.emotional(d)),
+                        (
+                            '■',
+                            Attr::new(TvColor::Green, TvColor::LightGray),
+                            1.0,
+                            |b, d| b.emotional(d),
+                        ),
                         // Intellectual: normal scaling
-                        ('■', Attr::new(TvColor::Blue, TvColor::LightGray), 0.8, |b, d| b.intellectual(d)),
+                        (
+                            '■',
+                            Attr::new(TvColor::Blue, TvColor::LightGray),
+                            0.8,
+                            |b, d| b.intellectual(d),
+                        ),
                     ];
 
                     for (symbol, color, scale_factor, calc_fn) in &cycles {
                         for i in 0..days_range {
                             let day_offset = start_offset + i as i32;
                             let value = calc_fn(bio, day_offset);
-                            let y_offset = (-value * (chart_height as f64 / 2.0) * scale_factor) as i32;
+                            let y_offset =
+                                (-value * (chart_height as f64 / 2.0) * scale_factor) as i32;
                             let target_y = (center_y as i32 + y_offset) as usize;
 
                             if target_y == y {
@@ -310,7 +330,12 @@ impl View for BiorhythmChart {
                     line.move_str(59, ":Today", colors::DIALOG_NORMAL);
                 }
 
-                write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y + y as i16, &line);
+                write_line_to_terminal(
+                    terminal,
+                    self.bounds.a.x,
+                    self.bounds.a.y + y as i16,
+                    &line,
+                );
             }
         } else {
             // No data - show prompt
@@ -338,14 +363,26 @@ impl View for BiorhythmChart {
 }
 
 /// Create birth date input dialog with validators and return dialog + shared field data
-fn create_biorhythm_dialog(birth_date: Option<&NaiveDate>) -> (turbo_vision::views::dialog::Dialog, Rc<RefCell<String>>, Rc<RefCell<String>>, Rc<RefCell<String>>) {
-    use turbo_vision::views::{button::ButtonBuilder, input_line::InputLineBuilder, static_text::StaticTextBuilder};
+fn create_biorhythm_dialog(
+    birth_date: Option<&NaiveDate>,
+) -> (
+    turbo_vision::views::dialog::Dialog,
+    Rc<RefCell<String>>,
+    Rc<RefCell<String>>,
+    Rc<RefCell<String>>,
+) {
+    use turbo_vision::views::{
+        button::ButtonBuilder, input_line::InputLineBuilder, static_text::StaticTextBuilder,
+    };
 
     let dialog_width = 50i16;
     let dialog_height = 12i16;
 
     // Create dialog with dummy position - will be centered manually by caller
-    let mut dialog = DialogBuilder::new().bounds(Rect::new(0, 0, dialog_width, dialog_height)).title("Enter Birth Date").build();
+    let mut dialog = DialogBuilder::new()
+        .bounds(Rect::new(0, 0, dialog_width, dialog_height))
+        .title("Enter Birth Date")
+        .build();
 
     // Get today's date for the displayed message
     let (today_year, today_month, today_day) = {
@@ -356,17 +393,39 @@ fn create_biorhythm_dialog(birth_date: Option<&NaiveDate>) -> (turbo_vision::vie
     dialog.add(Box::new(
         StaticTextBuilder::new()
             .bounds(Rect::new(2, 1, 46, 3))
-            .text(&format!("Format: DD/MM/YYYY\nRange : 01/01/1900 - {}/{}/{}", today_day, today_month, today_year))
+            .text(&format!(
+                "Format: DD/MM/YYYY\nRange : 01/01/1900 - {}/{}/{}",
+                today_day, today_month, today_year
+            ))
             .build(),
     ));
 
-    dialog.add(Box::new(StaticTextBuilder::new().bounds(Rect::new(2, 4, 12, 5)).text("Day:").build()));
-    dialog.add(Box::new(StaticTextBuilder::new().bounds(Rect::new(2, 5, 12, 6)).text("Month:").build()));
-    dialog.add(Box::new(StaticTextBuilder::new().bounds(Rect::new(2, 6, 12, 7)).text("Year:").build()));
+    dialog.add(Box::new(
+        StaticTextBuilder::new()
+            .bounds(Rect::new(2, 4, 12, 5))
+            .text("Day:")
+            .build(),
+    ));
+    dialog.add(Box::new(
+        StaticTextBuilder::new()
+            .bounds(Rect::new(2, 5, 12, 6))
+            .text("Month:")
+            .build(),
+    ));
+    dialog.add(Box::new(
+        StaticTextBuilder::new()
+            .bounds(Rect::new(2, 6, 12, 7))
+            .text("Year:")
+            .build(),
+    ));
 
     // Convert NaiveDate to String components to fill the input lines
     let (prev_day, prev_month, prev_year) = if let Some(date) = birth_date {
-        (date.day().to_string(), date.month().to_string(), date.year().to_string())
+        (
+            date.day().to_string(),
+            date.month().to_string(),
+            date.year().to_string(),
+        )
     } else {
         (String::new(), String::new(), String::new())
     };
@@ -378,26 +437,50 @@ fn create_biorhythm_dialog(birth_date: Option<&NaiveDate>) -> (turbo_vision::vie
 
     // Input fields with validators - Day: [1-31]
     let day_validator = Rc::new(RefCell::new(DateFieldValidator::new(1, 31)));
-    let mut day_input = InputLineBuilder::new().bounds(Rect::new(12, 4, 17, 5)).max_length(2).data(Rc::clone(&day_data)).build();
+    let mut day_input = InputLineBuilder::new()
+        .bounds(Rect::new(12, 4, 17, 5))
+        .max_length(2)
+        .data(Rc::clone(&day_data))
+        .build();
     day_input.set_validator(day_validator);
     dialog.add(Box::new(day_input));
 
     // Month: [1-12]
     let month_validator = Rc::new(RefCell::new(DateFieldValidator::new(1, 12)));
-    let mut month_input = InputLineBuilder::new().bounds(Rect::new(12, 5, 17, 6)).max_length(2).data(Rc::clone(&month_data)).build();
+    let mut month_input = InputLineBuilder::new()
+        .bounds(Rect::new(12, 5, 17, 6))
+        .max_length(2)
+        .data(Rc::clone(&month_data))
+        .build();
     month_input.set_validator(month_validator);
     dialog.add(Box::new(month_input));
 
     // Year: [1900-2100]
     let year_validator = Rc::new(RefCell::new(DateFieldValidator::new(1900, 2100)));
-    let mut year_input = InputLineBuilder::new().bounds(Rect::new(12, 6, 17, 7)).max_length(4).data(Rc::clone(&year_data)).build();
+    let mut year_input = InputLineBuilder::new()
+        .bounds(Rect::new(12, 6, 17, 7))
+        .max_length(4)
+        .data(Rc::clone(&year_data))
+        .build();
     year_input.set_validator(year_validator);
     dialog.add(Box::new(year_input));
 
     // Buttons
-    dialog.add(Box::new(ButtonBuilder::new().bounds(Rect::new(15, 8, 25, 10)).title("  OK  ").command(CM_OK).default(true).build()));
     dialog.add(Box::new(
-        ButtonBuilder::new().bounds(Rect::new(27, 8, 37, 10)).title("Cancel").command(CM_CANCEL).default(false).build(),
+        ButtonBuilder::new()
+            .bounds(Rect::new(15, 8, 25, 10))
+            .title("  OK  ")
+            .command(CM_OK)
+            .default(true)
+            .build(),
+    ));
+    dialog.add(Box::new(
+        ButtonBuilder::new()
+            .bounds(Rect::new(27, 8, 37, 10))
+            .title("Cancel")
+            .command(CM_CANCEL)
+            .default(false)
+            .build(),
     ));
 
     dialog.set_initial_focus();
@@ -430,7 +513,11 @@ Semi-graphical ASCII chart";
 
 /// Parse day, month, year strings into NaiveDate (returns None if invalid)
 fn parse_birth_date(day_str: &str, month_str: &str, year_str: &str) -> Option<NaiveDate> {
-    if let (Ok(day), Ok(month), Ok(year)) = (day_str.parse::<u32>(), month_str.parse::<u32>(), year_str.parse::<i32>()) {
+    if let (Ok(day), Ok(month), Ok(year)) = (
+        day_str.parse::<u32>(),
+        month_str.parse::<u32>(),
+        year_str.parse::<i32>(),
+    ) {
         NaiveDate::from_ymd_opt(year, month, day)
     } else {
         None
@@ -440,7 +527,10 @@ fn parse_birth_date(day_str: &str, month_str: &str, year_str: &str) -> Option<Na
 /// Run modal birth date dialog with standard execute() pattern.
 /// This allows nested modals (e.g., F1 help) to work correctly.
 /// Returns a validated date if user clicks OK, None if cancelled.
-fn run_modal_birth_date_dialog(app: &mut Application, birth_date: Option<&NaiveDate>) -> Option<NaiveDate> {
+fn run_modal_birth_date_dialog(
+    app: &mut Application,
+    birth_date: Option<&NaiveDate>,
+) -> Option<NaiveDate> {
     use turbo_vision::helpers::msgbox::{MF_ERROR, MF_OK_BUTTON, message_box};
 
     // Loop until user cancels or provides valid input
@@ -509,14 +599,22 @@ fn run_modal_birth_date_dialog(app: &mut Application, birth_date: Option<&NaiveD
 }
 
 /// Calculate days alive from birth date and update shared biorhythm data
-fn process_birth_date_result(biorhythm_data: &Rc<RefCell<Option<Biorhythm>>>, birth_date: &NaiveDate) {
+fn process_birth_date_result(
+    biorhythm_data: &Rc<RefCell<Option<Biorhythm>>>,
+    birth_date: &NaiveDate,
+) {
     let today = Local::now().date_naive();
     let days_alive = (today - *birth_date).num_days().try_into().unwrap();
     *biorhythm_data.borrow_mut() = Some(Biorhythm::new(days_alive));
 }
 
 /// Process command events and return whether the application should continue running
-fn handle_command_event(command: u16, app: &mut Application, biorhythm_data: &Rc<RefCell<Option<Biorhythm>>>, birth_date: &mut Option<NaiveDate>) -> bool {
+fn handle_command_event(
+    command: u16,
+    app: &mut Application,
+    biorhythm_data: &Rc<RefCell<Option<Biorhythm>>>,
+    birth_date: &mut Option<NaiveDate>,
+) -> bool {
     match command {
         CM_BIORHYTHM => {
             // Show the birth date dialog and process the result if user confirmed
@@ -562,7 +660,9 @@ fn add_menu_bar(app: &mut Application) {
         MenuItem::separator(),
         MenuItem::with_shortcut("E~x~it", CM_QUIT, 0, "Alt+X", 0),
     ]);
-    let help_menu = Menu::from_items(vec![MenuItem::with_shortcut("~A~bout", CM_ABOUT, 0, "F1", 0)]);
+    let help_menu = Menu::from_items(vec![MenuItem::with_shortcut(
+        "~A~bout", CM_ABOUT, 0, "F1", 0,
+    )]);
     menu_bar.add_submenu(SubMenu::new("~B~iorhythm", biorhythm_menu));
     menu_bar.add_submenu(SubMenu::new("~H~elp", help_menu));
     app.set_menu_bar(menu_bar);
@@ -597,13 +697,21 @@ fn add_chart(app: &mut Application, biorhythm_data: &Rc<RefCell<Option<Biorhythm
 
     // Create and show the main dialog with chart
     let mut main_dialog = DialogBuilder::new()
-        .bounds(Rect::new(window_x, window_y, window_x + window_width, window_y + window_height))
+        .bounds(Rect::new(
+            window_x,
+            window_y,
+            window_x + window_width,
+            window_y + window_height,
+        ))
         .title("Biorhythm Calculator")
         .build();
 
     let chart_width = window_width - 2;
     let chart_height = window_height - 2;
-    let chart = BiorhythmChart::new(Rect::new(1, 1, chart_width, chart_height), Rc::clone(&biorhythm_data));
+    let chart = BiorhythmChart::new(
+        Rect::new(1, 1, chart_width, chart_height),
+        Rc::clone(&biorhythm_data),
+    );
     main_dialog.add(Box::new(chart));
     app.desktop.add(Box::new(main_dialog));
 }
@@ -637,7 +745,10 @@ fn main() -> turbo_vision::core::error::Result<()> {
         app.draw();
         app.terminal.flush()?;
 
-        if let Ok(Some(mut event)) = app.terminal.poll_event(std::time::Duration::from_millis(50)) {
+        if let Ok(Some(mut event)) = app
+            .terminal
+            .poll_event(std::time::Duration::from_millis(50))
+        {
             // Order matters (very first)
             // Convert global keyboard shortcuts to commands so that F1, Ctrl+N etc. work even when menus are closed
             handle_global_shortcuts(&mut event);
@@ -666,7 +777,12 @@ fn main() -> turbo_vision::core::error::Result<()> {
 
             // Handle custom commands
             if event.what == EventType::Command {
-                if !handle_command_event(event.command, &mut app, &biorhythm_data, &mut current_birth_date) {
+                if !handle_command_event(
+                    event.command,
+                    &mut app,
+                    &biorhythm_data,
+                    &mut current_birth_date,
+                ) {
                     app.running = false;
                 }
             }

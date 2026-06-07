@@ -2,18 +2,18 @@
 
 //! Indicator view - visual indicator for displaying scroll position or progress.
 
-use crate::core::geometry::{Point, Rect};
-use crate::core::event::Event;
-use crate::core::draw::DrawBuffer;
-use crate::terminal::Terminal;
 use super::view::{View, write_line_to_terminal};
+use crate::core::draw::DrawBuffer;
+use crate::core::event::Event;
+use crate::core::geometry::{Point, Rect};
+use crate::terminal::Terminal;
 
 /// Indicator displays window size or cursor position,
 /// typically shown in the bottom-left of an editor window.
 pub struct Indicator {
     bounds: Rect,
-    location: Point,  // Width x Height for window size display
-    modified: bool,   // Has the document been modified?
+    location: Point, // Width x Height for window size display
+    modified: bool,  // Has the document been modified?
     palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
 }
 
@@ -23,7 +23,7 @@ impl Indicator {
             bounds,
             location: Point::new(1, 1),
             modified: false,
-        palette_chain: None,
+            palette_chain: None,
         }
     }
 
@@ -92,10 +92,9 @@ impl View for Indicator {
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        use crate::core::palette::{palettes, Palette};
+        use crate::core::palette::{Palette, palettes};
         Some(Palette::from_slice(palettes::CP_INDICATOR))
     }
-
 }
 
 /// Builder for creating indicators with a fluent API.

@@ -212,11 +212,11 @@
 //! - [Borland TV Documentation](https://github.com/magiblot/tvision) - Original reference
 
 // Core modules
+pub mod app;
 pub mod core;
+pub mod helpers;
 pub mod terminal;
 pub mod views;
-pub mod app;
-pub mod helpers;
 
 // SSH server support (only available with ssh feature)
 #[cfg(feature = "ssh")]
@@ -228,58 +228,28 @@ pub mod test_util;
 
 // Re-export commonly used types
 pub mod prelude {
-    pub use crate::core::geometry::{Point, Rect};
     pub use crate::core::event::{Event, EventType, KeyCode};
+    pub use crate::core::geometry::{Point, Rect};
 
     // Explicit command re-exports (no glob imports)
     pub use crate::core::command::{
-        CommandId,
-        // Basic dialog commands
-        CM_QUIT,
-        CM_CLOSE,
-        CM_OK,
-        CM_CANCEL,
-        CM_YES,
-        CM_NO,
-        CM_DEFAULT,
-        // Internal view system commands
-        CM_REDRAW,
-        CM_COMMAND_SET_CHANGED,
-        CM_RECEIVED_FOCUS,
-        CM_RELEASED_FOCUS,
-        CM_GRAB_DEFAULT,
-        CM_RELEASE_DEFAULT,
-        CM_FILE_FOCUSED,
-        CM_FILE_DOUBLE_CLICKED,
         // Application commands
         CM_ABOUT,
         CM_BIRTHDATE,
-        CM_TEXT_VIEWER,
-        CM_CONTROLS_DEMO,
-        // File operations
-        CM_NEW,
-        CM_OPEN,
-        CM_SAVE,
-        CM_SAVE_AS,
-        CM_SAVE_ALL,
+        CM_CANCEL,
+        CM_CLOSE,
         CM_CLOSE_FILE,
-        // Edit operations
-        CM_UNDO,
-        CM_REDO,
-        CM_CUT,
+        CM_COMMAND_SET_CHANGED,
+        CM_CONTROLS_DEMO,
         CM_COPY,
-        CM_PASTE,
-        CM_SELECT_ALL,
+        CM_CUT,
+        CM_DEFAULT,
+        CM_FILE_DOUBLE_CLICKED,
+        CM_FILE_FOCUSED,
         CM_FIND,
-        CM_REPLACE,
-        CM_SEARCH_AGAIN,
         CM_FIND_IN_FILES,
         CM_GOTO_LINE,
-        // View commands
-        CM_ZOOM_IN,
-        CM_ZOOM_OUT,
-        CM_TOGGLE_SIDEBAR,
-        CM_TOGGLE_STATUSBAR,
+        CM_GRAB_DEFAULT,
         // Help commands
         CM_HELP_INDEX,
         CM_KEYBOARD_REF,
@@ -287,8 +257,38 @@ pub mod prelude {
         CM_LISTBOX_DEMO,
         CM_LISTBOX_SELECT,
         CM_MEMO_DEMO,
+        // File operations
+        CM_NEW,
+        CM_NO,
+        CM_OK,
+        CM_OPEN,
+        CM_PASTE,
+        // Basic dialog commands
+        CM_QUIT,
+        CM_RECEIVED_FOCUS,
+        CM_REDO,
+        // Internal view system commands
+        CM_REDRAW,
+        CM_RELEASE_DEFAULT,
+        CM_RELEASED_FOCUS,
+        CM_REPLACE,
+        CM_SAVE,
+        CM_SAVE_ALL,
+        CM_SAVE_AS,
+        CM_SEARCH_AGAIN,
+        CM_SELECT_ALL,
+        CM_TEXT_VIEWER,
+        CM_TOGGLE_SIDEBAR,
+        CM_TOGGLE_STATUSBAR,
+        // Edit operations
+        CM_UNDO,
+        CM_YES,
+        // View commands
+        CM_ZOOM_IN,
+        CM_ZOOM_OUT,
+        CommandId,
     };
 
-    pub use crate::views::View;
     pub use crate::app::Application;
+    pub use crate::views::View;
 }

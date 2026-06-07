@@ -9,7 +9,7 @@
 
 use super::help_file::{CrossRef, HelpTopic, TextSegment};
 use super::scrollbar::ScrollBar;
-use super::view::{write_line_to_terminal, View};
+use super::view::{View, write_line_to_terminal};
 use crate::core::draw::DrawBuffer;
 use crate::core::event::{
     Event, EventType, KB_DOWN, KB_END, KB_ENTER, KB_HOME, KB_LEFT, KB_PGDN, KB_PGUP, KB_RIGHT,
@@ -33,9 +33,9 @@ pub struct HelpViewer {
     delta: Point, // Current scroll offset
     limit: Point, // Maximum scroll values
     vscrollbar: Option<Box<ScrollBar>>,
-    styled_lines: Vec<Vec<TextSegment>>,  // Lines with styled segments
-    cross_refs: Vec<CrossRef>,            // Cross-references with position info
-    selected: usize,                      // Currently selected cross-ref (1-based like Borland)
+    styled_lines: Vec<Vec<TextSegment>>, // Lines with styled segments
+    cross_refs: Vec<CrossRef>,           // Cross-references with position info
+    selected: usize,                     // Currently selected cross-ref (1-based like Borland)
     current_topic: Option<String>,
     palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
 }
@@ -53,7 +53,7 @@ impl HelpViewer {
             cross_refs: Vec::new(),
             selected: 1, // 1-based, like Borland
             current_topic: None,
-        palette_chain: None,
+            palette_chain: None,
         }
     }
 
@@ -79,7 +79,9 @@ impl HelpViewer {
         self.current_topic = Some(topic.id.clone());
 
         // Calculate maximum line width for horizontal scrolling
-        let max_line_width = self.styled_lines.iter()
+        let max_line_width = self
+            .styled_lines
+            .iter()
             .map(|segments| segments.iter().map(|s| s.len()).sum::<usize>())
             .max()
             .unwrap_or(0) as i16;
@@ -179,7 +181,10 @@ impl HelpViewer {
         let visible_end = visible_start + self.bounds.height();
 
         // Collect visible cross-refs (1-based indices)
-        let visible: Vec<usize> = self.cross_refs.iter().enumerate()
+        let visible: Vec<usize> = self
+            .cross_refs
+            .iter()
+            .enumerate()
             .filter(|(_, cr)| cr.line >= visible_start && cr.line < visible_end)
             .map(|(i, _)| i + 1) // Convert to 1-based
             .collect();
@@ -193,7 +198,11 @@ impl HelpViewer {
             visible.iter().find(|&&idx| idx > self.selected).copied()
         } else {
             // Find the last visible cross-ref before current selection
-            visible.iter().rev().find(|&&idx| idx < self.selected).copied()
+            visible
+                .iter()
+                .rev()
+                .find(|&&idx| idx < self.selected)
+                .copied()
         }
     }
 
@@ -310,7 +319,9 @@ impl View for HelpViewer {
         }
 
         // Calculate maximum line width for horizontal scrolling
-        let max_line_width = self.styled_lines.iter()
+        let max_line_width = self
+            .styled_lines
+            .iter()
             .map(|segments| segments.iter().map(|s| s.len()).sum::<usize>())
             .max()
             .unwrap_or(0) as i16;
@@ -333,7 +344,7 @@ impl View for HelpViewer {
 
     fn draw(&mut self, terminal: &mut Terminal) {
         let start_line = self.delta.y as usize;
-        let h_offset = self.delta.x as usize;  // Horizontal scroll offset
+        let h_offset = self.delta.x as usize; // Horizontal scroll offset
 
         // Determine display width (leave room for scrollbar if present)
         let display_width = if self.vscrollbar.is_some() {
@@ -345,12 +356,12 @@ impl View for HelpViewer {
         // Get colors from palette for rich text rendering
         // Matches Borland: THelpViewer::draw() (help.cc:54-70)
         // Extended for bold, italic, code styling
-        let normal = self.map_color(1);      // Normal text
-        let keyword = self.map_color(2);     // Link text
+        let normal = self.map_color(1); // Normal text
+        let keyword = self.map_color(2); // Link text
         let sel_keyword = self.map_color(3); // Selected link
-        let bold_color = self.map_color(4);  // Bold text
+        let bold_color = self.map_color(4); // Bold text
         let italic_color = self.map_color(5); // Italic text
-        let code_color = self.map_color(6);  // Code text
+        let code_color = self.map_color(6); // Code text
 
         for row in 0..self.bounds.height() {
             let line_num = (start_line + row as usize + 1) as i16; // 1-based line number
@@ -361,7 +372,7 @@ impl View for HelpViewer {
 
             if line_idx < self.styled_lines.len() {
                 let segments = &self.styled_lines[line_idx];
-                let mut abs_col = 0usize;  // Absolute column in the line
+                let mut abs_col = 0usize; // Absolute column in the line
 
                 for segment in segments {
                     let text = segment.text();
@@ -378,22 +389,33 @@ impl View for HelpViewer {
                             TextSegment::Code(_) => code_color,
                             TextSegment::Link { .. } => {
                                 // Find matching cross-ref to check if selected
-                                let is_selected = self.cross_refs.iter().enumerate().any(|(i, r)| {
-                                    r.line == line_num && r.offset == abs_col as i16 && i + 1 == self.selected
-                                });
-                                if is_selected {
-                                    sel_keyword
-                                } else {
-                                    keyword
-                                }
+                                let is_selected =
+                                    self.cross_refs.iter().enumerate().any(|(i, r)| {
+                                        r.line == line_num
+                                            && r.offset == abs_col as i16
+                                            && i + 1 == self.selected
+                                    });
+                                if is_selected { sel_keyword } else { keyword }
                             }
                         };
 
                         // Calculate visible portion of the segment
-                        let visible_start = if seg_start >= h_offset { seg_start - h_offset } else { 0 };
-                        let text_start = if seg_start >= h_offset { 0 } else { h_offset - seg_start };
+                        let visible_start = if seg_start >= h_offset {
+                            seg_start - h_offset
+                        } else {
+                            0
+                        };
+                        let text_start = if seg_start >= h_offset {
+                            0
+                        } else {
+                            h_offset - seg_start
+                        };
                         let text_end = (seg_end - h_offset).min(display_width);
-                        let visible_len = if text_end > visible_start { text_end - visible_start } else { 0 };
+                        let visible_len = if text_end > visible_start {
+                            text_end - visible_start
+                        } else {
+                            0
+                        };
 
                         if visible_len > 0 && text_start < text.len() {
                             let text_slice_end = (text_start + visible_len).min(text.len());
@@ -563,10 +585,9 @@ impl View for HelpViewer {
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        use crate::core::palette::{palettes, Palette};
+        use crate::core::palette::{Palette, palettes};
         Some(Palette::from_slice(palettes::CP_HELP_VIEWER))
     }
-
 }
 
 /// Builder for creating help viewers with a fluent API.
@@ -577,7 +598,10 @@ pub struct HelpViewerBuilder {
 
 impl HelpViewerBuilder {
     pub fn new() -> Self {
-        Self { bounds: None, with_scrollbar: false }
+        Self {
+            bounds: None,
+            with_scrollbar: false,
+        }
     }
 
     #[must_use]

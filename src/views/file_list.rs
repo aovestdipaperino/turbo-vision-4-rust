@@ -15,14 +15,14 @@
 // - File info display (size, date, attributes)
 // - Integrates with ListViewer trait for consistent navigation
 
-use crate::core::geometry::Rect;
+use super::list_viewer::{ListViewer, ListViewerState};
+use super::view::View;
 use crate::core::event::{Event, EventType};
+use crate::core::geometry::Rect;
 use crate::core::state::StateFlags;
 use crate::terminal::Terminal;
-use super::view::View;
-use super::list_viewer::{ListViewer, ListViewerState};
-use std::path::{Path, PathBuf};
 use std::fs;
+use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
 /// File entry information
@@ -104,7 +104,7 @@ impl FileList {
             current_path: path.to_path_buf(),
             wildcard: "*".to_string(),
             show_hidden: false,
-        palette_chain: None,
+            palette_chain: None,
         }
     }
 
@@ -168,12 +168,10 @@ impl FileList {
                 .collect();
 
             // Sort: directories first, then files, both alphabetically
-            file_entries.sort_by(|a, b| {
-                match (a.is_dir, b.is_dir) {
-                    (true, false) => std::cmp::Ordering::Less,
-                    (false, true) => std::cmp::Ordering::Greater,
-                    _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
-                }
+            file_entries.sort_by(|a, b| match (a.is_dir, b.is_dir) {
+                (true, false) => std::cmp::Ordering::Less,
+                (false, true) => std::cmp::Ordering::Greater,
+                _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
             });
 
             self.files.extend(file_entries);
@@ -341,10 +339,9 @@ impl View for FileList {
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        use crate::core::palette::{palettes, Palette};
+        use crate::core::palette::{Palette, palettes};
         Some(Palette::from_slice(palettes::CP_LISTBOX))
     }
-
 }
 
 #[cfg(test)]
@@ -440,7 +437,10 @@ pub struct FileListBuilder {
 
 impl FileListBuilder {
     pub fn new() -> Self {
-        Self { bounds: None, path: None }
+        Self {
+            bounds: None,
+            path: None,
+        }
     }
 
     #[must_use]

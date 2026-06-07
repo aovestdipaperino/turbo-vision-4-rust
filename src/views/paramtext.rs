@@ -2,7 +2,7 @@
 
 //! ParamText view - parametrized text display with dynamic string substitution.
 
-use super::view::{write_line_to_terminal, View};
+use super::view::{View, write_line_to_terminal};
 use crate::core::draw::DrawBuffer;
 use crate::core::event::Event;
 use crate::core::geometry::Rect;
@@ -29,7 +29,7 @@ impl ParamText {
             bounds,
             template: template.to_string(),
             text: template.to_string(),
-        palette_chain: None,
+            palette_chain: None,
         }
     }
 
@@ -153,10 +153,9 @@ impl View for ParamText {
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        use crate::core::palette::{palettes, Palette};
+        use crate::core::palette::{Palette, palettes};
         Some(Palette::from_slice(palettes::CP_STATIC_TEXT))
     }
-
 }
 
 #[cfg(test)]
@@ -238,7 +237,10 @@ pub struct ParamTextBuilder {
 
 impl ParamTextBuilder {
     pub fn new() -> Self {
-        Self { bounds: None, template: None }
+        Self {
+            bounds: None,
+            template: None,
+        }
     }
 
     #[must_use]

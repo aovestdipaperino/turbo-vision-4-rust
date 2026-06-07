@@ -8,17 +8,17 @@
 // A simple window that contains an EditorWindow with scrollbars and indicator.
 // Provides a ready-to-use editor window for text editing.
 
-use crate::core::geometry::{Point, Rect};
+use super::editor::EditorWindow;
+use super::indicator::Indicator;
+use super::scrollbar::ScrollBar;
+use super::view::View;
+use super::window::Window;
 use crate::core::event::{Event, EventType};
+use crate::core::geometry::{Point, Rect};
 use crate::core::state::StateFlags;
 use crate::terminal::Terminal;
-use super::window::Window;
-use super::editor::EditorWindow;
-use super::scrollbar::ScrollBar;
-use super::indicator::Indicator;
-use super::view::View;
-use std::rc::Rc;
 use std::cell::RefCell;
+use std::rc::Rc;
 
 /// Wrapper that allows ScrollBar to be a child view
 struct SharedScrollBar(Rc<RefCell<ScrollBar>>);
@@ -158,7 +158,7 @@ impl View for SharedEditor {
 /// The EditorWindow is inserted as a child of the Window, matching Borland's structure.
 pub struct EditWindow {
     window: Window,
-    editor: Rc<RefCell<EditorWindow>>,  // Shared reference for API access
+    editor: Rc<RefCell<EditorWindow>>, // Shared reference for API access
     #[allow(dead_code)] // Used for initialization, stored for lifetime management
     h_scrollbar: Rc<RefCell<ScrollBar>>,
     #[allow(dead_code)] // Used for initialization, stored for lifetime management
@@ -183,7 +183,7 @@ impl EditWindow {
         let window_height = bounds.height();
 
         // Calculate interior size (relative coordinates)
-        let interior_width = window_width - 2;  // Subtract frame
+        let interior_width = window_width - 2; // Subtract frame
         let interior_height = window_height - 2;
 
         // Create scrollbars at frame edges (matching Borland's TEditWindow)
@@ -212,16 +212,16 @@ impl EditWindow {
         // IMPORTANT: Insert editor into interior (relative to interior bounds)
         // But insert scrollbars/indicator as frame children (relative to window frame)
         window.add(Box::new(SharedEditor(Rc::clone(&editor))));
-        let h_scrollbar_idx = window.add_frame_child(Box::new(SharedScrollBar(Rc::clone(&h_scrollbar))));
-        let v_scrollbar_idx = window.add_frame_child(Box::new(SharedScrollBar(Rc::clone(&v_scrollbar))));
-        let indicator_idx = window.add_frame_child(Box::new(SharedIndicator(Rc::clone(&indicator))));
+        let h_scrollbar_idx =
+            window.add_frame_child(Box::new(SharedScrollBar(Rc::clone(&h_scrollbar))));
+        let v_scrollbar_idx =
+            window.add_frame_child(Box::new(SharedScrollBar(Rc::clone(&v_scrollbar))));
+        let indicator_idx =
+            window.add_frame_child(Box::new(SharedIndicator(Rc::clone(&indicator))));
 
         // Set initial indicator value to cursor position (1:1)
         // EditorWindow cursor starts at (0,0) internally, displayed as (1,1) for user
-        indicator.borrow_mut().set_value(
-            Point::new(1, 1),
-            false,
-        );
+        indicator.borrow_mut().set_value(Point::new(1, 1), false);
 
         let mut edit_window = Self {
             window,
@@ -292,7 +292,8 @@ impl EditWindow {
                 bounds.a.x + window_width - 2,
                 bounds.a.y + window_height,
             );
-            self.window.update_frame_child(self.h_scrollbar_idx, h_bounds);
+            self.window
+                .update_frame_child(self.h_scrollbar_idx, h_bounds);
         }
 
         // Always update vertical scrollbar position
@@ -303,7 +304,8 @@ impl EditWindow {
                 bounds.a.x + window_width,
                 bounds.a.y + window_height - 2,
             );
-            self.window.update_frame_child(self.v_scrollbar_idx, v_bounds);
+            self.window
+                .update_frame_child(self.v_scrollbar_idx, v_bounds);
         }
 
         // Always update indicator position (even if window is too small)
@@ -314,7 +316,8 @@ impl EditWindow {
                 bounds.a.x + 16.min(window_width - 2),
                 bounds.a.y + window_height,
             );
-            self.window.update_frame_child(self.indicator_idx, ind_bounds);
+            self.window
+                .update_frame_child(self.indicator_idx, ind_bounds);
             // Note: Indicator value (cursor position) is updated by the EditorWindow itself
         }
     }
@@ -340,7 +343,8 @@ impl View for EditWindow {
             bounds.a.x + window_width - 2,
             bounds.a.y + window_height,
         );
-        self.window.update_frame_child(self.h_scrollbar_idx, h_bounds);
+        self.window
+            .update_frame_child(self.h_scrollbar_idx, h_bounds);
 
         let v_bounds = Rect::new(
             bounds.a.x + window_width - 1,
@@ -348,7 +352,8 @@ impl View for EditWindow {
             bounds.a.x + window_width,
             bounds.a.y + window_height - 2,
         );
-        self.window.update_frame_child(self.v_scrollbar_idx, v_bounds);
+        self.window
+            .update_frame_child(self.v_scrollbar_idx, v_bounds);
 
         let ind_bounds = Rect::new(
             bounds.a.x + 2,
@@ -356,7 +361,8 @@ impl View for EditWindow {
             bounds.a.x + 16,
             bounds.a.y + window_height,
         );
-        self.window.update_frame_child(self.indicator_idx, ind_bounds);
+        self.window
+            .update_frame_child(self.indicator_idx, ind_bounds);
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
@@ -373,10 +379,14 @@ impl View for EditWindow {
         );
 
         // Draw frame and interior with palette chain
-        self.window.frame_mut().set_palette_chain(Some(my_chain_node.clone()));
+        self.window
+            .frame_mut()
+            .set_palette_chain(Some(my_chain_node.clone()));
         self.window.frame_mut().draw(terminal);
 
-        self.window.interior_mut().set_palette_chain(Some(my_chain_node.clone()));
+        self.window
+            .interior_mut()
+            .set_palette_chain(Some(my_chain_node.clone()));
         self.window.interior_mut().draw(terminal);
 
         // Check if scrollbars are needed based on content size
@@ -417,7 +427,10 @@ impl View for EditWindow {
         // Pass mouse events to scrollbars (if they're visible and the event hasn't been handled)
         // IMPORTANT: Only mouse events! Keyboard events (UP/DOWN/etc.) should go to the EditorWindow,
         // not to scrollbars. This allows cursor movement before scrolling.
-        if event.what == EventType::MouseDown || event.what == EventType::MouseMove || event.what == EventType::MouseUp {
+        if event.what == EventType::MouseDown
+            || event.what == EventType::MouseMove
+            || event.what == EventType::MouseUp
+        {
             let editor = self.editor.borrow();
             let needs_h_scrollbar = editor.needs_horizontal_scrollbar();
             let needs_v_scrollbar = editor.needs_vertical_scrollbar();
@@ -465,11 +478,11 @@ impl View for EditWindow {
             // Update EditorWindow bounds to match new interior size
             // EditorWindow is a child of the interior Group, which uses ABSOLUTE coordinates
             // Interior starts at (window.x + 1, window.y + 1), accounting for frame
-            let interior_width = window_width.saturating_sub(2);  // Subtract frame
+            let interior_width = window_width.saturating_sub(2); // Subtract frame
             let interior_height = window_height.saturating_sub(2);
 
             if interior_width > 0 && interior_height > 0 {
-                let interior_a = Point::new(new_bounds.a.x + 1, new_bounds.a.y + 1);  // Interior top-left
+                let interior_a = Point::new(new_bounds.a.x + 1, new_bounds.a.y + 1); // Interior top-left
                 let editor_bounds = Rect::new(
                     interior_a.x,
                     interior_a.y,
@@ -523,14 +536,13 @@ impl View for EditWindow {
     fn set_end_state(&mut self, command: crate::core::command::CommandId) {
         self.window.set_end_state(command);
     }
-
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::NamedTempFile;
     use std::io::Write;
+    use tempfile::NamedTempFile;
 
     #[test]
     fn test_edit_window_creation() {
@@ -586,7 +598,10 @@ pub struct EditWindowBuilder {
 
 impl EditWindowBuilder {
     pub fn new() -> Self {
-        Self { bounds: None, title: None }
+        Self {
+            bounds: None,
+            title: None,
+        }
     }
 
     #[must_use]

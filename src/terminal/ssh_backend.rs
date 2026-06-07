@@ -118,10 +118,7 @@ impl SshBackend {
             let data = std::mem::take(&mut self.output_buffer);
             self.output_tx
                 .send(data)
-                .map_err(|_| io::Error::new(
-                    io::ErrorKind::BrokenPipe,
-                    "SSH channel closed"
-                ))?;
+                .map_err(|_| io::Error::new(io::ErrorKind::BrokenPipe, "SSH channel closed"))?;
         }
         Ok(())
     }
@@ -190,9 +187,10 @@ impl Backend for SshBackend {
         match self.event_rx.try_recv() {
             Ok(ev) => Ok(Some(ev)),
             Err(mpsc::error::TryRecvError::Empty) => Ok(None),
-            Err(mpsc::error::TryRecvError::Disconnected) => {
-                Err(io::Error::new(io::ErrorKind::BrokenPipe, "SSH channel disconnected"))
-            }
+            Err(mpsc::error::TryRecvError::Disconnected) => Err(io::Error::new(
+                io::ErrorKind::BrokenPipe,
+                "SSH channel disconnected",
+            )),
         }
     }
 
@@ -245,7 +243,8 @@ impl Backend for SshBackend {
 
     fn clear_screen(&mut self) -> io::Result<()> {
         // Reset colors first to prevent color bleed
-        self.output_buffer.extend_from_slice(b"\x1b[0m\x1b[2J\x1b[H");
+        self.output_buffer
+            .extend_from_slice(b"\x1b[0m\x1b[2J\x1b[H");
         self.send_output()
     }
 }

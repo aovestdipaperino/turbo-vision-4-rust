@@ -14,7 +14,10 @@ use turbo_vision::views::static_text::StaticTextBuilder;
 fn main() -> turbo_vision::core::error::Result<()> {
     let mut app = Application::new()?;
 
-    let mut dialog = DialogBuilder::new().bounds(Rect::new(10, 2, 78, 22)).title("File System Tree Demo").build();
+    let mut dialog = DialogBuilder::new()
+        .bounds(Rect::new(10, 2, 78, 22))
+        .title("File System Tree Demo")
+        .build();
 
     // Add instructions
     dialog.add(Box::new(
@@ -39,7 +42,12 @@ fn main() -> turbo_vision::core::error::Result<()> {
         app.desktop.draw(&mut app.terminal);
         let _ = app.terminal.flush();
 
-        if let Some(mut event) = app.terminal.poll_event(Duration::from_millis(50)).ok().flatten() {
+        if let Some(mut event) = app
+            .terminal
+            .poll_event(Duration::from_millis(50))
+            .ok()
+            .flatten()
+        {
             app.desktop.handle_event(&mut event);
 
             // Handle Alt+X to quit
@@ -62,12 +70,18 @@ fn create_file_tree() -> Rc<RefCell<Node<String>>> {
 
     // Documents folder
     let docs = Rc::new(RefCell::new(Node::new("Documents".to_string())));
-    docs.borrow_mut().add_child(Rc::new(RefCell::new(Node::new("report.pdf".to_string()))));
-    docs.borrow_mut().add_child(Rc::new(RefCell::new(Node::new("notes.txt".to_string()))));
+    docs.borrow_mut()
+        .add_child(Rc::new(RefCell::new(Node::new("report.pdf".to_string()))));
+    docs.borrow_mut()
+        .add_child(Rc::new(RefCell::new(Node::new("notes.txt".to_string()))));
 
     let projects = Rc::new(RefCell::new(Node::new("projects".to_string())));
-    projects.borrow_mut().add_child(Rc::new(RefCell::new(Node::new("project1.doc".to_string()))));
-    projects.borrow_mut().add_child(Rc::new(RefCell::new(Node::new("project2.doc".to_string()))));
+    projects
+        .borrow_mut()
+        .add_child(Rc::new(RefCell::new(Node::new("project1.doc".to_string()))));
+    projects
+        .borrow_mut()
+        .add_child(Rc::new(RefCell::new(Node::new("project2.doc".to_string()))));
     docs.borrow_mut().add_child(projects);
 
     root.borrow_mut().add_child(docs);
@@ -76,29 +90,44 @@ fn create_file_tree() -> Rc<RefCell<Node<String>>> {
     let code = Rc::new(RefCell::new(Node::new("Code".to_string())));
 
     let rust = Rc::new(RefCell::new(Node::new("rust".to_string())));
-    rust.borrow_mut().add_child(Rc::new(RefCell::new(Node::new("Cargo.toml".to_string()))));
-    rust.borrow_mut().add_child(Rc::new(RefCell::new(Node::new("main.rs".to_string()))));
-    rust.borrow_mut().add_child(Rc::new(RefCell::new(Node::new("lib.rs".to_string()))));
+    rust.borrow_mut()
+        .add_child(Rc::new(RefCell::new(Node::new("Cargo.toml".to_string()))));
+    rust.borrow_mut()
+        .add_child(Rc::new(RefCell::new(Node::new("main.rs".to_string()))));
+    rust.borrow_mut()
+        .add_child(Rc::new(RefCell::new(Node::new("lib.rs".to_string()))));
     code.borrow_mut().add_child(rust);
 
     let python = Rc::new(RefCell::new(Node::new("python".to_string())));
-    python.borrow_mut().add_child(Rc::new(RefCell::new(Node::new("app.py".to_string()))));
-    python.borrow_mut().add_child(Rc::new(RefCell::new(Node::new("utils.py".to_string()))));
+    python
+        .borrow_mut()
+        .add_child(Rc::new(RefCell::new(Node::new("app.py".to_string()))));
+    python
+        .borrow_mut()
+        .add_child(Rc::new(RefCell::new(Node::new("utils.py".to_string()))));
     code.borrow_mut().add_child(python);
 
     root.borrow_mut().add_child(code);
 
     // Downloads folder
     let downloads = Rc::new(RefCell::new(Node::new("Downloads".to_string())));
-    downloads.borrow_mut().add_child(Rc::new(RefCell::new(Node::new("file1.zip".to_string()))));
-    downloads.borrow_mut().add_child(Rc::new(RefCell::new(Node::new("file2.tar.gz".to_string()))));
-    downloads.borrow_mut().add_child(Rc::new(RefCell::new(Node::new("image.png".to_string()))));
+    downloads
+        .borrow_mut()
+        .add_child(Rc::new(RefCell::new(Node::new("file1.zip".to_string()))));
+    downloads
+        .borrow_mut()
+        .add_child(Rc::new(RefCell::new(Node::new("file2.tar.gz".to_string()))));
+    downloads
+        .borrow_mut()
+        .add_child(Rc::new(RefCell::new(Node::new("image.png".to_string()))));
 
     root.borrow_mut().add_child(downloads);
 
     // Config files
-    root.borrow_mut().add_child(Rc::new(RefCell::new(Node::new(".bashrc".to_string()))));
-    root.borrow_mut().add_child(Rc::new(RefCell::new(Node::new(".vimrc".to_string()))));
+    root.borrow_mut()
+        .add_child(Rc::new(RefCell::new(Node::new(".bashrc".to_string()))));
+    root.borrow_mut()
+        .add_child(Rc::new(RefCell::new(Node::new(".vimrc".to_string()))));
 
     root
 }

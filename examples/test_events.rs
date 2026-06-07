@@ -11,7 +11,12 @@ use turbo_vision::core::event::{EventType, KB_CTRL_C};
 fn main() -> turbo_vision::core::error::Result<()> {
     let mut app = Application::new()?;
 
-    let mut log_file = OpenOptions::new().create(true).write(true).truncate(true).open("event_test.txt").expect("Failed to create log file");
+    let mut log_file = OpenOptions::new()
+        .create(true)
+        .write(true)
+        .truncate(true)
+        .open("event_test.txt")
+        .expect("Failed to create log file");
 
     // Macro to log both to stderr and to the log file
     macro_rules! log {
@@ -47,16 +52,31 @@ fn main() -> turbo_vision::core::error::Result<()> {
                     );
                 }
                 EventType::MouseUp => {
-                    log!("[{}] MouseUp at ({}, {})", event_count, event.mouse.pos.x, event.mouse.pos.y);
+                    log!(
+                        "[{}] MouseUp at ({}, {})",
+                        event_count,
+                        event.mouse.pos.x,
+                        event.mouse.pos.y
+                    );
                 }
                 EventType::MouseMove => {
                     // Only print occasionally to avoid spam
                     if event_count % 10 == 0 {
-                        log!("[{}] MouseMove at ({}, {}) buttons=0x{:02x}", event_count, event.mouse.pos.x, event.mouse.pos.y, event.mouse.buttons);
+                        log!(
+                            "[{}] MouseMove at ({}, {}) buttons=0x{:02x}",
+                            event_count,
+                            event.mouse.pos.x,
+                            event.mouse.pos.y,
+                            event.mouse.buttons
+                        );
                     }
                 }
                 EventType::Keyboard => {
-                    log!("[{}] Keyboard key_code=0x{:04x}", event_count, event.key_code);
+                    log!(
+                        "[{}] Keyboard key_code=0x{:04x}",
+                        event_count,
+                        event.key_code
+                    );
 
                     // Exit on Ctrl+C
                     if event.key_code == KB_CTRL_C {

@@ -7,17 +7,19 @@
 //
 // A window containing a HelpViewer with navigation and topic selection.
 
-use crate::core::geometry::{Point, Rect};
-use crate::core::event::{Event, EventType, KB_ALT_F1, KB_BACKSPACE, KB_ENTER, KB_ESC, MB_LEFT_BUTTON};
-use crate::core::state::StateFlags;
-use crate::core::command::{CM_CANCEL, CommandId};
-use crate::terminal::Terminal;
+use super::help_file::HelpFile;
+use super::help_viewer::HelpViewer;
 use super::view::View;
 use super::window::Window;
-use super::help_viewer::HelpViewer;
-use super::help_file::HelpFile;
-use std::rc::Rc;
+use crate::core::command::{CM_CANCEL, CommandId};
+use crate::core::event::{
+    Event, EventType, KB_ALT_F1, KB_BACKSPACE, KB_ENTER, KB_ESC, MB_LEFT_BUTTON,
+};
+use crate::core::geometry::{Point, Rect};
+use crate::core::state::StateFlags;
+use crate::terminal::Terminal;
 use std::cell::RefCell;
+use std::rc::Rc;
 
 /// Wrapper that allows HelpViewer to be shared between window and HelpWindow
 struct SharedHelpViewer(Rc<RefCell<HelpViewer>>);
@@ -54,7 +56,6 @@ impl View for SharedHelpViewer {
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
         self.0.borrow().get_palette()
     }
-
 }
 
 /// History entry storing topic ID with scroll state for restoration.
@@ -69,7 +70,7 @@ struct HistoryEntry {
 /// Matches Borland: THelpWindow (parent-child hierarchy)
 pub struct HelpWindow {
     window: Window,
-    viewer: Rc<RefCell<HelpViewer>>,  // Shared reference for API access
+    viewer: Rc<RefCell<HelpViewer>>, // Shared reference for API access
     help_file: Rc<RefCell<HelpFile>>,
     /// Topic history for back/forward navigation
     history: Vec<HistoryEntry>,
@@ -88,7 +89,7 @@ impl HelpWindow {
         // Viewer fills the window interior
         let viewer_bounds = Rect::new(1, 1, bounds.width() - 2, bounds.height() - 2);
         let viewer = Rc::new(RefCell::new(
-            HelpViewer::new(viewer_bounds).with_scrollbar()
+            HelpViewer::new(viewer_bounds).with_scrollbar(),
         ));
 
         // Insert viewer as a child of window (matches Borland's window->insert(viewer))
@@ -279,7 +280,11 @@ impl View for HelpWindow {
                     KB_ENTER => {
                         // Follow selected link
                         // Matches Borland: THelpViewer::handleEvent() kbEnter (help.cc:189-194)
-                        let target = self.viewer.borrow().get_selected_target().map(|s| s.to_string());
+                        let target = self
+                            .viewer
+                            .borrow()
+                            .get_selected_target()
+                            .map(|s| s.to_string());
                         if let Some(target) = target {
                             self.switch_to_topic(&target);
                             event.clear();
@@ -303,11 +308,18 @@ impl View for HelpWindow {
                     self.window.handle_event(event);
 
                     // If a link was clicked, follow it
-                    let target = self.viewer.borrow().get_selected_target().map(|s| s.to_string());
+                    let target = self
+                        .viewer
+                        .borrow()
+                        .get_selected_target()
+                        .map(|s| s.to_string());
                     if let Some(target) = target {
                         // Check if click was actually on a cross-ref
                         let mouse_pos = event.mouse.pos;
-                        let hit = self.viewer.borrow().get_cross_ref_at_public(mouse_pos.x, mouse_pos.y);
+                        let hit = self
+                            .viewer
+                            .borrow()
+                            .get_cross_ref_at_public(mouse_pos.x, mouse_pos.y);
                         if hit > 0 {
                             self.switch_to_topic(&target);
                         }
@@ -414,14 +426,17 @@ mod tests {
 
     #[test]
     fn test_help_window_options_delegation() {
-        use crate::core::state::{OF_SELECTABLE, OF_TOP_SELECT, OF_TILEABLE};
+        use crate::core::state::{OF_SELECTABLE, OF_TILEABLE, OF_TOP_SELECT};
 
         let (_file, help) = create_test_help_file();
         let bounds = Rect::new(10, 5, 70, 20);
         let window = HelpWindow::new(bounds, "Help", help);
 
         let options = window.options();
-        assert_ne!(options, 0, "HelpWindow should delegate options() to inner window");
+        assert_ne!(
+            options, 0,
+            "HelpWindow should delegate options() to inner window"
+        );
         assert!(
             (options & OF_SELECTABLE) != 0,
             "HelpWindow should have OF_SELECTABLE"
@@ -446,7 +461,11 @@ pub struct HelpWindowBuilder {
 
 impl HelpWindowBuilder {
     pub fn new() -> Self {
-        Self { bounds: None, title: None, help_file: None }
+        Self {
+            bounds: None,
+            title: None,
+            help_file: None,
+        }
     }
 
     #[must_use]

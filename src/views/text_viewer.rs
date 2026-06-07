@@ -2,13 +2,15 @@
 
 //! TextViewer view - scrollable text display for viewing large text content.
 
-use crate::core::geometry::{Point, Rect};
-use crate::core::event::{Event, EventType, KB_UP, KB_DOWN, KB_LEFT, KB_RIGHT, KB_PGUP, KB_PGDN, KB_HOME, KB_END};
-use crate::core::draw::DrawBuffer;
-use crate::terminal::Terminal;
-use super::view::{View, write_line_to_terminal};
-use super::scrollbar::ScrollBar;
 use super::indicator::Indicator;
+use super::scrollbar::ScrollBar;
+use super::view::{View, write_line_to_terminal};
+use crate::core::draw::DrawBuffer;
+use crate::core::event::{
+    Event, EventType, KB_DOWN, KB_END, KB_HOME, KB_LEFT, KB_PGDN, KB_PGUP, KB_RIGHT, KB_UP,
+};
+use crate::core::geometry::{Point, Rect};
+use crate::terminal::Terminal;
 use std::cmp::min;
 
 /// TextViewer displays text content with scrolling support.
@@ -16,8 +18,8 @@ use std::cmp::min;
 pub struct TextViewer {
     bounds: Rect,
     lines: Vec<String>,
-    delta: Point,           // Current scroll offset
-    cursor: Point,          // Current cursor position (0-based)
+    delta: Point,  // Current scroll offset
+    cursor: Point, // Current cursor position (0-based)
     h_scrollbar: Option<Box<ScrollBar>>,
     v_scrollbar: Option<Box<ScrollBar>>,
     indicator: Option<Box<Indicator>>,
@@ -36,7 +38,7 @@ impl TextViewer {
             v_scrollbar: None,
             indicator: None,
             show_line_numbers: false,
-        palette_chain: None,
+            palette_chain: None,
         }
     }
 
@@ -46,9 +48,9 @@ impl TextViewer {
             // Vertical scrollbar on the right edge
             let v_bounds = Rect::new(
                 self.bounds.b.x - 1,
-                self.bounds.a.y + 1,  // Below indicator
+                self.bounds.a.y + 1, // Below indicator
                 self.bounds.b.x,
-                self.bounds.b.y - 1,  // Above horizontal scrollbar
+                self.bounds.b.y - 1, // Above horizontal scrollbar
             );
             self.v_scrollbar = Some(Box::new(ScrollBar::new_vertical(v_bounds)));
 
@@ -56,7 +58,7 @@ impl TextViewer {
             let h_bounds = Rect::new(
                 self.bounds.a.x,
                 self.bounds.b.y - 1,
-                self.bounds.b.x - 1,  // Before vertical scrollbar
+                self.bounds.b.x - 1, // Before vertical scrollbar
                 self.bounds.b.y,
             );
             self.h_scrollbar = Some(Box::new(ScrollBar::new_horizontal(h_bounds)));
@@ -159,10 +161,7 @@ impl TextViewer {
     fn update_indicator(&mut self) {
         if let Some(ref mut indicator) = self.indicator {
             // Display 1-based line and column
-            indicator.set_value(
-                Point::new(self.cursor.x + 1, self.cursor.y + 1),
-                false,
-            );
+            indicator.set_value(Point::new(self.cursor.x + 1, self.cursor.y + 1), false);
         }
     }
 
@@ -213,12 +212,7 @@ impl View for TextViewer {
         }
 
         if let Some(ref mut indicator) = self.indicator {
-            let indicator_bounds = Rect::new(
-                bounds.a.x,
-                bounds.a.y,
-                bounds.b.x,
-                bounds.a.y + 1,
-            );
+            let indicator_bounds = Rect::new(bounds.a.x, bounds.a.y, bounds.b.x, bounds.a.y + 1);
             indicator.set_bounds(indicator_bounds);
         }
 
@@ -232,7 +226,7 @@ impl View for TextViewer {
 
         // Line number width (if shown)
         let line_num_width = if self.show_line_numbers {
-            5  // " 999 "
+            5 // " 999 "
         } else {
             0
         };
@@ -335,8 +329,11 @@ impl View for TextViewer {
                 let mouse_pos = event.mouse.pos;
                 let content_area = self.get_content_area();
                 // Check if mouse is within the text viewer content area
-                if mouse_pos.x >= content_area.a.x && mouse_pos.x < content_area.b.x &&
-                   mouse_pos.y >= content_area.a.y && mouse_pos.y < content_area.b.y {
+                if mouse_pos.x >= content_area.a.x
+                    && mouse_pos.x < content_area.b.x
+                    && mouse_pos.y >= content_area.a.y
+                    && mouse_pos.y < content_area.b.y
+                {
                     self.scroll_to(self.delta.x, self.delta.y - 1);
                     event.clear();
                 }
@@ -345,8 +342,11 @@ impl View for TextViewer {
                 let mouse_pos = event.mouse.pos;
                 let content_area = self.get_content_area();
                 // Check if mouse is within the text viewer content area
-                if mouse_pos.x >= content_area.a.x && mouse_pos.x < content_area.b.x &&
-                   mouse_pos.y >= content_area.a.y && mouse_pos.y < content_area.b.y {
+                if mouse_pos.x >= content_area.a.x
+                    && mouse_pos.x < content_area.b.x
+                    && mouse_pos.y >= content_area.a.y
+                    && mouse_pos.y < content_area.b.y
+                {
                     self.scroll_to(self.delta.x, self.delta.y + 1);
                     event.clear();
                 }
@@ -381,10 +381,9 @@ impl View for TextViewer {
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        use crate::core::palette::{palettes, Palette};
+        use crate::core::palette::{Palette, palettes};
         Some(Palette::from_slice(palettes::CP_SCROLLER))
     }
-
 }
 
 /// Builder for creating text viewers with a fluent API.

@@ -19,13 +19,9 @@
 use std::time::Duration;
 
 use turbo_vision::prelude::*;
-use turbo_vision::terminal::{Backend, Terminal};
-use turbo_vision::views::{
-    button::Button,
-    dialog::Dialog,
-    static_text::StaticText,
-};
 use turbo_vision::ssh::{SshServer, SshServerConfig};
+use turbo_vision::terminal::{Backend, Terminal};
+use turbo_vision::views::{button::Button, dialog::Dialog, static_text::StaticText};
 
 /// Run the TUI application with the provided backend.
 fn run_tui_app(backend: Box<dyn Backend>) {
@@ -48,23 +44,33 @@ fn run_tui_inner(mut terminal: Terminal) {
     let dialog_y = (height - dialog_height) / 2;
 
     let mut dialog = Dialog::new_modal(
-        Rect::new(dialog_x, dialog_y, dialog_x + dialog_width, dialog_y + dialog_height),
-        "SSH Admin Console"
+        Rect::new(
+            dialog_x,
+            dialog_y,
+            dialog_x + dialog_width,
+            dialog_y + dialog_height,
+        ),
+        "SSH Admin Console",
     );
 
     // Add welcome text
     let text = StaticText::new(
         Rect::new(2, 2, dialog_width - 4, 4),
-        "Welcome to the turbo-vision SSH TUI Demo!\n\nThis interface is served over SSH."
+        "Welcome to the turbo-vision SSH TUI Demo!\n\nThis interface is served over SSH.",
     );
     dialog.add(Box::new(text));
 
     // Add quit button
     let button = Button::new(
-        Rect::new((dialog_width - 12) / 2, dialog_height - 4, (dialog_width + 12) / 2, dialog_height - 2),
+        Rect::new(
+            (dialog_width - 12) / 2,
+            dialog_height - 4,
+            (dialog_width + 12) / 2,
+            dialog_height - 2,
+        ),
         "Quit",
         CM_QUIT,
-        true
+        true,
     );
     dialog.add(Box::new(button));
 
@@ -94,7 +100,9 @@ fn run_tui_inner(mut terminal: Terminal) {
             }
 
             // Also quit on Escape (if not already handled by dialog)
-            if event.what == EventType::Keyboard && event.key_code == turbo_vision::core::event::KB_ESC {
+            if event.what == EventType::Keyboard
+                && event.key_code == turbo_vision::core::event::KB_ESC
+            {
                 running = false;
             }
         }

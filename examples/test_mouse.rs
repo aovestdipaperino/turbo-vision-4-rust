@@ -10,7 +10,12 @@ use turbo_vision::core::event::{EventType, KB_CTRL_C};
 fn main() -> turbo_vision::core::error::Result<()> {
     let mut app = Application::new()?;
 
-    let mut log_file = OpenOptions::new().create(true).write(true).truncate(true).open("mouse_test.txt").expect("Failed to create log file");
+    let mut log_file = OpenOptions::new()
+        .create(true)
+        .write(true)
+        .truncate(true)
+        .open("mouse_test.txt")
+        .expect("Failed to create log file");
 
     // Macro to log both to stderr and to the log file
     macro_rules! log {
@@ -32,7 +37,11 @@ fn main() -> turbo_vision::core::error::Result<()> {
 
             match event.what {
                 EventType::MouseDown => {
-                    log!("  -> Mouse click at ({}, {})", event.mouse.pos.x, event.mouse.pos.y);
+                    log!(
+                        "  -> Mouse click at ({}, {})",
+                        event.mouse.pos.x,
+                        event.mouse.pos.y
+                    );
                     event_count += 1;
                 }
                 EventType::Keyboard => {
@@ -45,6 +54,9 @@ fn main() -> turbo_vision::core::error::Result<()> {
         }
     }
 
-    log!("Mouse test complete. Captured {} mouse clicks.", event_count);
+    log!(
+        "Mouse test complete. Captured {} mouse clicks.",
+        event_count
+    );
     Ok(())
 }

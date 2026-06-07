@@ -12,14 +12,14 @@
 //   let history = History::new(Point::new(x, y), history_id);
 //   // Position it to the right of the InputLine
 
-use crate::core::geometry::{Point, Rect};
-use crate::core::event::{Event, EventType, MB_LEFT_BUTTON};
-use crate::core::draw::DrawBuffer;
-use crate::core::state::StateFlags;
-use crate::core::history::HistoryManager;
-use crate::terminal::Terminal;
-use super::view::{View, write_line_to_terminal};
 use super::history_window::HistoryWindow;
+use super::view::{View, write_line_to_terminal};
+use crate::core::draw::DrawBuffer;
+use crate::core::event::{Event, EventType, MB_LEFT_BUTTON};
+use crate::core::geometry::{Point, Rect};
+use crate::core::history::HistoryManager;
+use crate::core::state::StateFlags;
+use crate::terminal::Terminal;
 
 /// History - Dropdown button for accessing input history
 ///
@@ -42,7 +42,7 @@ impl History {
             history_id,
             state: 0,
             selected_item: None,
-        palette_chain: None,
+            palette_chain: None,
         }
     }
 
@@ -59,10 +59,7 @@ impl History {
         }
 
         // Create history window slightly below and to the left of the button
-        let window_pos = Point::new(
-            (self.bounds.a.x - 20).max(0),
-            self.bounds.a.y + 1,
-        );
+        let window_pos = Point::new((self.bounds.a.x - 20).max(0), self.bounds.a.y + 1);
 
         let mut window = HistoryWindow::new(window_pos, self.history_id, 30);
         if let Some(selected) = window.execute(terminal) {
@@ -86,7 +83,7 @@ impl View for History {
         // Draw down arrow: ▼ (or use 'v' for ASCII-only)
         let arrow = if self.has_items() { "▼" } else { " " };
 
-        use crate::core::palette::colors::{BUTTON_SELECTED, BUTTON_NORMAL};
+        use crate::core::palette::colors::{BUTTON_NORMAL, BUTTON_SELECTED};
         let color = if self.is_focused() {
             BUTTON_SELECTED
         } else {
@@ -101,7 +98,9 @@ impl View for History {
     fn handle_event(&mut self, event: &mut Event) {
         match event.what {
             EventType::MouseDown => {
-                if self.bounds.contains(event.mouse.pos) && event.mouse.buttons & MB_LEFT_BUTTON != 0 {
+                if self.bounds.contains(event.mouse.pos)
+                    && event.mouse.buttons & MB_LEFT_BUTTON != 0
+                {
                     // Button clicked - show history window
                     // We need terminal access, which will be handled by parent
                     event.clear();
@@ -132,10 +131,9 @@ impl View for History {
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        use crate::core::palette::{palettes, Palette};
+        use crate::core::palette::{Palette, palettes};
         Some(Palette::from_slice(palettes::CP_HISTORY))
     }
-
 }
 
 /// Builder for creating history buttons with a fluent API.
@@ -146,7 +144,10 @@ pub struct HistoryBuilder {
 
 impl HistoryBuilder {
     pub fn new() -> Self {
-        Self { pos: None, history_id: None }
+        Self {
+            pos: None,
+            history_id: None,
+        }
     }
 
     #[must_use]

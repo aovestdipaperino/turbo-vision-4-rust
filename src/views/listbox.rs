@@ -3,7 +3,7 @@
 //! ListBox view - scrollable list with single selection support.
 
 use super::list_viewer::{ListViewer, ListViewerState};
-use super::view::{write_line_to_terminal, View};
+use super::view::{View, write_line_to_terminal};
 use crate::core::command::CommandId;
 use crate::core::draw::DrawBuffer;
 use crate::core::event::{Event, EventType, KB_ENTER, MB_LEFT_BUTTON};
@@ -34,7 +34,7 @@ impl ListBox {
             list_state: ListViewerState::new(),
             state: 0,
             on_select_command,
-        palette_chain: None,
+            palette_chain: None,
         }
     }
 
@@ -268,7 +268,7 @@ impl View for ListBox {
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        use crate::core::palette::{palettes, Palette};
+        use crate::core::palette::{Palette, palettes};
         Some(Palette::from_slice(palettes::CP_LISTBOX))
     }
 
@@ -304,7 +304,10 @@ pub struct ListBoxBuilder {
 
 impl ListBoxBuilder {
     pub fn new() -> Self {
-        Self { bounds: None, on_select_command: 0 }
+        Self {
+            bounds: None,
+            on_select_command: 0,
+        }
     }
 
     #[must_use]

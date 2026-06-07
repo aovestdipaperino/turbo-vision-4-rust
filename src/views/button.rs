@@ -2,7 +2,7 @@
 
 //! Button view - clickable button with keyboard shortcuts and command dispatch.
 
-use super::view::{write_line_to_terminal, View};
+use super::view::{View, write_line_to_terminal};
 use crate::core::command::CommandId;
 use crate::core::draw::DrawBuffer;
 use crate::core::event::{Event, EventType, KB_ENTER, MB_LEFT_BUTTON};
@@ -10,7 +10,7 @@ use crate::core::geometry::Rect;
 use crate::core::palette::{
     BUTTON_DEFAULT, BUTTON_DISABLED, BUTTON_NORMAL, BUTTON_SELECTED, BUTTON_SHADOW, BUTTON_SHORTCUT,
 };
-use crate::core::state::{StateFlags, SF_DISABLED, SHADOW_BOTTOM, SHADOW_SOLID, SHADOW_TOP};
+use crate::core::state::{SF_DISABLED, SHADOW_BOTTOM, SHADOW_SOLID, SHADOW_TOP, StateFlags};
 use crate::terminal::Terminal;
 
 pub struct Button {
@@ -135,7 +135,8 @@ impl View for Button {
 
         // If shadow mapping failed, use a default shadow color.
         // With the QCell palette chain, this should not normally trigger.
-        if shadow_attr.to_u8() == 0xCF {  // ERROR_ATTR
+        if shadow_attr.to_u8() == 0xCF {
+            // ERROR_ATTR
             use crate::core::palette::Attr;
             // Default: White on Black (standard shadow)
             shadow_attr = Attr::from_u8(0x07);
@@ -322,7 +323,7 @@ impl View for Button {
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        use crate::core::palette::{palettes, Palette};
+        use crate::core::palette::{Palette, palettes};
         Some(Palette::from_slice(palettes::CP_BUTTON))
     }
 }
@@ -650,16 +651,16 @@ mod tests {
 
         // Test various small dimensions - should not panic on creation
         let test_cases = vec![
-            Rect::new(0, 0, 0, 0),   // Zero dimensions
-            Rect::new(0, 0, 1, 1),   // Too small (min is 4x2)
-            Rect::new(0, 0, 2, 1),   // Width too small
-            Rect::new(0, 0, 3, 1),   // Width too small
-            Rect::new(0, 0, 4, 1),   // Height too small
-            Rect::new(0, 0, 1, 2),   // Width too small
-            Rect::new(0, 0, 2, 2),   // Width too small
-            Rect::new(0, 0, 3, 2),   // Width too small
-            Rect::new(10, 5, 5, 2),  // Negative width (inverted)
-            Rect::new(5, 10, 2, 5),  // Negative height (inverted)
+            Rect::new(0, 0, 0, 0),  // Zero dimensions
+            Rect::new(0, 0, 1, 1),  // Too small (min is 4x2)
+            Rect::new(0, 0, 2, 1),  // Width too small
+            Rect::new(0, 0, 3, 1),  // Width too small
+            Rect::new(0, 0, 4, 1),  // Height too small
+            Rect::new(0, 0, 1, 2),  // Width too small
+            Rect::new(0, 0, 2, 2),  // Width too small
+            Rect::new(0, 0, 3, 2),  // Width too small
+            Rect::new(10, 5, 5, 2), // Negative width (inverted)
+            Rect::new(5, 10, 2, 5), // Negative height (inverted)
         ];
 
         for rect in test_cases {

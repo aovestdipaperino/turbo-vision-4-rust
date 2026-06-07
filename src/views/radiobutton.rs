@@ -22,12 +22,12 @@
 //       1,  // group_id
 //   );
 
+use super::cluster::{Cluster, ClusterState};
+use super::view::View;
 use crate::core::event::Event;
 use crate::core::geometry::Rect;
 use crate::core::state::StateFlags;
 use crate::terminal::Terminal;
-use super::view::View;
-use super::cluster::{Cluster, ClusterState};
 
 /// RadioButton - A mutually exclusive selection control with a label
 ///
@@ -52,7 +52,7 @@ impl RadioButton {
             label: label.to_string(),
             cluster_state: ClusterState::with_group(group_id),
             state: 0,
-        palette_chain: None,
+            palette_chain: None,
         }
     }
 
@@ -120,7 +120,6 @@ impl View for RadioButton {
         use crate::core::palette::{Palette, palettes};
         Some(Palette::from_slice(palettes::CP_CLUSTER))
     }
-
 }
 
 // Implement Cluster trait
@@ -138,11 +137,7 @@ impl Cluster for RadioButton {
     }
 
     fn get_marker(&self) -> &str {
-        if self.is_selected() {
-            "(•) "
-        } else {
-            "( ) "
-        }
+        if self.is_selected() { "(•) " } else { "( ) " }
     }
 
     /// Radio buttons select (don't toggle) on space

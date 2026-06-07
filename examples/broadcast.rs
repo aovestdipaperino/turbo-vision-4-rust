@@ -67,15 +67,28 @@ impl View for BroadcastButton {
                 buf.move_str(0, &text, colors::BUTTON_NORMAL);
             } else if y == 1 {
                 // Click count
-                let text = format!("{:^width$}", format!("Clicks: {}", self.click_count.get()), width = width);
+                let text = format!(
+                    "{:^width$}",
+                    format!("Clicks: {}", self.click_count.get()),
+                    width = width
+                );
                 buf.move_str(0, &text, colors::DIALOG_NORMAL);
             } else if y == 2 {
                 // Broadcast count (this is what we're testing!)
-                let text = format!("{:^width$}", format!("RX: {}", self.broadcast_count.get()), width = width);
+                let text = format!(
+                    "{:^width$}",
+                    format!("RX: {}", self.broadcast_count.get()),
+                    width = width
+                );
                 buf.move_str(0, &text, colors::MENU_NORMAL);
             }
 
-            turbo_vision::views::view::write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y + y as i16, &buf);
+            turbo_vision::views::view::write_line_to_terminal(
+                terminal,
+                self.bounds.a.x,
+                self.bounds.a.y + y as i16,
+                &buf,
+            );
         }
     }
 
@@ -85,7 +98,12 @@ impl View for BroadcastButton {
         match event.what {
             EventType::MouseDown => {
                 let mouse_pos = event.mouse.pos;
-                if event.mouse.buttons & MB_LEFT_BUTTON != 0 && mouse_pos.x >= self.bounds.a.x && mouse_pos.x < self.bounds.b.x && mouse_pos.y >= self.bounds.a.y && mouse_pos.y < self.bounds.b.y {
+                if event.mouse.buttons & MB_LEFT_BUTTON != 0
+                    && mouse_pos.x >= self.bounds.a.x
+                    && mouse_pos.x < self.bounds.b.x
+                    && mouse_pos.y >= self.bounds.a.y
+                    && mouse_pos.y < self.bounds.b.y
+                {
                     self.click_count.set(self.click_count.get() + 1);
                     *event = Event::command(self.command);
                 }
@@ -121,7 +139,12 @@ fn main() -> turbo_vision::core::error::Result<()> {
     let group_x = (width - group_width) / 2;
     let group_y = (height - group_height) / 2;
 
-    let mut group = Group::new(Rect::new(group_x, group_y, group_x + group_width, group_y + group_height));
+    let mut group = Group::new(Rect::new(
+        group_x,
+        group_y,
+        group_x + group_width,
+        group_y + group_height,
+    ));
 
     // Create 4 buttons in a 2x2 grid
     let button_width = 18;
@@ -134,7 +157,12 @@ fn main() -> turbo_vision::core::error::Result<()> {
             let button_y = 5 + row * (button_height + 2);
 
             let button = BroadcastButton::new(
-                Rect::new(button_x, button_y, button_x + button_width, button_y + button_height),
+                Rect::new(
+                    button_x,
+                    button_y,
+                    button_x + button_width,
+                    button_y + button_height,
+                ),
                 &format!("Button {}", button_id + 1),
                 CMD_BUTTON_BASE + button_id as u16,
             );
@@ -150,27 +178,61 @@ fn main() -> turbo_vision::core::error::Result<()> {
         // Draw title
         let mut title_buf = DrawBuffer::new(group_width as usize);
         let title = "Broadcast Demo - Click any button";
-        title_buf.move_str((group_width as usize - title.len()) / 2, title, colors::MENU_SELECTED);
-        turbo_vision::views::view::write_line_to_terminal(&mut app.terminal, group_x, group_y - 3, &title_buf);
+        title_buf.move_str(
+            (group_width as usize - title.len()) / 2,
+            title,
+            colors::MENU_SELECTED,
+        );
+        turbo_vision::views::view::write_line_to_terminal(
+            &mut app.terminal,
+            group_x,
+            group_y - 3,
+            &title_buf,
+        );
 
         // Draw info
         let mut info_buf = DrawBuffer::new(group_width as usize);
         let info = "Click button → broadcasts to siblings (owner skipped)";
-        info_buf.move_str((group_width as usize - info.len()) / 2, info, colors::MENU_NORMAL);
-        turbo_vision::views::view::write_line_to_terminal(&mut app.terminal, group_x, group_y - 2, &info_buf);
+        info_buf.move_str(
+            (group_width as usize - info.len()) / 2,
+            info,
+            colors::MENU_NORMAL,
+        );
+        turbo_vision::views::view::write_line_to_terminal(
+            &mut app.terminal,
+            group_x,
+            group_y - 2,
+            &info_buf,
+        );
 
         let mut info_buf = DrawBuffer::new(group_width as usize);
         let info = "Exit: ESC-ESC, ALt+X or CTRL+C";
-        info_buf.move_str((group_width as usize - info.len()) / 2, info, colors::MENU_NORMAL);
-        turbo_vision::views::view::write_line_to_terminal(&mut app.terminal, group_x, group_y - 1, &info_buf);
+        info_buf.move_str(
+            (group_width as usize - info.len()) / 2,
+            info,
+            colors::MENU_NORMAL,
+        );
+        turbo_vision::views::view::write_line_to_terminal(
+            &mut app.terminal,
+            group_x,
+            group_y - 1,
+            &info_buf,
+        );
 
         group.draw(&mut app.terminal);
         let _ = app.terminal.flush();
 
         // Poll events
-        if let Some(mut event) = app.terminal.poll_event(std::time::Duration::from_millis(50)).ok().flatten() {
+        if let Some(mut event) = app
+            .terminal
+            .poll_event(std::time::Duration::from_millis(50))
+            .ok()
+            .flatten()
+        {
             // Check for ESC ESC, ALT+X or CTRL+C
-            if event.what == EventType::Keyboard && matches!(event.key_code, KB_ESC_ESC | KB_ALT_X | KB_CTRL_C) {
+            if event.what == EventType::Keyboard
+                && matches!(event.key_code, KB_ESC_ESC | KB_ALT_X | KB_CTRL_C)
+            {
                 break;
             }
 
@@ -178,7 +240,10 @@ fn main() -> turbo_vision::core::error::Result<()> {
             group.handle_event(&mut event);
 
             // Check if a button was clicked
-            if event.what == EventType::Command && event.command >= CMD_BUTTON_BASE && event.command < CMD_BUTTON_BASE + 4 {
+            if event.what == EventType::Command
+                && event.command >= CMD_BUTTON_BASE
+                && event.command < CMD_BUTTON_BASE + 4
+            {
                 // Determine which button was clicked
                 let owner_index = (event.command - CMD_BUTTON_BASE) as usize;
 

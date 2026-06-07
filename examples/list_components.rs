@@ -12,11 +12,11 @@ use turbo_vision::core::command::{CM_NEW, CM_OPEN, CM_QUIT, CM_SAVE};
 use turbo_vision::core::event::EventType;
 use turbo_vision::core::geometry::{Point, Rect};
 use turbo_vision::core::menu_data::MenuBuilder;
+use turbo_vision::views::View;
 use turbo_vision::views::listbox::ListBoxBuilder;
 use turbo_vision::views::menu_bar::{MenuBar, SubMenu};
 use turbo_vision::views::menu_box::MenuBox;
 use turbo_vision::views::status_line::{StatusItem, StatusLine};
-use turbo_vision::views::View;
 
 // Custom command IDs
 const CMD_SHOW_MENU: u16 = 100;

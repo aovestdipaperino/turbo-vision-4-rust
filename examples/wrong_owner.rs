@@ -25,10 +25,17 @@ fn main() -> turbo_vision::core::error::Result<()> {
     app.set_status_line(status_line);
 
     // Create a Window
-    let mut window = WindowBuilder::new().bounds(Rect::new(20, 5, 60, 15)).title("Window with Button").build();
+    let mut window = WindowBuilder::new()
+        .bounds(Rect::new(20, 5, 60, 15))
+        .title("Window with Button")
+        .build();
 
     // Add a button with WRONG owner_type (Window instead of Dialog )
-    let button = ButtonBuilder::new().bounds(Rect::new(10, 4, 30, 6)).title("~T~est Button").command(CMD_TEST).build();
+    let button = ButtonBuilder::new()
+        .bounds(Rect::new(10, 4, 30, 6))
+        .title("~T~est Button")
+        .command(CMD_TEST)
+        .build();
     window.add(Box::new(button));
 
     app.desktop.add(Box::new(window));

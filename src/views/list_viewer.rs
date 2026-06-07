@@ -19,8 +19,10 @@
 // Rust composition:
 //   View trait + ListViewer trait → ListBox (embeds ListViewerState)
 
-use crate::core::event::{Event, EventType, KB_UP, KB_DOWN, KB_PGUP, KB_PGDN, KB_HOME, KB_END, KB_ENTER, MB_LEFT_BUTTON};
 use super::view::View;
+use crate::core::event::{
+    Event, EventType, KB_DOWN, KB_END, KB_ENTER, KB_HOME, KB_PGDN, KB_PGUP, KB_UP, MB_LEFT_BUTTON,
+};
 
 /// State management for list viewer components
 ///

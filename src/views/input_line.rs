@@ -3,7 +3,7 @@
 //! InputLine view - single-line text input with editing and history support.
 
 use super::validator::ValidatorRef;
-use super::view::{write_line_to_terminal, View};
+use super::view::{View, write_line_to_terminal};
 use crate::core::clipboard;
 use crate::core::draw::DrawBuffer;
 use crate::core::event::{
@@ -48,7 +48,7 @@ impl InputLine {
             first_pos: 0,
             validator: None,
             state: 0,
-        palette_chain: None,
+            palette_chain: None,
         }
     }
 
@@ -446,7 +446,7 @@ impl View for InputLine {
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        use crate::core::palette::{palettes, Palette};
+        use crate::core::palette::{Palette, palettes};
         Some(Palette::from_slice(palettes::CP_INPUT_LINE))
     }
 }

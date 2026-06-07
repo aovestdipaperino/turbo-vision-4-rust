@@ -7,7 +7,9 @@ use std::rc::Rc;
 use std::time::Instant;
 use std::time::SystemTime;
 use turbo_vision::app::Application;
-use turbo_vision::core::command::{CM_CASCADE, CM_CLOSE, CM_NEXT, CM_PREV, CM_QUIT, CM_TILE, CM_ZOOM};
+use turbo_vision::core::command::{
+    CM_CASCADE, CM_CLOSE, CM_NEXT, CM_PREV, CM_QUIT, CM_TILE, CM_ZOOM,
+};
 use turbo_vision::core::command_set;
 use turbo_vision::core::draw::DrawBuffer;
 use turbo_vision::core::event::{Event, EventType, KB_ALT_F3, KB_ALT_X, KB_F3, KB_F6, KB_F10};
@@ -92,7 +94,11 @@ struct ClockView {
 
 impl ClockView {
     fn new(bounds: Rect) -> Self {
-        Self { bounds, state: 0, palette_chain: None }
+        Self {
+            bounds,
+            state: 0,
+            palette_chain: None,
+        }
     }
 
     fn get_time_string() -> String {
@@ -136,7 +142,10 @@ impl View for ClockView {
     fn handle_event(&mut self, _event: &mut Event) {}
     fn update_cursor(&self, _terminal: &mut Terminal) {}
 
-    fn set_palette_chain(&mut self, node: Option<turbo_vision::core::palette_chain::PaletteChainNode>) {
+    fn set_palette_chain(
+        &mut self,
+        node: Option<turbo_vision::core::palette_chain::PaletteChainNode>,
+    ) {
         self.palette_chain = node;
     }
 
@@ -404,7 +413,11 @@ struct AsciiTable {
 
 impl AsciiTable {
     fn new(bounds: Rect) -> Self {
-        Self { bounds, state: 0, palette_chain: None }
+        Self {
+            bounds,
+            state: 0,
+            palette_chain: None,
+        }
     }
 }
 
@@ -437,7 +450,11 @@ impl View for AsciiTable {
 
             if row == 0 {
                 // Header
-                buf.move_str(2, "Char Dec  Hex", Attr::new(TvColor::Yellow, TvColor::Blue));
+                buf.move_str(
+                    2,
+                    "Char Dec  Hex",
+                    Attr::new(TvColor::Yellow, TvColor::Blue),
+                );
             } else if row > 0 && row <= 56 {
                 // 4 columns of characters (32-255 = 224 chars / 4 = 56 rows)
                 for col in 0..4 {
@@ -455,14 +472,22 @@ impl View for AsciiTable {
                 }
             }
 
-            write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y + row as i16, &buf);
+            write_line_to_terminal(
+                terminal,
+                self.bounds.a.x,
+                self.bounds.a.y + row as i16,
+                &buf,
+            );
         }
     }
 
     fn handle_event(&mut self, _event: &mut Event) {}
     fn update_cursor(&self, _terminal: &mut Terminal) {}
 
-    fn set_palette_chain(&mut self, node: Option<turbo_vision::core::palette_chain::PaletteChainNode>) {
+    fn set_palette_chain(
+        &mut self,
+        node: Option<turbo_vision::core::palette_chain::PaletteChainNode>,
+    ) {
         self.palette_chain = node;
     }
 
@@ -485,7 +510,15 @@ fn show_ascii_table(app: &mut Application) {
     let win_x = (width - win_width) / 2;
     let win_y = (height - win_height - 2) / 2; // -2 for menu and status
 
-    let mut window = WindowBuilder::new().bounds(Rect::new(win_x, win_y, win_x + win_width, win_y + win_height)).title("ASCII Table").build();
+    let mut window = WindowBuilder::new()
+        .bounds(Rect::new(
+            win_x,
+            win_y,
+            win_x + win_width,
+            win_y + win_height,
+        ))
+        .title("ASCII Table")
+        .build();
 
     // ASCII table fills the interior (coordinates relative to window interior, which starts at 0,0)
     let ascii_table = AsciiTable::new(Rect::new(0, 0, win_width - 2, win_height - 2));
@@ -527,7 +560,7 @@ impl CalcDisplay {
             sign: ' ',
             operator: '=',
             operand: 0.0,
-        palette_chain: None,
+            palette_chain: None,
         }
     }
 
@@ -559,7 +592,11 @@ impl CalcDisplay {
 
         // Remove trailing zeros after decimal point
         if self.number.contains('.') {
-            self.number = self.number.trim_end_matches('0').trim_end_matches('.').to_string();
+            self.number = self
+                .number
+                .trim_end_matches('0')
+                .trim_end_matches('.')
+                .to_string();
         }
 
         if self.number.len() > 25 {
@@ -645,7 +682,10 @@ impl CalcDisplay {
     }
 
     fn handle_command(&mut self, command: u16) {
-        let keys = ['C', '\x08', '%', '_', '7', '8', '9', '/', '4', '5', '6', '*', '1', '2', '3', '-', '0', '.', '=', '+'];
+        let keys = [
+            'C', '\x08', '%', '_', '7', '8', '9', '/', '4', '5', '6', '*', '1', '2', '3', '-', '0',
+            '.', '=', '+',
+        ];
         if command >= CM_CALC_BUTTON && command < CM_CALC_BUTTON + 20 {
             let idx = (command - CM_CALC_BUTTON) as usize;
             if idx < keys.len() {
@@ -735,7 +775,10 @@ impl View for CalcDisplay {
 
     fn update_cursor(&self, _terminal: &mut Terminal) {}
 
-    fn set_palette_chain(&mut self, node: Option<turbo_vision::core::palette_chain::PaletteChainNode>) {
+    fn set_palette_chain(
+        &mut self,
+        node: Option<turbo_vision::core::palette_chain::PaletteChainNode>,
+    ) {
         self.palette_chain = node;
     }
 
@@ -750,7 +793,11 @@ impl View for CalcDisplay {
 
 fn show_calculator_placeholder(app: &mut Application) {
     use std::io::Write;
-    let mut log = std::fs::OpenOptions::new().create(true).append(true).open("calc.log").unwrap();
+    let mut log = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open("calc.log")
+        .unwrap();
 
     writeln!(log, "\n=== show_calculator_placeholder START ===").unwrap();
 
@@ -768,7 +815,10 @@ fn show_calculator_placeholder(app: &mut Application) {
     dialog.add(Box::new(display));
 
     // Add buttons in 4x5 grid
-    let button_labels = ["C", "<-", "%", "+-", "7", "8", "9", "/", "4", "5", "6", "*", "1", "2", "3", "-", "0", ".", "=", "+"];
+    let button_labels = [
+        "C", "<-", "%", "+-", "7", "8", "9", "/", "4", "5", "6", "*", "1", "2", "3", "-", "0", ".",
+        "=", "+",
+    ];
 
     for i in 0..20 {
         // Moved 1 row up and 1 to the left
@@ -813,7 +863,10 @@ impl CalendarView {
         use std::time::UNIX_EPOCH;
 
         // Get current date
-        let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
 
         // Simple date calculation (days since epoch)
         let days_since_epoch = now / 86400;
@@ -827,7 +880,7 @@ impl CalendarView {
             cur_day: day,
             cur_month: month,
             cur_year: year,
-        palette_chain: None,
+            palette_chain: None,
         }
     }
 
@@ -845,7 +898,20 @@ impl CalendarView {
             year += 1;
         }
 
-        let days_in_month = [31, if Self::is_leap_year(year) { 29 } else { 28 }, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+        let days_in_month = [
+            31,
+            if Self::is_leap_year(year) { 29 } else { 28 },
+            31,
+            30,
+            31,
+            30,
+            31,
+            31,
+            30,
+            31,
+            30,
+            31,
+        ];
 
         let mut month = 1;
         for &days in &days_in_month {
@@ -893,7 +959,8 @@ impl CalendarView {
 
         let century = y / 100;
         let yr = y % 100;
-        let mut dw = (((26 * m - 2) / 10) + day as i32 + yr + (yr / 4) + (century / 4) - (2 * century)) % 7;
+        let mut dw =
+            (((26 * m - 2) / 10) + day as i32 + yr + (yr / 4) + (century / 4) - (2 * century)) % 7;
 
         if dw < 0 {
             dw += 7;
@@ -978,7 +1045,11 @@ impl View for CalendarView {
         let first_day_of_week = Self::day_of_week(1, self.month, self.year);
         let days_in_month = Self::days_in_month(self.month, self.year);
 
-        let mut current = if first_day_of_week == 0 { 1 } else { 1 - first_day_of_week as i32 };
+        let mut current = if first_day_of_week == 0 {
+            1
+        } else {
+            1 - first_day_of_week as i32
+        };
 
         // Lines 2-7: Calendar grid (6 weeks)
         for week in 0..6 {
@@ -990,7 +1061,10 @@ impl View for CalendarView {
                     buf.move_str(day_of_week * 3, "   ", color);
                 } else {
                     let day_str = format!("{:2}", current);
-                    let day_color = if self.year == self.cur_year && self.month == self.cur_month && current == self.cur_day as i32 {
+                    let day_color = if self.year == self.cur_year
+                        && self.month == self.cur_month
+                        && current == self.cur_day as i32
+                    {
                         bold_color
                     } else {
                         color
@@ -1000,7 +1074,12 @@ impl View for CalendarView {
                 current += 1;
             }
 
-            write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y + 2 + week as i16, &buf);
+            write_line_to_terminal(
+                terminal,
+                self.bounds.a.x,
+                self.bounds.a.y + 2 + week as i16,
+                &buf,
+            );
         }
     }
 
@@ -1044,7 +1123,10 @@ impl View for CalendarView {
 
     fn update_cursor(&self, _terminal: &mut Terminal) {}
 
-    fn set_palette_chain(&mut self, node: Option<turbo_vision::core::palette_chain::PaletteChainNode>) {
+    fn set_palette_chain(
+        &mut self,
+        node: Option<turbo_vision::core::palette_chain::PaletteChainNode>,
+    ) {
         self.palette_chain = node;
     }
 
@@ -1088,11 +1170,13 @@ impl PuzzleView {
             board: [[' '; 6]; 6],
             moves: 0,
             solved: false,
-        palette_chain: None,
+            palette_chain: None,
         };
 
         // Initialize board with starting position
-        let board_start = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', ' '];
+        let board_start = [
+            'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', ' ',
+        ];
 
         for i in 0..4 {
             for j in 0..4 {
@@ -1112,7 +1196,10 @@ impl PuzzleView {
         self.solved = false;
 
         // Use system time as seed
-        let seed = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as u64;
+        let seed = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as u64;
 
         let mut rng = seed;
 
@@ -1285,7 +1372,11 @@ impl View for PuzzleView {
                     color_normal
                 } else {
                     let tile_idx = (tile as usize).saturating_sub('A' as usize);
-                    if tile_idx < 15 && map[tile_idx] == 1 { color_alt } else { color_normal }
+                    if tile_idx < 15 && map[tile_idx] == 1 {
+                        color_alt
+                    } else {
+                        color_normal
+                    }
                 };
 
                 buf.move_str(j * 3, &tile_str, color);
@@ -1296,7 +1387,8 @@ impl View for PuzzleView {
     }
 
     fn handle_event(&mut self, event: &mut Event) {
-        if self.solved && (event.what == EventType::Keyboard || event.what == EventType::MouseDown) {
+        if self.solved && (event.what == EventType::Keyboard || event.what == EventType::MouseDown)
+        {
             self.scramble();
             event.what = EventType::Nothing;
             return;
@@ -1319,7 +1411,10 @@ impl View for PuzzleView {
 
     fn update_cursor(&self, _terminal: &mut Terminal) {}
 
-    fn set_palette_chain(&mut self, node: Option<turbo_vision::core::palette_chain::PaletteChainNode>) {
+    fn set_palette_chain(
+        &mut self,
+        node: Option<turbo_vision::core::palette_chain::PaletteChainNode>,
+    ) {
         self.palette_chain = node;
     }
 
@@ -1362,15 +1457,27 @@ fn show_open_file_dialog(app: &mut Application, crab: &Rc<RefCell<CrabWidget>>) 
     let dialog_y = (height - dialog_height - 2) / 2;
 
     let mut file_dialog = FileDialogBuilder::new()
-        .bounds(Rect::new(dialog_x, dialog_y, dialog_x + dialog_width, dialog_y + dialog_height))
+        .bounds(Rect::new(
+            dialog_x,
+            dialog_y,
+            dialog_x + dialog_width,
+            dialog_y + dialog_height,
+        ))
         .title("Open File")
         .wildcard("*.*")
         .build();
 
     if let Some(path) = file_dialog.execute(app) {
         // Show selected file in a message box
-        let filename = path.file_name().and_then(|n| n.to_str()).unwrap_or("(unknown)");
-        let msg = format!("Selected file:\n{}\n\nFull path:\n{}", filename, path.display());
+        let filename = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("(unknown)");
+        let msg = format!(
+            "Selected file:\n{}\n\nFull path:\n{}",
+            filename,
+            path.display()
+        );
         use turbo_vision::helpers::msgbox::{MF_INFORMATION, MF_OK_BUTTON, message_box};
         message_box(app, &msg, MF_INFORMATION | MF_OK_BUTTON);
     }
@@ -1412,15 +1519,29 @@ fn update_menu_states(app: &Application) {
 fn setup_panic_handler() {
     std::panic::set_hook(Box::new(|panic_info| {
         use std::io::Write;
-        let mut log_file = std::fs::OpenOptions::new().create(true).append(true).open("crash.log").unwrap();
+        let mut log_file = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open("crash.log")
+            .unwrap();
 
-        let timestamp = SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs();
+        let timestamp = SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
 
         writeln!(log_file, "\n=== PANIC at timestamp {} ===", timestamp).unwrap();
         writeln!(log_file, "{}", panic_info).unwrap();
 
         if let Some(location) = panic_info.location() {
-            writeln!(log_file, "Location: {}:{}:{}", location.file(), location.line(), location.column()).unwrap();
+            writeln!(
+                log_file,
+                "Location: {}:{}:{}",
+                location.file(),
+                location.line(),
+                location.column()
+            )
+            .unwrap();
         }
 
         if let Some(message) = panic_info.payload().downcast_ref::<&str>() {
@@ -1439,7 +1560,8 @@ fn setup_panic_handler() {
 
 /// Initialize application with menu bar, status line, and widgets
 /// Returns (app, clock, crab_widget)
-fn init_application() -> turbo_vision::core::error::Result<(Application, ClockView, Rc<RefCell<CrabWidget>>)> {
+fn init_application()
+-> turbo_vision::core::error::Result<(Application, ClockView, Rc<RefCell<CrabWidget>>)> {
     let mut app = Application::new()?;
     let (width, height) = app.terminal.size();
 
@@ -1456,7 +1578,10 @@ fn init_application() -> turbo_vision::core::error::Result<(Application, ClockVi
     let clock = ClockView::new(Rect::new(width - clock_width, 0, width, 1));
 
     // Create animated crab widget on the right side of the status bar
-    let crab_widget = Rc::new(RefCell::new(CrabWidget::new(width - CrabWidget::WIDTH, height - 1)));
+    let crab_widget = Rc::new(RefCell::new(CrabWidget::new(
+        width - CrabWidget::WIDTH,
+        height - 1,
+    )));
     app.add_overlay_widget(Box::new(CrabWidgetWrapper::new(crab_widget.clone())));
 
     Ok((app, clock, crab_widget))
@@ -1492,7 +1617,11 @@ fn handle_event_routing(app: &mut Application, event: &mut Event) {
 
 /// Handle command events
 /// Returns true if redraw is needed
-fn handle_commands(app: &mut Application, command: u16, crab_widget: &Rc<RefCell<CrabWidget>>) -> bool {
+fn handle_commands(
+    app: &mut Application,
+    command: u16,
+    crab_widget: &Rc<RefCell<CrabWidget>>,
+) -> bool {
     match command {
         CM_QUIT => {
             app.running = false;
@@ -1566,7 +1695,11 @@ fn handle_commands(app: &mut Application, command: u16, crab_widget: &Rc<RefCell
 }
 
 /// Main event loop
-fn run_event_loop(app: &mut Application, clock: &mut ClockView, crab_widget: &Rc<RefCell<CrabWidget>>) -> turbo_vision::core::error::Result<()> {
+fn run_event_loop(
+    app: &mut Application,
+    clock: &mut ClockView,
+    crab_widget: &Rc<RefCell<CrabWidget>>,
+) -> turbo_vision::core::error::Result<()> {
     while app.running {
         // Update menu states based on current desktop state (before drawing)
         update_menu_states(app);
@@ -1577,7 +1710,10 @@ fn run_event_loop(app: &mut Application, clock: &mut ClockView, crab_widget: &Rc
         app.terminal.flush()?;
 
         // Poll for events
-        if let Ok(Some(mut event)) = app.terminal.poll_event(std::time::Duration::from_millis(50)) {
+        if let Ok(Some(mut event)) = app
+            .terminal
+            .poll_event(std::time::Duration::from_millis(50))
+        {
             // Route event through UI components
             handle_event_routing(app, &mut event);
 

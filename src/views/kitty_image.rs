@@ -32,13 +32,13 @@
 //! );
 //! ```
 
+use super::view::{View, write_line_to_terminal};
 use crate::core::draw::DrawBuffer;
 use crate::core::event::Event;
 use crate::core::geometry::Rect;
 use crate::core::palette::Attr;
 use crate::core::state::StateFlags;
 use crate::terminal::Terminal;
-use super::view::{View, write_line_to_terminal};
 use std::io;
 use std::path::Path;
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -94,7 +94,7 @@ impl KittyImage {
             ),
             columns: 0,
             rows: 0,
-        palette_chain: None,
+            palette_chain: None,
             z_index: 0,
             last_bounds: None,
         }
@@ -209,17 +209,11 @@ impl KittyImage {
                 // First chunk includes all the metadata
                 // Use a=t (lowercase) for transmit-only, don't display yet
                 result.extend_from_slice(
-                    format!(
-                        "a=t,f=100,t=d,i={},q=2,m={}",
-                        self.image_id,
-                        more_flag
-                    ).as_bytes()
+                    format!("a=t,f=100,t=d,i={},q=2,m={}", self.image_id, more_flag).as_bytes(),
                 );
             } else {
                 // Continuation chunks only need m flag
-                result.extend_from_slice(
-                    format!("m={}", more_flag).as_bytes()
-                );
+                result.extend_from_slice(format!("m={}", more_flag).as_bytes());
             }
 
             // Add payload separator and data
@@ -244,7 +238,11 @@ impl KittyImage {
         // z parameter: negative values place image behind text, positive in front
         result.extend_from_slice(b"\x1b_G");
         result.extend_from_slice(
-            format!("a=p,i={},c={},r={},z={},q=2", self.image_id, cols, rows, self.z_index).as_bytes()
+            format!(
+                "a=p,i={},c={},r={},z={},q=2",
+                self.image_id, cols, rows, self.z_index
+            )
+            .as_bytes(),
         );
         result.extend_from_slice(b";\x1b\\");
 
@@ -370,7 +368,7 @@ impl View for KittyImage {
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        use crate::core::palette::{palettes, Palette};
+        use crate::core::palette::{Palette, palettes};
         Some(Palette::from_slice(palettes::CP_BACKGROUND))
     }
 }

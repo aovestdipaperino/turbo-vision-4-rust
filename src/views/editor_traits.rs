@@ -160,7 +160,10 @@ pub fn confirm_save_on_close<E: FileEditor + ?Sized>(
         return true;
     }
 
-    let message = format!("{} has been modified.\n\nSave changes?", editor.display_name());
+    let message = format!(
+        "{} has been modified.\n\nSave changes?",
+        editor.display_name()
+    );
     match confirmation_box(app, &message) {
         c if c == CM_YES => {
             if editor.file_path().is_some() {

@@ -148,7 +148,9 @@ impl ScrollBar {
         if range <= 0 || usable <= 0 {
             0
         } else {
-            ((self.value - self.min_val) as i64 * usable as i64 / range as i64).max(0).min(usable as i64) as i32
+            ((self.value - self.min_val) as i64 * usable as i64 / range as i64)
+                .max(0)
+                .min(usable as i64) as i32
         }
     }
 
@@ -398,8 +400,8 @@ impl View for ScrollBar {
             for y in 0..height {
                 let mut buf = DrawBuffer::new(1);
                 let track_pos = y - 1;
-                let in_thumb = track_pos >= thumb_start && track_pos < thumb_end
-                    && y > 0 && y < height - 1;
+                let in_thumb =
+                    track_pos >= thumb_start && track_pos < thumb_end && y > 0 && y < height - 1;
 
                 let ch = if y == 0 {
                     self.chars[1]
@@ -421,8 +423,8 @@ impl View for ScrollBar {
 
             for x in 0..width {
                 let track_pos = x - 1;
-                let in_thumb = track_pos >= thumb_start && track_pos < thumb_end
-                    && x > 0 && x < width - 1;
+                let in_thumb =
+                    track_pos >= thumb_start && track_pos < thumb_end && x > 0 && x < width - 1;
 
                 let ch = if x == 0 {
                     self.chars[1]
@@ -481,7 +483,6 @@ impl View for ScrollBar {
         use crate::core::palette::{Palette, palettes};
         Some(Palette::from_slice(palettes::CP_SCROLLBAR))
     }
-
 }
 
 /// Builder for creating scrollbars with a fluent API.

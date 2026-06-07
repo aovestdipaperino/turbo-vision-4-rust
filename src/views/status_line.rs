@@ -2,14 +2,17 @@
 
 //! StatusLine view - bottom status bar with keyboard shortcuts and context help.
 
-use crate::core::geometry::Rect;
-use crate::core::event::{Event, EventType, KeyCode, MB_LEFT_BUTTON};
-use crate::core::draw::DrawBuffer;
+use super::view::{View, write_line_to_terminal};
 use crate::core::command::CommandId;
 use crate::core::command_set;
-use crate::core::palette::{STATUSLINE_DISABLED, STATUSLINE_NORMAL, STATUSLINE_SELECTED, STATUSLINE_SELECTED_SHORTCUT, STATUSLINE_SHORTCUT};
+use crate::core::draw::DrawBuffer;
+use crate::core::event::{Event, EventType, KeyCode, MB_LEFT_BUTTON};
+use crate::core::geometry::Rect;
+use crate::core::palette::{
+    STATUSLINE_DISABLED, STATUSLINE_NORMAL, STATUSLINE_SELECTED, STATUSLINE_SELECTED_SHORTCUT,
+    STATUSLINE_SHORTCUT,
+};
 use crate::terminal::Terminal;
-use super::view::{View, write_line_to_terminal};
 
 pub struct StatusItem {
     pub text: String,
@@ -47,8 +50,8 @@ impl StatusLine {
             item_positions: Vec::new(),
             selected_item: None,
             hint_text: None,
-            options: OF_PRE_PROCESS,  // Status line processes in pre-process phase (matches Borland)
-        palette_chain: None,
+            options: OF_PRE_PROCESS, // Status line processes in pre-process phase (matches Borland)
+            palette_chain: None,
         }
     }
 
@@ -75,9 +78,10 @@ impl StatusLine {
         // Clear previous item positions
         self.item_positions.clear();
 
-        let mut x = 0;  // Start at position 0 (Borland starts at i=0)
+        let mut x = 0; // Start at position 0 (Borland starts at i=0)
         for (idx, item) in self.items.iter().enumerate() {
-            if x + item.text.len() + 4 < width {  // Need space for: space + text + space + separator
+            if x + item.text.len() + 4 < width {
+                // Need space for: space + text + space + separator
                 // Hit area starts at the leading space (matches Borland tstatusl.cc:204)
                 let start_x = x as i16;
 
@@ -113,7 +117,7 @@ impl StatusLine {
                         // Read all characters until closing ~ in highlight color
                         while let Some(shortcut_ch) = chars.next() {
                             if shortcut_ch == '~' {
-                                break;  // Found closing tilde
+                                break; // Found closing tilde
                             }
                             buf.put_char(x, shortcut_ch, item_shortcut);
                             x += 1;

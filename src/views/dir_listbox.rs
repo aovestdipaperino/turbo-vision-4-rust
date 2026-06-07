@@ -22,14 +22,14 @@
 //   │ └─ bob
 //   └─ Program Files
 
-use crate::core::geometry::Rect;
+use super::list_viewer::{ListViewer, ListViewerState};
+use super::view::View;
 use crate::core::event::{Event, EventType, KB_ENTER};
+use crate::core::geometry::Rect;
 use crate::core::state::StateFlags;
 use crate::terminal::Terminal;
-use super::view::View;
-use super::list_viewer::{ListViewer, ListViewerState};
-use std::path::{Path, PathBuf};
 use std::fs;
+use std::path::{Path, PathBuf};
 
 /// Directory entry in the tree
 #[derive(Clone, Debug)]
@@ -95,7 +95,7 @@ impl DirListBox {
             entries: Vec::new(),
             current_path: path.to_path_buf(),
             root_path: Self::find_root(path),
-        palette_chain: None,
+            palette_chain: None,
         };
         dlb.rebuild_tree();
         dlb
@@ -216,7 +216,11 @@ impl DirListBox {
         self.list_state.set_range(self.entries.len());
 
         // Focus the current directory entry
-        if let Some(idx) = self.entries.iter().position(|e| e.path == self.current_path) {
+        if let Some(idx) = self
+            .entries
+            .iter()
+            .position(|e| e.path == self.current_path)
+        {
             self.list_state.focused = Some(idx);
         } else {
             self.list_state.focused = Some(0);
@@ -246,7 +250,11 @@ impl DirListBox {
         let mut continues = vec![false; entry.level];
 
         // Find the current entry's index
-        let entry_idx = self.entries.iter().position(|e| e.path == entry.path).unwrap_or(0);
+        let entry_idx = self
+            .entries
+            .iter()
+            .position(|e| e.path == entry.path)
+            .unwrap_or(0);
 
         // For each parent level, find the ancestor and check if it's not the last child
         for level in 0..entry.level {
@@ -388,10 +396,9 @@ impl View for DirListBox {
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        use crate::core::palette::{palettes, Palette};
+        use crate::core::palette::{Palette, palettes};
         Some(Palette::from_slice(palettes::CP_LISTBOX))
     }
-
 }
 
 #[cfg(test)]
@@ -458,7 +465,10 @@ pub struct DirListBoxBuilder {
 
 impl DirListBoxBuilder {
     pub fn new() -> Self {
-        Self { bounds: None, path: None }
+        Self {
+            bounds: None,
+            path: None,
+        }
     }
 
     #[must_use]

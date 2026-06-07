@@ -12,13 +12,13 @@
 //   let viewer = HistoryViewer::new(bounds, history_id);
 //   // Viewer will display items from HistoryManager
 
-use crate::core::geometry::Rect;
-use crate::core::event::Event;
-use crate::core::state::StateFlags;
-use crate::core::history::HistoryManager;
-use crate::terminal::Terminal;
-use super::view::View;
 use super::list_viewer::{ListViewer, ListViewerState};
+use super::view::View;
+use crate::core::event::Event;
+use crate::core::geometry::Rect;
+use crate::core::history::HistoryManager;
+use crate::core::state::StateFlags;
+use crate::terminal::Terminal;
 
 /// HistoryViewer - Displays history items for a specific history ID
 ///
@@ -46,7 +46,7 @@ impl HistoryViewer {
             items,
             list_state,
             state: 0,
-        palette_chain: None,
+            palette_chain: None,
         }
     }
 
@@ -58,7 +58,9 @@ impl HistoryViewer {
 
     /// Get the currently selected history item
     pub fn get_selected_item(&self) -> Option<&str> {
-        self.list_state.focused.and_then(|idx| self.items.get(idx).map(|s| s.as_str()))
+        self.list_state
+            .focused
+            .and_then(|idx| self.items.get(idx).map(|s| s.as_str()))
     }
 
     /// Get the number of items
@@ -77,14 +79,15 @@ impl View for HistoryViewer {
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        
-        use crate::core::draw::DrawBuffer;
         use super::view::write_line_to_terminal;
+        use crate::core::draw::DrawBuffer;
 
         let width = self.bounds.width_clamped() as usize;
         let height = self.bounds.height_clamped() as usize;
 
-        use crate::core::palette::colors::{LISTBOX_FOCUSED, LISTBOX_NORMAL, LISTBOX_SELECTED_FOCUSED, LISTBOX_SELECTED};
+        use crate::core::palette::colors::{
+            LISTBOX_FOCUSED, LISTBOX_NORMAL, LISTBOX_SELECTED, LISTBOX_SELECTED_FOCUSED,
+        };
         let color_normal = if self.is_focused() {
             LISTBOX_FOCUSED
         } else {
@@ -103,7 +106,11 @@ impl View for HistoryViewer {
 
             if item_idx < self.items.len() {
                 let is_selected = Some(item_idx) == self.list_state.focused;
-                let color = if is_selected { color_selected } else { color_normal };
+                let color = if is_selected {
+                    color_selected
+                } else {
+                    color_normal
+                };
 
                 let text = &self.items[item_idx];
                 buf.move_str(0, text, color);
@@ -159,10 +166,9 @@ impl View for HistoryViewer {
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        use crate::core::palette::{palettes, Palette};
+        use crate::core::palette::{Palette, palettes};
         Some(Palette::from_slice(palettes::CP_HISTORY_VIEWER))
     }
-
 }
 
 // Implement ListViewer trait for standard navigation
@@ -230,7 +236,10 @@ pub struct HistoryViewerBuilder {
 
 impl HistoryViewerBuilder {
     pub fn new() -> Self {
-        Self { bounds: None, history_id: None }
+        Self {
+            bounds: None,
+            history_id: None,
+        }
     }
 
     #[must_use]
@@ -247,7 +256,9 @@ impl HistoryViewerBuilder {
 
     pub fn build(self) -> HistoryViewer {
         let bounds = self.bounds.expect("HistoryViewer bounds must be set");
-        let history_id = self.history_id.expect("HistoryViewer history_id must be set");
+        let history_id = self
+            .history_id
+            .expect("HistoryViewer history_id must be set");
         HistoryViewer::new(bounds, history_id)
     }
 

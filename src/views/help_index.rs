@@ -6,20 +6,20 @@
 //!
 //! Provides a searchable list of all help topics with filtering capability.
 
-use crate::core::geometry::Rect;
-use crate::core::event::{Event, EventType};
-use crate::core::command::{CM_OK, CM_CANCEL};
-use crate::terminal::Terminal;
-use super::dialog::Dialog;
-use super::input_line::InputLine;
-use super::listbox::ListBox;
 use super::button::Button;
+use super::dialog::Dialog;
+use super::help_file::HelpFile;
+use super::input_line::InputLine;
 use super::label::Label;
+use super::listbox::ListBox;
 use super::static_text::StaticText;
 use super::{View, ViewId};
-use super::help_file::HelpFile;
-use std::rc::Rc;
+use crate::core::command::{CM_CANCEL, CM_OK};
+use crate::core::event::{Event, EventType};
+use crate::core::geometry::Rect;
+use crate::terminal::Terminal;
 use std::cell::RefCell;
+use std::rc::Rc;
 
 const CMD_TOPIC_SELECTED: u16 = 1002;
 
@@ -44,7 +44,7 @@ impl HelpIndex {
         // Instructions
         dialog.add(Box::new(StaticText::new(
             Rect::new(2, 2, bounds.width() - 4, 3),
-            "Search for a topic:"
+            "Search for a topic:",
         )));
 
         // Search input
@@ -52,7 +52,11 @@ impl HelpIndex {
         dialog.add(Box::new(search_label));
 
         let search_data = Rc::new(RefCell::new(String::new()));
-        let search_input = InputLine::new(Rect::new(10, 4, bounds.width() - 4, 5), 100, search_data.clone());
+        let search_input = InputLine::new(
+            Rect::new(10, 4, bounds.width() - 4, 5),
+            100,
+            search_data.clone(),
+        );
         let search_input_id = dialog.add(Box::new(search_input));
 
         // Topic list
@@ -61,23 +65,33 @@ impl HelpIndex {
 
         let topic_list = ListBox::new(
             Rect::new(2, 7, bounds.width() - 4, bounds.height() - 6),
-            CMD_TOPIC_SELECTED
+            CMD_TOPIC_SELECTED,
         );
         let topic_list_id = dialog.add(Box::new(topic_list));
 
         // Buttons
         dialog.add(Box::new(Button::new(
-            Rect::new(bounds.width() - 24, bounds.height() - 4, bounds.width() - 14, bounds.height() - 2),
+            Rect::new(
+                bounds.width() - 24,
+                bounds.height() - 4,
+                bounds.width() - 14,
+                bounds.height() - 2,
+            ),
             "View",
             CM_OK,
-            true
+            true,
         )));
 
         dialog.add(Box::new(Button::new(
-            Rect::new(bounds.width() - 12, bounds.height() - 4, bounds.width() - 2, bounds.height() - 2),
+            Rect::new(
+                bounds.width() - 12,
+                bounds.height() - 4,
+                bounds.width() - 2,
+                bounds.height() - 2,
+            ),
             "Close",
             CM_CANCEL,
-            false
+            false,
         )));
 
         // Get all topics from help file
@@ -115,7 +129,8 @@ impl HelpIndex {
     fn update_topic_list(&mut self) {
         // For now, show all topics (filtering not yet implemented)
         // TODO: Add actual search filtering based on search_input text
-        let _topic_titles: Vec<String> = self.filtered_topics
+        let _topic_titles: Vec<String> = self
+            .filtered_topics
             .iter()
             .map(|(_, title)| title.clone())
             .collect();
@@ -131,11 +146,12 @@ impl HelpIndex {
             self.filtered_topics = self.all_topics.clone();
         } else {
             let search_lower = search_text.to_lowercase();
-            self.filtered_topics = self.all_topics
+            self.filtered_topics = self
+                .all_topics
                 .iter()
                 .filter(|(id, title)| {
-                    title.to_lowercase().contains(&search_lower) ||
-                    id.to_lowercase().contains(&search_lower)
+                    title.to_lowercase().contains(&search_lower)
+                        || id.to_lowercase().contains(&search_lower)
                 })
                 .cloned()
                 .collect();
@@ -214,7 +230,11 @@ pub struct HelpIndexBuilder {
 
 impl HelpIndexBuilder {
     pub fn new() -> Self {
-        Self { bounds: None, title: None, help_file: None }
+        Self {
+            bounds: None,
+            title: None,
+            help_file: None,
+        }
     }
 
     #[must_use]

@@ -6,13 +6,15 @@
 //!
 //! Provides an interactive grid of colors for selection.
 
-use crate::core::geometry::Rect;
-use crate::core::event::{Event, EventType, KB_UP, KB_DOWN, KB_LEFT, KB_RIGHT, KB_ENTER, MB_LEFT_BUTTON};
-use crate::core::state::StateFlags;
-use crate::core::palette::Attr;
-use crate::core::draw::DrawBuffer;
-use crate::terminal::Terminal;
 use super::view::{View, write_line_to_terminal};
+use crate::core::draw::DrawBuffer;
+use crate::core::event::{
+    Event, EventType, KB_DOWN, KB_ENTER, KB_LEFT, KB_RIGHT, KB_UP, MB_LEFT_BUTTON,
+};
+use crate::core::geometry::Rect;
+use crate::core::palette::Attr;
+use crate::core::state::StateFlags;
+use crate::terminal::Terminal;
 
 const COLORS_PER_ROW: usize = 8;
 
@@ -36,7 +38,7 @@ impl ColorSelector {
             state: 0,
             selected_color: 7, // White
             _selecting_foreground: true,
-        palette_chain: None,
+            palette_chain: None,
         }
     }
 
@@ -54,7 +56,7 @@ impl ColorSelector {
     fn color_to_pos(&self, color: u8) -> (i16, i16) {
         let row = (color / COLORS_PER_ROW as u8) as i16;
         let col = (color % COLORS_PER_ROW as u8) as i16;
-        (col * 3, row)  // 3 chars per color cell
+        (col * 3, row) // 3 chars per color cell
     }
 
     /// Get color from position in grid
@@ -107,15 +109,22 @@ impl View for ColorSelector {
                 }
             }
 
-            write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y + row as i16, &buf);
+            write_line_to_terminal(
+                terminal,
+                self.bounds.a.x,
+                self.bounds.a.y + row as i16,
+                &buf,
+            );
         }
 
         // Draw color labels row
         if self.bounds.height() > 2 {
             let mut label_buf = DrawBuffer::new(width);
             let label_attr = Attr::from_u8(0x07); // Normal text
-            let text = format!("Selected: {} (0x{:02X})",
-                self.selected_color, self.selected_color);
+            let text = format!(
+                "Selected: {} (0x{:02X})",
+                self.selected_color, self.selected_color
+            );
             label_buf.move_str(0, &text, label_attr);
             write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y + 2, &label_buf);
         }
@@ -189,7 +198,6 @@ impl View for ColorSelector {
     fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
         self.palette_chain.as_ref()
     }
-
 }
 
 /// Builder for creating color selectors with a fluent API.
@@ -200,7 +208,10 @@ pub struct ColorSelectorBuilder {
 
 impl ColorSelectorBuilder {
     pub fn new() -> Self {
-        Self { bounds: None, selected_color: 7 }
+        Self {
+            bounds: None,
+            selected_color: 7,
+        }
     }
 
     #[must_use]

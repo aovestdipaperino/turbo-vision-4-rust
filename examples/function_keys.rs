@@ -11,7 +11,9 @@
 use turbo_vision::app::Application;
 use turbo_vision::core::command::CM_QUIT;
 use turbo_vision::core::draw::DrawBuffer;
-use turbo_vision::core::event::{EventType, KB_ALT_X, KB_F1, KB_F2, KB_F3, KB_F4, KB_F5, KB_F6, KB_F7, KB_F8, KB_F9, KB_F10};
+use turbo_vision::core::event::{
+    EventType, KB_ALT_X, KB_F1, KB_F2, KB_F3, KB_F4, KB_F5, KB_F6, KB_F7, KB_F8, KB_F9, KB_F10,
+};
 use turbo_vision::core::geometry::Rect;
 use turbo_vision::core::palette::Attr;
 use turbo_vision::views::View;
@@ -84,7 +86,10 @@ fn main() -> turbo_vision::core::error::Result<()> {
         write_line_to_terminal(&mut app.terminal, box_x, key_y, &buf);
 
         // Draw key reference box
-        let key_ref = [" F1  F2  F3  F4  F5             ", " F6  F7  F8  F9  F10            "];
+        let key_ref = [
+            " F1  F2  F3  F4  F5             ",
+            " F6  F7  F8  F9  F10            ",
+        ];
 
         let ref_y = 15;
         for (i, line) in key_ref.iter().enumerate() {
@@ -107,7 +112,10 @@ fn main() -> turbo_vision::core::error::Result<()> {
         let _ = app.terminal.flush();
 
         // Handle events
-        if let Ok(Some(mut event)) = app.terminal.poll_event(std::time::Duration::from_millis(50)) {
+        if let Ok(Some(mut event)) = app
+            .terminal
+            .poll_event(std::time::Duration::from_millis(50))
+        {
             // Status line handles shortcuts
             if let Some(ref mut status_line) = app.status_line {
                 status_line.handle_event(&mut event);
@@ -149,5 +157,8 @@ fn main() -> turbo_vision::core::error::Result<()> {
 fn setup_status_line(app: &Application) -> StatusLine {
     let (w, h) = app.terminal.size();
 
-    StatusLine::new(Rect::new(0, h as i16 - 1, w as i16, h as i16), vec![StatusItem::new("~Alt-X~ Exit", KB_ALT_X, CM_QUIT)])
+    StatusLine::new(
+        Rect::new(0, h as i16 - 1, w as i16, h as i16),
+        vec![StatusItem::new("~Alt-X~ Exit", KB_ALT_X, CM_QUIT)],
+    )
 }

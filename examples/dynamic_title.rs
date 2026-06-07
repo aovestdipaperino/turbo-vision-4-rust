@@ -8,8 +8,8 @@ use turbo_vision::core::event::EventType;
 use turbo_vision::core::geometry::Rect;
 use turbo_vision::views::View;
 use turbo_vision::views::button::ButtonBuilder;
-use turbo_vision::views::static_text::StaticTextBuilder;
 use turbo_vision::views::dialog::Dialog;
+use turbo_vision::views::static_text::StaticTextBuilder;
 
 // Custom command IDs for this example
 const CM_UPDATE_TITLE: u16 = 100;
@@ -17,10 +17,7 @@ const CM_UPDATE_TITLE: u16 = 100;
 fn main() -> turbo_vision::core::error::Result<()> {
     let mut app = Application::new()?;
 
-    let mut dialog = Dialog::new(
-        Rect::new(10, 3, 70, 18),
-        "Click button to change title"
-    );
+    let mut dialog = Dialog::new(Rect::new(10, 3, 70, 18), "Click button to change title");
 
     dialog.add(Box::new(
         StaticTextBuilder::new()
@@ -38,7 +35,14 @@ fn main() -> turbo_vision::core::error::Result<()> {
             .build(),
     ));
 
-    dialog.add(Box::new(ButtonBuilder::new().bounds(Rect::new(15, 11, 40, 13)).title("Quit").command(CM_QUIT).default(false).build()));
+    dialog.add(Box::new(
+        ButtonBuilder::new()
+            .bounds(Rect::new(15, 11, 40, 13))
+            .title("Quit")
+            .command(CM_QUIT)
+            .default(false)
+            .build(),
+    ));
 
     app.desktop.add(Box::new(dialog));
     let dialog_index = app.desktop.child_count() - 1;
@@ -56,7 +60,12 @@ fn main() -> turbo_vision::core::error::Result<()> {
         app.desktop.draw(&mut app.terminal);
         let _ = app.terminal.flush();
 
-        if let Some(mut event) = app.terminal.poll_event(Duration::from_millis(50)).ok().flatten() {
+        if let Some(mut event) = app
+            .terminal
+            .poll_event(Duration::from_millis(50))
+            .ok()
+            .flatten()
+        {
             app.desktop.handle_event(&mut event);
 
             if event.what == EventType::Command {

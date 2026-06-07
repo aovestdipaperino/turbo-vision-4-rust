@@ -2,31 +2,34 @@
 
 //! EditorWindow view - advanced multi-line text editor with syntax highlighting support.
 
-use crate::core::geometry::{Point, Rect};
-use crate::core::event::{Event, EventType, KB_UP, KB_DOWN, KB_LEFT, KB_RIGHT, KB_PGUP, KB_PGDN, KB_HOME, KB_END, KB_ENTER, KB_BACKSPACE, KB_DEL, KB_TAB, MB_LEFT_BUTTON};
-use crate::core::draw::DrawBuffer;
+use super::indicator::Indicator;
+use super::scrollbar::ScrollBar;
+use super::syntax::SyntaxHighlighter;
+use super::view::{View, write_line_to_terminal};
 use crate::core::clipboard;
+use crate::core::draw::DrawBuffer;
+use crate::core::event::{
+    Event, EventType, KB_BACKSPACE, KB_DEL, KB_DOWN, KB_END, KB_ENTER, KB_HOME, KB_LEFT, KB_PGDN,
+    KB_PGUP, KB_RIGHT, KB_TAB, KB_UP, MB_LEFT_BUTTON,
+};
+use crate::core::geometry::{Point, Rect};
 use crate::core::state::StateFlags;
 use crate::terminal::Terminal;
-use super::view::{View, write_line_to_terminal};
-use super::scrollbar::ScrollBar;
-use super::indicator::Indicator;
-use super::syntax::SyntaxHighlighter;
+use std::cell::RefCell;
 use std::cmp::min;
 use std::rc::Rc;
-use std::cell::RefCell;
 
 // Control key codes
-const KB_CTRL_A: u16 = 0x0001;  // Ctrl+A - Select All
-const KB_CTRL_C: u16 = 0x0003;  // Ctrl+C - Copy
+const KB_CTRL_A: u16 = 0x0001; // Ctrl+A - Select All
+const KB_CTRL_C: u16 = 0x0003; // Ctrl+C - Copy
 #[expect(dead_code, reason = "Reserved for future find/replace functionality")]
-const KB_CTRL_F: u16 = 0x0006;  // Ctrl+F - Find
+const KB_CTRL_F: u16 = 0x0006; // Ctrl+F - Find
 #[expect(dead_code, reason = "Reserved for future find/replace functionality")]
-const KB_CTRL_H: u16 = 0x0008;  // Ctrl+H - Replace
-const KB_CTRL_V: u16 = 0x0016;  // Ctrl+V - Paste
-const KB_CTRL_X: u16 = 0x0018;  // Ctrl+X - Cut
-const KB_CTRL_Y: u16 = 0x0019;  // Ctrl+Y - Redo
-const KB_CTRL_Z: u16 = 0x001A;  // Ctrl+Z - Undo
+const KB_CTRL_H: u16 = 0x0008; // Ctrl+H - Replace
+const KB_CTRL_V: u16 = 0x0016; // Ctrl+V - Paste
+const KB_CTRL_X: u16 = 0x0018; // Ctrl+X - Cut
+const KB_CTRL_Y: u16 = 0x0019; // Ctrl+Y - Redo
+const KB_CTRL_Z: u16 = 0x001A; // Ctrl+Z - Undo
 
 /// Maximum undo history size
 const MAX_UNDO_HISTORY: usize = 100;
@@ -58,12 +61,30 @@ impl Default for SearchOptions {
 /// Edit action for undo/redo
 #[derive(Clone, Debug)]
 enum EditAction {
-    InsertChar { pos: Point, ch: char },
-    DeleteChar { pos: Point, ch: char },
-    InsertText { pos: Point, text: String },
-    DeleteText { pos: Point, text: String },
-    InsertLine { line: usize, text: String },
-    DeleteLine { line: usize, text: String },
+    InsertChar {
+        pos: Point,
+        ch: char,
+    },
+    DeleteChar {
+        pos: Point,
+        ch: char,
+    },
+    InsertText {
+        pos: Point,
+        text: String,
+    },
+    DeleteText {
+        pos: Point,
+        text: String,
+    },
+    InsertLine {
+        line: usize,
+        text: String,
+    },
+    DeleteLine {
+        line: usize,
+        text: String,
+    },
     /// A sequence of edits that must undo / redo as a single step. Used for
     /// composite operations like paste-over-selection (delete + insert) and
     /// find/replace, so one Ctrl+Z reverses the whole thing.
@@ -76,10 +97,22 @@ impl EditAction {
         match self {
             EditAction::InsertChar { pos, ch } => EditAction::DeleteChar { pos: *pos, ch: *ch },
             EditAction::DeleteChar { pos, ch } => EditAction::InsertChar { pos: *pos, ch: *ch },
-            EditAction::InsertText { pos, text } => EditAction::DeleteText { pos: *pos, text: text.clone() },
-            EditAction::DeleteText { pos, text } => EditAction::InsertText { pos: *pos, text: text.clone() },
-            EditAction::InsertLine { line, text } => EditAction::DeleteLine { line: *line, text: text.clone() },
-            EditAction::DeleteLine { line, text } => EditAction::InsertLine { line: *line, text: text.clone() },
+            EditAction::InsertText { pos, text } => EditAction::DeleteText {
+                pos: *pos,
+                text: text.clone(),
+            },
+            EditAction::DeleteText { pos, text } => EditAction::InsertText {
+                pos: *pos,
+                text: text.clone(),
+            },
+            EditAction::InsertLine { line, text } => EditAction::DeleteLine {
+                line: *line,
+                text: text.clone(),
+            },
+            EditAction::DeleteLine { line, text } => EditAction::InsertLine {
+                line: *line,
+                text: text.clone(),
+            },
             EditAction::Compound(actions) => {
                 // Reverse order + invert each: undoing a forward
                 // [delete, insert] sequence means inserting the deleted
@@ -145,7 +178,7 @@ impl EditorWindow {
             last_search_options: SearchOptions::new(),
             filename: None,
             highlighter: None,
-        palette_chain: None,
+            palette_chain: None,
         }
     }
 
@@ -402,11 +435,7 @@ impl EditorWindow {
                 line.to_lowercase()
             };
 
-            let col_start = if line_idx == start_line {
-                start_col
-            } else {
-                0
-            };
+            let col_start = if line_idx == start_line { start_col } else { 0 };
 
             if col_start < line.len() {
                 if let Some(col) = search_line[col_start..].find(&search_text) {
@@ -414,9 +443,11 @@ impl EditorWindow {
 
                     // Check whole-word constraint (Borland: efWholeWordsOnly)
                     if options.whole_words_only {
-                        let before_ok = found_col == 0 || !is_word_char(line.chars().nth(found_col - 1).unwrap_or(' '));
+                        let before_ok = found_col == 0
+                            || !is_word_char(line.chars().nth(found_col - 1).unwrap_or(' '));
                         let after_idx = found_col + text.len();
-                        let after_ok = after_idx >= line.len() || !is_word_char(line.chars().nth(after_idx).unwrap_or(' '));
+                        let after_ok = after_idx >= line.len()
+                            || !is_word_char(line.chars().nth(after_idx).unwrap_or(' '));
 
                         if !before_ok || !after_ok {
                             continue; // Not a whole word match, keep searching
@@ -426,7 +457,8 @@ impl EditorWindow {
                     let pos = Point::new(found_col as i16, line_idx as i16);
                     // Set selection to highlight the found text
                     self.selection_start = Some(pos);
-                    self.cursor = Point::new((found_col + text.chars().count()) as i16, line_idx as i16);
+                    self.cursor =
+                        Point::new((found_col + text.chars().count()) as i16, line_idx as i16);
                     self.make_cursor_visible();
                     return Some(pos);
                 }
@@ -450,9 +482,11 @@ impl EditorWindow {
             if let Some(col) = search_line[..col_end].find(&search_text) {
                 // Check whole-word constraint
                 if options.whole_words_only {
-                    let before_ok = col == 0 || !is_word_char(line.chars().nth(col - 1).unwrap_or(' '));
+                    let before_ok =
+                        col == 0 || !is_word_char(line.chars().nth(col - 1).unwrap_or(' '));
                     let after_idx = col + text.len();
-                    let after_ok = after_idx >= line.len() || !is_word_char(line.chars().nth(after_idx).unwrap_or(' '));
+                    let after_ok = after_idx >= line.len()
+                        || !is_word_char(line.chars().nth(after_idx).unwrap_or(' '));
 
                     if !before_ok || !after_ok {
                         continue;
@@ -484,7 +518,12 @@ impl EditorWindow {
 
     /// Replace next occurrence of find_text with replace_text
     /// Matches Borland's TEditor::doSearchReplace() with efDoReplace
-    pub fn replace_next(&mut self, find_text: &str, replace_text: &str, options: SearchOptions) -> bool {
+    pub fn replace_next(
+        &mut self,
+        find_text: &str,
+        replace_text: &str,
+        options: SearchOptions,
+    ) -> bool {
         if let Some(_pos) = self.find(find_text, options) {
             // find() already set selection, now replace it
             self.delete_selection();
@@ -497,7 +536,12 @@ impl EditorWindow {
 
     /// Replace all occurrences of find_text with replace_text
     /// Matches Borland's TEditor::doSearchReplace() with efReplaceAll
-    pub fn replace_all(&mut self, find_text: &str, replace_text: &str, options: SearchOptions) -> usize {
+    pub fn replace_all(
+        &mut self,
+        find_text: &str,
+        replace_text: &str,
+        options: SearchOptions,
+    ) -> usize {
         let mut count = 0;
 
         // Start from beginning of document
@@ -594,24 +638,16 @@ impl EditorWindow {
         let max_y = self.lines.len() as i16;
 
         if let Some(ref h_bar) = self.h_scrollbar {
-            h_bar.borrow_mut().set_params(
-                self.cursor.x as i32,
-                0,
-                (max_x - 1).max(0) as i32,
-                1,
-                1,
-            );
+            h_bar
+                .borrow_mut()
+                .set_params(self.cursor.x as i32, 0, (max_x - 1).max(0) as i32, 1, 1);
             h_bar.borrow_mut().set_total(max_x as i32);
         }
 
         if let Some(ref v_bar) = self.v_scrollbar {
-            v_bar.borrow_mut().set_params(
-                self.cursor.y as i32,
-                0,
-                (max_y - 1).max(0) as i32,
-                1,
-                1,
-            );
+            v_bar
+                .borrow_mut()
+                .set_params(self.cursor.y as i32, 0, (max_y - 1).max(0) as i32, 1, 1);
             v_bar.borrow_mut().set_total(max_y as i32);
         }
     }
@@ -762,7 +798,10 @@ impl EditorWindow {
         let col = self.cursor.x as usize;
 
         if self.insert_mode {
-            let action = EditAction::InsertChar { pos: self.cursor, ch };
+            let action = EditAction::InsertChar {
+                pos: self.cursor,
+                ch,
+            };
             let byte_idx = self.char_to_byte_idx(line_idx, col);
             self.lines[line_idx].insert(byte_idx, ch);
             self.cursor.x += 1;
@@ -772,12 +811,18 @@ impl EditorWindow {
             let line_char_len = self.lines[line_idx].chars().count();
             if col < line_char_len {
                 let old_ch = self.lines[line_idx].chars().nth(col).unwrap();
-                let action = EditAction::DeleteChar { pos: self.cursor, ch: old_ch };
+                let action = EditAction::DeleteChar {
+                    pos: self.cursor,
+                    ch: old_ch,
+                };
                 self.push_undo(action);
                 let byte_idx = self.char_to_byte_idx(line_idx, col);
                 self.lines[line_idx].remove(byte_idx);
             }
-            let action = EditAction::InsertChar { pos: self.cursor, ch };
+            let action = EditAction::InsertChar {
+                pos: self.cursor,
+                ch,
+            };
             let byte_idx = self.char_to_byte_idx(line_idx, col);
             self.lines[line_idx].insert(byte_idx, ch);
             self.cursor.x += 1;
@@ -803,7 +848,10 @@ impl EditorWindow {
 
         // Auto-indent: calculate leading whitespace
         let indent = if self.auto_indent {
-            current_line.chars().take_while(|&c| c == ' ' || c == '\t').collect::<String>()
+            current_line
+                .chars()
+                .take_while(|&c| c == ' ' || c == '\t')
+                .collect::<String>()
         } else {
             String::new()
         };
@@ -834,7 +882,10 @@ impl EditorWindow {
 
         if col < line_char_len {
             let ch = self.lines[line_idx].chars().nth(col).unwrap();
-            let action = EditAction::DeleteChar { pos: self.cursor, ch };
+            let action = EditAction::DeleteChar {
+                pos: self.cursor,
+                ch,
+            };
             let byte_idx = self.char_to_byte_idx(line_idx, col);
             self.lines[line_idx].remove(byte_idx);
             self.push_undo(action);
@@ -863,7 +914,10 @@ impl EditorWindow {
         if col > 0 {
             let ch = self.lines[line_idx].chars().nth(col - 1).unwrap();
             self.cursor.x -= 1;
-            let action = EditAction::DeleteChar { pos: self.cursor, ch };
+            let action = EditAction::DeleteChar {
+                pos: self.cursor,
+                ch,
+            };
             let byte_idx = self.char_to_byte_idx(line_idx, col - 1);
             self.lines[line_idx].remove(byte_idx);
             self.push_undo(action);
@@ -1096,7 +1150,10 @@ impl EditorWindow {
         }
 
         if let Some(text) = self.get_selection() {
-            let action = EditAction::DeleteText { pos: self.selection_start.unwrap(), text };
+            let action = EditAction::DeleteText {
+                pos: self.selection_start.unwrap(),
+                text,
+            };
             self.delete_selection_internal();
             self.push_undo(action);
         }
@@ -1159,7 +1216,10 @@ impl EditorWindow {
                 } else {
                     end
                 };
-                actions.push(EditAction::DeleteText { pos, text: selected });
+                actions.push(EditAction::DeleteText {
+                    pos,
+                    text: selected,
+                });
                 self.delete_selection_internal();
             }
         }
@@ -1168,7 +1228,10 @@ impl EditorWindow {
         // top-left of the now-removed selection — that's also the insert
         // anchor.
         let insert_pos = self.cursor;
-        actions.push(EditAction::InsertText { pos: insert_pos, text: text.clone() });
+        actions.push(EditAction::InsertText {
+            pos: insert_pos,
+            text: text.clone(),
+        });
         self.insert_text_internal(&text);
 
         // Avoid wrapping a single insert in a Compound — keeps the
@@ -1228,7 +1291,10 @@ impl EditorWindow {
             self.delete_selection();
         }
 
-        let action = EditAction::InsertText { pos: self.cursor, text: text.to_string() };
+        let action = EditAction::InsertText {
+            pos: self.cursor,
+            text: text.to_string(),
+        };
         self.insert_text_internal(text);
         self.push_undo(action);
     }
@@ -1248,7 +1314,7 @@ impl View for EditorWindow {
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        use crate::core::palette::{EDITOR_NORMAL, EDITOR_SELECTED, EDITOR_CURSOR};
+        use crate::core::palette::{EDITOR_CURSOR, EDITOR_NORMAL, EDITOR_SELECTED};
 
         let content_area = self.get_content_area();
         let width = content_area.width_clamped() as usize;
@@ -1361,8 +1427,10 @@ impl View for EditorWindow {
             let cursor_screen_x = content_area.a.x + (self.cursor.x - self.delta.x);
             let cursor_screen_y = content_area.a.y + (self.cursor.y - self.delta.y);
 
-            if cursor_screen_x >= content_area.a.x && cursor_screen_x < content_area.b.x
-                && cursor_screen_y >= content_area.a.y && cursor_screen_y < content_area.b.y
+            if cursor_screen_x >= content_area.a.x
+                && cursor_screen_x < content_area.b.x
+                && cursor_screen_y >= content_area.a.y
+                && cursor_screen_y < content_area.b.y
             {
                 let line_idx = self.cursor.y as usize;
                 let col = self.cursor.x as usize;
@@ -1676,12 +1744,11 @@ impl View for EditorWindow {
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        use crate::core::palette::{palettes, Palette};
+        use crate::core::palette::{Palette, palettes};
         // EditorWindow uses cpEditor palette for proper color remapping through window hierarchy
         // Matches Borland: cpEditor = [6, 7] for normal and selected text
         Some(Palette::from_slice(palettes::CP_EDITOR))
     }
-
 }
 
 #[cfg(test)]

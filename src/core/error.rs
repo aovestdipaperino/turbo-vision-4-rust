@@ -128,14 +128,12 @@ impl Display for TurboVisionError {
             ErrorKind::TerminalInit(msg) => write!(f, "Terminal initialization failed: {}", msg)?,
             ErrorKind::InvalidInput(msg) => write!(f, "Invalid input: {}", msg)?,
             ErrorKind::Parse(msg) => write!(f, "Parse error: {}", msg)?,
-            ErrorKind::FileOperation { path, source } => {
-                write!(
-                    f,
-                    "File operation failed for '{}': {}",
-                    path.display(),
-                    source
-                )?
-            }
+            ErrorKind::FileOperation { path, source } => write!(
+                f,
+                "File operation failed for '{}': {}",
+                path.display(),
+                source
+            )?,
         }
 
         // Include backtrace if captured

@@ -232,10 +232,7 @@ mod tests {
 
     #[test]
     fn test_lookup_validator_add_remove() {
-        let mut validator = LookupValidator::new(vec![
-            "Apple".to_string(),
-            "Banana".to_string(),
-        ]);
+        let mut validator = LookupValidator::new(vec!["Apple".to_string(), "Banana".to_string()]);
 
         // Initial state
         assert!(validator.is_valid("Apple"));
@@ -286,9 +283,7 @@ mod tests {
 
     #[test]
     fn test_lookup_validator_set_case_sensitive() {
-        let mut validator = LookupValidator::new(vec![
-            "Test".to_string(),
-        ]);
+        let mut validator = LookupValidator::new(vec!["Test".to_string()]);
 
         // Initially case-sensitive
         assert!(validator.is_valid("Test"));
@@ -308,11 +303,8 @@ mod tests {
 
     #[test]
     fn test_lookup_validator_valid_values() {
-        let validator = LookupValidator::new(vec![
-            "A".to_string(),
-            "B".to_string(),
-            "C".to_string(),
-        ]);
+        let validator =
+            LookupValidator::new(vec!["A".to_string(), "B".to_string(), "C".to_string()]);
 
         let values = validator.valid_values();
         assert_eq!(values.len(), 3);

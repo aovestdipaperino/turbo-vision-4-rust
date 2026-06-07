@@ -20,8 +20,8 @@ pub const SF_DISABLED: StateFlags = 0x100;
 pub const SF_MODAL: StateFlags = 0x200;
 pub const SF_DEFAULT: StateFlags = 0x400;
 pub const SF_EXPOSED: StateFlags = 0x800;
-pub const SF_CLOSED: StateFlags = 0x1000;  // Window marked for removal (Rust-specific)
-pub const SF_RESIZING: StateFlags = 0x2000;  // Window is being resized (Rust-specific)
+pub const SF_CLOSED: StateFlags = 0x1000; // Window marked for removal (Rust-specific)
+pub const SF_RESIZING: StateFlags = 0x2000; // Window is being resized (Rust-specific)
 
 // TView Option masks
 pub const OF_SELECTABLE: u16 = 0x001;
@@ -35,7 +35,7 @@ pub const OF_TILEABLE: u16 = 0x080;
 pub const OF_CENTER_X: u16 = 0x100;
 pub const OF_CENTER_Y: u16 = 0x200;
 pub const OF_CENTERED: u16 = 0x300;
-pub const OF_VALIDATE: u16 = 0x400;  // View should be validated on focus release (Borland: ofValidate)
+pub const OF_VALIDATE: u16 = 0x400; // View should be validated on focus release (Borland: ofValidate)
 
 /// Shadow size storage - initialized once at startup based on terminal cell aspect ratio
 static SHADOW_SIZE_CELL: OnceLock<(i16, i16)> = OnceLock::new();
@@ -49,9 +49,7 @@ static SHADOW_SIZE_CELL: OnceLock<(i16, i16)> = OnceLock::new();
 /// The value is cached after first call for consistency throughout the session.
 #[inline]
 pub fn shadow_size() -> (i16, i16) {
-    *SHADOW_SIZE_CELL.get_or_init(|| {
-        crate::terminal::Terminal::query_cell_aspect_ratio()
-    })
+    *SHADOW_SIZE_CELL.get_or_init(|| crate::terminal::Terminal::query_cell_aspect_ratio())
 }
 
 /// Legacy constant for backwards compatibility - prefer shadow_size() function
@@ -63,6 +61,6 @@ pub const SHADOW_ATTR: u8 = 0x08;
 
 /// Shadow characters for buttons (CP437 equivalents in Unicode)
 /// Original: "\xDC\xDB\xDF" = bottom edge, solid block, top edge
-pub const SHADOW_BOTTOM: char = '▄';  // Lower half block
-pub const SHADOW_SOLID: char = '█';   // Full block
-pub const SHADOW_TOP: char = '▀';     // Upper half block
+pub const SHADOW_BOTTOM: char = '▄'; // Lower half block
+pub const SHADOW_SOLID: char = '█'; // Full block
+pub const SHADOW_TOP: char = '▀'; // Upper half block

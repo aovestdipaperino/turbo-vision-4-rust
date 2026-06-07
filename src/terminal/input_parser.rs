@@ -18,16 +18,13 @@
 //! - Modifier combinations (Shift, Alt, Ctrl)
 
 use crate::core::event::{
-    Event, EventType,
-    KB_ESC, KB_ENTER, KB_BACKSPACE, KB_TAB, KB_SHIFT_TAB,
-    KB_UP, KB_DOWN, KB_LEFT, KB_RIGHT,
-    KB_HOME, KB_END, KB_PGUP, KB_PGDN, KB_INS, KB_DEL,
-    KB_F1, KB_F2, KB_F3, KB_F4, KB_F5, KB_F6, KB_F7, KB_F8, KB_F9, KB_F10, KB_F11, KB_F12,
-    KB_ALT_A, KB_ALT_B, KB_ALT_C, KB_ALT_D, KB_ALT_E, KB_ALT_F, KB_ALT_G, KB_ALT_H,
-    KB_ALT_I, KB_ALT_J, KB_ALT_K, KB_ALT_L, KB_ALT_M, KB_ALT_N, KB_ALT_O, KB_ALT_P,
-    KB_ALT_Q, KB_ALT_R, KB_ALT_S, KB_ALT_T, KB_ALT_U, KB_ALT_V, KB_ALT_W, KB_ALT_X,
-    KB_ALT_Y, KB_ALT_Z,
-    MB_LEFT_BUTTON, MB_MIDDLE_BUTTON, MB_RIGHT_BUTTON,
+    Event, EventType, KB_ALT_A, KB_ALT_B, KB_ALT_C, KB_ALT_D, KB_ALT_E, KB_ALT_F, KB_ALT_G,
+    KB_ALT_H, KB_ALT_I, KB_ALT_J, KB_ALT_K, KB_ALT_L, KB_ALT_M, KB_ALT_N, KB_ALT_O, KB_ALT_P,
+    KB_ALT_Q, KB_ALT_R, KB_ALT_S, KB_ALT_T, KB_ALT_U, KB_ALT_V, KB_ALT_W, KB_ALT_X, KB_ALT_Y,
+    KB_ALT_Z, KB_BACKSPACE, KB_DEL, KB_DOWN, KB_END, KB_ENTER, KB_ESC, KB_F1, KB_F2, KB_F3, KB_F4,
+    KB_F5, KB_F6, KB_F7, KB_F8, KB_F9, KB_F10, KB_F11, KB_F12, KB_HOME, KB_INS, KB_LEFT, KB_PGDN,
+    KB_PGUP, KB_RIGHT, KB_SHIFT_TAB, KB_TAB, KB_UP, MB_LEFT_BUTTON, MB_MIDDLE_BUTTON,
+    MB_RIGHT_BUTTON,
 };
 use crate::core::geometry::Point;
 
@@ -239,9 +236,15 @@ impl InputParser {
             .unwrap_or(1);
 
         let mut mods = 0u8;
-        if mod_code & 2 != 0 { mods |= 1; } // Shift
-        if mod_code & 4 != 0 { mods |= 2; } // Alt
-        if mod_code & 8 != 0 { mods |= 4; } // Control
+        if mod_code & 2 != 0 {
+            mods |= 1;
+        } // Shift
+        if mod_code & 4 != 0 {
+            mods |= 2;
+        } // Alt
+        if mod_code & 8 != 0 {
+            mods |= 4;
+        } // Control
         mods
     }
 

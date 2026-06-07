@@ -16,11 +16,11 @@ use turbo_vision::app::Application;
 use turbo_vision::core::command::CM_QUIT;
 use turbo_vision::core::event::{Event, EventType, KB_ALT_X, KB_ESC, KB_ESC_ESC};
 use turbo_vision::core::geometry::Rect;
+use turbo_vision::views::View;
 use turbo_vision::views::kitty_image::KittyImage;
 use turbo_vision::views::label::LabelBuilder;
 use turbo_vision::views::status_line::{StatusItem, StatusLine};
 use turbo_vision::views::window::WindowBuilder;
-use turbo_vision::views::View;
 
 /// Generate a gray-on-gray pattern PNG
 /// Creates a subtle checkerboard/texture pattern
@@ -32,11 +32,11 @@ fn generate_gray_pattern(width: u32, height: u32) -> Vec<u8> {
     let mut ihdr_data = Vec::new();
     ihdr_data.extend_from_slice(&width.to_be_bytes());
     ihdr_data.extend_from_slice(&height.to_be_bytes());
-    ihdr_data.push(8);    // Bit depth
-    ihdr_data.push(2);    // Color type (RGB)
-    ihdr_data.push(0);    // Compression method
-    ihdr_data.push(0);    // Filter method
-    ihdr_data.push(0);    // Interlace method
+    ihdr_data.push(8); // Bit depth
+    ihdr_data.push(2); // Color type (RGB)
+    ihdr_data.push(0); // Compression method
+    ihdr_data.push(0); // Filter method
+    ihdr_data.push(0); // Interlace method
 
     write_png_chunk(&mut png_data, b"IHDR", &ihdr_data);
 
@@ -73,7 +73,7 @@ fn create_gray_pattern(x: u32, y: u32) -> u8 {
     // Create a subtle woven/textile pattern
     let pattern1 = ((x / 2) % 2) ^ ((y / 2) % 2); // 2x2 checkerboard
     let pattern2 = ((x / 4) % 2) ^ ((y / 4) % 2); // 4x4 checkerboard
-    let pattern3 = ((x + y) % 4 == 0) as u32;     // Diagonal dots
+    let pattern3 = ((x + y) % 4 == 0) as u32; // Diagonal dots
 
     // Combine patterns for a subtle texture
     let variation = (pattern1 * 3 + pattern2 * 2 + pattern3 * 2) as u8;
@@ -183,10 +183,8 @@ fn main() -> turbo_vision::core::error::Result<()> {
     // Create Kitty image as desktop background
     // Position it at (0, 1) to avoid menu bar area, spanning full desktop
     // Use negative z-index to place behind text and windows
-    let background = KittyImage::from_bytes(
-        Rect::new(0, 1, width, height - 1),
-        gray_pattern,
-    ).z_index(-1);
+    let background =
+        KittyImage::from_bytes(Rect::new(0, 1, width, height - 1), gray_pattern).z_index(-1);
 
     // Add background to desktop first (will be behind windows)
     app.desktop.add(Box::new(background));
@@ -198,7 +196,12 @@ fn main() -> turbo_vision::core::error::Result<()> {
     let window_y = (height - window_height) / 2 - 3;
 
     let mut window = WindowBuilder::new()
-        .bounds(Rect::new(window_x, window_y, window_x + window_width, window_y + window_height))
+        .bounds(Rect::new(
+            window_x,
+            window_y,
+            window_x + window_width,
+            window_y + window_height,
+        ))
         .title("Kitty Background Demo")
         .build();
 
@@ -233,7 +236,12 @@ fn main() -> turbo_vision::core::error::Result<()> {
     let about_y = height - about_height - 3;
 
     let mut about_window = WindowBuilder::new()
-        .bounds(Rect::new(about_x, about_y, about_x + about_width, about_y + about_height))
+        .bounds(Rect::new(
+            about_x,
+            about_y,
+            about_x + about_width,
+            about_y + about_height,
+        ))
         .title("About")
         .build();
 
@@ -267,7 +275,10 @@ fn main() -> turbo_vision::core::error::Result<()> {
         app.desktop.draw(&mut app.terminal);
         let _ = app.terminal.flush();
 
-        if let Ok(Some(mut event)) = app.terminal.poll_event(std::time::Duration::from_millis(50)) {
+        if let Ok(Some(mut event)) = app
+            .terminal
+            .poll_event(std::time::Duration::from_millis(50))
+        {
             if event.what == EventType::Keyboard {
                 match event.key_code {
                     KB_ALT_X | KB_ESC | KB_ESC_ESC => {

@@ -20,7 +20,7 @@ use crate::core::state::StateFlags;
 use crate::terminal::Terminal;
 
 use super::edit_window::EditWindow;
-use super::editor_traits::{confirm_save_on_close, Editor, ExternalState, FileEditor};
+use super::editor_traits::{Editor, ExternalState, FileEditor, confirm_save_on_close};
 use super::view::View;
 
 pub struct FileEditorWindow {

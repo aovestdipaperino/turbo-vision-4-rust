@@ -40,6 +40,13 @@ ssh = ["dep:russh", "dep:russh-keys", "dep:async-trait", "dep:parking_lot", "dep
 name = "key_debug"
 path = "debug/key_debug.rs"
 
+# The SSH example only compiles with the `ssh` feature; gating it here lets
+# `cargo build/clippy --all-targets` (without features) skip it instead of
+# failing to resolve tokio/the ssh module.
+[[example]]
+name = "ssh_server"
+required-features = ["ssh"]
+
 [dependencies]
 crossterm = "0.29"
 unicode-width = "0.1"

@@ -28,6 +28,7 @@
 //! );
 //! ```
 
+use super::view::{View, write_line_to_terminal};
 use crate::core::ansi::AnsiImage;
 use crate::core::draw::DrawBuffer;
 use crate::core::event::Event;
@@ -35,7 +36,6 @@ use crate::core::geometry::Rect;
 use crate::core::palette::Attr;
 use crate::core::state::StateFlags;
 use crate::terminal::Terminal;
-use super::view::{View, write_line_to_terminal};
 use std::io;
 use std::path::Path;
 
@@ -69,7 +69,7 @@ impl AnsiBackground {
             default_attr,
             center_x: true,
             center_y: true,
-        palette_chain: None,
+            palette_chain: None,
         }
     }
 
@@ -224,7 +224,7 @@ impl View for AnsiBackground {
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        use crate::core::palette::{palettes, Palette};
+        use crate::core::palette::{Palette, palettes};
         Some(Palette::from_slice(palettes::CP_BACKGROUND))
     }
 }

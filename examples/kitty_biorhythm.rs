@@ -14,11 +14,11 @@ use turbo_vision::app::Application;
 use turbo_vision::core::command::CM_QUIT;
 use turbo_vision::core::event::{Event, EventType, KB_ALT_X, KB_ESC, KB_ESC_ESC};
 use turbo_vision::core::geometry::Rect;
+use turbo_vision::views::View;
 use turbo_vision::views::kitty_image::KittyImage;
 use turbo_vision::views::label::LabelBuilder;
 use turbo_vision::views::status_line::{StatusItem, StatusLine};
 use turbo_vision::views::window::WindowBuilder;
-use turbo_vision::views::View;
 
 use chrono::{Local, NaiveDate};
 use std::f64::consts::PI;
@@ -81,7 +81,8 @@ fn generate_biorhythm_png(birth_date: NaiveDate, width: u32, height: u32) -> Vec
 
     // Vertical grid (every 5 days)
     for day in (-days_before..=days_after).step_by(5) {
-        let x = margin_left + ((day + days_before) as f64 / total_days as f64 * chart_width as f64) as u32;
+        let x = margin_left
+            + ((day + days_before) as f64 / total_days as f64 * chart_width as f64) as u32;
         for y in margin_top..(height - margin_bottom) {
             set_pixel(&mut pixels, x as i32, y as i32, grid_color);
         }
@@ -94,14 +95,15 @@ fn generate_biorhythm_png(birth_date: NaiveDate, width: u32, height: u32) -> Vec
     }
 
     // Draw today line (vertical)
-    let today_x = margin_left + (days_before as f64 / total_days as f64 * chart_width as f64) as u32;
+    let today_x =
+        margin_left + (days_before as f64 / total_days as f64 * chart_width as f64) as u32;
     for y in margin_top..(height - margin_bottom) {
         set_pixel(&mut pixels, today_x as i32, y as i32, (100, 100, 120));
     }
 
     // Colors for each cycle
-    let physical_color = (255, 80, 80);    // Red
-    let emotional_color = (80, 255, 80);   // Green
+    let physical_color = (255, 80, 80); // Red
+    let emotional_color = (80, 255, 80); // Green
     let intellectual_color = (80, 80, 255); // Blue
 
     // Draw smooth biorhythm curves using sub-pixel sampling
@@ -183,11 +185,11 @@ fn create_png(pixels: &[(u8, u8, u8)], width: u32, height: u32) -> Vec<u8> {
     let mut ihdr_data = Vec::new();
     ihdr_data.extend_from_slice(&width.to_be_bytes());
     ihdr_data.extend_from_slice(&height.to_be_bytes());
-    ihdr_data.push(8);    // Bit depth
-    ihdr_data.push(2);    // Color type (RGB)
-    ihdr_data.push(0);    // Compression
-    ihdr_data.push(0);    // Filter
-    ihdr_data.push(0);    // Interlace
+    ihdr_data.push(8); // Bit depth
+    ihdr_data.push(2); // Color type (RGB)
+    ihdr_data.push(0); // Compression
+    ihdr_data.push(0); // Filter
+    ihdr_data.push(0); // Interlace
 
     write_png_chunk(&mut png_data, b"IHDR", &ihdr_data);
 
@@ -323,14 +325,22 @@ fn main() -> turbo_vision::core::error::Result<()> {
     let window_y = (height - window_height) / 2;
 
     let mut window = WindowBuilder::new()
-        .bounds(Rect::new(window_x, window_y, window_x + window_width, window_y + window_height))
+        .bounds(Rect::new(
+            window_x,
+            window_y,
+            window_x + window_width,
+            window_y + window_height,
+        ))
         .title("Biorhythm Chart")
         .build();
 
     // Add info labels
     let date_label = LabelBuilder::new()
         .bounds(Rect::new(2, 1, 56, 1))
-        .text(&format!("Birthdate: 12/14/1972  Today: {}", today.format("%m/%d/%Y")))
+        .text(&format!(
+            "Birthdate: 12/14/1972  Today: {}",
+            today.format("%m/%d/%Y")
+        ))
         .build();
 
     let days_label = LabelBuilder::new()
@@ -342,10 +352,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
     window.add(Box::new(days_label));
 
     // Add biorhythm chart image
-    let chart_view = KittyImage::from_bytes(
-        Rect::new(2, 4, 56, 14),
-        chart_png,
-    );
+    let chart_view = KittyImage::from_bytes(Rect::new(2, 4, 56, 14), chart_png);
     window.add(Box::new(chart_view));
 
     // Add legend
@@ -383,7 +390,10 @@ fn main() -> turbo_vision::core::error::Result<()> {
         app.desktop.draw(&mut app.terminal);
         let _ = app.terminal.flush();
 
-        if let Ok(Some(mut event)) = app.terminal.poll_event(std::time::Duration::from_millis(50)) {
+        if let Ok(Some(mut event)) = app
+            .terminal
+            .poll_event(std::time::Duration::from_millis(50))
+        {
             if event.what == EventType::Keyboard {
                 match event.key_code {
                     KB_ALT_X | KB_ESC | KB_ESC_ESC => {

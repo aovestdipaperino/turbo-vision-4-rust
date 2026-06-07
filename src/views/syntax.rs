@@ -158,12 +158,43 @@ impl RustHighlighter {
     fn is_rust_keyword(word: &str) -> bool {
         matches!(
             word,
-            "as" | "async" | "await" | "break" | "const" | "continue" | "crate"
-                | "dyn" | "else" | "enum" | "extern" | "false" | "fn" | "for"
-                | "if" | "impl" | "in" | "let" | "loop" | "match" | "mod" | "move"
-                | "mut" | "pub" | "ref" | "return" | "self" | "Self" | "static"
-                | "struct" | "super" | "trait" | "true" | "type" | "unsafe" | "use"
-                | "where" | "while"
+            "as" | "async"
+                | "await"
+                | "break"
+                | "const"
+                | "continue"
+                | "crate"
+                | "dyn"
+                | "else"
+                | "enum"
+                | "extern"
+                | "false"
+                | "fn"
+                | "for"
+                | "if"
+                | "impl"
+                | "in"
+                | "let"
+                | "loop"
+                | "match"
+                | "mod"
+                | "move"
+                | "mut"
+                | "pub"
+                | "ref"
+                | "return"
+                | "self"
+                | "Self"
+                | "static"
+                | "struct"
+                | "super"
+                | "trait"
+                | "true"
+                | "type"
+                | "unsafe"
+                | "use"
+                | "where"
+                | "while"
         )
     }
 
@@ -171,10 +202,29 @@ impl RustHighlighter {
         // Common Rust types
         matches!(
             word,
-            "i8" | "i16" | "i32" | "i64" | "i128" | "isize"
-                | "u8" | "u16" | "u32" | "u64" | "u128" | "usize"
-                | "f32" | "f64" | "bool" | "char" | "str"
-                | "String" | "Vec" | "Option" | "Result" | "Box" | "Rc" | "Arc"
+            "i8" | "i16"
+                | "i32"
+                | "i64"
+                | "i128"
+                | "isize"
+                | "u8"
+                | "u16"
+                | "u32"
+                | "u64"
+                | "u128"
+                | "usize"
+                | "f32"
+                | "f64"
+                | "bool"
+                | "char"
+                | "str"
+                | "String"
+                | "Vec"
+                | "Option"
+                | "Result"
+                | "Box"
+                | "Rc"
+                | "Arc"
         ) || word.chars().next().map_or(false, |c| c.is_uppercase())
     }
 }
@@ -271,7 +321,9 @@ impl SyntaxHighlighter for RustHighlighter {
             // Number literal
             if ch.is_ascii_digit() {
                 let start = i;
-                while i < chars.len() && (chars[i].is_ascii_alphanumeric() || chars[i] == '_' || chars[i] == '.') {
+                while i < chars.len()
+                    && (chars[i].is_ascii_alphanumeric() || chars[i] == '_' || chars[i] == '.')
+                {
                     i += 1;
                 }
                 tokens.push(Token::new(start, i, TokenType::Number));
@@ -279,7 +331,10 @@ impl SyntaxHighlighter for RustHighlighter {
             }
 
             // Operator
-            if matches!(ch, '+' | '-' | '*' | '/' | '%' | '=' | '<' | '>' | '!' | '&' | '|' | '^' | '~') {
+            if matches!(
+                ch,
+                '+' | '-' | '*' | '/' | '%' | '=' | '<' | '>' | '!' | '&' | '|' | '^' | '~'
+            ) {
                 let start = i;
                 i += 1;
                 // Handle multi-character operators
@@ -312,7 +367,10 @@ impl SyntaxHighlighter for RustHighlighter {
 
             // Special characters (braces, parentheses, brackets, semicolons, etc.)
             // Create tokens for these so they're visible with proper color
-            if matches!(ch, '{' | '}' | '(' | ')' | '[' | ']' | ';' | ',' | ':' | '.' | '?' | '@' | '#') {
+            if matches!(
+                ch,
+                '{' | '}' | '(' | ')' | '[' | ']' | ';' | ',' | ':' | '.' | '?' | '@' | '#'
+            ) {
                 tokens.push(Token::new(i, i + 1, TokenType::Special));
                 i += 1;
                 continue;
@@ -351,8 +409,14 @@ mod tests {
     #[test]
     fn test_token_type_default_colors() {
         // Verify each token type has a color
-        assert_ne!(TokenType::Keyword.default_color(), Attr::new(TvColor::Black, TvColor::Black));
-        assert_ne!(TokenType::String.default_color(), Attr::new(TvColor::Black, TvColor::Black));
+        assert_ne!(
+            TokenType::Keyword.default_color(),
+            Attr::new(TvColor::Black, TvColor::Black)
+        );
+        assert_ne!(
+            TokenType::String.default_color(),
+            Attr::new(TvColor::Black, TvColor::Black)
+        );
     }
 
     #[test]
@@ -366,7 +430,10 @@ mod tests {
         assert_eq!(TokenType::Operator.palette_index(), SYNTAX_OPERATOR_IDX);
         assert_eq!(TokenType::Identifier.palette_index(), SYNTAX_IDENTIFIER_IDX);
         assert_eq!(TokenType::Type.palette_index(), SYNTAX_TYPE_IDX);
-        assert_eq!(TokenType::Preprocessor.palette_index(), SYNTAX_PREPROCESSOR_IDX);
+        assert_eq!(
+            TokenType::Preprocessor.palette_index(),
+            SYNTAX_PREPROCESSOR_IDX
+        );
         assert_eq!(TokenType::Function.palette_index(), SYNTAX_FUNCTION_IDX);
         assert_eq!(TokenType::Special.palette_index(), SYNTAX_SPECIAL_IDX);
     }

@@ -25,19 +25,19 @@
 //! tracing::debug!("Loading config from {:?}", path);
 //! ```
 
-use crate::core::geometry::Rect;
-use crate::core::event::Event;
-use crate::core::palette::{Attr, TvColor};
-use crate::core::state::StateFlags;
-use crate::terminal::Terminal;
 use super::terminal_widget::TerminalWidget;
 use super::view::View;
 use super::window::{Window, WindowPaletteType};
+use crate::core::event::Event;
+use crate::core::geometry::Rect;
+use crate::core::palette::{Attr, TvColor};
+use crate::core::state::StateFlags;
+use crate::terminal::Terminal;
 
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::sync::mpsc;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::mpsc;
 
 /// A formatted log entry ready for display.
 struct LogEntry {
@@ -78,8 +78,8 @@ impl tracing::Subscriber for LogSubscriber {
 
         let level_str = match level {
             tracing::Level::ERROR => "ERROR",
-            tracing::Level::WARN  => "WARN ",
-            tracing::Level::INFO  => "INFO ",
+            tracing::Level::WARN => "WARN ",
+            tracing::Level::INFO => "INFO ",
             tracing::Level::DEBUG => "DEBUG",
             tracing::Level::TRACE => "TRACE",
         };
@@ -114,7 +114,8 @@ impl tracing::field::Visit for MessageVisitor {
         } else if self.message.is_empty() {
             self.message = format!("{}: {value:?}", field.name());
         } else {
-            self.message.push_str(&format!(" {}={value:?}", field.name()));
+            self.message
+                .push_str(&format!(" {}={value:?}", field.name()));
         }
     }
 
@@ -133,8 +134,8 @@ impl tracing::field::Visit for MessageVisitor {
 fn level_attr(level: tracing::Level) -> Attr {
     match level {
         tracing::Level::ERROR => Attr::new(TvColor::LightRed, TvColor::Black),
-        tracing::Level::WARN  => Attr::new(TvColor::Yellow, TvColor::Black),
-        tracing::Level::INFO  => Attr::new(TvColor::White, TvColor::Black),
+        tracing::Level::WARN => Attr::new(TvColor::Yellow, TvColor::Black),
+        tracing::Level::INFO => Attr::new(TvColor::White, TvColor::Black),
         tracing::Level::DEBUG => Attr::new(TvColor::LightGray, TvColor::Black),
         tracing::Level::TRACE => Attr::new(TvColor::DarkGray, TvColor::Black),
     }
@@ -154,14 +155,30 @@ pub struct LogWindow {
 struct SharedTerminalWidget(Rc<RefCell<TerminalWidget>>);
 
 impl View for SharedTerminalWidget {
-    fn bounds(&self) -> Rect { self.0.borrow().bounds() }
-    fn set_bounds(&mut self, bounds: Rect) { self.0.borrow_mut().set_bounds(bounds); }
-    fn draw(&mut self, terminal: &mut Terminal) { self.0.borrow_mut().draw(terminal); }
-    fn handle_event(&mut self, event: &mut Event) { self.0.borrow_mut().handle_event(event); }
-    fn can_focus(&self) -> bool { true }
-    fn state(&self) -> StateFlags { self.0.borrow().state() }
-    fn set_state(&mut self, state: StateFlags) { self.0.borrow_mut().set_state(state); }
-    fn get_palette(&self) -> Option<crate::core::palette::Palette> { self.0.borrow().get_palette() }
+    fn bounds(&self) -> Rect {
+        self.0.borrow().bounds()
+    }
+    fn set_bounds(&mut self, bounds: Rect) {
+        self.0.borrow_mut().set_bounds(bounds);
+    }
+    fn draw(&mut self, terminal: &mut Terminal) {
+        self.0.borrow_mut().draw(terminal);
+    }
+    fn handle_event(&mut self, event: &mut Event) {
+        self.0.borrow_mut().handle_event(event);
+    }
+    fn can_focus(&self) -> bool {
+        true
+    }
+    fn state(&self) -> StateFlags {
+        self.0.borrow().state()
+    }
+    fn set_state(&mut self, state: StateFlags) {
+        self.0.borrow_mut().set_state(state);
+    }
+    fn get_palette(&self) -> Option<crate::core::palette::Palette> {
+        self.0.borrow().get_palette()
+    }
 }
 
 impl LogWindow {
@@ -169,7 +186,9 @@ impl LogWindow {
     /// Called automatically during `draw()`.
     fn drain_logs(&mut self) {
         while let Ok(entry) = self.receiver.try_recv() {
-            self.widget.borrow_mut().append_line_colored(entry.text, entry.attr);
+            self.widget
+                .borrow_mut()
+                .append_line_colored(entry.text, entry.attr);
         }
     }
 
@@ -179,8 +198,8 @@ impl LogWindow {
         let timestamp = now.format("%H:%M:%S");
         let level_str = match level {
             tracing::Level::ERROR => "ERROR",
-            tracing::Level::WARN  => "WARN ",
-            tracing::Level::INFO  => "INFO ",
+            tracing::Level::WARN => "WARN ",
+            tracing::Level::INFO => "INFO ",
             tracing::Level::DEBUG => "DEBUG",
             tracing::Level::TRACE => "TRACE",
         };
@@ -196,7 +215,9 @@ impl LogWindow {
 }
 
 impl View for LogWindow {
-    fn bounds(&self) -> Rect { self.window.bounds() }
+    fn bounds(&self) -> Rect {
+        self.window.bounds()
+    }
     fn set_bounds(&mut self, bounds: Rect) {
         self.window.set_bounds(bounds);
         // Window handles interior repositioning; widget bounds are updated
@@ -206,15 +227,33 @@ impl View for LogWindow {
         self.drain_logs();
         self.window.draw(terminal);
     }
-    fn handle_event(&mut self, event: &mut Event) { self.window.handle_event(event); }
-    fn can_focus(&self) -> bool { true }
-    fn state(&self) -> StateFlags { self.window.state() }
-    fn set_state(&mut self, state: StateFlags) { self.window.set_state(state); }
-    fn options(&self) -> u16 { self.window.options() }
-    fn set_options(&mut self, options: u16) { self.window.set_options(options); }
-    fn get_palette(&self) -> Option<crate::core::palette::Palette> { self.window.get_palette() }
-    fn get_end_state(&self) -> crate::core::command::CommandId { self.window.get_end_state() }
-    fn set_end_state(&mut self, cmd: crate::core::command::CommandId) { self.window.set_end_state(cmd); }
+    fn handle_event(&mut self, event: &mut Event) {
+        self.window.handle_event(event);
+    }
+    fn can_focus(&self) -> bool {
+        true
+    }
+    fn state(&self) -> StateFlags {
+        self.window.state()
+    }
+    fn set_state(&mut self, state: StateFlags) {
+        self.window.set_state(state);
+    }
+    fn options(&self) -> u16 {
+        self.window.options()
+    }
+    fn set_options(&mut self, options: u16) {
+        self.window.set_options(options);
+    }
+    fn get_palette(&self) -> Option<crate::core::palette::Palette> {
+        self.window.get_palette()
+    }
+    fn get_end_state(&self) -> crate::core::command::CommandId {
+        self.window.get_end_state()
+    }
+    fn set_end_state(&mut self, cmd: crate::core::command::CommandId) {
+        self.window.set_end_state(cmd);
+    }
 }
 
 /// Builder for creating a LogWindow with tracing integration.
@@ -302,7 +341,11 @@ impl LogWindowBuilder {
         // Use try — if a subscriber is already set, log a warning but don't panic
         let _ = tracing::subscriber::set_global_default(subscriber);
 
-        LogWindow { window, widget, receiver }
+        LogWindow {
+            window,
+            widget,
+            receiver,
+        }
     }
 
     /// Builds as a Box for convenience.

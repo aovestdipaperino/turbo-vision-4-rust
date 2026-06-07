@@ -18,14 +18,14 @@
 //! - Optional ANSI color code support
 //! - Read-only (unlike EditorWindow)
 
-use crate::core::geometry::Rect;
-use crate::core::event::{Event, EventType, KB_UP, KB_DOWN, KB_PGUP, KB_PGDN, KB_HOME, KB_END};
+use super::scrollbar::ScrollBar;
+use super::view::{View, write_line_to_terminal};
 use crate::core::draw::DrawBuffer;
+use crate::core::event::{Event, EventType, KB_DOWN, KB_END, KB_HOME, KB_PGDN, KB_PGUP, KB_UP};
+use crate::core::geometry::Rect;
 use crate::core::palette::Attr;
 use crate::core::state::StateFlags;
 use crate::terminal::Terminal;
-use super::view::{View, write_line_to_terminal};
-use super::scrollbar::ScrollBar;
 
 /// A line of output with optional color attributes
 #[derive(Clone, Debug)]
@@ -44,7 +44,10 @@ impl OutputLine {
 
     /// Create a new output line with specific color
     pub fn with_attr(text: String, attr: Attr) -> Self {
-        Self { text, attr: Some(attr) }
+        Self {
+            text,
+            attr: Some(attr),
+        }
     }
 }
 
@@ -73,11 +76,11 @@ impl TerminalWidget {
             bounds,
             state: 0,
             lines: Vec::new(),
-            max_lines: 10000,  // Default: 10k lines scrollback
+            max_lines: 10000, // Default: 10k lines scrollback
             top_line: 0,
             auto_scroll: true,
             v_scrollbar: None,
-        palette_chain: None,
+            palette_chain: None,
         }
     }
 
@@ -301,12 +304,7 @@ impl View for TerminalWidget {
 
         // Update scrollbar bounds
         if self.v_scrollbar.is_some() {
-            let v_bounds = Rect::new(
-                bounds.b.x - 1,
-                bounds.a.y,
-                bounds.b.x,
-                bounds.b.y,
-            );
+            let v_bounds = Rect::new(bounds.b.x - 1, bounds.a.y, bounds.b.x, bounds.b.y);
             self.v_scrollbar = Some(Box::new(ScrollBar::new_vertical(v_bounds)));
         }
 
@@ -318,7 +316,10 @@ impl View for TerminalWidget {
         let visible_width = self.get_visible_width();
 
         // Terminal look: light gray text on black background
-        let default_color = Attr::new(crate::core::palette::TvColor::LightGray, crate::core::palette::TvColor::Black);
+        let default_color = Attr::new(
+            crate::core::palette::TvColor::LightGray,
+            crate::core::palette::TvColor::Black,
+        );
 
         // Draw visible lines
         for i in 0..visible_rows {
@@ -358,39 +359,37 @@ impl View for TerminalWidget {
 
     fn handle_event(&mut self, event: &mut Event) {
         match event.what {
-            EventType::Keyboard => {
-                match event.key_code {
-                    KB_UP => {
-                        self.scroll_up();
-                        event.clear();
-                    }
-                    KB_DOWN => {
-                        self.scroll_down();
-                        event.clear();
-                    }
-                    KB_PGUP => {
-                        self.page_up();
-                        event.clear();
-                    }
-                    KB_PGDN => {
-                        self.page_down();
-                        event.clear();
-                    }
-                    KB_HOME => {
-                        self.scroll_to_top();
-                        self.auto_scroll = false;
-                        self.update_scrollbar();
-                        event.clear();
-                    }
-                    KB_END => {
-                        self.scroll_to_bottom();
-                        self.auto_scroll = true;
-                        self.update_scrollbar();
-                        event.clear();
-                    }
-                    _ => {}
+            EventType::Keyboard => match event.key_code {
+                KB_UP => {
+                    self.scroll_up();
+                    event.clear();
                 }
-            }
+                KB_DOWN => {
+                    self.scroll_down();
+                    event.clear();
+                }
+                KB_PGUP => {
+                    self.page_up();
+                    event.clear();
+                }
+                KB_PGDN => {
+                    self.page_down();
+                    event.clear();
+                }
+                KB_HOME => {
+                    self.scroll_to_top();
+                    self.auto_scroll = false;
+                    self.update_scrollbar();
+                    event.clear();
+                }
+                KB_END => {
+                    self.scroll_to_bottom();
+                    self.auto_scroll = true;
+                    self.update_scrollbar();
+                    event.clear();
+                }
+                _ => {}
+            },
             EventType::MouseWheelUp => {
                 if self.bounds.contains(event.mouse.pos) {
                     self.scroll_up();
@@ -428,7 +427,7 @@ impl View for TerminalWidget {
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        use crate::core::palette::{palettes, Palette};
+        use crate::core::palette::{Palette, palettes};
         Some(Palette::from_slice(palettes::CP_SCROLLER))
     }
 
@@ -439,7 +438,6 @@ impl View for TerminalWidget {
     fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
         self.palette_chain.as_ref()
     }
-
 }
 
 /// Builder for creating terminal widgets with a fluent API.

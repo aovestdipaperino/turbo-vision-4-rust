@@ -113,19 +113,34 @@ pub enum TvColor {
     Yellow = 14,
     White = 15,
     /// True-color RGB value, bypasses CGA palette mapping.
-    Rgb { r: u8, g: u8, b: u8 } = 16,
+    Rgb {
+        r: u8,
+        g: u8,
+        b: u8,
+    } = 16,
 }
 
 impl TvColor {
     /// Returns the CGA palette index (0-15). Rgb returns 0.
     pub fn to_index(self) -> u8 {
         match self {
-            TvColor::Black => 0, TvColor::Blue => 1, TvColor::Green => 2,
-            TvColor::Cyan => 3, TvColor::Red => 4, TvColor::Magenta => 5,
-            TvColor::Brown => 6, TvColor::LightGray => 7, TvColor::DarkGray => 8,
-            TvColor::LightBlue => 9, TvColor::LightGreen => 10, TvColor::LightCyan => 11,
-            TvColor::LightRed => 12, TvColor::LightMagenta => 13, TvColor::Yellow => 14,
-            TvColor::White => 15, TvColor::Rgb { .. } => 0,
+            TvColor::Black => 0,
+            TvColor::Blue => 1,
+            TvColor::Green => 2,
+            TvColor::Cyan => 3,
+            TvColor::Red => 4,
+            TvColor::Magenta => 5,
+            TvColor::Brown => 6,
+            TvColor::LightGray => 7,
+            TvColor::DarkGray => 8,
+            TvColor::LightBlue => 9,
+            TvColor::LightGreen => 10,
+            TvColor::LightCyan => 11,
+            TvColor::LightRed => 12,
+            TvColor::LightMagenta => 13,
+            TvColor::Yellow => 14,
+            TvColor::White => 15,
+            TvColor::Rgb { .. } => 0,
         }
     }
 
@@ -140,20 +155,20 @@ impl TvColor {
         // Map Turbo Vision color order to ANSI color order
         match self {
             TvColor::Black => 0,
-            TvColor::Blue => 4,        // TV 1 -> ANSI 4
+            TvColor::Blue => 4, // TV 1 -> ANSI 4
             TvColor::Green => 2,
-            TvColor::Cyan => 6,        // TV 3 -> ANSI 6
-            TvColor::Red => 1,         // TV 4 -> ANSI 1
+            TvColor::Cyan => 6, // TV 3 -> ANSI 6
+            TvColor::Red => 1,  // TV 4 -> ANSI 1
             TvColor::Magenta => 5,
-            TvColor::Brown => 3,       // TV 6 -> ANSI 3 (yellow/brown)
+            TvColor::Brown => 3, // TV 6 -> ANSI 3 (yellow/brown)
             TvColor::LightGray => 7,
             TvColor::DarkGray => 8,
-            TvColor::LightBlue => 12,  // TV 9 -> ANSI 12
+            TvColor::LightBlue => 12, // TV 9 -> ANSI 12
             TvColor::LightGreen => 10,
-            TvColor::LightCyan => 14,  // TV 11 -> ANSI 14
-            TvColor::LightRed => 9,    // TV 12 -> ANSI 9
+            TvColor::LightCyan => 14, // TV 11 -> ANSI 14
+            TvColor::LightRed => 9,   // TV 12 -> ANSI 9
             TvColor::LightMagenta => 13,
-            TvColor::Yellow => 11,     // TV 14 -> ANSI 11
+            TvColor::Yellow => 11, // TV 14 -> ANSI 11
             TvColor::White => 15,
             TvColor::Rgb { .. } => 0, // RGB colors don't map to ANSI indices
         }

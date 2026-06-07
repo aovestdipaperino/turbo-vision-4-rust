@@ -2,31 +2,37 @@
 
 //! Memo view - multi-line text input with scrolling and editing support.
 
-use crate::core::geometry::{Point, Rect};
-use crate::core::event::{Event, EventType, KB_UP, KB_DOWN, KB_LEFT, KB_RIGHT, KB_PGUP, KB_PGDN, KB_HOME, KB_END, KB_ENTER, KB_BACKSPACE, KB_DEL, KB_TAB};
-use crate::core::draw::DrawBuffer;
+use super::scrollbar::ScrollBar;
+use super::view::{View, write_line_to_terminal};
 use crate::core::clipboard;
+use crate::core::draw::DrawBuffer;
+use crate::core::event::{
+    Event, EventType, KB_BACKSPACE, KB_DEL, KB_DOWN, KB_END, KB_ENTER, KB_HOME, KB_LEFT, KB_PGDN,
+    KB_PGUP, KB_RIGHT, KB_TAB, KB_UP,
+};
+use crate::core::geometry::{Point, Rect};
 use crate::core::state::StateFlags;
 use crate::terminal::Terminal;
-use super::view::{View, write_line_to_terminal};
-use super::scrollbar::ScrollBar;
 use std::cmp::min;
 
 // Control key codes
-const KB_CTRL_A: u16 = 0x0001;  // Ctrl+A - Select All
-const KB_CTRL_C: u16 = 0x0003;  // Ctrl+C - Copy
-const KB_CTRL_V: u16 = 0x0016;  // Ctrl+V - Paste
-const KB_CTRL_X: u16 = 0x0018;  // Ctrl+X - Cut
-#[expect(dead_code, reason = "Reserved for future undo functionality in Memo widget")]
-const KB_CTRL_Z: u16 = 0x001A;  // Ctrl+Z - Undo
+const KB_CTRL_A: u16 = 0x0001; // Ctrl+A - Select All
+const KB_CTRL_C: u16 = 0x0003; // Ctrl+C - Copy
+const KB_CTRL_V: u16 = 0x0016; // Ctrl+V - Paste
+const KB_CTRL_X: u16 = 0x0018; // Ctrl+X - Cut
+#[expect(
+    dead_code,
+    reason = "Reserved for future undo functionality in Memo widget"
+)]
+const KB_CTRL_Z: u16 = 0x001A; // Ctrl+Z - Undo
 
 /// Memo - Multi-line text editor control
 /// Supports basic text editing operations including insert, delete, navigation, and selection
 pub struct Memo {
     bounds: Rect,
     lines: Vec<String>,
-    cursor: Point,           // Current cursor position (x=col, y=line)
-    delta: Point,            // Scroll offset
+    cursor: Point,                  // Current cursor position (x=col, y=line)
+    delta: Point,                   // Scroll offset
     selection_start: Option<Point>, // Selection anchor point
     state: StateFlags,
     v_scrollbar: Option<Box<ScrollBar>>,
@@ -54,7 +60,7 @@ impl Memo {
             read_only: false,
             modified: false,
             tab_size: 4,
-        palette_chain: None,
+            palette_chain: None,
         }
     }
 
@@ -542,22 +548,12 @@ impl View for Memo {
 
         // Update scrollbar positions
         if self.v_scrollbar.is_some() {
-            let v_bounds = Rect::new(
-                bounds.b.x - 1,
-                bounds.a.y,
-                bounds.b.x,
-                bounds.b.y - 1,
-            );
+            let v_bounds = Rect::new(bounds.b.x - 1, bounds.a.y, bounds.b.x, bounds.b.y - 1);
             self.v_scrollbar.as_mut().unwrap().set_bounds(v_bounds);
         }
 
         if self.h_scrollbar.is_some() {
-            let h_bounds = Rect::new(
-                bounds.a.x,
-                bounds.b.y - 1,
-                bounds.b.x - 1,
-                bounds.b.y,
-            );
+            let h_bounds = Rect::new(bounds.a.x, bounds.b.y - 1, bounds.b.x - 1, bounds.b.y);
             self.h_scrollbar.as_mut().unwrap().set_bounds(h_bounds);
         }
 
@@ -614,8 +610,10 @@ impl View for Memo {
             let cursor_screen_x = content_area.a.x + (self.cursor.x - self.delta.x);
             let cursor_screen_y = content_area.a.y + (self.cursor.y - self.delta.y);
 
-            if cursor_screen_x >= content_area.a.x && cursor_screen_x < content_area.b.x
-                && cursor_screen_y >= content_area.a.y && cursor_screen_y < content_area.b.y
+            if cursor_screen_x >= content_area.a.x
+                && cursor_screen_x < content_area.b.x
+                && cursor_screen_y >= content_area.a.y
+                && cursor_screen_y < content_area.b.y
             {
                 // Draw cursor as inverted character
                 let line_idx = self.cursor.y as usize;
@@ -759,8 +757,11 @@ impl View for Memo {
                 let mouse_pos = event.mouse.pos;
                 let content_area = self.get_content_area();
                 // Check if mouse is within the memo content area
-                if mouse_pos.x >= content_area.a.x && mouse_pos.x < content_area.b.x &&
-                   mouse_pos.y >= content_area.a.y && mouse_pos.y < content_area.b.y {
+                if mouse_pos.x >= content_area.a.x
+                    && mouse_pos.x < content_area.b.x
+                    && mouse_pos.y >= content_area.a.y
+                    && mouse_pos.y < content_area.b.y
+                {
                     // Scroll up by moving cursor up (which automatically adjusts delta)
                     let shift_pressed = false;
                     self.move_cursor(0, -1, shift_pressed);
@@ -771,8 +772,11 @@ impl View for Memo {
                 let mouse_pos = event.mouse.pos;
                 let content_area = self.get_content_area();
                 // Check if mouse is within the memo content area
-                if mouse_pos.x >= content_area.a.x && mouse_pos.x < content_area.b.x &&
-                   mouse_pos.y >= content_area.a.y && mouse_pos.y < content_area.b.y {
+                if mouse_pos.x >= content_area.a.x
+                    && mouse_pos.x < content_area.b.x
+                    && mouse_pos.y >= content_area.a.y
+                    && mouse_pos.y < content_area.b.y
+                {
                     // Scroll down by moving cursor down (which automatically adjusts delta)
                     let shift_pressed = false;
                     self.move_cursor(0, 1, shift_pressed);
@@ -818,10 +822,9 @@ impl View for Memo {
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        use crate::core::palette::{palettes, Palette};
+        use crate::core::palette::{Palette, palettes};
         Some(Palette::from_slice(palettes::CP_MEMO))
     }
-
 }
 
 #[cfg(test)]

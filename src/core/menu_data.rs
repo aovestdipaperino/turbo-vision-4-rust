@@ -78,7 +78,13 @@ impl MenuItem {
     /// ```ignore
     /// let item = MenuItem::with_shortcut("~O~pen", CM_OPEN, KB_F3, "F3", hcOpen);
     /// ```
-    pub fn with_shortcut(text: &str, command: CommandId, key_code: KeyCode, shortcut: &str, help_ctx: u16) -> Self {
+    pub fn with_shortcut(
+        text: &str,
+        command: CommandId,
+        key_code: KeyCode,
+        shortcut: &str,
+        help_ctx: u16,
+    ) -> Self {
         Self::Regular {
             text: text.to_string(),
             command,
@@ -292,25 +298,44 @@ impl MenuBuilder {
 
     /// Add a regular menu item
     pub fn item(mut self, text: &str, command: CommandId, key_code: KeyCode) -> Self {
-        self.items.push(MenuItem::new(text, command, key_code, self.help_ctx));
+        self.items
+            .push(MenuItem::new(text, command, key_code, self.help_ctx));
         self
     }
 
     /// Add a menu item with shortcut display
-    pub fn item_with_shortcut(mut self, text: &str, command: CommandId, key_code: KeyCode, shortcut: &str) -> Self {
-        self.items.push(MenuItem::with_shortcut(text, command, key_code, shortcut, self.help_ctx));
+    pub fn item_with_shortcut(
+        mut self,
+        text: &str,
+        command: CommandId,
+        key_code: KeyCode,
+        shortcut: &str,
+    ) -> Self {
+        self.items.push(MenuItem::with_shortcut(
+            text,
+            command,
+            key_code,
+            shortcut,
+            self.help_ctx,
+        ));
         self
     }
 
     /// Add a disabled menu item
     pub fn item_disabled(mut self, text: &str, command: CommandId, key_code: KeyCode) -> Self {
-        self.items.push(MenuItem::new_disabled(text, command, key_code, self.help_ctx));
+        self.items.push(MenuItem::new_disabled(
+            text,
+            command,
+            key_code,
+            self.help_ctx,
+        ));
         self
     }
 
     /// Add a submenu
     pub fn submenu(mut self, text: &str, key_code: KeyCode, menu: Menu) -> Self {
-        self.items.push(MenuItem::submenu(text, key_code, menu, self.help_ctx));
+        self.items
+            .push(MenuItem::submenu(text, key_code, menu, self.help_ctx));
         self
     }
 

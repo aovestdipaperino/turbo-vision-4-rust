@@ -2,7 +2,7 @@
 
 //! StaticText view - multi-line static text display with word wrapping.
 
-use super::view::{write_line_to_terminal, View};
+use super::view::{View, write_line_to_terminal};
 use crate::core::draw::DrawBuffer;
 use crate::core::event::Event;
 use crate::core::geometry::Rect;
@@ -22,7 +22,7 @@ impl StaticText {
             bounds,
             text: text.to_string(),
             centered: false,
-        palette_chain: None,
+            palette_chain: None,
         }
     }
 
@@ -31,7 +31,7 @@ impl StaticText {
             bounds,
             text: text.to_string(),
             centered: true,
-        palette_chain: None,
+            palette_chain: None,
         }
     }
 }
@@ -62,7 +62,8 @@ impl View for StaticText {
             // Calculate starting position based on centering
             // Strip control characters and ~ shortcut markers for display width calculation
             let start_pos = if self.centered {
-                let display_len = line.chars()
+                let display_len = line
+                    .chars()
                     .filter(|c| !c.is_control() && *c != '~')
                     .count();
                 if width > display_len {
@@ -93,7 +94,7 @@ impl View for StaticText {
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        use crate::core::palette::{palettes, Palette};
+        use crate::core::palette::{Palette, palettes};
         Some(Palette::from_slice(palettes::CP_STATIC_TEXT))
     }
 }
@@ -169,7 +170,7 @@ impl StaticTextBuilder {
             bounds,
             text,
             centered: self.centered,
-        palette_chain: None,
+            palette_chain: None,
         }
     }
 

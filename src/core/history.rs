@@ -194,10 +194,7 @@ impl HistoryManager {
     /// Get the number of items in a history list
     pub fn count(history_id: u16) -> usize {
         let manager = history_manager().lock().unwrap();
-        manager
-            .get(&history_id)
-            .map(|list| list.len())
-            .unwrap_or(0)
+        manager.get(&history_id).map(|list| list.len()).unwrap_or(0)
     }
 
     /// Clear a specific history list

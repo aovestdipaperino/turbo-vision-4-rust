@@ -10,15 +10,15 @@
 //! - Keyboard navigation
 //! - Custom node data
 
-use crate::core::geometry::Rect;
-use crate::core::event::{Event, EventType, KB_ENTER, KB_LEFT, KB_RIGHT};
-use crate::core::state::StateFlags;
-use crate::core::draw::DrawBuffer;
-use crate::terminal::Terminal;
-use super::view::{View, write_line_to_terminal};
 use super::list_viewer::{ListViewer, ListViewerState};
-use std::rc::Rc;
+use super::view::{View, write_line_to_terminal};
+use crate::core::draw::DrawBuffer;
+use crate::core::event::{Event, EventType, KB_ENTER, KB_LEFT, KB_RIGHT};
+use crate::core::geometry::Rect;
+use crate::core::state::StateFlags;
+use crate::terminal::Terminal;
 use std::cell::RefCell;
+use std::rc::Rc;
 
 /// A node in the tree
 /// Matches Borland: TNode
@@ -154,7 +154,7 @@ impl<T: 'static> OutlineViewer<T> {
             all_nodes: Vec::new(),
             list_state: ListViewerState::new(),
             format_fn: Box::new(format_fn),
-        palette_chain: None,
+            palette_chain: None,
         }
     }
 
@@ -292,7 +292,9 @@ impl<T: 'static> View for OutlineViewer<T> {
         let width = self.bounds.width_clamped() as usize;
         let height = self.bounds.height_clamped() as usize;
 
-        use crate::core::palette::colors::{LISTBOX_FOCUSED, LISTBOX_NORMAL, LISTBOX_SELECTED_FOCUSED, LISTBOX_SELECTED};
+        use crate::core::palette::colors::{
+            LISTBOX_FOCUSED, LISTBOX_NORMAL, LISTBOX_SELECTED, LISTBOX_SELECTED_FOCUSED,
+        };
         let color_normal = if self.is_focused() {
             LISTBOX_FOCUSED
         } else {
@@ -311,7 +313,11 @@ impl<T: 'static> View for OutlineViewer<T> {
 
             if item_idx < self.display_nodes.len() {
                 let is_selected = Some(item_idx) == self.list_state.focused;
-                let color = if is_selected { color_selected } else { color_normal };
+                let color = if is_selected {
+                    color_selected
+                } else {
+                    color_normal
+                };
 
                 let display_node = &self.display_nodes[item_idx];
                 let text = display_node.display_text();
@@ -379,10 +385,9 @@ impl<T: 'static> View for OutlineViewer<T> {
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        use crate::core::palette::{palettes, Palette};
+        use crate::core::palette::{Palette, palettes};
         Some(Palette::from_slice(palettes::CP_LISTBOX))
     }
-
 }
 
 // Implement ListViewer trait to get standard list navigation

@@ -17,7 +17,9 @@
 // - Use File menu to see keyboard shortcuts displayed
 
 use turbo_vision::core::command::{CM_NEW, CM_OPEN, CM_QUIT, CM_SAVE};
-use turbo_vision::core::event::{KB_ALT_X, KB_CTRL_C, KB_CTRL_N, KB_CTRL_O, KB_CTRL_S, KB_ESC_ESC, KB_F1, KB_F10};
+use turbo_vision::core::event::{
+    KB_ALT_X, KB_CTRL_C, KB_CTRL_N, KB_CTRL_O, KB_CTRL_S, KB_ESC_ESC, KB_F1, KB_F10,
+};
 use turbo_vision::core::menu_data::{Menu, MenuItem};
 use turbo_vision::prelude::*;
 use turbo_vision::views::button::ButtonBuilder;
@@ -65,7 +67,10 @@ fn run_event_loop(app: &mut Application) {
         let _ = app.terminal.flush();
 
         // Poll for events
-        if let Ok(Some(mut event)) = app.terminal.poll_event(std::time::Duration::from_millis(50)) {
+        if let Ok(Some(mut event)) = app
+            .terminal
+            .poll_event(std::time::Duration::from_millis(50))
+        {
             // Convert global keyboard shortcuts to commands so that F1, Ctrl+N etc. work even when menus are closed
             handle_global_shortcuts(&mut event);
 
@@ -202,7 +207,10 @@ fn setup_status_line(app: &mut Application) {
     let (width, height) = app.terminal.size();
     let status_line = StatusLine::new(
         Rect::new(0, height - 1, width, height),
-        vec![StatusItem::new("~F10~ Menu", KB_F10, 0), StatusItem::new("~F1~ Help", 0, CMD_HELP)],
+        vec![
+            StatusItem::new("~F10~ Menu", KB_F10, 0),
+            StatusItem::new("~F1~ Help", 0, CMD_HELP),
+        ],
     );
     app.set_status_line(status_line);
 }
@@ -216,7 +224,9 @@ fn create_text_window(app: &mut Application, bounds: Rect, title: &str, content:
 
     // Calculate TextViewer bounds to fit inside window with margins
     let text_viewer_bounds = Rect::new(1, 1, bounds.width() - 2, bounds.height() - 4);
-    let mut text_viewer = TextViewer::new(text_viewer_bounds).with_scrollbars(false).with_indicator(false);
+    let mut text_viewer = TextViewer::new(text_viewer_bounds)
+        .with_scrollbars(false)
+        .with_indicator(false);
 
     text_viewer.set_text(content);
     window.add(Box::new(text_viewer));
@@ -233,7 +243,12 @@ fn setup_win1(app: &mut Application) {
 
 Note: minimum size = 16x6
 ";
-    create_text_window(app, Rect::new(2, 2, 50, 18), "Resize & Shortcuts Demo", instructions);
+    create_text_window(
+        app,
+        Rect::new(2, 2, 50, 18),
+        "Resize & Shortcuts Demo",
+        instructions,
+    );
 }
 
 // Create window 2 - Menu Shortcuts Info
@@ -253,7 +268,12 @@ Help     F1
 
 Note: F1 can be pressed anytime to show help, but About must be accessed by opening the Help menu.
 ";
-    create_text_window(app, Rect::new(52, 2, 100, 18), "Menu Shortcuts", shortcuts_info);
+    create_text_window(
+        app,
+        Rect::new(52, 2, 100, 18),
+        "Menu Shortcuts",
+        shortcuts_info,
+    );
 }
 
 // Create window 3 - Features
@@ -289,17 +309,30 @@ fn show_msg(app: &mut Application, text: &str, title: &str, dialog_width: i16, d
     let dialog_y = (term_height - dialog_height) / 2;
 
     let mut dialog = DialogBuilder::new()
-        .bounds(Rect::new(dialog_x, dialog_y, dialog_x + dialog_width, dialog_y + dialog_height))
+        .bounds(Rect::new(
+            dialog_x,
+            dialog_y,
+            dialog_x + dialog_width,
+            dialog_y + dialog_height,
+        ))
         .title(title)
         .build();
 
-    let text = StaticTextBuilder::new().bounds(Rect::new(2, 1, dialog_width - 4, dialog_height - 6)).text(text).build();
+    let text = StaticTextBuilder::new()
+        .bounds(Rect::new(2, 1, dialog_width - 4, dialog_height - 6))
+        .text(text)
+        .build();
     dialog.add(Box::new(text));
 
     let button_width = 10;
     let button_x = (dialog_width - 2 - button_width) / 2;
     let button = ButtonBuilder::new()
-        .bounds(Rect::new(button_x, dialog_height - 4, button_x + button_width, dialog_height - 2))
+        .bounds(Rect::new(
+            button_x,
+            dialog_height - 4,
+            button_x + button_width,
+            dialog_height - 2,
+        ))
         .title("~O~K")
         .command(CM_OK)
         .default(true)

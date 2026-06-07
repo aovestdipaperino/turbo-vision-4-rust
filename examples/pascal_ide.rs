@@ -9,7 +9,7 @@
 // - Sample Pascal program loaded on startup
 
 use turbo_vision::app::Application;
-use turbo_vision::core::command::{CM_QUIT, CM_CLOSE, CM_HELP_INDEX};
+use turbo_vision::core::command::{CM_CLOSE, CM_HELP_INDEX, CM_QUIT};
 use turbo_vision::core::event::KB_F10;
 use turbo_vision::core::geometry::Rect;
 use turbo_vision::core::menu_data::{Menu, MenuItem};
@@ -34,29 +34,76 @@ struct PascalHighlighter {
 
 impl PascalHighlighter {
     fn new() -> Self {
-        Self { in_block_comment_brace: false, in_block_comment_paren: false }
+        Self {
+            in_block_comment_brace: false,
+            in_block_comment_paren: false,
+        }
     }
 
     fn is_keyword(word: &str) -> bool {
         matches!(
             word,
-            "program" | "var" | "begin" | "end" | "if" | "then" | "else"
-                | "while" | "do" | "for" | "to" | "downto" | "repeat" | "until"
-                | "write" | "writeln" | "read" | "readln"
-                | "div" | "mod" | "and" | "or" | "not"
-                | "true" | "false" | "const" | "type" | "procedure" | "function"
-                | "array" | "of" | "record" | "nil" | "case" | "with"
-                | "new" | "dispose" | "forward"
+            "program"
+                | "var"
+                | "begin"
+                | "end"
+                | "if"
+                | "then"
+                | "else"
+                | "while"
+                | "do"
+                | "for"
+                | "to"
+                | "downto"
+                | "repeat"
+                | "until"
+                | "write"
+                | "writeln"
+                | "read"
+                | "readln"
+                | "div"
+                | "mod"
+                | "and"
+                | "or"
+                | "not"
+                | "true"
+                | "false"
+                | "const"
+                | "type"
+                | "procedure"
+                | "function"
+                | "array"
+                | "of"
+                | "record"
+                | "nil"
+                | "case"
+                | "with"
+                | "new"
+                | "dispose"
+                | "forward"
         )
     }
 
     fn is_type_name(word: &str) -> bool {
-        matches!(word, "integer" | "string" | "boolean" | "real" | "char" | "byte" | "word" | "longint" | "text")
+        matches!(
+            word,
+            "integer"
+                | "string"
+                | "boolean"
+                | "real"
+                | "char"
+                | "byte"
+                | "word"
+                | "longint"
+                | "text"
+        )
     }
 }
 
 impl SyntaxHighlighter for PascalHighlighter {
-    fn language(&self) -> &str { "pascal" }
+    fn language(&self) -> &str {
+        "pascal"
+    }
 
     fn highlight_line(&self, line: &str, _line_number: usize) -> Vec<Token> {
         let mut tokens = Vec::new();
@@ -70,8 +117,13 @@ impl SyntaxHighlighter for PascalHighlighter {
         while i < len {
             if in_brace {
                 let start = i;
-                while i < len && chars[i] != '}' { i += 1; }
-                if i < len { i += 1; in_brace = false; }
+                while i < len && chars[i] != '}' {
+                    i += 1;
+                }
+                if i < len {
+                    i += 1;
+                    in_brace = false;
+                }
                 tokens.push(Token::new(start, i, TokenType::Comment));
                 continue;
             }
@@ -79,7 +131,9 @@ impl SyntaxHighlighter for PascalHighlighter {
                 let start = i;
                 while i < len {
                     if i + 1 < len && chars[i] == '*' && chars[i + 1] == ')' {
-                        i += 2; in_paren = false; break;
+                        i += 2;
+                        in_paren = false;
+                        break;
                     }
                     i += 1;
                 }
@@ -91,7 +145,9 @@ impl SyntaxHighlighter for PascalHighlighter {
 
             if ch.is_whitespace() {
                 let start = i;
-                while i < len && chars[i].is_whitespace() { i += 1; }
+                while i < len && chars[i].is_whitespace() {
+                    i += 1;
+                }
                 tokens.push(Token::new(start, i, TokenType::Normal));
                 continue;
             }
@@ -100,16 +156,27 @@ impl SyntaxHighlighter for PascalHighlighter {
                 break;
             }
             if ch == '{' {
-                let start = i; i += 1;
-                while i < len && chars[i] != '}' { i += 1; }
-                if i < len { i += 1; } else { in_brace = true; }
+                let start = i;
+                i += 1;
+                while i < len && chars[i] != '}' {
+                    i += 1;
+                }
+                if i < len {
+                    i += 1;
+                } else {
+                    in_brace = true;
+                }
                 tokens.push(Token::new(start, i, TokenType::Comment));
                 continue;
             }
             if ch == '(' && i + 1 < len && chars[i + 1] == '*' {
-                let start = i; i += 2;
+                let start = i;
+                i += 2;
                 while i < len {
-                    if i + 1 < len && chars[i] == '*' && chars[i + 1] == ')' { i += 2; break; }
+                    if i + 1 < len && chars[i] == '*' && chars[i + 1] == ')' {
+                        i += 2;
+                        break;
+                    }
                     i += 1;
                 }
                 if i >= len && !(i >= 2 && chars[i - 2] == '*' && chars[i - 1] == ')') {
@@ -119,31 +186,53 @@ impl SyntaxHighlighter for PascalHighlighter {
                 continue;
             }
             if ch == '\'' {
-                let start = i; i += 1;
+                let start = i;
+                i += 1;
                 while i < len {
                     if chars[i] == '\'' {
-                        if i + 1 < len && chars[i + 1] == '\'' { i += 2; }
-                        else { i += 1; break; }
-                    } else { i += 1; }
+                        if i + 1 < len && chars[i + 1] == '\'' {
+                            i += 2;
+                        } else {
+                            i += 1;
+                            break;
+                        }
+                    } else {
+                        i += 1;
+                    }
                 }
                 tokens.push(Token::new(start, i, TokenType::String));
                 continue;
             }
-            if ch.is_ascii_digit() || (ch == '$' && i + 1 < len && chars[i + 1].is_ascii_hexdigit()) {
+            if ch.is_ascii_digit() || (ch == '$' && i + 1 < len && chars[i + 1].is_ascii_hexdigit())
+            {
                 let start = i;
-                if ch == '$' { i += 1; while i < len && chars[i].is_ascii_hexdigit() { i += 1; } }
-                else { while i < len && chars[i].is_ascii_digit() { i += 1; } }
+                if ch == '$' {
+                    i += 1;
+                    while i < len && chars[i].is_ascii_hexdigit() {
+                        i += 1;
+                    }
+                } else {
+                    while i < len && chars[i].is_ascii_digit() {
+                        i += 1;
+                    }
+                }
                 tokens.push(Token::new(start, i, TokenType::Number));
                 continue;
             }
             if ch.is_ascii_alphabetic() || ch == '_' {
                 let start = i;
-                while i < len && (chars[i].is_ascii_alphanumeric() || chars[i] == '_') { i += 1; }
+                while i < len && (chars[i].is_ascii_alphanumeric() || chars[i] == '_') {
+                    i += 1;
+                }
                 let word: String = chars[start..i].iter().collect();
                 let lower = word.to_lowercase();
-                let token_type = if Self::is_keyword(&lower) { TokenType::Keyword }
-                    else if Self::is_type_name(&lower) { TokenType::Type }
-                    else { TokenType::Identifier };
+                let token_type = if Self::is_keyword(&lower) {
+                    TokenType::Keyword
+                } else if Self::is_type_name(&lower) {
+                    TokenType::Type
+                } else {
+                    TokenType::Identifier
+                };
                 tokens.push(Token::new(start, i, token_type));
                 continue;
             }
@@ -157,11 +246,13 @@ impl SyntaxHighlighter for PascalHighlighter {
             }
             if matches!(ch, '+' | '-' | '*' | '=' | '<' | '>' | '/') {
                 tokens.push(Token::new(i, i + 1, TokenType::Operator));
-                i += 1; continue;
+                i += 1;
+                continue;
             }
             if matches!(ch, ';' | ':' | '.' | ',' | '(' | ')' | '[' | ']') {
                 tokens.push(Token::new(i, i + 1, TokenType::Special));
-                i += 1; continue;
+                i += 1;
+                continue;
             }
             tokens.push(Token::new(i, i + 1, TokenType::Normal));
             i += 1;
@@ -179,25 +270,43 @@ impl SyntaxHighlighter for PascalHighlighter {
         let mut i = 0;
         while i < len {
             if self.in_block_comment_brace {
-                if chars[i] == '}' { self.in_block_comment_brace = false; }
-                i += 1; continue;
+                if chars[i] == '}' {
+                    self.in_block_comment_brace = false;
+                }
+                i += 1;
+                continue;
             }
             if self.in_block_comment_paren {
                 if i + 1 < len && chars[i] == '*' && chars[i + 1] == ')' {
-                    self.in_block_comment_paren = false; i += 2; continue;
+                    self.in_block_comment_paren = false;
+                    i += 2;
+                    continue;
                 }
-                i += 1; continue;
+                i += 1;
+                continue;
             }
             if chars[i] == '\'' {
                 i += 1;
-                while i < len && chars[i] != '\'' { i += 1; }
-                if i < len { i += 1; }
+                while i < len && chars[i] != '\'' {
+                    i += 1;
+                }
+                if i < len {
+                    i += 1;
+                }
                 continue;
             }
-            if chars[i] == '/' && i + 1 < len && chars[i + 1] == '/' { break; }
-            if chars[i] == '{' { self.in_block_comment_brace = true; i += 1; continue; }
+            if chars[i] == '/' && i + 1 < len && chars[i + 1] == '/' {
+                break;
+            }
+            if chars[i] == '{' {
+                self.in_block_comment_brace = true;
+                i += 1;
+                continue;
+            }
             if chars[i] == '(' && i + 1 < len && chars[i + 1] == '*' {
-                self.in_block_comment_paren = true; i += 2; continue;
+                self.in_block_comment_paren = true;
+                i += 2;
+                continue;
             }
             i += 1;
         }
@@ -375,14 +484,24 @@ fn main() -> turbo_vision::core::error::Result<()> {
 
     // Menu bar
     let mut menu_bar = MenuBar::new(Rect::new(0, 0, w, 1));
-    menu_bar.add_submenu(SubMenu::new("~F~ile", Menu::from_items(vec![
-        MenuItem::with_shortcut("~C~lose", CM_CLOSE, 0, "Alt+F3", HC_FILE_MENU),
-        MenuItem::separator(),
-        MenuItem::with_shortcut("E~x~it", CM_QUIT, 0, "Alt+X", HC_FILE_MENU),
-    ])));
-    menu_bar.add_submenu(SubMenu::new("~H~elp", Menu::from_items(vec![
-        MenuItem::with_shortcut("~C~ontents", CM_HELP_INDEX, 0, "F1", 0),
-    ])));
+    menu_bar.add_submenu(SubMenu::new(
+        "~F~ile",
+        Menu::from_items(vec![
+            MenuItem::with_shortcut("~C~lose", CM_CLOSE, 0, "Alt+F3", HC_FILE_MENU),
+            MenuItem::separator(),
+            MenuItem::with_shortcut("E~x~it", CM_QUIT, 0, "Alt+X", HC_FILE_MENU),
+        ]),
+    ));
+    menu_bar.add_submenu(SubMenu::new(
+        "~H~elp",
+        Menu::from_items(vec![MenuItem::with_shortcut(
+            "~C~ontents",
+            CM_HELP_INDEX,
+            0,
+            "F1",
+            0,
+        )]),
+    ));
     app.set_menu_bar(menu_bar);
 
     // Status line
@@ -397,8 +516,14 @@ fn main() -> turbo_vision::core::error::Result<()> {
 
     // Editor window with Pascal syntax highlighting and sample program
     let edit_window = EditWindow::new(Rect::new(0, 0, w, h - 2), "Untitled.pas");
-    edit_window.editor_rc().borrow_mut().set_highlighter(Box::new(PascalHighlighter::new()));
-    edit_window.editor_rc().borrow_mut().set_text(SAMPLE_PROGRAM);
+    edit_window
+        .editor_rc()
+        .borrow_mut()
+        .set_highlighter(Box::new(PascalHighlighter::new()));
+    edit_window
+        .editor_rc()
+        .borrow_mut()
+        .set_text(SAMPLE_PROGRAM);
     app.desktop.add(Box::new(edit_window));
 
     // Show about dialog at startup

@@ -69,7 +69,12 @@ pub struct CrossRef {
 impl CrossRef {
     /// Create a new cross-reference
     pub fn new(line: i16, offset: i16, length: u8, target: String) -> Self {
-        Self { line, offset, length, target }
+        Self {
+            line,
+            offset,
+            length,
+            target,
+        }
     }
 }
 
@@ -111,10 +116,7 @@ impl HelpTopic {
 
     /// Get formatted content with line numbers for display
     pub fn get_formatted_content(&self) -> Vec<String> {
-        let mut lines = vec![
-            format!("═══ {} ═══", self.title),
-            String::new(),
-        ];
+        let mut lines = vec![format!("═══ {} ═══", self.title), String::new()];
         lines.extend(self.content.clone());
 
         if !self.links.is_empty() {
@@ -141,7 +143,8 @@ impl HelpTopic {
 
         // Process content lines, extracting links
         for content_line in &self.content {
-            let (processed_line, line_refs) = Self::process_line_links(content_line, (lines.len() + 1) as i16);
+            let (processed_line, line_refs) =
+                Self::process_line_links(content_line, (lines.len() + 1) as i16);
             lines.push(processed_line);
             refs.extend(line_refs);
         }
@@ -342,7 +345,12 @@ impl HelpTopic {
             let mut offset = 0i16;
             for seg in &segments {
                 if let TextSegment::Link { text, target } = seg {
-                    refs.push(CrossRef::new(line_num, offset, text.len() as u8, target.clone()));
+                    refs.push(CrossRef::new(
+                        line_num,
+                        offset,
+                        text.len() as u8,
+                        target.clone(),
+                    ));
                 }
                 offset += seg.len() as i16;
             }
@@ -359,7 +367,10 @@ impl HelpTopic {
                 refs.push(CrossRef::new(line_num, 4, link.len() as u8, link.clone()));
                 all_segments.push(vec![
                     TextSegment::Normal("  → ".to_string()),
-                    TextSegment::Link { text: link.clone(), target: link.clone() },
+                    TextSegment::Link {
+                        text: link.clone(),
+                        target: link.clone(),
+                    },
                 ]);
             }
         }
@@ -698,10 +709,13 @@ mod tests {
         let segments = HelpTopic::parse_line_segments("See [File Menu](#file-menu) for details");
         assert_eq!(segments.len(), 3);
         assert_eq!(segments[0], TextSegment::Normal("See ".to_string()));
-        assert_eq!(segments[1], TextSegment::Link {
-            text: "File Menu".to_string(),
-            target: "file-menu".to_string(),
-        });
+        assert_eq!(
+            segments[1],
+            TextSegment::Link {
+                text: "File Menu".to_string(),
+                target: "file-menu".to_string(),
+            }
+        );
         assert_eq!(segments[2], TextSegment::Normal(" for details".to_string()));
     }
 
@@ -714,17 +728,23 @@ mod tests {
         assert_eq!(segments[2], TextSegment::Normal(" or ".to_string()));
         assert_eq!(segments[3], TextSegment::Code("?".to_string()));
         assert_eq!(segments[4], TextSegment::Normal(" for ".to_string()));
-        assert_eq!(segments[5], TextSegment::Link {
-            text: "Help".to_string(),
-            target: "help".to_string(),
-        });
+        assert_eq!(
+            segments[5],
+            TextSegment::Link {
+                text: "Help".to_string(),
+                target: "help".to_string(),
+            }
+        );
     }
 
     #[test]
     fn test_parse_line_segments_plain() {
         let segments = HelpTopic::parse_line_segments("Just plain text");
         assert_eq!(segments.len(), 1);
-        assert_eq!(segments[0], TextSegment::Normal("Just plain text".to_string()));
+        assert_eq!(
+            segments[0],
+            TextSegment::Normal("Just plain text".to_string())
+        );
     }
 
     #[test]

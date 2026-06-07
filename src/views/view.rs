@@ -6,7 +6,7 @@ use crate::core::command::CommandId;
 use crate::core::draw::DrawBuffer;
 use crate::core::event::Event;
 use crate::core::geometry::Rect;
-use crate::core::state::{StateFlags, SF_FOCUSED, SF_SHADOW, SHADOW_ATTR, shadow_size};
+use crate::core::state::{SF_FOCUSED, SF_SHADOW, SHADOW_ATTR, StateFlags, shadow_size};
 use crate::terminal::Terminal;
 use std::io;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -391,7 +391,7 @@ pub trait View {
     /// # Returns
     /// The final color attribute
     fn map_color(&self, color_index: u8) -> crate::core::palette::Attr {
-        use crate::core::palette::{palettes, Attr};
+        use crate::core::palette::{Attr, palettes};
 
         // Borland's errorAttr = 0xCF (Light Red/Magenta background, White foreground)
         const ERROR_ATTR: u8 = 0xCF;

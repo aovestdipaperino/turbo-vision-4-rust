@@ -174,12 +174,7 @@ impl MockTerminal {
     /// Useful for assertions in tests.
     pub fn get_row(&self, y: i16) -> Option<String> {
         if y >= 0 && y < self.height as i16 {
-            Some(
-                self.buffer[y as usize]
-                    .iter()
-                    .map(|cell| cell.ch)
-                    .collect()
-            )
+            Some(self.buffer[y as usize].iter().map(|cell| cell.ch).collect())
         } else {
             None
         }
@@ -224,10 +219,10 @@ impl MockTerminal {
 /// They compile but don't need to run.
 #[cfg(test)]
 mod send_assertions {
-    use crate::core::geometry::{Point, Rect};
-    use crate::core::event::Event;
-    use crate::core::palette::{Attr, TvColor};
     use crate::core::draw::Cell;
+    use crate::core::event::Event;
+    use crate::core::geometry::{Point, Rect};
+    use crate::core::palette::{Attr, TvColor};
 
     fn assert_send<T: Send>() {}
 
@@ -310,8 +305,20 @@ mod tests {
         terminal.push_event(event1);
         terminal.push_event(event2);
 
-        assert_eq!(terminal.poll_event(Duration::from_millis(0)).unwrap().key_code, 0x1B);
-        assert_eq!(terminal.poll_event(Duration::from_millis(0)).unwrap().key_code, 0x0D);
+        assert_eq!(
+            terminal
+                .poll_event(Duration::from_millis(0))
+                .unwrap()
+                .key_code,
+            0x1B
+        );
+        assert_eq!(
+            terminal
+                .poll_event(Duration::from_millis(0))
+                .unwrap()
+                .key_code,
+            0x0D
+        );
         assert!(terminal.poll_event(Duration::from_millis(0)).is_none());
     }
 

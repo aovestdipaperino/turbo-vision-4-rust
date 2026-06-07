@@ -13,24 +13,24 @@
 //! - Directory tree listbox in middle
 //! - Buttons (OK, Chdir, Revert) on right side
 
+use super::button::Button;
+use super::dialog::Dialog;
+use super::dir_listbox::DirListBox;
+use super::history::History;
+use super::input_line::InputLine;
+use super::label::Label;
+use super::list_viewer::ListViewer;
+use super::msgbox::message_box_error;
+use super::scrollbar::ScrollBar;
+use super::{View, ViewId};
 use crate::app::Application;
-use crate::core::command::{CommandId, CM_OK};
+use crate::core::command::{CM_OK, CommandId};
 use crate::core::event::{Event, EventType};
 use crate::core::geometry::{Point, Rect};
 use crate::core::history::HistoryManager;
 use crate::terminal::Terminal;
-use super::dialog::Dialog;
-use super::input_line::InputLine;
-use super::label::Label;
-use super::button::Button;
-use super::dir_listbox::DirListBox;
-use super::scrollbar::ScrollBar;
-use super::history::History;
-use super::msgbox::message_box_error;
-use super::{View, ViewId};
-use super::list_viewer::ListViewer;
-use std::path::PathBuf;
 use std::cell::RefCell;
+use std::path::PathBuf;
 use std::rc::Rc;
 
 // Custom commands for ChDirDialog
@@ -64,7 +64,6 @@ impl View for SharedScrollBar {
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
         self.0.borrow().get_palette()
     }
-
 }
 
 /// Wrapper that allows DirListBox to be a child view with shared access
@@ -175,7 +174,11 @@ impl View for SharedDirListBox {
         }
 
         // Track focused entry before event
-        let path_before = self.inner.borrow().get_focused_entry().map(|e| e.path.clone());
+        let path_before = self
+            .inner
+            .borrow()
+            .get_focused_entry()
+            .map(|e| e.path.clone());
 
         // Let DirListBox handle the event
         self.inner.borrow_mut().handle_event(event);
@@ -188,7 +191,11 @@ impl View for SharedDirListBox {
         }
 
         // Check if focused entry changed
-        let path_after = self.inner.borrow().get_focused_entry().map(|e| e.path.clone());
+        let path_after = self
+            .inner
+            .borrow()
+            .get_focused_entry()
+            .map(|e| e.path.clone());
 
         if path_before != path_after {
             // Focused entry changed - update input data
@@ -207,13 +214,18 @@ impl View for SharedDirListBox {
                     // Navigate to the selected directory in listbox
                     // Matches Borland: gets focused item from dirList, updates current dir
                     // Extract path first to avoid overlapping borrows
-                    let new_path = self.inner.borrow().get_focused_entry().map(|e| e.path.clone());
+                    let new_path = self
+                        .inner
+                        .borrow()
+                        .get_focused_entry()
+                        .map(|e| e.path.clone());
 
                     if let Some(new_path) = new_path {
                         // Update listbox to show the new directory
                         if self.inner.borrow_mut().change_dir(&new_path).is_ok() {
                             // Update input line with the new path
-                            *self.dir_input_data.borrow_mut() = new_path.to_string_lossy().to_string();
+                            *self.dir_input_data.borrow_mut() =
+                                new_path.to_string_lossy().to_string();
                             // Update scrollbars after directory change
                             self.update_scrollbars();
                         }
@@ -224,7 +236,8 @@ impl View for SharedDirListBox {
                     // Revert to current working directory
                     // Matches Borland: resets dialog to show current directory
                     if let Ok(current_dir) = std::env::current_dir() {
-                        *self.dir_input_data.borrow_mut() = current_dir.to_string_lossy().to_string();
+                        *self.dir_input_data.borrow_mut() =
+                            current_dir.to_string_lossy().to_string();
                         // Update dir listbox to show current directory
                         let _ = self.inner.borrow_mut().change_dir(&current_dir);
                         // Update scrollbars after directory change
@@ -252,7 +265,6 @@ impl View for SharedDirListBox {
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
         self.inner.borrow().get_palette()
     }
-
 }
 
 /// Change Directory Dialog
@@ -364,15 +376,15 @@ impl ChDirDialog {
         // Chdir button - adjusted: TRect( 53, 9, 63, 11 )
         let chdir_bounds = Rect::new(53, 9, 63, 11);
         let mut chdir_button = Button::new(chdir_bounds, "~C~hdir", CM_CHANGE_DIR, false);
-        chdir_button.set_broadcast(true);  // Broadcast instead of ending dialog
-        chdir_button.set_selectable(false);  // Not part of focus cycle
+        chdir_button.set_broadcast(true); // Broadcast instead of ending dialog
+        chdir_button.set_selectable(false); // Not part of focus cycle
         let chdir_button_id = dialog.add(Box::new(chdir_button));
 
         // Revert button - adjusted: TRect( 53, 12, 63, 14 )
         let revert_bounds = Rect::new(53, 12, 63, 14);
         let mut revert_button = Button::new(revert_bounds, "~R~evert", CM_REVERT, false);
-        revert_button.set_broadcast(true);  // Broadcast instead of ending dialog
-        revert_button.set_selectable(false);  // Not part of focus cycle
+        revert_button.set_broadcast(true); // Broadcast instead of ending dialog
+        revert_button.set_selectable(false); // Not part of focus cycle
         dialog.add(Box::new(revert_button));
 
         // Help button is intentionally NOT implemented

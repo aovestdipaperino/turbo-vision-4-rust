@@ -12,13 +12,13 @@
 // Rust composition: View + MenuViewer → MenuBox
 
 use super::menu_viewer::{MenuViewer, MenuViewerState};
-use super::view::{write_line_to_terminal, View};
+use super::view::{View, write_line_to_terminal};
 use crate::core::command::CommandId;
 use crate::core::draw::DrawBuffer;
 use crate::core::event::{Event, EventType, KB_ENTER, KB_ESC, KB_ESC_ESC, MB_LEFT_BUTTON};
 use crate::core::geometry::{Point, Rect};
 use crate::core::menu_data::{Menu, MenuItem};
-use crate::core::state::{StateFlags, SF_SHADOW};
+use crate::core::state::{SF_SHADOW, StateFlags};
 use crate::terminal::Terminal;
 
 // MenuBox palette indices (same as MenuBar - matches Borland TMenuView)
@@ -53,7 +53,7 @@ impl MenuBox {
             bounds,
             menu_state: MenuViewerState::with_menu(menu),
             state: SF_SHADOW, // MenuBox has shadow by default
-        palette_chain: None,
+            palette_chain: None,
             mouse_down_in_menu: false,
         }
     }
@@ -423,7 +423,7 @@ impl View for MenuBox {
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        use crate::core::palette::{palettes, Palette};
+        use crate::core::palette::{Palette, palettes};
         Some(Palette::from_slice(palettes::CP_MENU_BAR))
     }
 }

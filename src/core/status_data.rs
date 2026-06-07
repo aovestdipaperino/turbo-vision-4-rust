@@ -342,9 +342,7 @@ pub struct StatusLineBuilder {
 impl StatusLineBuilder {
     /// Create a new status line builder
     pub fn new() -> Self {
-        Self {
-            defs: Vec::new(),
-        }
+        Self { defs: Vec::new() }
     }
 
     /// Add a status definition with command range
@@ -379,10 +377,14 @@ mod tests {
 
     #[test]
     fn test_status_def() {
-        let def = StatusDef::new(0, 100, vec![
-            StatusItem::new("~F1~ Help", 0x3B00, 100),
-            StatusItem::new("~Alt+X~ Exit", 0x2D00, 101),
-        ]);
+        let def = StatusDef::new(
+            0,
+            100,
+            vec![
+                StatusItem::new("~F1~ Help", 0x3B00, 100),
+                StatusItem::new("~Alt+X~ Exit", 0x2D00, 101),
+            ],
+        );
 
         assert!(def.applies_to(50));
         assert!(def.applies_to(0));
@@ -394,14 +396,22 @@ mod tests {
     #[test]
     fn test_status_line_builder() {
         let status = StatusLineBuilder::new()
-            .add_def(0, 100, vec![
-                StatusItem::new("~F1~ Help", 0x3B00, 100),
-                StatusItem::new("~F2~ Save", 0x3C00, 101),
-            ])
-            .add_def(101, 200, vec![
-                StatusItem::new("~F1~ Help", 0x3B00, 100),
-                StatusItem::new("~Esc~ Cancel", 0x011B, 102),
-            ])
+            .add_def(
+                0,
+                100,
+                vec![
+                    StatusItem::new("~F1~ Help", 0x3B00, 100),
+                    StatusItem::new("~F2~ Save", 0x3C00, 101),
+                ],
+            )
+            .add_def(
+                101,
+                200,
+                vec![
+                    StatusItem::new("~F1~ Help", 0x3B00, 100),
+                    StatusItem::new("~Esc~ Cancel", 0x011B, 102),
+                ],
+            )
             .build();
 
         assert_eq!(status.defs.len(), 2);

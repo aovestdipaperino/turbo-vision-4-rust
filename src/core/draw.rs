@@ -105,20 +105,32 @@ impl DrawBuffer {
     /// Write a string with shortcut highlighting
     /// Format: "~X~" highlights X with shortcut_attr, rest uses normal_attr
     /// Example: "~F~ile" displays "File" with "F" highlighted
-    pub fn move_str_with_shortcut(&mut self, mut pos: usize, s: &str, normal_attr: Attr, shortcut_attr: Attr) -> usize {
+    pub fn move_str_with_shortcut(
+        &mut self,
+        mut pos: usize,
+        s: &str,
+        normal_attr: Attr,
+        shortcut_attr: Attr,
+    ) -> usize {
         use unicode_width::UnicodeWidthChar;
         let mut chars = s.chars();
         let start_pos = pos;
 
         // Helper: write a char at `pos`, advancing by its display width
         let put_wide = |data: &mut [Cell], pos: &mut usize, ch: char, attr: Attr| {
-            if *pos >= data.len() { return; }
+            if *pos >= data.len() {
+                return;
+            }
             let w = ch.width().unwrap_or(0);
-            if w == 0 { return; }
+            if w == 0 {
+                return;
+            }
             data[*pos] = Cell::new(ch, attr);
             *pos += 1;
             for _ in 1..w {
-                if *pos >= data.len() { break; }
+                if *pos >= data.len() {
+                    break;
+                }
                 data[*pos] = Cell::new('\0', attr);
                 *pos += 1;
             }
@@ -134,7 +146,7 @@ impl DrawBuffer {
                 // Read characters until closing ~ and render with shortcut color
                 while let Some(shortcut_ch) = chars.next() {
                     if shortcut_ch == '~' {
-                        break;  // Found closing tilde
+                        break; // Found closing tilde
                     }
                     put_wide(&mut self.data, &mut pos, shortcut_ch, shortcut_attr);
                 }
@@ -147,7 +159,7 @@ impl DrawBuffer {
             }
         }
 
-        pos - start_pos  // Return number of cells written
+        pos - start_pos // Return number of cells written
     }
 }
 

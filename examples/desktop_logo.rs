@@ -3,26 +3,26 @@
 // Port of the Borland Turbo Vision desklogo example
 // Demonstrates how to customize the desktop background with a pattern or ANSI art
 
+use std::env;
+use std::path::PathBuf;
+use std::time::Instant;
 use turbo_vision::app::Application;
 use turbo_vision::core::command::CM_QUIT;
 use turbo_vision::core::draw::DrawBuffer;
 use turbo_vision::core::event::{Event, EventType};
 use turbo_vision::core::geometry::Rect;
 use turbo_vision::core::menu_data::{Menu, MenuItem};
-use turbo_vision::core::palette::{Attr, TvColor, Palette};
+use turbo_vision::core::palette::{Attr, Palette, TvColor};
 use turbo_vision::core::state::StateFlags;
 use turbo_vision::helpers::msgbox::{MF_ABOUT, MF_OK_BUTTON, message_box};
 use turbo_vision::terminal::Terminal;
-use turbo_vision::views::view::write_line_to_terminal;
 use turbo_vision::views::ansi_background::AnsiBackground;
+use turbo_vision::views::view::write_line_to_terminal;
 use turbo_vision::views::{
-    View, IdleView,
+    IdleView, View,
     menu_bar::{MenuBar, SubMenu},
     status_line::{StatusItem, StatusLine},
 };
-use std::time::Instant;
-use std::path::PathBuf;
-use std::env;
 
 // Custom commands
 const CM_ABOUT: u16 = 100;
@@ -33,8 +33,8 @@ const CM_LOAD_ASCII: u16 = 102;
 struct CrabWidget {
     bounds: Rect,
     state: StateFlags,
-    position: usize,      // Current position (0-9)
-    direction: i8,        // 1 for right, -1 for left
+    position: usize, // Current position (0-9)
+    direction: i8,   // 1 for right, -1 for left
     last_update: Instant,
 }
 
@@ -140,7 +140,11 @@ struct LogoBackground {
 impl LogoBackground {
     fn new(bounds: Rect) -> Self {
         let logo_lines: Vec<String> = ASCII_LOGO.lines().map(|s| s.to_string()).collect();
-        Self { bounds, state: 0, logo_lines }
+        Self {
+            bounds,
+            state: 0,
+            logo_lines,
+        }
     }
 }
 
@@ -168,7 +172,8 @@ impl View for LogoBackground {
         let color = Attr::new(TvColor::LightGray, TvColor::DarkGray);
 
         // Calculate logo dimensions
-        let logo_width = self.logo_lines
+        let logo_width = self
+            .logo_lines
             .iter()
             .map(|line| line.chars().count())
             .max()
@@ -238,10 +243,7 @@ fn create_status_line(width: i16, height: i16) -> StatusLine {
 
     let status_items = vec![StatusItem::new("~Alt+X~ Exit", KB_ALT_X, CM_QUIT)];
 
-    StatusLine::new(
-        Rect::new(0, height - 1, width, height),
-        status_items,
-    )
+    StatusLine::new(Rect::new(0, height - 1, width, height), status_items)
 }
 
 fn show_about_dialog(app: &mut Application) {
@@ -376,10 +378,18 @@ fn main() -> turbo_vision::core::error::Result<()> {
                             // We need to recreate the desktop to change the background
                             // For now, just show a message
                             if find_logo_file().is_some() {
-                                message_box(&mut app, "ANSI logo loaded!\nlogo.txt found.", MF_OK_BUTTON);
+                                message_box(
+                                    &mut app,
+                                    "ANSI logo loaded!\nlogo.txt found.",
+                                    MF_OK_BUTTON,
+                                );
                                 using_ansi = true;
                             } else {
-                                message_box(&mut app, "No ANSI file found.\nPlace logo.txt in examples/", MF_OK_BUTTON);
+                                message_box(
+                                    &mut app,
+                                    "No ANSI file found.\nPlace logo.txt in examples/",
+                                    MF_OK_BUTTON,
+                                );
                             }
                             // Trigger a redraw
                             let _ = new_bg;
@@ -388,7 +398,11 @@ fn main() -> turbo_vision::core::error::Result<()> {
                     CM_LOAD_ASCII => {
                         // Switch to ASCII art background
                         if using_ansi {
-                            message_box(&mut app, "ASCII art mode.\nRestart to apply.", MF_OK_BUTTON);
+                            message_box(
+                                &mut app,
+                                "ASCII art mode.\nRestart to apply.",
+                                MF_OK_BUTTON,
+                            );
                             using_ansi = false;
                         }
                     }

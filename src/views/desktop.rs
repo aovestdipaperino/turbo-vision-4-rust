@@ -2,12 +2,12 @@
 
 //! Desktop view - main workspace for managing application windows.
 
-use crate::core::geometry::Rect;
-use crate::core::event::Event;
-use crate::terminal::Terminal;
-use super::view::{View, ViewId};
-use super::group::Group;
 use super::background::Background;
+use super::group::Group;
+use super::view::{View, ViewId};
+use crate::core::event::Event;
+use crate::core::geometry::Rect;
+use crate::terminal::Terminal;
 
 pub struct Desktop {
     bounds: Rect,
@@ -25,13 +25,17 @@ impl Desktop {
         let width = bounds.width();
         let height = bounds.height();
         let background_bounds = Rect::new(0, 0, width, height);
-        let background = Box::new(Background::new(background_bounds, '░', crate::core::palette::colors::DESKTOP));
+        let background = Box::new(Background::new(
+            background_bounds,
+            '░',
+            crate::core::palette::colors::DESKTOP,
+        ));
         children.add(background);
 
         Self {
             bounds,
             children,
-        palette_chain: None,
+            palette_chain: None,
         }
     }
 
@@ -45,7 +49,7 @@ impl Desktop {
     }
 
     pub fn add(&mut self, mut view: Box<dyn View>) -> ViewId {
-        use crate::core::state::{OF_CENTERED, OF_CENTER_X, OF_CENTER_Y};
+        use crate::core::state::{OF_CENTER_X, OF_CENTER_Y, OF_CENTERED};
 
         // Set parent bounds for safe drag limit resolution
         view.set_parent_bounds(self.bounds());
@@ -53,7 +57,10 @@ impl Desktop {
         // Apply automatic centering if OF_CENTERED flags are set
         // Matches Borland: TView with ofCentered is centered when inserted
         let options = view.options();
-        if (options & OF_CENTERED) != 0 || (options & OF_CENTER_X) != 0 || (options & OF_CENTER_Y) != 0 {
+        if (options & OF_CENTERED) != 0
+            || (options & OF_CENTER_X) != 0
+            || (options & OF_CENTER_Y) != 0
+        {
             self.center_view(&mut *view, options);
         }
 
@@ -66,7 +73,9 @@ impl Desktop {
         let num_children = self.children.len();
         if num_children > 0 {
             let last_idx = num_children - 1;
-            self.children.child_at_mut(last_idx).constrain_to_parent_bounds();
+            self.children
+                .child_at_mut(last_idx)
+                .constrain_to_parent_bounds();
         }
 
         // Initialize internal owner pointers after view is in final position
@@ -129,13 +138,13 @@ impl Desktop {
     /// Get a reference to a child view by index
     /// Note: Index 0 refers to the first window (background is at internal index 0)
     pub fn child_at(&self, index: usize) -> &dyn View {
-        self.children.child_at(index + 1)  // +1 to skip background
+        self.children.child_at(index + 1) // +1 to skip background
     }
 
     /// Get a mutable reference to a child view by index
     /// Note: Index 0 refers to the first window (background is at internal index 0)
     pub fn child_at_mut(&mut self, index: usize) -> &mut dyn View {
-        self.children.child_at_mut(index + 1)  // +1 to skip background
+        self.children.child_at_mut(index + 1) // +1 to skip background
     }
 
     /// True if a window with this `ViewId` is currently a child of the desktop.
@@ -150,13 +159,18 @@ impl Desktop {
     /// Note: Index 0 refers to the first window (background is at internal index 0)
     /// Used by Application::exec_view() to remove modal dialogs after they close
     pub fn remove_child(&mut self, index: usize) {
-        self.children.remove(index + 1);  // +1 to skip background
+        self.children.remove(index + 1); // +1 to skip background
     }
 
     /// Draw views in the affected rectangle (Borland's drawUnderRect pattern)
     /// This is called when a window moves to redraw only the affected area
     /// Matches Borland: TView::drawUnderRect() (tview.cc:304-308)
-    pub fn draw_under_rect(&mut self, terminal: &mut Terminal, rect: Rect, start_from_window: usize) {
+    pub fn draw_under_rect(
+        &mut self,
+        terminal: &mut Terminal,
+        rect: Rect,
+        start_from_window: usize,
+    ) {
         // +1 to account for background being at index 0
         let start_index = start_from_window + 1;
 
@@ -450,7 +464,9 @@ impl Desktop {
         // window->zoom() uses sizeLimits() which returns owner->size as max
         // We pass desktop bounds (equivalent to owner->size in Borland)
         let desktop_bounds = self.bounds;
-        self.children.child_at_mut(top_window_idx).zoom(desktop_bounds);
+        self.children
+            .child_at_mut(top_window_idx)
+            .zoom(desktop_bounds);
     }
 
     /// Bring a specific window to the front of the Z-order by its ViewId.
@@ -458,9 +474,8 @@ impl Desktop {
     /// Matches Borland: TView::makeFirst() / TView::select()
     pub fn bring_to_front(&mut self, view_id: ViewId) -> bool {
         // Search children (skip background at index 0) for matching ViewId
-        let found_index = (1..self.children.len()).find(|&i| {
-            self.children.view_id_at(i) == Some(view_id)
-        });
+        let found_index =
+            (1..self.children.len()).find(|&i| self.children.view_id_at(i) == Some(view_id));
 
         let index = match found_index {
             Some(i) => i,
@@ -498,7 +513,8 @@ impl Desktop {
         // Remove windows marked as closed (skip background at index 0)
         // We need to iterate in reverse to avoid index shifting issues
         let mut i = self.children.len();
-        while i > 1 {  // Don't remove background at index 0
+        while i > 1 {
+            // Don't remove background at index 0
             i -= 1;
             if (self.children.child_at(i).state() & SF_CLOSED) != 0 {
                 self.children.remove(i);
@@ -508,7 +524,6 @@ impl Desktop {
 
         had_removals
     }
-
 }
 
 impl View for Desktop {

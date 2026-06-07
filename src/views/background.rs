@@ -2,12 +2,12 @@
 
 //! Background view - solid color background fill for containers.
 
-use crate::core::geometry::Rect;
-use crate::core::event::Event;
+use super::view::{View, write_line_to_terminal};
 use crate::core::draw::DrawBuffer;
+use crate::core::event::Event;
+use crate::core::geometry::Rect;
 use crate::core::palette::Attr;
 use crate::terminal::Terminal;
-use super::view::{View, write_line_to_terminal};
 
 /// Background view - fills its bounds with a pattern character
 /// Matches Borland's TBackground (tbackgro.cc)
@@ -24,7 +24,7 @@ impl Background {
             bounds,
             pattern,
             attr,
-        palette_chain: None,
+            palette_chain: None,
         }
     }
 }
@@ -62,7 +62,7 @@ impl View for Background {
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        use crate::core::palette::{palettes, Palette};
+        use crate::core::palette::{Palette, palettes};
         Some(Palette::from_slice(palettes::CP_BACKGROUND))
     }
 }
@@ -76,7 +76,11 @@ pub struct BackgroundBuilder {
 
 impl BackgroundBuilder {
     pub fn new() -> Self {
-        Self { bounds: None, pattern: '░', attr: None }
+        Self {
+            bounds: None,
+            pattern: '░',
+            attr: None,
+        }
     }
 
     #[must_use]
