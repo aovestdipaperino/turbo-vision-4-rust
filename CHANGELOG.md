@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.1] - 2026-06-07
+
+### Fixed
+- `Group::remove_by_id()` removed the matching entry from the parallel `view_ids` vector twice (once inside `remove()`, then again directly), which corrupted the view-id ↔ child alignment — `child_by_id()` could then miss an untouched view, and removing the last child panicked with an out-of-bounds index. It now delegates to `remove()`, which already keeps `children` and `view_ids` in lock-step.
+
 ## [1.3.0] - 2026-06-07
 
 ### Added

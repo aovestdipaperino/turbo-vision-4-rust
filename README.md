@@ -4,7 +4,7 @@
 
 A Rust implementation of the classic Borland Turbo Vision text user interface framework.
 
-**Version 1.3.0 - PRODUCTION READY** ✅
+**Version 1.3.1 - PRODUCTION READY** ✅
 
 Based on
 kloczek Borland Turbo Vision C++ port [here](https://github.com/kloczek/tvision)

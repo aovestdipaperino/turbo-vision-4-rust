@@ -231,8 +231,10 @@ impl Group {
     /// Returns true if a child was found and removed, false otherwise
     pub fn remove_by_id(&mut self, view_id: ViewId) -> bool {
         if let Some(index) = self.view_ids.iter().position(|&id| id == view_id) {
+            // `remove()` already keeps `children` and `view_ids` in lock-step,
+            // so we must NOT remove from `view_ids` again here — doing so drops
+            // the wrong (now-shifted) id and can index out of bounds.
             self.remove(index);
-            self.view_ids.remove(index);
             true
         } else {
             false
