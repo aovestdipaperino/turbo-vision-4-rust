@@ -50,10 +50,10 @@ required-features = ["ssh"]
 [dependencies]
 crossterm = "0.29"
 unicode-width = "0.1"
-arboard = "3.3"
-chrono = "0.4.42"
+arboard = "3.6"
+chrono = "0.4.45"
 qcell = "0.5"
-log = "0.4.29"
+log = "0.4.33"
 simplelog = "0.12.2"
 tracing = "0.1"
 base64 = "0.22"
@@ -68,7 +68,7 @@ rand = { version = "0.8", optional = true }
 ssh-key = { version = "0.6", optional = true }
 
 [dev-dependencies]
-tempfile = "3.8"
+tempfile = "3.27"
 
 # Profile optimizations for release builds
 [profile.release]
