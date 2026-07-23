@@ -1,5 +1,10 @@
 # Turbo Vision - Rust TUI Library
 
+<p align="center">
+  <a href="https://ai.enzolombardi.net/"><img src="https://img.shields.io/badge/built%20with-AI-D97757?style=flat-square&labelColor=101010&logo=anthropic&logoColor=white" alt="Built with AI — part of Enzo Lombardi's AI portfolio"></a>
+</p>
+
+
 <img src="https://raw.githubusercontent.com/aovestdipaperino/turbo-vision-4-rust/main/logo.png" alt="Turbo Vision Logo" width="384" align="right" />
 
 A Rust implementation of the classic Borland Turbo Vision text user interface framework.
