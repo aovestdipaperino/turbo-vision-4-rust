@@ -936,3 +936,385 @@ impl Drop for Application {
         let _ = self.terminal.shutdown();
     }
 }
+
+#[cfg(test)]
+mod resize_tests {
+    use super::*;
+    use crate::core::state::{GF_GROW_HI_X, GF_GROW_HI_Y};
+    use crate::terminal::Backend;
+    use std::cell::Cell as StdCell;
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicU16, Ordering};
+
+    /// A backend whose reported size can be changed mid-test, standing in
+    /// for a real terminal being resized by the user (e.g. via SIGWINCH).
+    struct ResizableBackend {
+        size: Arc<(AtomicU16, AtomicU16)>,
+    }
+
+    impl Backend for ResizableBackend {
+        fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+            self
+        }
+        fn init(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+        fn cleanup(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+        fn size(&self) -> std::io::Result<(u16, u16)> {
+            Ok((
+                self.size.0.load(Ordering::SeqCst),
+                self.size.1.load(Ordering::SeqCst),
+            ))
+        }
+        fn poll_event(&mut self, _timeout: Duration) -> std::io::Result<Option<Event>> {
+            Ok(None)
+        }
+        fn write_raw(&mut self, _data: &[u8]) -> std::io::Result<()> {
+            Ok(())
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+        fn show_cursor(&mut self, _x: u16, _y: u16) -> std::io::Result<()> {
+            Ok(())
+        }
+        fn hide_cursor(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    /// A child view that records every `set_bounds` call, standing in for a
+    /// real consumer (e.g. the text scrollback re-wrap in `TextViewer`) that
+    /// depends on `set_bounds` actually being called on resize.
+    struct RecordingView {
+        bounds: Rect,
+        grow_mode: crate::core::state::GrowFlags,
+        set_bounds_calls: Rc<StdCell<u32>>,
+    }
+
+    impl View for RecordingView {
+        fn bounds(&self) -> Rect {
+            self.bounds
+        }
+        fn set_bounds(&mut self, bounds: Rect) {
+            self.bounds = bounds;
+            self.set_bounds_calls.set(self.set_bounds_calls.get() + 1);
+        }
+        fn draw(&mut self, _terminal: &mut Terminal) {}
+        fn handle_event(&mut self, _event: &mut Event) {}
+        fn get_palette(&self) -> Option<crate::core::palette::Palette> {
+            None
+        }
+        fn grow_mode(&self) -> crate::core::state::GrowFlags {
+            self.grow_mode
+        }
+        fn set_grow_mode(&mut self, grow_mode: crate::core::state::GrowFlags) {
+            self.grow_mode = grow_mode;
+        }
+    }
+
+    /// Wraps a plain `Group` so it can itself be added as a Desktop child;
+    /// it forwards `set_bounds` down to its own children (the
+    /// `RecordingView`) via `Group`'s existing grow-mode logic, so the
+    /// resize cascade crosses two levels of nesting — like a window's frame
+    /// containing a scrollable widget.
+    struct GroupView(crate::views::group::Group);
+
+    impl View for GroupView {
+        fn bounds(&self) -> Rect {
+            self.0.bounds()
+        }
+        fn set_bounds(&mut self, bounds: Rect) {
+            View::set_bounds(&mut self.0, bounds);
+        }
+        fn draw(&mut self, terminal: &mut Terminal) {
+            View::draw(&mut self.0, terminal);
+        }
+        fn handle_event(&mut self, event: &mut Event) {
+            View::handle_event(&mut self.0, event);
+        }
+        fn get_palette(&self) -> Option<crate::core::palette::Palette> {
+            None
+        }
+        fn grow_mode(&self) -> crate::core::state::GrowFlags {
+            View::grow_mode(&self.0)
+        }
+        fn set_grow_mode(&mut self, grow_mode: crate::core::state::GrowFlags) {
+            View::set_grow_mode(&mut self.0, grow_mode);
+        }
+    }
+
+    /// Builds an Application on a `ResizableBackend`, with a menu bar,
+    /// status line, and one nested `RecordingView`.
+    fn build_test_app(
+        width: i16,
+        height: i16,
+    ) -> (Application, Arc<(AtomicU16, AtomicU16)>, Rc<StdCell<u32>>) {
+        let size = Arc::new((
+            AtomicU16::new(u16::try_from(width).unwrap()),
+            AtomicU16::new(u16::try_from(height).unwrap()),
+        ));
+        let backend = ResizableBackend {
+            size: Arc::clone(&size),
+        };
+        let terminal = Terminal::with_backend(Box::new(backend)).unwrap();
+
+        let desktop = Desktop::new(Rect::new(0, 0, width, height));
+
+        let mut app = Application {
+            terminal,
+            menu_bar: None,
+            status_line: None,
+            desktop,
+            running: true,
+            needs_redraw: true,
+            pending_event: None,
+            overlay_widgets: Vec::new(),
+            help_file: None,
+            help_context: HelpContext::new(),
+            current_help_ctx: 0,
+        };
+
+        app.set_menu_bar(MenuBar::new(Rect::new(0, 0, width, 1)));
+        app.set_status_line(StatusLine::new(
+            Rect::new(0, height - 1, width, height),
+            Vec::new(),
+        ));
+
+        let set_bounds_calls = Rc::new(StdCell::new(0));
+        let mut inner_group = crate::views::group::Group::new(Rect::new(0, 0, width, height - 2));
+        inner_group.set_grow_mode(GF_GROW_HI_X | GF_GROW_HI_Y);
+        inner_group.add(Box::new(RecordingView {
+            bounds: Rect::new(0, 0, width, height - 2),
+            grow_mode: GF_GROW_HI_X | GF_GROW_HI_Y,
+            set_bounds_calls: Rc::clone(&set_bounds_calls),
+        }));
+
+        let mut group_view = GroupView(inner_group);
+        group_view.set_grow_mode(GF_GROW_HI_X | GF_GROW_HI_Y);
+        app.desktop.add(Box::new(group_view));
+
+        (app, size, set_bounds_calls)
+    }
+
+    #[test]
+    fn resize_resizes_desktop_to_new_bounds() {
+        let (mut app, size, _calls) = build_test_app(80, 25);
+        size.0.store(100, Ordering::SeqCst);
+        size.1.store(40, Ordering::SeqCst);
+
+        app.handle_redraw();
+
+        let desktop_bounds = app.desktop.get_bounds();
+        assert_eq!(desktop_bounds.width(), 100);
+        // Desktop height excludes the 1-row menu bar and 1-row status line.
+        assert_eq!(desktop_bounds.height(), 40 - 2);
+        assert_eq!(app.terminal.size(), (100, 40));
+    }
+
+    #[test]
+    fn resize_lays_out_grow_mode_children_and_reaches_nested_view() {
+        let (mut app, size, calls) = build_test_app(80, 25);
+        let before = calls.get();
+        size.0.store(120, Ordering::SeqCst);
+        size.1.store(50, Ordering::SeqCst);
+
+        app.handle_redraw();
+
+        // set_bounds must actually reach the nested RecordingView, not just
+        // the top-level Group.
+        assert!(calls.get() > before);
+        let child_bounds = app.desktop.child_at(app.desktop.child_count() - 1).bounds();
+        assert_eq!(child_bounds.width(), 120);
+        assert_eq!(child_bounds.height(), 50 - 2);
+    }
+
+    #[test]
+    fn resize_moves_status_line_to_new_bottom_row() {
+        let (mut app, size, _calls) = build_test_app(80, 25);
+        size.0.store(80, Ordering::SeqCst);
+        size.1.store(50, Ordering::SeqCst);
+
+        app.handle_redraw();
+
+        let sb = app.status_line.as_ref().unwrap().bounds();
+        assert_eq!(sb.a.y, 49);
+        assert_eq!(sb.b.y, 50);
+    }
+
+    #[test]
+    fn resize_moves_menu_bar_to_new_width() {
+        let (mut app, size, _calls) = build_test_app(80, 25);
+        size.0.store(120, Ordering::SeqCst);
+        size.1.store(25, Ordering::SeqCst);
+
+        app.handle_redraw();
+
+        let mb = app.menu_bar.as_ref().unwrap().bounds();
+        assert_eq!(mb.b.x, 120);
+    }
+
+    #[test]
+    fn shrink_then_grow_returns_sane_geometry() {
+        let (mut app, size, _calls) = build_test_app(80, 25);
+
+        size.0.store(40, Ordering::SeqCst);
+        size.1.store(12, Ordering::SeqCst);
+        app.handle_redraw();
+        let shrunk = app.desktop.get_bounds();
+        assert_eq!(shrunk.width(), 40);
+        assert_eq!(shrunk.height(), 12 - 2);
+        assert!(shrunk.a.x <= shrunk.b.x);
+        assert!(shrunk.a.y <= shrunk.b.y);
+
+        size.0.store(80, Ordering::SeqCst);
+        size.1.store(25, Ordering::SeqCst);
+        app.handle_redraw();
+        let restored = app.desktop.get_bounds();
+        assert_eq!(restored.width(), 80);
+        assert_eq!(restored.height(), 25 - 2);
+        assert_eq!(app.terminal.size(), (80, 25));
+
+        let child_bounds = app.desktop.child_at(app.desktop.child_count() - 1).bounds();
+        assert_eq!(child_bounds.width(), 80);
+        assert_eq!(child_bounds.height(), 25 - 2);
+    }
+
+    #[test]
+    fn no_size_change_does_not_disturb_layout() {
+        let (mut app, _size, calls) = build_test_app(80, 25);
+        let before_bounds = app.desktop.get_bounds();
+        let before_calls = calls.get();
+
+        app.handle_redraw();
+
+        assert_eq!(app.desktop.get_bounds(), before_bounds);
+        assert_eq!(calls.get(), before_calls);
+    }
+
+    // --- Window participation in the resize cascade -----------------------
+    //
+    // Regression coverage for the bug where every `Window` reported
+    // `grow_mode() == 0` (fixed) because `Window` didn't override the
+    // `View` trait's default grow-mode accessors, so the desktop resize
+    // cascade correctly visited windows and then did nothing to them.
+
+    use crate::core::geometry::Point;
+    use crate::views::window::Window;
+
+    #[test]
+    fn window_added_to_desktop_follows_desktop_resize() {
+        let (mut app, size, _calls) = build_test_app(80, 25);
+        // Establish the real (post-menu/status-line) desktop bounds before
+        // sizing the window, and leave room for the window's shadow so
+        // `Desktop::add`'s `constrain_to_parent_bounds` doesn't shift it.
+        app.handle_redraw();
+        let (shadow_x, shadow_y) = crate::core::state::shadow_size();
+        let desktop_bounds = app.desktop.get_bounds();
+        let window_bounds = Rect::new(
+            desktop_bounds.a.x,
+            desktop_bounds.a.y,
+            desktop_bounds.b.x - shadow_x,
+            desktop_bounds.b.y - shadow_y,
+        );
+
+        // Window::add (via the interior Group) takes bounds relative to the
+        // window's interior origin, not absolute screen coordinates. Span
+        // the whole interior (0,0)..(interior width, interior height), like
+        // a content view (e.g. a TextViewer) that fills its window.
+        let interior_w = window_bounds.width() - 2;
+        let interior_h = window_bounds.height() - 2;
+
+        let mut window = Window::new(window_bounds, "Test Window");
+        let set_bounds_calls = Rc::new(StdCell::new(0));
+        window.add(Box::new(RecordingView {
+            bounds: Rect::new(0, 0, interior_w, interior_h),
+            grow_mode: GF_GROW_HI_X | GF_GROW_HI_Y,
+            set_bounds_calls: Rc::clone(&set_bounds_calls),
+        }));
+        app.desktop.add(Box::new(window));
+
+        size.0.store(120, Ordering::SeqCst);
+        size.1.store(50, Ordering::SeqCst);
+        app.handle_redraw();
+
+        let window_index = app.desktop.child_count() - 1;
+        let new_desktop_bounds = app.desktop.get_bounds();
+        let window = app
+            .desktop
+            .child_at_mut(window_index)
+            .as_any_mut()
+            .downcast_mut::<Window>()
+            .expect("last desktop child should be the Window");
+
+        // The window's own bounds (and therefore its frame, which shares
+        // them) must have grown along with the desktop.
+        let expected = Rect::new(
+            new_desktop_bounds.a.x,
+            new_desktop_bounds.a.y,
+            new_desktop_bounds.b.x - shadow_x,
+            new_desktop_bounds.b.y - shadow_y,
+        );
+        assert_eq!(window.bounds(), expected);
+
+        // The interior child (a stand-in for a window's real content, e.g.
+        // an editor's TextViewer) must have been re-laid-out too, not just
+        // the window's own bounds: it fills the interior, whose top-left
+        // (window top-left + 1) stays put and whose bottom-right (window
+        // bottom-right - 1) must have grown by the same amount as the
+        // window.
+        assert!(set_bounds_calls.get() > 0);
+        let interior_child_bounds = window.interior_mut().child_at(0).bounds();
+        let expected_interior_top_left = Point::new(window_bounds.a.x + 1, window_bounds.a.y + 1);
+        assert_eq!(interior_child_bounds.a, expected_interior_top_left);
+        assert_eq!(
+            interior_child_bounds.b,
+            Point::new(expected.b.x - 1, expected.b.y - 1)
+        );
+    }
+
+    #[test]
+    fn window_set_grow_mode_takes_effect_and_reads_back() {
+        let mut window = Window::new(Rect::new(0, 0, 20, 10), "W");
+
+        // Deliberately not gfGrowAll — see the field doc on Window::grow_mode.
+        assert_eq!(window.grow_mode(), GF_GROW_HI_X | GF_GROW_HI_Y);
+
+        window.set_grow_mode(GF_GROW_HI_X);
+        assert_eq!(window.grow_mode(), GF_GROW_HI_X);
+    }
+
+    #[test]
+    fn window_with_fixed_grow_mode_stays_put_on_desktop_resize() {
+        let (mut app, size, _calls) = build_test_app(80, 25);
+        app.handle_redraw();
+        let (shadow_x, shadow_y) = crate::core::state::shadow_size();
+        let desktop_bounds = app.desktop.get_bounds();
+        let window_bounds = Rect::new(
+            desktop_bounds.a.x,
+            desktop_bounds.a.y,
+            desktop_bounds.b.x - shadow_x,
+            desktop_bounds.b.y - shadow_y,
+        );
+
+        let mut window = Window::new(window_bounds, "Fixed Window");
+        window.set_grow_mode(0);
+        app.desktop.add(Box::new(window));
+
+        size.0.store(120, Ordering::SeqCst);
+        size.1.store(50, Ordering::SeqCst);
+        app.handle_redraw();
+
+        let window_index = app.desktop.child_count() - 1;
+        let window = app
+            .desktop
+            .child_at(window_index)
+            .as_any()
+            .downcast_ref::<Window>()
+            .expect("last desktop child should be the Window");
+
+        assert_eq!(window.bounds(), window_bounds);
+    }
+}

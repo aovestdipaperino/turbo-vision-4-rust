@@ -54,6 +54,25 @@ pub struct Window {
     /// bubbles up uncleared and the owner is responsible for both the
     /// validation and the eventual `set_state(SF_CLOSED)`.
     auto_close: bool,
+    /// Grow mode flags (Borland: `TWindow::growMode`), controlling how this
+    /// window's bounds move when its owner (the Desktop) is resized.
+    ///
+    /// Borland's `TWindow` constructor sets `growMode = gfGrowAll`, but this
+    /// crate's resize cascade (`Group::set_bounds`) gives `gfGrowAll`
+    /// (all four `GF_GROW_*` bits) a literal "translate by the full size
+    /// delta, keep the same size" meaning — see the `gfGrowAll` case in
+    /// `Group`'s own `test_grow_modes_on_resize` — which is right for a
+    /// widget pinned to the far corner (e.g. a resize handle) but does
+    /// nothing to fix a full-size window being clipped at the new screen
+    /// edge; it would just slide the window away from the corner it was
+    /// already filling. The default here is deliberately
+    /// `GF_GROW_HI_X | GF_GROW_HI_Y` instead: the window's top-left corner
+    /// stays put and its bottom-right edge follows the desktop's growth,
+    /// i.e. the window actually stretches to fill the new space, which is
+    /// the resizing behaviour the bug report asked for. Use
+    /// `set_grow_mode()` to opt out (e.g. `0` for a fixed window, or
+    /// `GF_GROW_ALL` for corner-tracking).
+    grow_mode: crate::core::state::GrowFlags,
 }
 
 #[derive(Clone, Copy)]
@@ -151,6 +170,7 @@ impl Window {
             custom_palette: None,
             explicit_drag_limits: None,
             auto_close: true,
+            grow_mode: crate::core::state::GF_GROW_HI_X | crate::core::state::GF_GROW_HI_Y,
         };
 
         window
@@ -459,6 +479,14 @@ impl View for Window {
         // NOTE: We do NOT automatically update frame_children here
         // Subclasses like EditWindow handle frame_children positioning manually
         // because scrollbars need to be repositioned based on new window SIZE, not just offset
+    }
+
+    fn grow_mode(&self) -> crate::core::state::GrowFlags {
+        self.grow_mode
+    }
+
+    fn set_grow_mode(&mut self, grow_mode: crate::core::state::GrowFlags) {
+        self.grow_mode = grow_mode;
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
@@ -905,6 +933,7 @@ pub struct WindowBuilder {
     title: Option<String>,
     resizable: bool,
     palette_type: WindowPaletteType,
+    grow_mode: crate::core::state::GrowFlags,
 }
 
 impl WindowBuilder {
@@ -915,6 +944,8 @@ impl WindowBuilder {
             title: None,
             resizable: true, // Default to resizable (matches Borland TWindow with wfGrow)
             palette_type: WindowPaletteType::Blue,
+            // Deliberately not gfGrowAll — see the field doc on Window::grow_mode.
+            grow_mode: crate::core::state::GF_GROW_HI_X | crate::core::state::GF_GROW_HI_Y,
         }
     }
 
@@ -948,6 +979,18 @@ impl WindowBuilder {
         self
     }
 
+    /// Sets the window's grow mode flags (default:
+    /// `GF_GROW_HI_X | GF_GROW_HI_Y`, so the window stretches to fill new
+    /// desktop space rather than translating like Borland's literal
+    /// `gfGrowAll`). Controls how the window's bounds move when its owner
+    /// (the Desktop) is resized; see `Window::grow_mode`'s field doc and
+    /// `View::grow_mode`.
+    #[must_use]
+    pub fn grow_mode(mut self, grow_mode: crate::core::state::GrowFlags) -> Self {
+        self.grow_mode = grow_mode;
+        self
+    }
+
     /// Builds the Window.
     ///
     /// # Panics
@@ -970,7 +1013,10 @@ impl WindowBuilder {
             _ => self.resizable,
         };
 
-        Window::new_with_palette(bounds, &title, frame_palette, self.palette_type, resizable)
+        let mut window =
+            Window::new_with_palette(bounds, &title, frame_palette, self.palette_type, resizable);
+        window.set_grow_mode(self.grow_mode);
+        window
     }
 }
 

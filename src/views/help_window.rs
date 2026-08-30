@@ -262,6 +262,14 @@ impl View for HelpWindow {
         self.viewer.borrow_mut().set_bounds(viewer_bounds);
     }
 
+    fn grow_mode(&self) -> crate::core::state::GrowFlags {
+        self.window.grow_mode()
+    }
+
+    fn set_grow_mode(&mut self, grow_mode: crate::core::state::GrowFlags) {
+        self.window.set_grow_mode(grow_mode);
+    }
+
     fn draw(&mut self, terminal: &mut Terminal) {
         // Window draws itself and all children (including viewer)
         self.window.draw(terminal);

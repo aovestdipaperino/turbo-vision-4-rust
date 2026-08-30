@@ -223,6 +223,12 @@ impl View for LogWindow {
         // Window handles interior repositioning; widget bounds are updated
         // by the window's interior Group during draw
     }
+    fn grow_mode(&self) -> crate::core::state::GrowFlags {
+        self.window.grow_mode()
+    }
+    fn set_grow_mode(&mut self, grow_mode: crate::core::state::GrowFlags) {
+        self.window.set_grow_mode(grow_mode);
+    }
     fn draw(&mut self, terminal: &mut Terminal) {
         self.drain_logs();
         self.window.draw(terminal);
