@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2026-08-30
+
+### Fixed
+- **Windows now follow a terminal resize.** `Window` never implemented
+  `grow_mode`/`set_grow_mode`, so it inherited `View`'s fixed default and
+  `set_grow_mode` on it was a silent no-op. The resize cascade reached each
+  window, was told it was fixed, and left it at its old geometry: frames
+  stayed at the old width and contents were clipped at the new screen edge.
+  `Window` now stores grow flags and defaults to `GF_GROW_HI_X | GF_GROW_HI_Y`,
+  pinning the top-left and growing the bottom-right edge, which is what a
+  window filling the desktop wants. Note this is deliberately not Borland's
+  literal `gfGrowAll`: in this crate's cascade all four bits mean "translate
+  by the size delta, keep the same size", which would slide a window away
+  from the corner it was filling rather than stretch it.
+- `EditWindow`, `LogWindow` and `HelpWindow` wrap a `Window` and delegate
+  `bounds`/`state` to it, but had not delegated the grow-mode accessors, so
+  they carried the same bug. They now do.
+
+### Added
+- `WindowBuilder::grow_mode` for callers that want something other than the
+  default.
+
+### Behaviour change
+Any application that positions a `Window` itself and adds it to a `Desktop`
+will now see that window move and resize when the terminal is resized, where
+previously it silently did not. Call `window.set_grow_mode(0)` to keep the
+old fixed behaviour.
+
 ## [2.0.0] - 2026-07-02
 
 Full code review against the kloczek/tvision C++ reference, with all critical
