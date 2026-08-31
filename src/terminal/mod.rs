@@ -824,8 +824,8 @@ mod tests {
         // previous run's style does not bleed into it.
         let p = attr_to_sgr(plain);
         assert!(p.starts_with("\x1b[0;38;2;"));
-        assert!(!p.contains(";1"), "no bold code for plain attr");
         assert!(p.ends_with("m"));
+        assert!(!p.ends_with(";1m"), "no bold code for plain attr: {p:?}");
     }
 
     #[test]
@@ -834,9 +834,7 @@ mod tests {
         let a = Attr::new(TvColor::White, TvColor::Blue)
             .with_style(Style::ITALIC | Style::UNDERLINE);
         let s = attr_to_sgr(a);
-        // italic(3) before underline(4)
-        let i3 = s.find(";3").unwrap();
-        let i4 = s.find(";4").unwrap();
-        assert!(i3 < i4, "style codes emitted in canonical order: {s:?}");
+        // italic(3) before underline(4), and no other style codes present.
+        assert!(s.ends_with(";3;4m"), "style codes emitted in canonical order: {s:?}");
     }
 }
