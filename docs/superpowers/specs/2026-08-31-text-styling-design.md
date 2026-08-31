@@ -137,10 +137,11 @@ wrapper as appropriate).
 - **ANSI parser (`src/core/ansi.rs`)**: today only SGR `1` (bold → brighten
   color) and `22` are handled. Extend the parser to track a `Style` value and
   set it on each emitted cell's `Attr`. Handle set codes `1/2/3/4/7/9` and
-  reset codes `0/22/23/24/27/29`. (The existing brighten-on-bold behavior may
-  be kept or dropped; real bold is now expressed via `Style::BOLD`. Decision:
-  set `Style::BOLD` and stop brightening, so styling is not double-applied —
-  captured as a plan step with a test.)
+  reset codes `0/22/23/24/27/29`. Decision: **keep the existing
+  brighten-on-bold color behavior AND additively set `Style::BOLD`**. This
+  preserves the terminal widget's current appearance (and the existing
+  `test_parse_bold`) while adding real bold as a superset — no visual
+  regression.
 - **Help viewer (`src/views/help_viewer.rs`)**: map `TextSegment::Bold` to its
   color `.bold()` and `TextSegment::Italic` to its color `.italic()`.
   `TextSegment::Code` and `TextSegment::Link` keep their existing color-only
