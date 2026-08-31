@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.1] - 2026-08-31
+
+### Changed
+- **Bold no longer brightens explicitly-chosen colors.** The ANSI parser still
+  applies the classic bold-is-bright convention to the basic 16-color palette
+  (`\x1b[1;31m` → bright red), but a foreground set via 256-color (`38;5;n`) or
+  truecolor (`38;2;r;g;b`) now keeps its exact hue when bold — only the `BOLD`
+  style flag is set. This lets syntax highlighters bold keywords without
+  shifting their color.
+
 ## [2.2.0] - 2026-08-31
 
 ### Added
