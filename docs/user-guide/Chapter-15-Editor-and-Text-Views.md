@@ -139,6 +139,26 @@ if let Some(text) = editor.get_selection() {
 editor.selection_start = None;
 ```
 
+#### Stream vs. Block Selection
+
+The editor supports two selection shapes, tracked by `SelectionMode`:
+
+- **Stream** (the default): a continuous character range, extended with
+  **Shift+arrows** or a plain mouse drag.
+- **Block** (rectangular / column): a column band `[min_x, max_x)` applied to
+  every row in the range, extended with **Alt/Option+arrows** or an **Alt-drag**
+  with the mouse. Copying a block yields each row's column slice joined by
+  newlines; deleting a block removes the band from every row and undoes in a
+  single step.
+
+The mode is fixed when a selection starts (the modifier that begins it decides),
+so Shift begins a stream selection and Alt begins a block selection. A plain
+movement or click clears the selection and returns to stream mode.
+
+> **Terminal note:** block selection relies on the terminal delivering the Alt
+> modifier. Most terminals do; macOS Terminal.app only sends it when
+> "Use Option as Meta key" is turned **off**.
+
 ### Clipboard Operations
 
 The editor integrates with the system clipboard via `src/core/clipboard.rs`:

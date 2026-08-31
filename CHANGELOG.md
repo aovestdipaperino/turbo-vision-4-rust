@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.2.1] - 2026-08-31
 
+### Added
+- **Rectangular (block) selection in the editor.** Hold **Alt/Option** with the
+  arrow keys, or Alt-drag with the mouse, to select a column block instead of a
+  continuous stream. Block copy yields each row's column slice (joined by
+  newlines); block delete removes the column band from every row and undoes in a
+  single step. Stream selection (Shift+arrows / plain drag) is unchanged.
+- **`CM_SELECT_ALL` is now a working command.** `EditorWindow` and `Memo` handle
+  it (focus-gated) in addition to the existing Ctrl+A, so an Edit-menu item or
+  command dispatch selects all content of the focused window.
+
 ### Changed
 - **Bold no longer brightens explicitly-chosen colors.** The ANSI parser still
   applies the classic bold-is-bright convention to the basic 16-color palette
@@ -1519,6 +1529,7 @@ The fix addresses a fundamental architectural issue where modal dialogs had thei
 ### Known Limitations
 - Full text editor with search/replace not yet implemented (basic editing available in Memo)
 
+[2.2.1]: https://github.com/aovestdipaperino/turbo-vision-4-rust/releases/tag/v2.2.1
 [2.2.0]: https://github.com/aovestdipaperino/turbo-vision-4-rust/releases/tag/v2.2.0
 [2.0.0]: https://github.com/aovestdipaperino/turbo-vision-4-rust/releases/tag/v2.0.0
 [0.1.3]: https://github.com/aovestdipaperino/turbo-vision-4-rust/releases/tag/v0.1.3
