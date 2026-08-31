@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] - 2026-08-31
+
+### Added
+- **Text styling attributes.** `Attr` now carries a `Style` bitset alongside its
+  foreground/background colors, supporting **bold**, **dim**, **italic**,
+  **underline**, **reverse** (inverse video), and **strikethrough**. Apply them
+  with composable builder methods — `Attr::new(fg, bg).bold().italic()` — or set
+  several at once via `.with_style(Style::ITALIC | Style::UNDERLINE)`.
+- Styles are emitted as real SGR escape codes by the renderer: on the live
+  terminal and SSH output (`Terminal::flush`) and in ANSI screen dumps
+  (`ansi_dump`). The ANSI parser now recognizes incoming style codes, and the
+  help viewer renders `**bold**` / `*italic*` markdown segments with real
+  terminal styles instead of color-only emphasis.
+- New `text_styling` example (`cargo run --example text_styling`) printing a
+  table of every style and several combinations.
+
+### Notes
+- Fully backward compatible: `Attr::new(fg, bg)` keeps its two-argument
+  signature (style defaults to empty), so existing call sites are unaffected.
+- The classic Turbo Vision color byte still encodes colors only — `to_u8` /
+  `from_u8` preserve colors and drop style, by design.
+- PNG screenshots remain color-only; blink is intentionally not supported.
+
 ## [2.0.0] - 2026-07-02
 
 Full code review against the kloczek/tvision C++ reference, with all critical
@@ -1486,6 +1509,8 @@ The fix addresses a fundamental architectural issue where modal dialogs had thei
 ### Known Limitations
 - Full text editor with search/replace not yet implemented (basic editing available in Memo)
 
+[2.2.0]: https://github.com/aovestdipaperino/turbo-vision-4-rust/releases/tag/v2.2.0
+[2.0.0]: https://github.com/aovestdipaperino/turbo-vision-4-rust/releases/tag/v2.0.0
 [0.1.3]: https://github.com/aovestdipaperino/turbo-vision-4-rust/releases/tag/v0.1.3
 [0.1.2]: https://github.com/aovestdipaperino/turbo-vision-4-rust/releases/tag/v0.1.2
 [0.1.1]: https://github.com/aovestdipaperino/turbo-vision-4-rust/releases/tag/v0.1.1
