@@ -331,6 +331,62 @@ impl TvColor {
     }
 }
 
+/// Text style flags (rendered as SGR attributes). Independent of color.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub struct Style(u8);
+
+impl Style {
+    pub const BOLD: Style = Style(1 << 0);
+    pub const ITALIC: Style = Style(1 << 1);
+    pub const UNDERLINE: Style = Style(1 << 2);
+    pub const REVERSE: Style = Style(1 << 3);
+    pub const DIM: Style = Style(1 << 4);
+    pub const STRIKETHROUGH: Style = Style(1 << 5);
+
+    /// The empty style (no flags set).
+    pub const fn empty() -> Style {
+        Style(0)
+    }
+
+    /// Raw bit representation.
+    pub const fn bits(self) -> u8 {
+        self.0
+    }
+
+    /// True when no flags are set.
+    pub const fn is_empty(self) -> bool {
+        self.0 == 0
+    }
+
+    /// True when every flag in `other` is set in `self`.
+    pub const fn contains(self, other: Style) -> bool {
+        (self.0 & other.0) == other.0
+    }
+
+    /// Set every flag in `other`.
+    pub fn insert(&mut self, other: Style) {
+        self.0 |= other.0;
+    }
+
+    /// Clear every flag in `other`.
+    pub fn remove(&mut self, other: Style) {
+        self.0 &= !other.0;
+    }
+}
+
+impl core::ops::BitOr for Style {
+    type Output = Style;
+    fn bitor(self, rhs: Style) -> Style {
+        Style(self.0 | rhs.0)
+    }
+}
+
+impl core::ops::BitOrAssign for Style {
+    fn bitor_assign(&mut self, rhs: Style) {
+        self.0 |= rhs.0;
+    }
+}
+
 /// Text attributes (foreground and background colors)
 ///
 /// # Examples
@@ -357,17 +413,60 @@ impl TvColor {
 pub struct Attr {
     pub fg: TvColor,
     pub bg: TvColor,
+    pub style: Style,
 }
 
 impl Attr {
     pub const fn new(fg: TvColor, bg: TvColor) -> Self {
-        Self { fg, bg }
+        Self {
+            fg,
+            bg,
+            style: Style::empty(),
+        }
+    }
+
+    /// Returns a copy with the given style flags set (replacing any existing flags).
+    pub const fn with_style(self, style: Style) -> Self {
+        Self {
+            fg: self.fg,
+            bg: self.bg,
+            style,
+        }
+    }
+
+    /// Returns a copy with an additional style flag set.
+    const fn add_style(self, flag: Style) -> Self {
+        Self {
+            fg: self.fg,
+            bg: self.bg,
+            style: Style(self.style.bits() | flag.bits()),
+        }
+    }
+
+    pub const fn bold(self) -> Self {
+        self.add_style(Style::BOLD)
+    }
+    pub const fn italic(self) -> Self {
+        self.add_style(Style::ITALIC)
+    }
+    pub const fn underline(self) -> Self {
+        self.add_style(Style::UNDERLINE)
+    }
+    pub const fn reverse(self) -> Self {
+        self.add_style(Style::REVERSE)
+    }
+    pub const fn dim(self) -> Self {
+        self.add_style(Style::DIM)
+    }
+    pub const fn strikethrough(self) -> Self {
+        self.add_style(Style::STRIKETHROUGH)
     }
 
     pub fn from_u8(byte: u8) -> Self {
         Self {
             fg: TvColor::from_u8(byte & 0x0F),
             bg: TvColor::from_u8((byte >> 4) & 0x0F),
+            style: Style::empty(),
         }
     }
 
@@ -381,6 +480,7 @@ impl Attr {
         Self {
             fg: self.bg,
             bg: self.fg,
+            style: self.style,
         }
     }
 
@@ -399,6 +499,7 @@ impl Attr {
         Self {
             fg: darken_color(self.fg),
             bg: darken_color(self.bg),
+            style: self.style,
         }
     }
 }
@@ -850,5 +951,56 @@ mod tests {
         // Out-of-range indices still hit the Palette::get() fallback.
         let pal = Palette::from_slice(CP_CLUSTER);
         assert_eq!(pal.get(6), 0);
+    }
+
+    #[test]
+    fn test_style_bitset() {
+        let s = Style::BOLD | Style::ITALIC;
+        assert!(s.contains(Style::BOLD));
+        assert!(s.contains(Style::ITALIC));
+        assert!(!s.contains(Style::UNDERLINE));
+        assert!(Style::empty().is_empty());
+        assert!(!s.is_empty());
+
+        let mut m = Style::empty();
+        m.insert(Style::UNDERLINE);
+        assert!(m.contains(Style::UNDERLINE));
+        m.remove(Style::UNDERLINE);
+        assert!(!m.contains(Style::UNDERLINE));
+        assert!(m.is_empty());
+    }
+
+    #[test]
+    fn test_attr_style_builders() {
+        let a = Attr::new(TvColor::White, TvColor::Blue);
+        assert!(a.style.is_empty());
+
+        let b = a.bold().italic();
+        assert!(b.style.contains(Style::BOLD));
+        assert!(b.style.contains(Style::ITALIC));
+        assert_eq!(b.fg, TvColor::White);
+        assert_eq!(b.bg, TvColor::Blue);
+
+        // with_style replaces the style set
+        let c = a.with_style(Style::UNDERLINE | Style::REVERSE);
+        assert!(c.style.contains(Style::UNDERLINE));
+        assert!(c.style.contains(Style::REVERSE));
+        assert!(!c.style.contains(Style::BOLD));
+    }
+
+    #[test]
+    fn test_attr_u8_drops_style() {
+        let a = Attr::new(TvColor::White, TvColor::Blue).bold();
+        let round = Attr::from_u8(a.to_u8());
+        assert_eq!(round.fg, TvColor::White);
+        assert_eq!(round.bg, TvColor::Blue);
+        assert!(round.style.is_empty(), "style is not representable in the color byte");
+    }
+
+    #[test]
+    fn test_attr_swap_darken_preserve_style() {
+        let a = Attr::new(TvColor::White, TvColor::Blue).underline();
+        assert!(a.swap().style.contains(Style::UNDERLINE));
+        assert!(a.darken(0.5).style.contains(Style::UNDERLINE));
     }
 }
