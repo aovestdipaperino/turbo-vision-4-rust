@@ -302,6 +302,25 @@ impl HelpViewer {
     }
 }
 
+/// Resolve the base color of a segment into a styled attribute.
+/// Bold/Italic segments carry real style flags; others are color-only.
+fn styled_attr(
+    segment: &TextSegment,
+    normal: crate::core::palette::Attr,
+    bold_color: crate::core::palette::Attr,
+    italic_color: crate::core::palette::Attr,
+    code_color: crate::core::palette::Attr,
+    keyword: crate::core::palette::Attr,
+) -> crate::core::palette::Attr {
+    match segment {
+        TextSegment::Normal(_) => normal,
+        TextSegment::Bold(_) => bold_color.bold(),
+        TextSegment::Italic(_) => italic_color.italic(),
+        TextSegment::Code(_) => code_color,
+        TextSegment::Link { .. } => keyword,
+    }
+}
+
 impl View for HelpViewer {
     fn bounds(&self) -> Rect {
         self.bounds
@@ -381,22 +400,25 @@ impl View for HelpViewer {
 
                     // Check if this segment is visible (at least partially)
                     if seg_end > h_offset && seg_start < h_offset + display_width {
-                        // Determine color based on segment type
-                        let color = match segment {
-                            TextSegment::Normal(_) => normal,
-                            TextSegment::Bold(_) => bold_color,
-                            TextSegment::Italic(_) => italic_color,
-                            TextSegment::Code(_) => code_color,
-                            TextSegment::Link { .. } => {
-                                // Find matching cross-ref to check if selected
-                                let is_selected =
-                                    self.cross_refs.iter().enumerate().any(|(i, r)| {
-                                        r.line == line_num
-                                            && r.offset == abs_col as i16
-                                            && i + 1 == self.selected
-                                    });
-                                if is_selected { sel_keyword } else { keyword }
-                            }
+                        // Determine color/style based on segment type
+                        let color = if let TextSegment::Link { .. } = segment {
+                            // Find matching cross-ref to check if selected
+                            let is_selected = self.cross_refs.iter().enumerate().any(|(i, r)| {
+                                r.line == line_num
+                                    && r.offset == abs_col as i16
+                                    && i + 1 == self.selected
+                            });
+                            let sel = if is_selected { sel_keyword } else { keyword };
+                            styled_attr(segment, normal, bold_color, italic_color, code_color, sel)
+                        } else {
+                            styled_attr(
+                                segment,
+                                normal,
+                                bold_color,
+                                italic_color,
+                                code_color,
+                                keyword,
+                            )
                         };
 
                         // Calculate visible portion of the segment
@@ -686,5 +708,17 @@ mod tests {
         viewer.clear();
         assert!(viewer.current_topic().is_none());
         assert!(viewer.styled_lines.is_empty());
+    }
+
+    #[test]
+    fn test_help_segment_styles() {
+        use crate::core::palette::{Attr, Style, TvColor};
+        let c = Attr::new(TvColor::White, TvColor::Blue);
+        let bold = styled_attr(&TextSegment::Bold("x".into()), c, c, c, c, c);
+        assert!(bold.style.contains(Style::BOLD));
+        let ital = styled_attr(&TextSegment::Italic("x".into()), c, c, c, c, c);
+        assert!(ital.style.contains(Style::ITALIC));
+        let norm = styled_attr(&TextSegment::Normal("x".into()), c, c, c, c, c);
+        assert!(norm.style.is_empty());
     }
 }
