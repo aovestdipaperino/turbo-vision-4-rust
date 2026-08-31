@@ -331,6 +331,62 @@ impl TvColor {
     }
 }
 
+/// Text style flags (rendered as SGR attributes). Independent of color.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub struct Style(u8);
+
+impl Style {
+    pub const BOLD: Style = Style(1 << 0);
+    pub const ITALIC: Style = Style(1 << 1);
+    pub const UNDERLINE: Style = Style(1 << 2);
+    pub const REVERSE: Style = Style(1 << 3);
+    pub const DIM: Style = Style(1 << 4);
+    pub const STRIKETHROUGH: Style = Style(1 << 5);
+
+    /// The empty style (no flags set).
+    pub const fn empty() -> Style {
+        Style(0)
+    }
+
+    /// Raw bit representation.
+    pub const fn bits(self) -> u8 {
+        self.0
+    }
+
+    /// True when no flags are set.
+    pub const fn is_empty(self) -> bool {
+        self.0 == 0
+    }
+
+    /// True when every flag in `other` is set in `self`.
+    pub const fn contains(self, other: Style) -> bool {
+        (self.0 & other.0) == other.0
+    }
+
+    /// Set every flag in `other`.
+    pub fn insert(&mut self, other: Style) {
+        self.0 |= other.0;
+    }
+
+    /// Clear every flag in `other`.
+    pub fn remove(&mut self, other: Style) {
+        self.0 &= !other.0;
+    }
+}
+
+impl core::ops::BitOr for Style {
+    type Output = Style;
+    fn bitor(self, rhs: Style) -> Style {
+        Style(self.0 | rhs.0)
+    }
+}
+
+impl core::ops::BitOrAssign for Style {
+    fn bitor_assign(&mut self, rhs: Style) {
+        self.0 |= rhs.0;
+    }
+}
+
 /// Text attributes (foreground and background colors)
 ///
 /// # Examples
@@ -850,5 +906,22 @@ mod tests {
         // Out-of-range indices still hit the Palette::get() fallback.
         let pal = Palette::from_slice(CP_CLUSTER);
         assert_eq!(pal.get(6), 0);
+    }
+
+    #[test]
+    fn test_style_bitset() {
+        let s = Style::BOLD | Style::ITALIC;
+        assert!(s.contains(Style::BOLD));
+        assert!(s.contains(Style::ITALIC));
+        assert!(!s.contains(Style::UNDERLINE));
+        assert!(Style::empty().is_empty());
+        assert!(!s.is_empty());
+
+        let mut m = Style::empty();
+        m.insert(Style::UNDERLINE);
+        assert!(m.contains(Style::UNDERLINE));
+        m.remove(Style::UNDERLINE);
+        assert!(!m.contains(Style::UNDERLINE));
+        assert!(m.is_empty());
     }
 }
