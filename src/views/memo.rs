@@ -651,6 +651,15 @@ impl View for Memo {
 
     fn handle_event(&mut self, event: &mut Event) {
         match event.what {
+            EventType::Command
+                if event.command == crate::core::command::CM_SELECT_ALL
+                    && self.is_focused() =>
+            {
+                // Select-all command (e.g. an Edit menu item). Ctrl+A is handled
+                // separately in the keyboard path.
+                self.select_all();
+                event.clear();
+            }
             EventType::Keyboard => {
                 // Only handle keyboard events if focused
                 if !self.is_focused() {
@@ -951,6 +960,33 @@ mod tests {
         memo.insert_char('!');
 
         assert_eq!(memo.get_text(), "Hello");
+    }
+
+    #[test]
+    fn cm_select_all_command_selects_whole_buffer_when_focused() {
+        let mut memo = Memo::new(Rect::new(0, 0, 40, 10));
+        memo.set_text("Line 1\nLine 2");
+        memo.set_focus(true);
+
+        let mut ev = Event::command(crate::core::command::CM_SELECT_ALL);
+        memo.handle_event(&mut ev);
+
+        assert!(memo.has_selection());
+        assert_eq!(memo.get_selection().as_deref(), Some("Line 1\nLine 2"));
+        assert_eq!(ev.what, EventType::Nothing); // command was consumed
+    }
+
+    #[test]
+    fn cm_select_all_command_ignored_when_unfocused() {
+        let mut memo = Memo::new(Rect::new(0, 0, 40, 10));
+        memo.set_text("Line 1\nLine 2");
+        // not focused
+
+        let mut ev = Event::command(crate::core::command::CM_SELECT_ALL);
+        memo.handle_event(&mut ev);
+
+        assert!(!memo.has_selection());
+        assert_eq!(ev.what, EventType::Command); // not consumed
     }
 }
 

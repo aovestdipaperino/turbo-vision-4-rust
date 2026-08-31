@@ -146,7 +146,11 @@ impl CrosstermBackend {
             _ => return None,
         };
 
-        Some(Event::mouse(event_type, pos, buttons, is_double_click))
+        // Carry the keyboard modifiers held during the mouse event (e.g. Alt for
+        // rectangular block selection). `Event::mouse` defaults them to empty.
+        let mut ev = Event::mouse(event_type, pos, buttons, is_double_click);
+        ev.key_modifiers = mouse.modifiers;
+        Some(ev)
     }
 }
 

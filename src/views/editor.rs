@@ -127,12 +127,24 @@ impl EditAction {
 /// EditorWindow - Advanced multi-line text editor with undo/redo and find/replace
 ///
 /// Matches Borland: TEditor receives pointers to scrollbars/indicator created by parent window
+/// How an active selection between `selection_start` and `cursor` is interpreted.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SelectionMode {
+    /// Continuous character range (the classic Borland behavior).
+    Stream,
+    /// Rectangular column block: the column band `[min_x, max_x)` on every row
+    /// in `[min_y, max_y]`. Activated with the Alt/Option modifier.
+    Block,
+}
+
 pub struct EditorWindow {
     bounds: Rect,
     lines: Vec<String>,
     cursor: Point,
     delta: Point,
     selection_start: Option<Point>,
+    /// Interpretation of the current selection. Fixed when a selection starts.
+    selection_mode: SelectionMode,
     state: StateFlags,
     v_scrollbar: Option<Rc<RefCell<ScrollBar>>>,
     h_scrollbar: Option<Rc<RefCell<ScrollBar>>>,
@@ -169,6 +181,7 @@ impl EditorWindow {
             cursor: Point::zero(),
             delta: Point::zero(),
             selection_start: None,
+            selection_mode: SelectionMode::Stream,
             state: 0,
             v_scrollbar: None,
             h_scrollbar: None,
@@ -260,6 +273,7 @@ impl EditorWindow {
         self.cursor = Point::zero();
         self.delta = Point::zero();
         self.selection_start = None;
+        self.selection_mode = SelectionMode::Stream;
         self.modified = false;
         self.undo_stack.clear();
         self.redo_stack.clear();
@@ -603,6 +617,24 @@ impl EditorWindow {
 
     /// Set cursor position and handle selection based on mode
     /// Matches Borland: TEditor::setCurPtr() (teditor.cc:986-1014)
+    /// Fix the selection mode at the moment a selection starts. When extending
+    /// and no selection is active yet, the modifier decides the mode (Alt →
+    /// Block, otherwise Stream). A non-extending move resets to Stream so the
+    /// next plain selection is a stream selection again.
+    fn set_selection_mode_for(&mut self, extend: bool, alt: bool) {
+        if extend {
+            if self.selection_start.is_none() {
+                self.selection_mode = if alt {
+                    SelectionMode::Block
+                } else {
+                    SelectionMode::Stream
+                };
+            }
+        } else {
+            self.selection_mode = SelectionMode::Stream;
+        }
+    }
+
     fn set_cursor_with_selection(&mut self, pos: Point, extend_selection: bool) {
         if !extend_selection {
             // Simple click - clear selection and move cursor
@@ -1172,6 +1204,13 @@ impl EditorWindow {
         if let Some(start) = self.selection_start {
             let end = self.cursor;
 
+            // Block mode: a rectangular column band, independent per axis.
+            if self.selection_mode == SelectionMode::Block {
+                let (min_y, max_y) = (start.y.min(end.y), start.y.max(end.y));
+                let (min_x, max_x) = (start.x.min(end.x), start.x.max(end.x));
+                return line >= min_y && line <= max_y && col >= min_x && col < max_x;
+            }
+
             // Normalize selection bounds (start should be before end)
             let (start, end) = if start.y < end.y || (start.y == end.y && start.x < end.x) {
                 (start, end)
@@ -1204,6 +1243,35 @@ impl EditorWindow {
     fn get_selection(&self) -> Option<String> {
         let start = self.selection_start?;
         let end = self.cursor;
+
+        // Block mode: each row contributes its `[min_x, max_x)` column slice
+        // (clamped to the line's length; short rows contribute an empty slice),
+        // joined by newlines.
+        if self.selection_mode == SelectionMode::Block {
+            let (min_y, max_y) = (start.y.min(end.y), start.y.max(end.y));
+            let (min_x, max_x) = (start.x.min(end.x), start.x.max(end.x));
+            if min_x == max_x {
+                return None;
+            }
+            let mut rows = Vec::new();
+            for y in min_y..=max_y {
+                if y < 0 || y >= self.lines.len() as i16 {
+                    continue;
+                }
+                let line_idx = y as usize;
+                let line_char_len = self.lines[line_idx].chars().count();
+                let s_char = (min_x.max(0) as usize).min(line_char_len);
+                let e_char = (max_x.max(0) as usize).min(line_char_len);
+                if s_char < e_char {
+                    let s_byte = self.char_to_byte_idx(line_idx, s_char);
+                    let e_byte = self.char_to_byte_idx(line_idx, e_char);
+                    rows.push(self.lines[line_idx][s_byte..e_byte].to_string());
+                } else {
+                    rows.push(String::new());
+                }
+            }
+            return Some(rows.join("\n"));
+        }
 
         let (start, end) = if start.y < end.y || (start.y == end.y && start.x < end.x) {
             (start, end)
@@ -1253,6 +1321,7 @@ impl EditorWindow {
 
     pub fn select_all(&mut self) {
         self.selection_start = Some(Point::zero());
+        self.selection_mode = SelectionMode::Stream;
         self.cursor = Point::new(
             self.lines.last().map(|l| l.chars().count()).unwrap_or(0) as i16,
             (self.lines.len() - 1) as i16,
@@ -1306,7 +1375,12 @@ impl EditorWindow {
     }
 
     pub fn delete_selection(&mut self) {
-        if !self.has_selection() {
+        if !self.has_selection() || self.read_only {
+            return;
+        }
+
+        if self.selection_mode == SelectionMode::Block {
+            self.delete_block_selection();
             return;
         }
 
@@ -1317,6 +1391,55 @@ impl EditorWindow {
             };
             self.delete_selection_internal();
             self.push_undo(action);
+        }
+    }
+
+    /// Delete a rectangular block selection, removing the column band
+    /// `[min_x, max_x)` from every row in range. Recorded as a single
+    /// `Compound` undo step (one per-row deletion each), so one Ctrl+Z restores
+    /// the whole block. Each per-row slice is newline-free, so replaying it as a
+    /// stream `DeleteText` reproduces the same single-row removal.
+    fn delete_block_selection(&mut self) {
+        let start = self.selection_start.unwrap();
+        let end = self.cursor;
+        let (min_y, max_y) = (start.y.min(end.y), start.y.max(end.y));
+        let (min_x, max_x) = (start.x.min(end.x), start.x.max(end.x));
+        if min_x == max_x {
+            self.selection_start = None;
+            self.selection_mode = SelectionMode::Stream;
+            return;
+        }
+
+        let mut actions: Vec<EditAction> = Vec::new();
+        for y in min_y..=max_y {
+            if y < 0 || y >= self.lines.len() as i16 {
+                continue;
+            }
+            let line_idx = y as usize;
+            let line_char_len = self.lines[line_idx].chars().count();
+            let s_char = (min_x.max(0) as usize).min(line_char_len);
+            let e_char = (max_x.max(0) as usize).min(line_char_len);
+            if s_char >= e_char {
+                continue; // nothing on this row within the band
+            }
+            let s_byte = self.char_to_byte_idx(line_idx, s_char);
+            let e_byte = self.char_to_byte_idx(line_idx, e_char);
+            let removed = self.lines[line_idx][s_byte..e_byte].to_string();
+            self.lines[line_idx].drain(s_byte..e_byte);
+            actions.push(EditAction::DeleteText {
+                pos: Point::new(min_x, y),
+                text: removed,
+            });
+        }
+
+        self.cursor = Point::new(min_x, min_y);
+        self.selection_start = None;
+        self.selection_mode = SelectionMode::Stream;
+        self.modified = true;
+        self.ensure_cursor_visible();
+
+        if !actions.is_empty() {
+            self.push_undo(EditAction::Compound(actions));
         }
     }
 
@@ -1617,6 +1740,18 @@ impl View for EditorWindow {
     }
 
     fn handle_event(&mut self, event: &mut Event) {
+        // Select-all command (e.g. an Edit menu item or command dispatch).
+        // The Ctrl+A keystroke is handled separately in the keyboard path.
+        if event.what == EventType::Command
+            && event.command == crate::core::command::CM_SELECT_ALL
+        {
+            if self.is_focused() {
+                self.select_all();
+                event.clear();
+            }
+            return;
+        }
+
         // Handle mouse events (matching Borland TEditor::handleEvent - teditor.cc:454-493)
         if event.what == EventType::MouseDown {
             // Only handle mouse events if focused
@@ -1634,6 +1769,18 @@ impl View for EditorWindow {
 
             // Convert mouse position to cursor position
             let cursor_pos = self.mouse_pos_to_cursor(mouse_pos);
+
+            // Alt/Option held at press time makes the drag a rectangular (block)
+            // selection; a plain press resets to stream. The mode is locked in
+            // for the whole drag (subsequent MouseMove events don't re-check).
+            self.selection_mode = if event
+                .key_modifiers
+                .contains(crossterm::event::KeyModifiers::ALT)
+            {
+                SelectionMode::Block
+            } else {
+                SelectionMode::Stream
+            };
 
             // Check if this is the start of a drag operation
             // Matches Borland: do { ... } while( mouseEvent(event, evMouseMove + evMouseAuto) )
@@ -1741,36 +1888,44 @@ impl View for EditorWindow {
                 return;
             }
 
-            // Check if Shift key is pressed for text selection
+            // Shift extends a stream selection; Alt/Option extends a rectangular
+            // (block) selection. Either one extends; the modifier that STARTS the
+            // selection fixes its mode (see set_selection_mode_for).
             use crossterm::event::KeyModifiers;
             let shift_pressed = event.key_modifiers.contains(KeyModifiers::SHIFT);
+            let alt_pressed = event.key_modifiers.contains(KeyModifiers::ALT);
+            let extend = shift_pressed || alt_pressed;
 
             match event.key_code {
                 KB_UP => {
-                    self.move_cursor(0, -1, shift_pressed);
+                    self.set_selection_mode_for(extend, alt_pressed);
+                    self.move_cursor(0, -1, extend);
                     event.clear();
                 }
                 KB_DOWN => {
-                    self.move_cursor(0, 1, shift_pressed);
+                    self.set_selection_mode_for(extend, alt_pressed);
+                    self.move_cursor(0, 1, extend);
                     event.clear();
                 }
                 KB_LEFT => {
+                    self.set_selection_mode_for(extend, alt_pressed);
                     if event.key_modifiers.contains(KeyModifiers::CONTROL) {
                         // Ctrl+Left: previous word (Borland cmWordLeft)
-                        self.move_word(false, shift_pressed);
+                        self.move_word(false, extend);
                     } else {
                         // Move left (previous character), wrapping to previous line if at start
-                        self.move_cursor_left(shift_pressed);
+                        self.move_cursor_left(extend);
                     }
                     event.clear();
                 }
                 KB_RIGHT => {
+                    self.set_selection_mode_for(extend, alt_pressed);
                     if event.key_modifiers.contains(KeyModifiers::CONTROL) {
                         // Ctrl+Right: next word (Borland cmWordRight)
-                        self.move_word(true, shift_pressed);
+                        self.move_word(true, extend);
                     } else {
                         // Move right (following character), wrapping to following line if at end
-                        self.move_cursor_right(shift_pressed);
+                        self.move_cursor_right(extend);
                     }
                     event.clear();
                 }
@@ -2341,5 +2496,149 @@ mod tests {
         let bak = dir.path().join("data.txt.bak");
         assert_eq!(std::fs::read_to_string(&bak).unwrap(), "old contents\n");
         assert!(std::fs::read_to_string(&path).unwrap().starts_with('x'));
+    }
+
+    // ---- Rectangular (block) selection ----
+
+    fn block_editor() -> EditorWindow {
+        let mut editor = EditorWindow::new(Rect::new(0, 0, 80, 25));
+        editor.set_text("abcde\nfghij\nklmno");
+        // Column band [1, 3) over rows 0..=2.
+        editor.selection_start = Some(Point::new(1, 0));
+        editor.cursor = Point::new(3, 2);
+        editor.selection_mode = SelectionMode::Block;
+        editor
+    }
+
+    #[test]
+    fn block_is_position_selected_is_a_column_band() {
+        let editor = block_editor();
+        // In-band columns (1,2) across every row are selected...
+        assert!(editor.is_position_selected(0, 1));
+        assert!(editor.is_position_selected(0, 2));
+        assert!(editor.is_position_selected(1, 1)); // middle row, band only
+        assert!(editor.is_position_selected(2, 2));
+        // ...out-of-band columns are not — unlike stream, the middle row is NOT
+        // fully selected.
+        assert!(!editor.is_position_selected(0, 0));
+        assert!(!editor.is_position_selected(0, 3));
+        assert!(!editor.is_position_selected(1, 0));
+        assert!(!editor.is_position_selected(1, 3));
+    }
+
+    #[test]
+    fn block_get_selection_copies_each_rows_column_slice() {
+        let editor = block_editor();
+        assert_eq!(editor.get_selection().as_deref(), Some("bc\ngh\nlm"));
+    }
+
+    #[test]
+    fn block_delete_removes_band_and_undoes_in_one_step() {
+        let mut editor = block_editor();
+        editor.delete_selection();
+        assert_eq!(editor.get_text(), "ade\nfij\nkno");
+        assert_eq!((editor.cursor.x, editor.cursor.y), (1, 0));
+
+        editor.undo();
+        assert_eq!(editor.get_text(), "abcde\nfghij\nklmno");
+    }
+
+    #[test]
+    fn block_get_selection_clamps_short_rows() {
+        let mut editor = EditorWindow::new(Rect::new(0, 0, 80, 25));
+        editor.set_text("abcdef\ngh\nklmnop");
+        // Band [2, 5) over rows 0..=2; the middle row "gh" has nothing there.
+        editor.selection_start = Some(Point::new(2, 0));
+        editor.cursor = Point::new(5, 2);
+        editor.selection_mode = SelectionMode::Block;
+        // Rows: "abcdef"[2..5]="cde", "gh" has nothing at cols 2..5 (empty),
+        // "klmnop"[2..5]="mno".
+        assert_eq!(editor.get_selection().as_deref(), Some("cde\n\nmno"));
+    }
+
+    #[test]
+    fn alt_arrow_starts_block_selection() {
+        use crossterm::event::KeyModifiers;
+
+        let mut editor = EditorWindow::new(Rect::new(0, 0, 80, 25));
+        editor.set_text("abcde\nfghij\nklmno");
+        editor.set_focus(true);
+        editor.cursor = Point::new(1, 0);
+
+        // Alt+Right then Alt+Down builds a 2x2-ish block.
+        let mut ev = Event::keyboard(KB_RIGHT);
+        ev.key_modifiers = KeyModifiers::ALT;
+        editor.handle_event(&mut ev);
+        let mut ev = Event::keyboard(KB_DOWN);
+        ev.key_modifiers = KeyModifiers::ALT;
+        editor.handle_event(&mut ev);
+
+        assert_eq!(editor.selection_mode, SelectionMode::Block);
+        assert!(editor.has_selection());
+        assert_eq!(editor.selection_start, Some(Point::new(1, 0)));
+        assert_eq!((editor.cursor.x, editor.cursor.y), (2, 1));
+    }
+
+    #[test]
+    fn alt_mouse_drag_starts_block_selection() {
+        use crossterm::event::KeyModifiers;
+
+        let mut editor = EditorWindow::new(Rect::new(0, 0, 80, 25));
+        editor.set_text("abcde\nfghij\nklmno");
+        editor.set_focus(true);
+
+        // Alt+MouseDown at (1,0)...
+        let mut down = Event::mouse(EventType::MouseDown, Point::new(1, 0), MB_LEFT_BUTTON, false);
+        down.key_modifiers = KeyModifiers::ALT;
+        editor.handle_event(&mut down);
+        assert_eq!(editor.selection_mode, SelectionMode::Block);
+
+        // ...drag to (3,2) with the button still held.
+        let mut mv = Event::mouse(EventType::MouseMove, Point::new(3, 2), MB_LEFT_BUTTON, false);
+        mv.key_modifiers = KeyModifiers::ALT;
+        editor.handle_event(&mut mv);
+
+        assert_eq!(editor.selection_mode, SelectionMode::Block);
+        assert!(editor.has_selection());
+        assert_eq!(editor.get_selection().as_deref(), Some("bc\ngh\nlm"));
+    }
+
+    #[test]
+    fn cm_select_all_command_selects_whole_buffer_when_focused() {
+        let mut editor = EditorWindow::new(Rect::new(0, 0, 80, 25));
+        editor.set_text("abc\ndef");
+        editor.set_focus(true);
+
+        let mut ev = Event::command(crate::core::command::CM_SELECT_ALL);
+        editor.handle_event(&mut ev);
+
+        assert!(editor.has_selection());
+        assert_eq!(editor.get_selection().as_deref(), Some("abc\ndef"));
+        assert_eq!(ev.what, EventType::Nothing); // command was consumed
+    }
+
+    #[test]
+    fn cm_select_all_command_ignored_when_unfocused() {
+        let mut editor = EditorWindow::new(Rect::new(0, 0, 80, 25));
+        editor.set_text("abc\ndef");
+        // not focused
+
+        let mut ev = Event::command(crate::core::command::CM_SELECT_ALL);
+        editor.handle_event(&mut ev);
+
+        assert!(!editor.has_selection());
+        assert_eq!(ev.what, EventType::Command); // not consumed
+    }
+
+    #[test]
+    fn plain_click_resets_to_stream_mode() {
+        let mut editor = block_editor();
+        assert_eq!(editor.selection_mode, SelectionMode::Block);
+
+        // A plain (unmodified) click must drop back to stream selection.
+        let mut down = Event::mouse(EventType::MouseDown, Point::new(0, 0), MB_LEFT_BUTTON, false);
+        editor.set_focus(true);
+        editor.handle_event(&mut down);
+        assert_eq!(editor.selection_mode, SelectionMode::Stream);
     }
 }
