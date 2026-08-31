@@ -79,6 +79,28 @@ use std::io::{self, Write};
 use std::sync::mpsc::Receiver;
 use std::time::Duration;
 
+/// Build the full SGR escape for a cell run: a reset, truecolor fg/bg, then any
+/// style flags. The leading `0` reset prevents a previous run's style from
+/// bleeding, since each run re-emits absolute colors.
+/// Style order: bold(1), dim(2), italic(3), underline(4), reverse(7), strikethrough(9).
+fn attr_to_sgr(attr: Attr) -> String {
+    use crate::core::palette::Style;
+    let (fg_r, fg_g, fg_b) = attr.fg.to_rgb();
+    let (bg_r, bg_g, bg_b) = attr.bg.to_rgb();
+    let mut s = format!(
+        "\x1b[0;38;2;{};{};{};48;2;{};{};{}",
+        fg_r, fg_g, fg_b, bg_r, bg_g, bg_b
+    );
+    if attr.style.contains(Style::BOLD) { s.push_str(";1"); }
+    if attr.style.contains(Style::DIM) { s.push_str(";2"); }
+    if attr.style.contains(Style::ITALIC) { s.push_str(";3"); }
+    if attr.style.contains(Style::UNDERLINE) { s.push_str(";4"); }
+    if attr.style.contains(Style::REVERSE) { s.push_str(";7"); }
+    if attr.style.contains(Style::STRIKETHROUGH) { s.push_str(";9"); }
+    s.push('m');
+    s
+}
+
 /// Terminal abstraction for rendering and input handling.
 ///
 /// The Terminal provides a high-level interface for TUI applications,
@@ -471,14 +493,8 @@ impl Terminal {
                 // Move cursor: ESC[row;colH (1-indexed)
                 write!(output, "\x1b[{};{}H", y + 1, start_x + 1)?;
 
-                // Set colors using true color (RGB) for accurate CGA colors
-                let (fg_r, fg_g, fg_b) = current_attr.fg.to_rgb();
-                let (bg_r, bg_g, bg_b) = current_attr.bg.to_rgb();
-                write!(
-                    output,
-                    "\x1b[38;2;{};{};{};48;2;{};{};{}m",
-                    fg_r, fg_g, fg_b, bg_r, bg_g, bg_b
-                )?;
+                // Full SGR for this run (reset + truecolor + style).
+                output.extend_from_slice(attr_to_sgr(current_attr).as_bytes());
 
                 // Write the changed characters
                 for i in start_x..x {
@@ -786,5 +802,41 @@ impl Terminal {
 impl Drop for Terminal {
     fn drop(&mut self) {
         let _ = self.shutdown();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_attr_to_sgr_bold_and_reset() {
+        use crate::core::palette::{Attr, TvColor};
+        let bold = Attr::new(TvColor::White, TvColor::Black).bold();
+        let plain = Attr::new(TvColor::White, TvColor::Black);
+
+        let s = attr_to_sgr(bold);
+        assert!(s.starts_with("\x1b[0;38;2;"), "leading reset + truecolor fg");
+        assert!(s.contains(";48;2;"), "truecolor bg present");
+        assert!(s.ends_with(";1m"), "bold code appended: {s:?}");
+
+        // Plain attr emits no style codes, but still carries the leading reset so a
+        // previous run's style does not bleed into it.
+        let p = attr_to_sgr(plain);
+        assert!(p.starts_with("\x1b[0;38;2;"));
+        assert!(!p.contains(";1"), "no bold code for plain attr");
+        assert!(p.ends_with("m"));
+    }
+
+    #[test]
+    fn test_attr_to_sgr_multiple_styles_ordered() {
+        use crate::core::palette::{Attr, TvColor, Style};
+        let a = Attr::new(TvColor::White, TvColor::Blue)
+            .with_style(Style::ITALIC | Style::UNDERLINE);
+        let s = attr_to_sgr(a);
+        // italic(3) before underline(4)
+        let i3 = s.find(";3").unwrap();
+        let i4 = s.find(";4").unwrap();
+        assert!(i3 < i4, "style codes emitted in canonical order: {s:?}");
     }
 }
