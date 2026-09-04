@@ -590,6 +590,10 @@ impl Application {
                     self.show_help();
                     event.clear();
                 }
+                crate::core::command::CM_TOGGLE_BLOCK_MODE => {
+                    self.toggle_block_edit_mode();
+                    event.clear();
+                }
                 CM_SCREENSHOT => {
                     self.take_screenshot();
                     event.clear();
@@ -803,6 +807,25 @@ impl Application {
         command_set::disable_command(command);
     }
 
+    // Block-edit mode
+    // Global flag (core::state) rather than a keyboard modifier: terminals
+    // disagree on whether they deliver Alt/Option with cursor keys and drags.
+
+    /// Is block-edit mode on? Editors start rectangular selections while it is.
+    pub fn block_edit_mode(&self) -> bool {
+        crate::core::state::block_edit_mode()
+    }
+
+    /// Turn block-edit mode on or off.
+    pub fn set_block_edit_mode(&mut self, on: bool) {
+        crate::core::state::set_block_edit_mode(on);
+    }
+
+    /// Flip block-edit mode and return the new value.
+    pub fn toggle_block_edit_mode(&mut self) -> bool {
+        crate::core::state::toggle_block_edit_mode()
+    }
+
     /// Emit a beep sound
     /// Matches Borland: TScreen::makeBeep() - provides audio feedback for errors/alerts
     /// Commonly used in dialog validation failures and error messages
@@ -857,6 +880,19 @@ impl Application {
     }
 
     pub fn idle(&mut self) {
+        // Safety net for a resize that never reached us as an event: a
+        // SIGWINCH raised before crossterm's event source exists (Warp does
+        // this when the alternate screen changes the pty size at startup) is
+        // never delivered, leaving the app laid out for the wrong size. idle()
+        // only runs when nothing else is happening, so re-checking the size
+        // here is cheap and self-heals that case.
+        if let Ok((w, h)) = self.terminal.backend_size() {
+            let (cur_w, cur_h) = self.terminal.size();
+            if w != cur_w || h != cur_h {
+                self.handle_redraw();
+            }
+        }
+
         // Status line follows the current help context (Borland:
         // TProgram::idle calls statusLine->update())
         if let Some(ref mut status_line) = self.status_line {

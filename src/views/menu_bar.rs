@@ -84,6 +84,8 @@ pub struct MenuBar {
     menu_state: MenuViewerState, // State for dropdown menu items
     state: StateFlags,
     palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
+    /// Optional right-aligned status marker, re-queried on every draw
+    right_indicator: Option<fn() -> Option<String>>,
 }
 
 impl MenuBar {
@@ -96,7 +98,22 @@ impl MenuBar {
             menu_state: MenuViewerState::new(),
             state: 0,
             palette_chain: None,
+            right_indicator: None,
         }
+    }
+
+    /// Set a right-aligned marker drawn at the far end of the menu bar.
+    ///
+    /// The function is called on every draw and returns the text to show, or
+    /// `None` to show nothing, so a mode indicator tracks its flag with no
+    /// menu rebuild.
+    ///
+    /// # Example
+    /// ```ignore
+    /// menu_bar.set_right_indicator(|| block_edit_mode().then(|| "▭".to_string()));
+    /// ```
+    pub fn set_right_indicator(&mut self, indicator: fn() -> Option<String>) {
+        self.right_indicator = Some(indicator);
     }
 
     pub fn add_submenu(&mut self, submenu: SubMenu) {
@@ -218,8 +235,15 @@ impl MenuBar {
         let mut max_shortcut_width = 0;
         for item in &menu.items {
             match item {
-                MenuItem::Regular { text, shortcut, .. } => {
-                    let text_len = text.replace('~', "").len();
+                MenuItem::Regular {
+                    text,
+                    shortcut,
+                    checked,
+                    ..
+                } => {
+                    // Flag items reserve a column for the check mark
+                    let mark = if checked.is_some() { 1 } else { 0 };
+                    let text_len = text.replace('~', "").len() + mark;
                     max_text_width = max_text_width.max(text_len);
                     if let Some(s) = shortcut {
                         max_shortcut_width = max_shortcut_width.max(s.len());
@@ -286,6 +310,7 @@ impl MenuBar {
                     enabled,
                     shortcut,
                     command,
+                    checked,
                     ..
                 } => {
                     // Check if command is enabled in BOTH the MenuItem AND the global command_set
@@ -306,8 +331,17 @@ impl MenuBar {
                         item_buf.put_char(j, ' ', attr);
                     }
 
-                    // Draw text with accelerator
+                    // Flag items: a check mark in the first column while the
+                    // flag is on, with the text shifted one column right.
                     let mut x = 1;
+                    if let Some(is_checked) = checked.map(|f| f()) {
+                        if is_checked {
+                            item_buf.put_char(x, '√', attr);
+                        }
+                        x += 1;
+                    }
+
+                    // Draw text with accelerator
                     let mut chars = text.chars();
                     while let Some(ch) = chars.next() {
                         if x >= dropdown_width - 1 {
@@ -460,6 +494,17 @@ impl View for MenuBar {
 
             buf.put_char(x, ' ', attr);
             x += 1;
+        }
+
+        // Right-aligned mode marker (e.g. block-edit mode)
+        if let Some(text) = self.right_indicator.and_then(|f| f()) {
+            let len = text.chars().count();
+            if len < width {
+                let start = width - len - 1;
+                for (i, ch) in text.chars().enumerate() {
+                    buf.put_char(start + i, ch, shortcut_attr);
+                }
+            }
         }
 
         write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y, &buf);

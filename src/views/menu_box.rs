@@ -193,6 +193,7 @@ impl View for MenuBox {
                     enabled,
                     shortcut,
                     command,
+                    checked,
                     ..
                 } => {
                     // Disabled = MenuItem flag off OR command disabled globally
@@ -215,6 +216,11 @@ impl View for MenuBox {
                     // Fill with spaces
                     for i in 1..width - 1 {
                         buf.put_char(i, ' ', color);
+                    }
+
+                    // Flag items get a check mark in the left padding column
+                    if checked.map(|f| f()).unwrap_or(false) {
+                        buf.put_char(1, '√', color);
                     }
 
                     // Draw text with accelerator highlighting

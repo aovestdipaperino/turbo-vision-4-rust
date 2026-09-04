@@ -70,7 +70,7 @@ The built-in file dialog with directory navigation, file list, and keyboard/mous
 - **Flexible Layout System**: Geometry primitives with absolute and relative positioning
 - **Color Support**: 16-color palette with Borland-accurate attribute system and context-aware remapping
 - **Text Styling**: Bold, dim, italic, underline, reverse, and strikethrough attributes — composable via `Attr::new(fg, bg).bold().italic()`, emitted as real SGR codes on the terminal and in ANSI dumps (see `cargo run --example text_styling`)
-- **Editor Selection**: Stream selection (Shift+arrows / drag) plus rectangular **block selection** (Alt/Option+arrows or Alt-drag) with columnar copy/cut and single-step undo; `CM_SELECT_ALL` command and Ctrl+A select all content of the focused window
+- **Editor Selection**: Stream selection (Shift+arrows / drag) plus rectangular **block selection** with columnar copy/cut and single-step undo, switched with the global block-edit mode (`Application::set_block_edit_mode`, `CM_TOGGLE_BLOCK_MODE`) rather than a modifier key; `CM_SELECT_ALL` command and Ctrl+A select all content of the focused window
 - **Cross-Platform**: Built on crossterm for wide terminal compatibility
 - **SSH Support**: Optional SSH backend to serve TUI applications over SSH connections
 - **Modal Dialogs**: Built-in support for modal dialog execution
@@ -304,7 +304,7 @@ SSH support is behind a feature flag. Enable it in your `Cargo.toml`:
 
 ```toml
 [dependencies]
-turbo-vision = { version = "1.3", features = ["ssh"] }
+turbo-vision = { version = "2.3", features = ["ssh"] }
 ```
 
 Or build with the feature:

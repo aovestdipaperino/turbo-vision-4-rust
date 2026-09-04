@@ -143,21 +143,51 @@ editor.selection_start = None;
 
 The editor supports two selection shapes, tracked by `SelectionMode`:
 
-- **Stream** (the default): a continuous character range, extended with
-  **Shift+arrows** or a plain mouse drag.
+- **Stream** (the default): a continuous character range.
 - **Block** (rectangular / column): a column band `[min_x, max_x)` applied to
-  every row in the range, extended with **Alt/Option+arrows** or an **Alt-drag**
-  with the mouse. Copying a block yields each row's column slice joined by
-  newlines; deleting a block removes the band from every row and undoes in a
+  every row in the range. Copying a block yields each row's column slice joined
+  by newlines; deleting a block removes the band from every row and undoes in a
   single step.
 
-The mode is fixed when a selection starts (the modifier that begins it decides),
-so Shift begins a stream selection and Alt begins a block selection. A plain
-movement or click clears the selection and returns to stream mode.
+Both shapes are extended the same way, with **Shift+arrows** or a mouse drag.
+Which one you get is decided by the global **block-edit mode**, not by a
+keyboard modifier, because terminals disagree on whether they deliver
+Alt/Option with cursor keys and mouse drags. An application reads and writes
+the flag through the `Application` API:
 
-> **Terminal note:** block selection relies on the terminal delivering the Alt
-> modifier. Most terminals do; macOS Terminal.app only sends it when
-> "Use Option as Meta key" is turned **off**.
+```rust
+app.set_block_edit_mode(true);      // selections become rectangular
+let on = app.block_edit_mode();     // query
+app.toggle_block_edit_mode();       // flip, returns the new value
+```
+
+`Application` also handles the `CM_TOGGLE_BLOCK_MODE` command, so a menu or
+status-line item can flip the mode with no extra code. `MenuItem::flag` makes a
+checkable item whose check mark tracks the flag on every draw:
+
+```rust
+MenuItem::flag(
+    "Bloc~k~ mode",
+    CM_TOGGLE_BLOCK_MODE,
+    0,
+    HC_EDITOR,
+    turbo_vision::core::state::block_edit_mode,
+)
+```
+
+For a persistent on-screen hint, `StatusLine::set_right_indicator` (and its
+`MenuBar` twin) draws a right-aligned marker at the far end of the bar,
+re-queried on every draw:
+
+```rust
+status_line.set_right_indicator(|| {
+    turbo_vision::core::state::block_edit_mode().then(|| "▭ Block".to_string())
+});
+```
+
+The mode is fixed at the moment a selection starts, so toggling block-edit mode
+does not reshape a selection already in progress; a plain movement or click
+clears the selection and the next one picks up the current mode.
 
 ### Clipboard Operations
 

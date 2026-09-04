@@ -9,7 +9,7 @@
 // - Sample Pascal program loaded on startup
 
 use turbo_vision::app::Application;
-use turbo_vision::core::command::{CM_CLOSE, CM_HELP_INDEX, CM_QUIT};
+use turbo_vision::core::command::{CM_CLOSE, CM_HELP_INDEX, CM_QUIT, CM_TOGGLE_BLOCK_MODE};
 use turbo_vision::core::event::KB_F10;
 use turbo_vision::core::geometry::Rect;
 use turbo_vision::core::menu_data::{Menu, MenuItem};
@@ -493,6 +493,16 @@ fn main() -> turbo_vision::core::error::Result<()> {
         ]),
     ));
     menu_bar.add_submenu(SubMenu::new(
+        "~E~dit",
+        Menu::from_items(vec![MenuItem::flag(
+            "Bloc~k~ mode",
+            CM_TOGGLE_BLOCK_MODE,
+            0,
+            HC_EDITOR,
+            turbo_vision::core::state::block_edit_mode,
+        )]),
+    ));
+    menu_bar.add_submenu(SubMenu::new(
         "~H~elp",
         Menu::from_items(vec![MenuItem::with_shortcut(
             "~C~ontents",
@@ -505,17 +515,26 @@ fn main() -> turbo_vision::core::error::Result<()> {
     app.set_menu_bar(menu_bar);
 
     // Status line
-    app.set_status_line(StatusLine::new(
+    let mut status_line = StatusLine::new(
         Rect::new(0, h - 1, w, h),
         vec![
             StatusItem::new("~F1~ Help", 0, CM_HELP_INDEX),
             StatusItem::new("~F10~ Menu", KB_F10, 0),
             StatusItem::new("~Alt+X~ Exit", 0x012D, CM_QUIT),
         ],
-    ));
+    );
+    // Block-edit mode marker at the right end of the status line
+    status_line.set_right_indicator(|| {
+        turbo_vision::core::state::block_edit_mode().then(|| "▭ Block".to_string())
+    });
+    app.set_status_line(status_line);
 
-    // Editor window with Pascal syntax highlighting and sample program
-    let edit_window = EditWindow::new(Rect::new(0, 0, w, h - 2), "Untitled.pas");
+    // Editor window with Pascal syntax highlighting and sample program.
+    // Size it from the desktop's own bounds, not from the terminal height:
+    // the desktop already accounts for the menu bar and status line, so the
+    // window can never end up taller than the area it lives in.
+    let desk = app.get_tile_rect();
+    let edit_window = EditWindow::new(Rect::new(0, 0, desk.width(), desk.height()), "Untitled.pas");
     edit_window
         .editor_rc()
         .borrow_mut()
