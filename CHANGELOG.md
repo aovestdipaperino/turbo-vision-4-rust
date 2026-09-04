@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.3.0] - 2026-09-04
 
 ### Fixed
 - **Windows now follow a terminal resize.** `Window` never implemented
@@ -19,6 +19,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   literal `gfGrowAll`: in this crate's cascade all four bits mean "translate
   by the size delta, keep the same size", which would slide a window away
   from the corner it was filling rather than stretch it.
+- **A terminal that resizes at startup left the whole app a row too tall.**
+  Warp reports the pre-alternate-screen size for a moment after the switch (one
+  row taller than the real alternate screen), and the matching SIGWINCH can
+  land before crossterm's event source exists, so it never arrives as a resize
+  event: the app stayed laid out for the wrong size for the rest of the
+  session, with the editor window's bottom frame and indicator falling on the
+  status-line row. `Application::idle` now re-checks the backend size and
+  re-lays out if it disagrees with the cached one, which self-heals a resize
+  that was never delivered.
+- **The editor did not follow a window resize.** `EditorWindow` inherited
+  `View`'s fixed grow mode, so when a terminal resized (Warp resizes right
+  after startup) the window and its frame moved to the new geometry while the
+  editor kept its old size: a too-tall editor overdrew the bottom frame, so the
+  window looked one row taller than its client area and the indicator line
+  disappeared. `EditorWindow` now carries a grow mode, defaulting to
+  `GF_GROW_HI_X | GF_GROW_HI_Y` so it keeps filling the window interior, and
+  re-clamps the cursor and scrollbars to the new size.
 - `EditWindow`, `LogWindow` and `HelpWindow` wrap a `Window` and delegate
   `bounds`/`state` to it, but had not delegated the grow-mode accessors, so
   they carried the same bug. They now do.
@@ -26,12 +43,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - `WindowBuilder::grow_mode` for callers that want something other than the
   default.
+- **Global block-edit mode.** `Application::block_edit_mode`,
+  `set_block_edit_mode` and `toggle_block_edit_mode` read and write a global
+  flag (`core::state`) that decides whether an editor selection is rectangular.
+  `Application` handles the new `CM_TOGGLE_BLOCK_MODE` command, and
+  `MenuItem::flag` (also `MenuItemBuilder::checked`) creates a checkable menu
+  item whose check mark is re-queried on every draw. `MenuBar::set_right_indicator` and
+  `StatusLine::set_right_indicator` draw a right-aligned marker (also
+  re-queried on every draw) at the far end of those bars. The `pascal_ide`
+  example gains an Edit menu with a "Block mode" flag item and shows a
+  "▭ Block" marker at the right of the status line while the mode is on.
 
 ### Behaviour change
-Any application that positions a `Window` itself and adds it to a `Desktop`
-will now see that window move and resize when the terminal is resized, where
-previously it silently did not. Call `window.set_grow_mode(0)` to keep the
-old fixed behaviour.
+- **Block selection no longer uses the Alt/Option modifier.** Alt+arrows and
+  Alt-drag no longer start a rectangular selection, because terminals disagree
+  on whether they deliver Alt at all (macOS Terminal.app only does so with
+  "Use Option as Meta key" off). Selections are always extended with
+  Shift+arrows or a mouse drag; their shape now comes from the global
+  block-edit mode above.
+
+- Any application that positions a `Window` itself and adds it to a `Desktop`
+  will now see that window move and resize when the terminal is resized, where
+  previously it silently did not. Call `window.set_grow_mode(0)` to keep the
+  old fixed behaviour.
 
 ## [2.2.1] - 2026-08-31
 

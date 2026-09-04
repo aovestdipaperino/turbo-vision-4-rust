@@ -170,6 +170,9 @@ pub struct EditorWindow {
     // Syntax highlighting
     highlighter: Option<Box<dyn SyntaxHighlighter>>,
     palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
+    /// Grow flags: the editor fills its parent's interior, so its bottom-right
+    /// edge follows a resize while the top-left stays pinned.
+    grow_mode: crate::core::state::GrowFlags,
 }
 
 impl EditorWindow {
@@ -182,6 +185,7 @@ impl EditorWindow {
             delta: Point::zero(),
             selection_start: None,
             selection_mode: SelectionMode::Stream,
+            grow_mode: crate::core::state::GF_GROW_HI_X | crate::core::state::GF_GROW_HI_Y,
             state: 0,
             v_scrollbar: None,
             h_scrollbar: None,
@@ -618,20 +622,21 @@ impl EditorWindow {
     /// Set cursor position and handle selection based on mode
     /// Matches Borland: TEditor::setCurPtr() (teditor.cc:986-1014)
     /// Fix the selection mode at the moment a selection starts. When extending
-    /// and no selection is active yet, the modifier decides the mode (Alt →
-    /// Block, otherwise Stream). A non-extending move resets to Stream so the
-    /// next plain selection is a stream selection again.
-    fn set_selection_mode_for(&mut self, extend: bool, alt: bool) {
-        if extend {
-            if self.selection_start.is_none() {
-                self.selection_mode = if alt {
-                    SelectionMode::Block
-                } else {
-                    SelectionMode::Stream
-                };
-            }
+    /// and no selection is active yet, the global block-edit mode decides the
+    /// shape (see `Application::set_block_edit_mode`). A non-extending move
+    /// resets the mode so the next selection picks it up again.
+    fn set_selection_mode_for(&mut self, extend: bool) {
+        if !extend || self.selection_start.is_none() {
+            self.selection_mode = Self::mode_from_global();
+        }
+    }
+
+    /// The selection shape implied by the global block-edit mode.
+    fn mode_from_global() -> SelectionMode {
+        if crate::core::state::block_edit_mode() {
+            SelectionMode::Block
         } else {
-            self.selection_mode = SelectionMode::Stream;
+            SelectionMode::Stream
         }
     }
 
@@ -1596,7 +1601,17 @@ impl View for EditorWindow {
         // Note: Scrollbars and indicator are now children of the Window, not the EditorWindow
         // The Window's interior Group automatically handles their positioning
         // We only need to update our internal state
+        self.clamp_cursor();
+        self.ensure_cursor_visible();
         self.update_scrollbars();
+    }
+
+    fn grow_mode(&self) -> crate::core::state::GrowFlags {
+        self.grow_mode
+    }
+
+    fn set_grow_mode(&mut self, grow_mode: crate::core::state::GrowFlags) {
+        self.grow_mode = grow_mode;
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
@@ -1742,8 +1757,7 @@ impl View for EditorWindow {
     fn handle_event(&mut self, event: &mut Event) {
         // Select-all command (e.g. an Edit menu item or command dispatch).
         // The Ctrl+A keystroke is handled separately in the keyboard path.
-        if event.what == EventType::Command
-            && event.command == crate::core::command::CM_SELECT_ALL
+        if event.what == EventType::Command && event.command == crate::core::command::CM_SELECT_ALL
         {
             if self.is_focused() {
                 self.select_all();
@@ -1770,17 +1784,10 @@ impl View for EditorWindow {
             // Convert mouse position to cursor position
             let cursor_pos = self.mouse_pos_to_cursor(mouse_pos);
 
-            // Alt/Option held at press time makes the drag a rectangular (block)
-            // selection; a plain press resets to stream. The mode is locked in
-            // for the whole drag (subsequent MouseMove events don't re-check).
-            self.selection_mode = if event
-                .key_modifiers
-                .contains(crossterm::event::KeyModifiers::ALT)
-            {
-                SelectionMode::Block
-            } else {
-                SelectionMode::Stream
-            };
+            // The global block-edit mode decides whether the drag is a
+            // rectangular (block) selection. The mode is locked in at press
+            // time for the whole drag (MouseMove events don't re-check).
+            self.selection_mode = Self::mode_from_global();
 
             // Check if this is the start of a drag operation
             // Matches Borland: do { ... } while( mouseEvent(event, evMouseMove + evMouseAuto) )
@@ -1888,27 +1895,27 @@ impl View for EditorWindow {
                 return;
             }
 
-            // Shift extends a stream selection; Alt/Option extends a rectangular
-            // (block) selection. Either one extends; the modifier that STARTS the
-            // selection fixes its mode (see set_selection_mode_for).
+            // Shift extends the selection; its shape (stream or block) comes
+            // from the global block-edit mode, not from a modifier, because
+            // terminals disagree on delivering Alt/Option (see
+            // set_selection_mode_for).
             use crossterm::event::KeyModifiers;
             let shift_pressed = event.key_modifiers.contains(KeyModifiers::SHIFT);
-            let alt_pressed = event.key_modifiers.contains(KeyModifiers::ALT);
-            let extend = shift_pressed || alt_pressed;
+            let extend = shift_pressed;
 
             match event.key_code {
                 KB_UP => {
-                    self.set_selection_mode_for(extend, alt_pressed);
+                    self.set_selection_mode_for(extend);
                     self.move_cursor(0, -1, extend);
                     event.clear();
                 }
                 KB_DOWN => {
-                    self.set_selection_mode_for(extend, alt_pressed);
+                    self.set_selection_mode_for(extend);
                     self.move_cursor(0, 1, extend);
                     event.clear();
                 }
                 KB_LEFT => {
-                    self.set_selection_mode_for(extend, alt_pressed);
+                    self.set_selection_mode_for(extend);
                     if event.key_modifiers.contains(KeyModifiers::CONTROL) {
                         // Ctrl+Left: previous word (Borland cmWordLeft)
                         self.move_word(false, extend);
@@ -1919,7 +1926,7 @@ impl View for EditorWindow {
                     event.clear();
                 }
                 KB_RIGHT => {
-                    self.set_selection_mode_for(extend, alt_pressed);
+                    self.set_selection_mode_for(extend);
                     if event.key_modifiers.contains(KeyModifiers::CONTROL) {
                         // Ctrl+Right: next word (Borland cmWordRight)
                         self.move_word(true, extend);
@@ -2556,21 +2563,42 @@ mod tests {
         assert_eq!(editor.get_selection().as_deref(), Some("cde\n\nmno"));
     }
 
+    /// Serializes the tests that flip the process-wide block-edit mode, and
+    /// clears it again when the guard drops.
+    struct BlockModeGuard(std::sync::MutexGuard<'static, ()>);
+
+    impl BlockModeGuard {
+        fn on() -> Self {
+            static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+            let guard = LOCK.lock().unwrap_or_else(|e| e.into_inner());
+            crate::core::state::set_block_edit_mode(true);
+            Self(guard)
+        }
+    }
+
+    impl Drop for BlockModeGuard {
+        fn drop(&mut self) {
+            crate::core::state::set_block_edit_mode(false);
+        }
+    }
+
     #[test]
-    fn alt_arrow_starts_block_selection() {
+    fn arrow_starts_block_selection_in_block_edit_mode() {
         use crossterm::event::KeyModifiers;
+
+        let _mode = BlockModeGuard::on();
 
         let mut editor = EditorWindow::new(Rect::new(0, 0, 80, 25));
         editor.set_text("abcde\nfghij\nklmno");
         editor.set_focus(true);
         editor.cursor = Point::new(1, 0);
 
-        // Alt+Right then Alt+Down builds a 2x2-ish block.
+        // Shift+Right then Shift+Down builds a 2x2-ish block.
         let mut ev = Event::keyboard(KB_RIGHT);
-        ev.key_modifiers = KeyModifiers::ALT;
+        ev.key_modifiers = KeyModifiers::SHIFT;
         editor.handle_event(&mut ev);
         let mut ev = Event::keyboard(KB_DOWN);
-        ev.key_modifiers = KeyModifiers::ALT;
+        ev.key_modifiers = KeyModifiers::SHIFT;
         editor.handle_event(&mut ev);
 
         assert_eq!(editor.selection_mode, SelectionMode::Block);
@@ -2580,22 +2608,30 @@ mod tests {
     }
 
     #[test]
-    fn alt_mouse_drag_starts_block_selection() {
-        use crossterm::event::KeyModifiers;
+    fn mouse_drag_starts_block_selection_in_block_edit_mode() {
+        let _mode = BlockModeGuard::on();
 
         let mut editor = EditorWindow::new(Rect::new(0, 0, 80, 25));
         editor.set_text("abcde\nfghij\nklmno");
         editor.set_focus(true);
 
-        // Alt+MouseDown at (1,0)...
-        let mut down = Event::mouse(EventType::MouseDown, Point::new(1, 0), MB_LEFT_BUTTON, false);
-        down.key_modifiers = KeyModifiers::ALT;
+        // MouseDown at (1,0)...
+        let mut down = Event::mouse(
+            EventType::MouseDown,
+            Point::new(1, 0),
+            MB_LEFT_BUTTON,
+            false,
+        );
         editor.handle_event(&mut down);
         assert_eq!(editor.selection_mode, SelectionMode::Block);
 
         // ...drag to (3,2) with the button still held.
-        let mut mv = Event::mouse(EventType::MouseMove, Point::new(3, 2), MB_LEFT_BUTTON, false);
-        mv.key_modifiers = KeyModifiers::ALT;
+        let mut mv = Event::mouse(
+            EventType::MouseMove,
+            Point::new(3, 2),
+            MB_LEFT_BUTTON,
+            false,
+        );
         editor.handle_event(&mut mv);
 
         assert_eq!(editor.selection_mode, SelectionMode::Block);
@@ -2631,12 +2667,17 @@ mod tests {
     }
 
     #[test]
-    fn plain_click_resets_to_stream_mode() {
+    fn click_resets_to_stream_mode_when_block_edit_mode_is_off() {
         let mut editor = block_editor();
         assert_eq!(editor.selection_mode, SelectionMode::Block);
 
-        // A plain (unmodified) click must drop back to stream selection.
-        let mut down = Event::mouse(EventType::MouseDown, Point::new(0, 0), MB_LEFT_BUTTON, false);
+        // With block-edit mode off, a click drops back to stream selection.
+        let mut down = Event::mouse(
+            EventType::MouseDown,
+            Point::new(0, 0),
+            MB_LEFT_BUTTON,
+            false,
+        );
         editor.set_focus(true);
         editor.handle_event(&mut down);
         assert_eq!(editor.selection_mode, SelectionMode::Stream);

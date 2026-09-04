@@ -34,6 +34,9 @@ pub enum MenuItem {
         enabled: bool,
         /// Optional shortcut text to display (e.g., "Ctrl+O", "F3")
         shortcut: Option<String>,
+        /// Optional flag query: when set, the item is drawn with a check mark
+        /// while the function returns true (Borland: TMenuItem check marks)
+        checked: Option<fn() -> bool>,
     },
     /// Submenu item that opens a nested menu
     /// Matches Borland: TMenuItem with subMenu
@@ -69,6 +72,7 @@ impl MenuItem {
             help_ctx,
             enabled: true,
             shortcut: None,
+            checked: None,
         }
     }
 
@@ -92,6 +96,34 @@ impl MenuItem {
             help_ctx,
             enabled: true,
             shortcut: Some(shortcut.to_string()),
+            checked: None,
+        }
+    }
+
+    /// Create a flag (checkable) menu item
+    ///
+    /// `checked` is queried each time the menu is drawn, so the check mark
+    /// always reflects the current state - no menu rebuild needed.
+    ///
+    /// # Example
+    /// ```ignore
+    /// let item = MenuItem::flag("Bloc~k~ mode", CM_TOGGLE_BLOCK_MODE, 0, 0, block_edit_mode);
+    /// ```
+    pub fn flag(
+        text: &str,
+        command: CommandId,
+        key_code: KeyCode,
+        help_ctx: u16,
+        checked: fn() -> bool,
+    ) -> Self {
+        Self::Regular {
+            text: text.to_string(),
+            command,
+            key_code,
+            help_ctx,
+            enabled: true,
+            shortcut: None,
+            checked: Some(checked),
         }
     }
 
@@ -104,6 +136,7 @@ impl MenuItem {
             help_ctx,
             enabled: false,
             shortcut: None,
+            checked: None,
         }
     }
 
@@ -426,6 +459,7 @@ pub struct MenuItemBuilder {
     help_ctx: u16,
     enabled: bool,
     shortcut: Option<String>,
+    checked: Option<fn() -> bool>,
 }
 
 impl MenuItemBuilder {
@@ -438,6 +472,7 @@ impl MenuItemBuilder {
             help_ctx: 0,
             enabled: true,
             shortcut: None,
+            checked: None,
         }
     }
 
@@ -484,6 +519,13 @@ impl MenuItemBuilder {
         self
     }
 
+    /// Makes this a flag (checkable) item; `checked` is queried on every draw.
+    #[must_use]
+    pub fn checked(mut self, checked: fn() -> bool) -> Self {
+        self.checked = Some(checked);
+        self
+    }
+
     /// Builds the MenuItem::Regular variant.
     ///
     /// # Panics
@@ -500,6 +542,7 @@ impl MenuItemBuilder {
             help_ctx: self.help_ctx,
             enabled: self.enabled,
             shortcut: self.shortcut,
+            checked: self.checked,
         }
     }
 }
@@ -580,6 +623,7 @@ mod tests {
             help_ctx: 0,
             enabled: true,
             shortcut: None,
+            checked: None,
         }]);
         let menu = Menu::from_items(vec![
             MenuItem::Regular {
@@ -589,6 +633,7 @@ mod tests {
                 help_ctx: 0,
                 enabled: true,
                 shortcut: None,
+                checked: None,
             },
             MenuItem::SubMenu {
                 text: "Sub".into(),

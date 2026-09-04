@@ -99,6 +99,14 @@ impl View for SharedEditor {
         self.0.borrow_mut().set_bounds(bounds);
     }
 
+    fn grow_mode(&self) -> crate::core::state::GrowFlags {
+        self.0.borrow().grow_mode()
+    }
+
+    fn set_grow_mode(&mut self, grow_mode: crate::core::state::GrowFlags) {
+        self.0.borrow_mut().set_grow_mode(grow_mode);
+    }
+
     fn draw(&mut self, terminal: &mut Terminal) {
         self.0.borrow_mut().draw(terminal);
     }
@@ -638,5 +646,29 @@ impl EditWindowBuilder {
 impl Default for EditWindowBuilder {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod resize_tests {
+    use super::*;
+
+    /// The editor must keep filling the window interior across a resize:
+    /// otherwise a stale (too tall) editor overdraws the bottom frame, which
+    /// is what a terminal that resizes right after startup produces.
+    #[test]
+    fn editor_follows_window_resize() {
+        let mut w = EditWindow::new(Rect::new(0, 0, 80, 22), "t");
+        let interior_of = |b: Rect| Rect::new(b.a.x + 1, b.a.y + 1, b.b.x - 1, b.b.y - 1);
+
+        assert_eq!(w.editor_rc().borrow().bounds(), interior_of(w.bounds()));
+
+        let smaller = Rect::new(0, 1, 70, 20);
+        w.set_bounds(smaller);
+        assert_eq!(w.editor_rc().borrow().bounds(), interior_of(smaller));
+
+        let bigger = Rect::new(0, 1, 100, 40);
+        w.set_bounds(bigger);
+        assert_eq!(w.editor_rc().borrow().bounds(), interior_of(bigger));
     }
 }

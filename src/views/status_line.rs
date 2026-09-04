@@ -42,6 +42,8 @@ pub struct StatusLine {
     current_help_ctx: u16,
     options: u16,
     palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
+    /// Optional right-aligned mode marker, re-queried on every draw
+    right_indicator: Option<fn() -> Option<String>>,
 }
 
 impl StatusLine {
@@ -58,7 +60,22 @@ impl StatusLine {
             current_help_ctx: 0,
             options: OF_PRE_PROCESS, // Status line processes in pre-process phase (matches Borland)
             palette_chain: None,
+            right_indicator: None,
         }
+    }
+
+    /// Set a right-aligned marker drawn at the far end of the status line.
+    ///
+    /// The function is called on every draw and returns the text to show, or
+    /// `None` to show nothing, so a mode marker tracks its flag with no
+    /// rebuild.
+    ///
+    /// # Example
+    /// ```ignore
+    /// status_line.set_right_indicator(|| block_edit_mode().then(|| "▭ Block".to_string()));
+    /// ```
+    pub fn set_right_indicator(&mut self, indicator: fn() -> Option<String>) {
+        self.right_indicator = Some(indicator);
     }
 
     /// Set the hint text to display on the right side of the status line
@@ -215,6 +232,18 @@ impl StatusLine {
                     for (i, ch) in chars.iter().take(avail).enumerate() {
                         buf.put_char(x + i, *ch, normal_attr);
                     }
+                }
+            }
+        }
+
+        // Right-aligned mode marker (e.g. block-edit mode). Drawn last so it
+        // wins over a long hint that would otherwise reach the right edge.
+        if let Some(text) = self.right_indicator.and_then(|f| f()) {
+            let len = text.chars().count();
+            if len < width {
+                let start = width - len - 1;
+                for (i, ch) in text.chars().enumerate() {
+                    buf.put_char(start + i, ch, shortcut_attr);
                 }
             }
         }

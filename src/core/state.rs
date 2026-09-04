@@ -3,6 +3,7 @@
 //! View state flags - constants for tracking view visibility, focus, and behavior.
 
 use std::sync::OnceLock;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 /// View state flags
 pub type StateFlags = u16;
@@ -83,3 +84,29 @@ pub const SHADOW_ATTR: u8 = 0x08;
 pub const SHADOW_BOTTOM: char = '▄'; // Lower half block
 pub const SHADOW_SOLID: char = '█'; // Full block
 pub const SHADOW_TOP: char = '▀'; // Upper half block
+
+/// Global block-edit mode flag.
+///
+/// When on, a selection started in an editor is a rectangular (block)
+/// selection instead of a stream selection. This is a global mode rather than
+/// a keyboard modifier because terminals disagree on whether they deliver
+/// Alt/Option with cursor keys and mouse drags.
+static BLOCK_EDIT_MODE: AtomicBool = AtomicBool::new(false);
+
+/// Is block-edit mode currently on?
+#[inline]
+pub fn block_edit_mode() -> bool {
+    BLOCK_EDIT_MODE.load(Ordering::Relaxed)
+}
+
+/// Turn block-edit mode on or off.
+#[inline]
+pub fn set_block_edit_mode(on: bool) {
+    BLOCK_EDIT_MODE.store(on, Ordering::Relaxed);
+}
+
+/// Flip block-edit mode and return the new value.
+#[inline]
+pub fn toggle_block_edit_mode() -> bool {
+    !BLOCK_EDIT_MODE.fetch_xor(true, Ordering::Relaxed)
+}
