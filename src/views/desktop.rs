@@ -764,6 +764,37 @@ mod tests {
     use super::*;
     use crate::views::window::Window;
 
+    /// The background must follow the desktop's bottom-right corner on a
+    /// resize (Borland: TBackground's gfGrowHiX | gfGrowHiY). Before the
+    /// grow mode was set, `Group::set_bounds` only translated the
+    /// background, so a widened terminal left its new columns unpainted -
+    /// a black band down the right edge of the desktop.
+    #[test]
+    fn background_follows_the_desktop_on_resize() {
+        let mut desktop = Desktop::new(Rect::new(0, 0, 78, 25));
+        assert_eq!(
+            desktop.children.child_at(0).bounds(),
+            Rect::new(0, 0, 78, 25)
+        );
+
+        // Widen and shorten, the way Application::update_desktop_bounds
+        // does once a menu bar and a status line take a row each.
+        desktop.set_bounds(Rect::new(0, 1, 80, 24));
+        assert_eq!(
+            desktop.children.child_at(0).bounds(),
+            Rect::new(0, 1, 80, 24),
+            "background did not track the resized desktop"
+        );
+
+        // And back the other way: a narrower terminal must not leave the
+        // background hanging past the desktop's edges either.
+        desktop.set_bounds(Rect::new(0, 1, 60, 20));
+        assert_eq!(
+            desktop.children.child_at(0).bounds(),
+            Rect::new(0, 1, 60, 20)
+        );
+    }
+
     #[test]
     fn test_bring_to_front_by_view_id() {
         let mut desktop = Desktop::new(Rect::new(0, 1, 80, 24));

@@ -7,6 +7,7 @@ use crate::core::draw::DrawBuffer;
 use crate::core::event::Event;
 use crate::core::geometry::Rect;
 use crate::core::palette::Attr;
+use crate::core::state::{GF_GROW_HI_X, GF_GROW_HI_Y, GrowFlags};
 use crate::terminal::Terminal;
 
 /// Background view - fills its bounds with a pattern character
@@ -15,6 +16,7 @@ pub struct Background {
     bounds: Rect,
     pattern: char,
     attr: Attr,
+    grow_mode: GrowFlags,
     palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
 }
 
@@ -24,6 +26,14 @@ impl Background {
             bounds,
             pattern,
             attr,
+            // Matches Borland: TBackground's growMode is
+            // gfGrowHiX | gfGrowHiY, so the background follows its owner's
+            // bottom-right corner on a resize. Without it `Group::set_bounds`
+            // only *translates* the background, and every column or row the
+            // owner gains after construction is left unpainted - the classic
+            // black band down the right edge of the desktop after the
+            // terminal is widened.
+            grow_mode: GF_GROW_HI_X | GF_GROW_HI_Y,
             palette_chain: None,
         }
     }
@@ -51,6 +61,14 @@ impl View for Background {
 
     fn handle_event(&mut self, _event: &mut Event) {
         // Background doesn't handle events
+    }
+
+    fn grow_mode(&self) -> GrowFlags {
+        self.grow_mode
+    }
+
+    fn set_grow_mode(&mut self, grow_mode: GrowFlags) {
+        self.grow_mode = grow_mode;
     }
 
     fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
