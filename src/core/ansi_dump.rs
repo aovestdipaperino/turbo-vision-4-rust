@@ -39,6 +39,34 @@ use super::palette::TvColor;
 use std::fs::File;
 use std::io::{self, Write};
 
+/// Emit the minimal SGR transition codes to move from `from` to `to`.
+fn write_style_transition<W: Write>(
+    writer: &mut W,
+    from: crate::core::palette::Style,
+    to: crate::core::palette::Style,
+) -> io::Result<()> {
+    use crate::core::palette::Style;
+    // Pairs of (flag, on-code, off-code).
+    const FLAGS: &[(Style, u8, u8)] = &[
+        (Style::BOLD, 1, 22),
+        (Style::DIM, 2, 22),
+        (Style::ITALIC, 3, 23),
+        (Style::UNDERLINE, 4, 24),
+        (Style::REVERSE, 7, 27),
+        (Style::STRIKETHROUGH, 9, 29),
+    ];
+    for &(flag, on, off) in FLAGS {
+        let was = from.contains(flag);
+        let now = to.contains(flag);
+        if now && !was {
+            write!(writer, "\x1b[{}m", on)?;
+        } else if was && !now {
+            write!(writer, "\x1b[{}m", off)?;
+        }
+    }
+    Ok(())
+}
+
 /// Convert TvColor to RGB values for 24-bit ANSI codes
 fn color_to_rgb(color: TvColor) -> (u8, u8, u8) {
     match color {
@@ -100,6 +128,7 @@ pub fn dump_buffer<W: Write>(
     for row in buffer.iter().take(height.min(buffer.len())) {
         let mut last_fg = None;
         let mut last_bg = None;
+        let mut last_style = crate::core::palette::Style::empty();
 
         for x in 0..width.min(row.len()) {
             let cell = row[x];
@@ -126,6 +155,11 @@ pub fn dump_buffer<W: Write>(
                 }
                 last_fg = Some(cell.attr.fg);
                 last_bg = Some(cell.attr.bg);
+            }
+
+            if cell.attr.style != last_style {
+                write_style_transition(writer, last_style, cell.attr.style)?;
+                last_style = cell.attr.style;
             }
 
             write!(writer, "{}", cell.ch)?;
@@ -160,6 +194,7 @@ pub fn dump_buffer_region<W: Write>(
     for row in buffer.iter().take((y + height).min(buffer.len())).skip(y) {
         let mut last_fg = None;
         let mut last_bg = None;
+        let mut last_style = crate::core::palette::Style::empty();
 
         for col in x..(x + width).min(row.len()) {
             let cell = row[col];
@@ -185,6 +220,11 @@ pub fn dump_buffer_region<W: Write>(
                 }
                 last_fg = Some(cell.attr.fg);
                 last_bg = Some(cell.attr.bg);
+            }
+
+            if cell.attr.style != last_style {
+                write_style_transition(writer, last_style, cell.attr.style)?;
+                last_style = cell.attr.style;
             }
 
             write!(writer, "{}", cell.ch)?;
@@ -216,5 +256,33 @@ mod tests {
         let result = String::from_utf8(output).unwrap();
         assert!(result.contains("Hi"));
         assert!(result.contains("\x1b[")); // Contains ANSI codes
+    }
+
+    #[test]
+    fn test_dump_unstyled_unchanged() {
+        use crate::core::palette::Attr;
+        let attr = Attr::new(TvColor::White, TvColor::Blue);
+        let row = vec![Cell::new('H', attr), Cell::new('i', attr)];
+        let buffer = vec![row];
+        let mut out = Vec::new();
+        dump_buffer(&mut out, &buffer, 2, 1).unwrap();
+        let s = String::from_utf8(out).unwrap();
+        // No style SGR codes for unstyled content.
+        assert!(!s.contains(";1m") && !s.contains("[1m"));
+        assert!(!s.contains("[3m") && !s.contains("[4m"));
+    }
+
+    #[test]
+    fn test_dump_emits_bold_then_clears() {
+        use crate::core::palette::Attr;
+        let bold = Attr::new(TvColor::White, TvColor::Blue).bold();
+        let plain = Attr::new(TvColor::White, TvColor::Blue);
+        let row = vec![Cell::new('B', bold), Cell::new('n', plain)];
+        let buffer = vec![row];
+        let mut out = Vec::new();
+        dump_buffer(&mut out, &buffer, 2, 1).unwrap();
+        let s = String::from_utf8(out).unwrap();
+        assert!(s.contains("\x1b[1m"), "bold on-code emitted");
+        assert!(s.contains("\x1b[22m"), "bold off-code emitted before plain char");
     }
 }

@@ -66,6 +66,7 @@ The `Attr` structure combines foreground and background colors into a single att
 pub struct Attr {
     pub fg: TvColor,  // Foreground color
     pub bg: TvColor,  // Background color
+    pub style: Style, // Text styles (bold, italic, ...) — empty by default
 }
 ```
 
@@ -98,6 +99,45 @@ The byte format matches the original Turbo Vision format:
 For example, `0x1E` means:
 - `0xE` (14) = Yellow foreground
 - `0x1` (1) = Blue background
+
+> **Note:** the byte format encodes colors only. Text styles (below) are **not**
+> stored in the byte — `to_u8`/`from_u8` round-trips preserve the colors and drop
+> the style, matching the original Turbo Vision color-byte layout.
+
+### Text Styles
+
+Beyond foreground/background color, an `Attr` carries a `Style` bitset for the
+text-rendering attributes supported by modern terminals: **bold**, **dim**,
+**italic**, **underline**, **reverse** (inverse video), and **strikethrough**.
+Styles are additive and composable, and are emitted as real SGR escape codes by
+the renderer (both the live terminal/SSH output and the ANSI screen dumps).
+
+Apply styles with the builder methods, which each return a new `Attr`:
+
+```rust
+use turbo_vision::core::palette::{Attr, Style, TvColor};
+
+let base = Attr::new(TvColor::White, TvColor::Blue);
+
+let heading   = base.bold();
+let emphasis  = base.italic();
+let link       = base.underline();
+let combo      = base.bold().italic();          // chain multiple styles
+
+// Or set several at once with a Style bitset:
+let fancy = base.with_style(Style::ITALIC | Style::UNDERLINE | Style::STRIKETHROUGH);
+```
+
+The available flags are `Style::BOLD`, `Style::DIM`, `Style::ITALIC`,
+`Style::UNDERLINE`, `Style::REVERSE`, and `Style::STRIKETHROUGH`. Inspect a
+style with `attr.style.contains(Style::BOLD)` or `attr.style.is_empty()`.
+
+`swap()` and `darken()` preserve the style; only the colors change. Styles that
+a given terminal does not support degrade gracefully (they are simply ignored by
+that terminal).
+
+See the runnable `text_styling` example (`cargo run --example text_styling`) for
+a live table of every style and several combinations.
 
 ## Using Default Colors
 

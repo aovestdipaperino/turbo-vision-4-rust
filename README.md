@@ -69,6 +69,8 @@ The built-in file dialog with directory navigation, file list, and keyboard/mous
 - **Window Dragging and Resizing**: Drag windows by title bar, resize by bottom-right corner
 - **Flexible Layout System**: Geometry primitives with absolute and relative positioning
 - **Color Support**: 16-color palette with Borland-accurate attribute system and context-aware remapping
+- **Text Styling**: Bold, dim, italic, underline, reverse, and strikethrough attributes — composable via `Attr::new(fg, bg).bold().italic()`, emitted as real SGR codes on the terminal and in ANSI dumps (see `cargo run --example text_styling`)
+- **Editor Selection**: Stream selection (Shift+arrows / drag) plus rectangular **block selection** (Alt/Option+arrows or Alt-drag) with columnar copy/cut and single-step undo; `CM_SELECT_ALL` command and Ctrl+A select all content of the focused window
 - **Cross-Platform**: Built on crossterm for wide terminal compatibility
 - **SSH Support**: Optional SSH backend to serve TUI applications over SSH connections
 - **Modal Dialogs**: Built-in support for modal dialog execution

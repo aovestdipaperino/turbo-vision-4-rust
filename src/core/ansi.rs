@@ -140,6 +140,11 @@ impl AnsiParser {
         let mut current_fg = self.default_fg;
         let mut current_bg = self.default_bg;
         let mut bright = false;
+        let mut style = crate::core::palette::Style::empty();
+        // Whether the current fg came from an explicit 256/RGB color (38;5 /
+        // 38;2). Bold brightens the basic palette by convention, but leaves an
+        // explicitly chosen color at its own hue.
+        let mut fg_explicit = false;
 
         let mut chars = line.chars().peekable();
 
@@ -148,20 +153,22 @@ impl AnsiParser {
                 // Start of escape sequence
                 if chars.peek() == Some(&'[') {
                     chars.next(); // consume '['
-                    let (new_fg, new_bg, new_bright) =
-                        self.parse_sgr(&mut chars, current_fg, current_bg, bright);
+                    let (new_fg, new_bg, new_bright, new_style, new_fg_explicit) = self
+                        .parse_sgr(&mut chars, current_fg, current_bg, bright, style, fg_explicit);
                     current_fg = new_fg;
                     current_bg = new_bg;
                     bright = new_bright;
+                    style = new_style;
+                    fg_explicit = new_fg_explicit;
                 }
             } else if ch != '\r' {
                 // Regular character (skip carriage return)
-                let fg = if bright {
+                let fg = if bright && !fg_explicit {
                     Self::brighten(current_fg)
                 } else {
                     current_fg
                 };
-                cells.push(Cell::new(ch, Attr::new(fg, current_bg)));
+                cells.push(Cell::new(ch, Attr::new(fg, current_bg).with_style(style)));
             }
         }
 
@@ -175,7 +182,9 @@ impl AnsiParser {
         mut fg: TvColor,
         mut bg: TvColor,
         mut bright: bool,
-    ) -> (TvColor, TvColor, bool) {
+        mut style: crate::core::palette::Style,
+        mut fg_explicit: bool,
+    ) -> (TvColor, TvColor, bool, crate::core::palette::Style, bool) {
         let mut params = Vec::new();
         let mut current_param = String::new();
 
@@ -206,7 +215,7 @@ impl AnsiParser {
                             break;
                         }
                     }
-                    return (fg, bg, bright);
+                    return (fg, bg, bright, style, fg_explicit);
                 }
             }
         }
@@ -221,18 +230,33 @@ impl AnsiParser {
                     fg = self.default_fg;
                     bg = self.default_bg;
                     bright = false;
+                    style = crate::core::palette::Style::empty();
+                    fg_explicit = false;
                 }
                 1 => {
-                    // Bold/bright
+                    // Bold: keep brighten AND set the real bold flag.
                     bright = true;
+                    style.insert(crate::core::palette::Style::BOLD);
                 }
+                2 => style.insert(crate::core::palette::Style::DIM),
+                3 => style.insert(crate::core::palette::Style::ITALIC),
+                4 => style.insert(crate::core::palette::Style::UNDERLINE),
+                7 => style.insert(crate::core::palette::Style::REVERSE),
+                9 => style.insert(crate::core::palette::Style::STRIKETHROUGH),
                 22 => {
-                    // Normal intensity (not bold)
+                    // Normal intensity
                     bright = false;
+                    style.remove(crate::core::palette::Style::BOLD);
+                    style.remove(crate::core::palette::Style::DIM);
                 }
+                23 => style.remove(crate::core::palette::Style::ITALIC),
+                24 => style.remove(crate::core::palette::Style::UNDERLINE),
+                27 => style.remove(crate::core::palette::Style::REVERSE),
+                29 => style.remove(crate::core::palette::Style::STRIKETHROUGH),
                 30..=37 => {
                     // Standard foreground colors
                     fg = Self::ansi_to_tv_color(code - 30);
+                    fg_explicit = false;
                 }
                 38 => {
                     // Extended foreground color
@@ -243,6 +267,7 @@ impl AnsiParser {
                                 // 256-color mode
                                 let color_idx: u8 = params[i + 2].parse().unwrap_or(0);
                                 fg = Self::ansi256_to_tv_color(color_idx);
+                                fg_explicit = true;
                                 i += 2;
                             }
                             2 if i + 4 < params.len() => {
@@ -251,6 +276,7 @@ impl AnsiParser {
                                 let g: u8 = params[i + 3].parse().unwrap_or(0);
                                 let b: u8 = params[i + 4].parse().unwrap_or(0);
                                 fg = TvColor::from_rgb(r, g, b);
+                                fg_explicit = true;
                                 i += 4;
                             }
                             _ => {}
@@ -260,6 +286,7 @@ impl AnsiParser {
                 39 => {
                     // Default foreground
                     fg = self.default_fg;
+                    fg_explicit = false;
                 }
                 40..=47 => {
                     // Standard background colors
@@ -295,6 +322,7 @@ impl AnsiParser {
                 90..=97 => {
                     // Bright foreground colors
                     fg = Self::ansi_to_tv_color_bright(code - 90);
+                    fg_explicit = false;
                 }
                 100..=107 => {
                     // Bright background colors
@@ -305,7 +333,7 @@ impl AnsiParser {
             i += 1;
         }
 
-        (fg, bg, bright)
+        (fg, bg, bright, style, fg_explicit)
     }
 
     /// Convert ANSI color code (0-7) to `TvColor`.
@@ -401,6 +429,7 @@ impl Default for AnsiParser {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::palette::Style;
 
     #[test]
     fn test_parse_plain_text() {
@@ -447,6 +476,36 @@ mod tests {
         let parser = AnsiParser::new();
         let cells = parser.parse_line("\x1b[1;34mBold Blue\x1b[0m");
         assert_eq!(cells[0].attr.fg, TvColor::LightBlue);
+    }
+
+    #[test]
+    fn bold_does_not_brighten_an_explicit_256_color() {
+        let parser = AnsiParser::new();
+        // 214 maps to Brown; bold must set the flag without brightening the
+        // explicit color to Yellow the way it brightens the basic palette.
+        let cells = parser.parse_line("\x1b[1;38;5;214mX\x1b[0m");
+        assert_eq!(cells[0].attr.fg, TvColor::Brown);
+        assert!(cells[0].attr.style.contains(Style::BOLD));
+    }
+
+    #[test]
+    fn bold_still_brightens_a_basic_color() {
+        let parser = AnsiParser::new();
+        // The classic bold-is-bright convention still holds for SGR 30-37.
+        let cells = parser.parse_line("\x1b[1;31mX");
+        assert_eq!(cells[0].attr.fg, TvColor::LightRed);
+        assert!(cells[0].attr.style.contains(Style::BOLD));
+    }
+
+    #[test]
+    fn test_parse_style_flags() {
+        let parser = AnsiParser::new();
+        let cells = parser.parse_line("\x1b[1mA\x1b[3mB\x1b[4mC\x1b[0mD");
+        assert!(cells[0].attr.style.contains(Style::BOLD)); // A: bold
+        assert!(cells[1].attr.style.contains(Style::BOLD)); // B: bold+italic
+        assert!(cells[1].attr.style.contains(Style::ITALIC));
+        assert!(cells[2].attr.style.contains(Style::UNDERLINE)); // C: +underline
+        assert!(cells[3].attr.style.is_empty()); // D: reset
     }
 
     #[test]
