@@ -104,7 +104,7 @@ pub trait Cluster: View {
     ///
     /// Examples:
     /// - CheckBox unchecked: "[ ] "
-    /// - CheckBox checked: "[X] "
+    /// - CheckBox checked: `[X] `
     /// - RadioButton unselected: "( ) "
     /// - RadioButton selected: "(•) "
     fn get_marker(&self) -> &str;

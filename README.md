@@ -368,9 +368,9 @@ This allows the same TUI application to run locally or over SSH with no code cha
 
 This implementation closely follows Borland Turbo Vision's architecture, adapted for Rust:
 
-- **Event Loop**: Located in `Group` (matching Borland's `TGroup::execute()`), not in individual views
-- **Modal Dialogs**: Use Borland's `endModal()` pattern to exit event loops
-- **View Hierarchy**: Composition-based design (`Window` contains `Group`, `Dialog` wraps `Window`)
+- **Event Loop**: `Application::run_with` takes an `AppHandler` for the program's own commands (Borland's `TApplication::handleEvent` and `idle` overrides); `Application::execute_modal` is the one modal loop behind `Dialog::execute`
+- **Modal Dialogs**: Use Borland's `endModal()` pattern to exit event loops; `CloseOn` says which commands close a dialog
+- **View Hierarchy**: Borland's `TView > TGroup > TWindow > TDialog` is expressed as layered traits over shared cores: every view owns a `ViewCore`, `GroupLike` and `WindowLike` carry `TGroup`'s and `TWindow`'s behaviour as `group_*` / `window_*` default methods, and a window-shaped type gets its `View` impl from `impl_view_for_window!` with overrides written inline. Overrides are late-bound: `Dialog::get_palette` is what `window_draw` paints with. See [docs/MISSING-INHERITANCE.md](docs/MISSING-INHERITANCE.md) for the analysis behind it.
 - **Drawing**: Event-driven redraws with Borland's `drawUnderRect` pattern for efficient updates
 - **Event System**:
   - Three-phase processing (PreProcess → Focused → PostProcess) matching Borland's `TGroup::handleEvent()`

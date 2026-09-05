@@ -6,7 +6,7 @@
 //! framework including:
 //! - **Geometry primitives** ([`geometry`]): [`Point`](geometry::Point), [`Rect`](geometry::Rect) for layout
 //! - **Event handling** ([`event`]): [`Event`](event::Event), [`KeyCode`](event::KeyCode), mouse events
-//! - **Drawing utilities** ([`draw`]): [`Cell`](draw::Cell), [`Buffer`](draw::Buffer), [`Attr`](draw::Attr) for terminal rendering
+//! - **Drawing utilities** ([`draw`]): [`Cell`](draw::Cell), [`DrawBuffer`](draw::DrawBuffer), [`Attr`](palette::Attr) for terminal rendering
 //! - **Command system** ([`command`], [`command_set`]): Action management and command routing
 //! - **Color management** ([`palette`]): Terminal color schemes and attributes
 //! - **Error handling** ([`error`]): [`Result`](error::Result), [`TurboVisionError`](error::TurboVisionError)

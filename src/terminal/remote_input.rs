@@ -8,7 +8,7 @@
 //! been pressed.
 //!
 //! Each line may contain one or more whitespace-separated key chords; the
-//! chords are parsed by [`parse_key_chord`](crate::core::event::parse_key_chord)
+//! chords are parsed by [`crate::core::event::parse_key_chord`]
 //! and queued in order. For example, sending the line:
 //!
 //! ```text

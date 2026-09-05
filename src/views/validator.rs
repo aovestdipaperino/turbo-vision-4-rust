@@ -284,7 +284,7 @@ impl Validator for RangeValidator {
 }
 
 /// Type alias for shared validator references
-/// InputLine will hold an Option<ValidatorRef>
+/// InputLine will hold an `Option<ValidatorRef>`
 pub type ValidatorRef = Rc<RefCell<dyn Validator>>;
 
 /// Builder for creating filter validators with a fluent API.

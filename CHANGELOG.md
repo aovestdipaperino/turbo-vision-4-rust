@@ -5,7 +5,62 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [3.0.0] - 2026-09-05
+
+A major release: the `View` trait changes for every downstream crate, so the
+other API changes that needed a breaking release ride along. The analysis and
+plan are in `docs/MISSING-INHERITANCE.md`.
+
+### Migrating a downstream view
+
+```rust
+// 2.x
+pub struct MyView { bounds: Rect, state: StateFlags, options: u16, palette_chain: Option<PaletteChainNode>, .. }
+impl View for MyView {
+    fn bounds(&self) -> Rect { self.bounds }
+    fn set_bounds(&mut self, b: Rect) { self.bounds = b; }
+    /* eight more accessors */
+    fn draw(..) { .. } fn handle_event(..) { .. } fn get_palette(..) { .. }
+}
+
+// 3.0.0
+pub struct MyView { core: ViewCore, .. }
+impl View for MyView {
+    fn core(&self) -> &ViewCore { &self.core }
+    fn core_mut(&mut self) -> &mut ViewCore { &mut self.core }
+    fn as_any(&self) -> &dyn std::any::Any { self }
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any { self }
+    fn draw(..) { .. } fn handle_event(..) { .. } fn get_palette(..) { .. }
+}
+
+// A type wrapping a Window, 3.0.0
+impl GroupLike for MyWindow { fn group(&self) -> &Group { self.window.group() } fn group_mut(&mut self) -> &mut Group { self.window.group_mut() } }
+impl WindowLike for MyWindow { fn window(&self) -> &Window { &self.window } fn window_mut(&mut self) -> &mut Window { &mut self.window } }
+impl_view_for_window!(MyWindow {
+    fn handle_event(&mut self, event: &mut Event) { self.window_handle_event(event); /* ... */ }
+});
+```
+
+| Change | Before | After |
+|---|---|---|
+| Base fields | Own `bounds`, `state`, `options`, `palette_chain` fields and ten accessors | One `core: ViewCore` field, `core()` and `core_mut()` |
+| Downcasting | `as_any` optional, panicking default | `as_any` and `as_any_mut` required |
+| Hooks removed from `View` | `is_default_button`, `button_command`, `set_list_selection`, `get_list_selection`, `get_end_state`, `set_end_state` | Downcast to `Button` or `ListBox`; `GroupLike::end_state` / `end_modal`, reached through `View::as_group()` |
+| Window-shaped types | `impl View for MyWindow` with forwarding | `impl WindowLike for MyWindow` plus `impl_view_for_window!(MyWindow { overrides })` |
+| Idle | `impl IdleView` | `fn idle` on `View` |
+| Adding children | `add(Box::new(v))` | `add(v)`; boxing still accepted; `GroupLike` must be in scope (it is in the prelude) |
+| Reading a field | `Rc<RefCell<String>>` passed to `InputLineBuilder::data` | `let h = dialog.add_typed(field)` then `dialog.get(h).unwrap().text()` |
+| Flags | `SF_MODAL`, `OF_SELECTABLE`, `GF_GROW_ALL`, `MF_OK_BUTTON` as integers | `State::MODAL`, `Options::SELECTABLE`, `Grow::ALL`, `MsgBox::OK_BUTTON`; old names deprecated for one release |
+| Dialog close | Any command below 1000 | `CloseOn` policy; default closes on the standard commands and the dialog's own buttons |
+| Commands | Library exports application commands | Library reserves 0 to 199; applications start at `CM_USER`, 200 |
+| Message boxes | `helpers::msgbox` or `views::msgbox` | `views::msgbox` only (`helpers` re-exports it, deprecated) |
+| Menus and status | Positional constructors with scan codes | Builders with chord strings |
+| Application loop | Copy `run()` to add a command handler | `impl AppHandler` and `run_with` |
+| Modal loops | Copy `Dialog::execute` to poll a job while a dialog is up | `app.execute_modal(&mut dialog, tick)` |
+| Shared children | Hand-written `SharedX(Rc<RefCell<X>>)` newtypes | `Shared<X>` |
+| Finding a desktop window | Iterate children and `downcast_ref` | `desktop.get(handle)` |
+| Editor access | `EditWindow::editor_rc()` | `editor()` / `editor_mut()` (`editor_rc` deprecated) |
+
 
 ### Added
 - **`AppHandler` and `Application::run_with`.** Application-level hooks

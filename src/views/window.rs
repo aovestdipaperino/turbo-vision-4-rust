@@ -258,7 +258,7 @@ impl Window {
     ///
     /// Default is `true`: clicking the frame's close button marks the window
     /// `State::CLOSED` and clears the event, so the next
-    /// [`Desktop::remove_closed_windows`] sweep removes it. Mirrors Borland's
+    /// [`Desktop::remove_closed_windows`](crate::views::desktop::Desktop::remove_closed_windows) sweep removes it. Mirrors Borland's
     /// `TWindow::close()` flow with a trivial `valid()` (auto-accept).
     ///
     /// Set to `false` for windows whose owner needs to intercept the close —
@@ -413,7 +413,7 @@ impl Window {
 /// The behaviour of Borland's `TWindow`, expressed as default methods over a
 /// `Window` core. A window-shaped type (`Dialog`, `EditWindow`, a downstream
 /// custom window) implements the two accessors here plus `GroupLike`, and
-/// gets its `View` implementation from [`impl_view_for_window!`], which
+/// gets its `View` implementation from [`impl_view_for_window!`](crate::impl_view_for_window), which
 /// forwards every `View` method to the `window_*` body below unless the type
 /// supplies its own override inline.
 ///

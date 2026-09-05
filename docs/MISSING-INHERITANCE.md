@@ -1496,7 +1496,7 @@ git commit -m "refactor(views): move button, list and end-state hooks off the Vi
 - Modify: `Cargo.toml:6` (`version = "3.0.0"`)
 - Modify: this file, `docs/MISSING-INHERITANCE.md`: add a closing paragraph stating the plan has been executed and which items remain (owner pointer, per-draw palette chain propagation, `Dialog::execute` still owning its draw loop).
 
-- [ ] **Step 1: Write the migration note for downstream views**
+- [x] **Step 1: Write the migration note for downstream views**
 
 In `CHANGELOG.md` under 3.0.0 include the exact before and after for a downstream leaf view:
 
@@ -1516,17 +1516,17 @@ impl View for MyView {
 }
 ```
 
-- [ ] **Step 2: Verify docs examples compile**
+- [x] **Step 2: Verify docs examples compile**
 
 Run: `cargo test --doc`
 Expected: PASS. Any `ignore` doctests changed in this plan should be re-checked by pasting them into a scratch example under `examples/` and running `cargo build --examples`, then deleting the scratch file.
 
-- [ ] **Step 3: Run everything one last time**
+- [x] **Step 3: Run everything one last time**
 
 Run: `cargo test && cargo build --examples && cargo clippy --all-targets -- -D warnings && cargo doc --no-deps 2>&1 | grep -c warning`
 Expected: tests green, `0` doc warnings.
 
-- [ ] **Step 4: Commit and tag**
+- [x] **Step 4: Commit and tag**
 
 ```bash
 git add -A
@@ -1535,6 +1535,50 @@ git tag v3.0.0
 ```
 
 ---
+
+## Status
+
+The plan above has been executed and released as 3.0.0. Every task box is
+ticked; the analysis at the top describes the crate on `main` before the
+work and is kept as the record of why.
+
+Four things came out differently from the way the tasks were written, each
+for a reason found while implementing.
+
+`WindowLike` does not redeclare `draw`, `handle_event`, `get_palette` and the
+other hooks. Two traits in scope that both define `draw` for the same type make
+every `dialog.draw(t)` ambiguous (E0034), which would have hit every test
+module and every downstream file that implements the trait. Instead the
+`View` methods stay the single hook layer, `WindowLike` carries only the
+`window_*` base bodies, and `impl_view_for_window!` takes the overrides inline
+and generates forwards for everything else. Late binding is unchanged, because
+the base bodies call `self.get_palette()` and friends through `View`.
+
+`Application::execute_modal` returns a `ModalTick::End(cmd)` immediately
+rather than running `valid(cmd)` first, so an auto-dismiss timeout closes the
+dialog the way it did in 2.x even when a validator would veto. `exec_view`
+keeps its own loop: its view is a `Box<dyn View>` inside the desktop, which the
+`WindowLike`-typed loop cannot take. It reads the modal end state through the
+new `View::as_group()`, the `dynamic_cast<TGroup*>` analogue that replaced the
+end-state hooks on `View`.
+
+`History` no longer handles the `CM_RECORD_HISTORY` and `CM_HISTORY_SELECTED`
+broadcasts itself. With `InputLine` owning its text, a `History` button cannot
+reach its sibling, so the owner does both steps: `Dialog` records every
+History's linked input on OK, and the popup code fills the linked input after a
+selection, resolving the `Handle<InputLine>` through the group's child list.
+`ChDirDialog` runs `execute_modal` on itself for the same reason, so its own
+`handle_event` can copy the list's focused entry into the input.
+
+The crate was not clippy-clean under `-D warnings` when the work started (the
+pedantic lint groups in `Cargo.toml` produce over a thousand findings on
+`main`), so the gate used for every task was a warning-free
+`cargo build --workspace --all-targets` plus `cargo test --workspace`.
+
+Still open, as the analysis said: the owner back-pointer is absent, so
+`set_parent_bounds`, `init_after_add` and `constrain_to_parent_bounds` remain
+on `View`, and the palette chain is still cloned into every child on every
+draw in `window_draw` and `group_draw`.
 
 ## Out of scope for this plan
 

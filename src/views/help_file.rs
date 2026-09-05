@@ -327,7 +327,7 @@ impl HelpTopic {
     }
 
     /// Get content as lines of styled segments for rich text rendering
-    /// Returns (line_segments, cross_refs) where each line is a Vec<TextSegment>
+    /// Returns (line_segments, cross_refs) where each line is a `Vec<TextSegment>`
     pub fn get_styled_content(&self) -> (Vec<Vec<TextSegment>>, Vec<CrossRef>) {
         let mut all_segments = Vec::new();
         let mut refs = Vec::new();

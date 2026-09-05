@@ -113,7 +113,7 @@ impl Application {
     /// # Errors
     ///
     /// Returns an error if terminal initialization fails. See
-    /// [`Terminal::init()`](crate::Terminal::init) for details on possible
+    /// [`Terminal::init()`](crate::terminal::Terminal::init) for details on possible
     /// error conditions.
     ///
     /// # Examples

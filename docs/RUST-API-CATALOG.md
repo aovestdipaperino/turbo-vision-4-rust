@@ -234,6 +234,10 @@ Generated: 2025-11-06
 - `get_item(&self, index: usize) -> Option<&MenuItem>` - Get item by index
 
 #### MenuBuilder Struct
+- `item(text, command)` - No key binding
+- `item_key(text, command, "Ctrl+O")` - Bound to and labelled with a key chord (panics on an unknown chord)
+- `item_disabled(text, command)`, `add(MenuItem)`, `submenu(text, key_code, menu)`, `separator()`, `help_context(u16)`, `build()`
+- `MenuItemBuilder::key("F3")` binds and labels a single item; `MenuItem::flag`, `MenuItem::submenu`, `MenuItem::separator` remain
 **Public Methods:**
 - `new() -> Self` - Create builder
 - `item(mut self, item: MenuItem) -> Self` - Add item (builder pattern)
@@ -244,6 +248,7 @@ Generated: 2025-11-06
 ### Status Line Data (`src/core/status_data.rs`)
 
 #### StatusItem Struct
+- Built with `StatusItemBuilder::new().text("~Alt-X~ Exit").key("Alt+X").command(CM_QUIT).build()`; `key_code(KeyCode)` still accepts a constant
 **Fields:**
 - `pub text: String` - Display text
 - `pub key_code: KeyCode` - Keyboard shortcut
@@ -271,6 +276,12 @@ Generated: 2025-11-06
 - `build(self) -> StatusLine` - Build status line
 
 ---
+
+### Flag Types (`src/core/state.rs`)
+- `State` (`VISIBLE`, `CURSOR_VIS`, `CURSOR_INS`, `SHADOW`, `ACTIVE`, `SELECTED`, `FOCUSED`, `DRAGGING`, `DISABLED`, `MODAL`, `DEFAULT`, `EXPOSED`, `CLOSED`, `RESIZING`)
+- `Options` (`SELECTABLE`, `TOP_SELECT`, `FIRST_CLICK`, `FRAMED`, `PRE_PROCESS`, `POST_PROCESS`, `BUFFERED`, `TILEABLE`, `CENTER_X`, `CENTER_Y`, `CENTERED`, `VALIDATE`)
+- `Grow` (`LO_X`, `LO_Y`, `HI_X`, `HI_Y`, `ALL`)
+- Each has `empty()`, `bits()`, `from_bits()`, `contains()`, `intersects()`, `is_empty()`, `insert()`, `remove()`, `set()` and the bit operators. `MsgBox` (`views::msgbox`) and `ValidatorOptions` (`views::validator`) are built the same way. The 2.x `SF_*`, `OF_*`, `GF_GROW_*`, `MF_*`, `VO_*` constants are deprecated aliases.
 
 ### Command System (`src/core/command.rs`)
 
@@ -301,11 +312,10 @@ Generated: 2025-11-06
 #### Help Menu Commands
 - CM_HELP_INDEX (140), CM_KEYBOARD_REF (141)
 
-#### Custom/Demo Commands
-- CM_ABOUT (100), CM_BIRTHDATE (101), CM_TEXT_VIEWER (108), CM_CONTROLS_DEMO (109)
-- CM_LISTBOX_DEMO (150), CM_LISTBOX_SELECT (151), CM_MEMO_DEMO (152)
-
----
+#### Command Ownership
+- `0..=99` Borland's standard commands (including `CM_NEW`..`CM_CLOSE_FILE` at 30..35)
+- `100..=199` this crate's internal commands and broadcasts
+- `CM_USER` (200) and up: free for applications
 
 ## TERMINAL MODULE
 
@@ -355,38 +365,69 @@ Generated: 2025-11-06
 
 ### View Trait (`src/views/view.rs`)
 
-**Core Methods (Required):**
-- `bounds(&self) -> Rect` - Get view bounds
-- `set_bounds(&mut self, bounds: Rect)` - Set view bounds
+**Required:**
+- `core(&self) -> &ViewCore` / `core_mut(&mut self) -> &mut ViewCore` - The base fields (Borland: `TView` data members)
 - `draw(&mut self, terminal: &mut Terminal)` - Draw view
 - `handle_event(&mut self, event: &mut Event)` - Handle event
+- `get_palette(&self) -> Option<Palette>` - This view's palette
+- `as_any(&self) -> &dyn Any` / `as_any_mut(&mut self) -> &mut dyn Any` - Downcasting
 
-**Optional Methods (with defaults):**
-- `can_focus(&self) -> bool` - Can receive focus (default: false)
-- `set_focus(&mut self, focused: bool)` - Set focus state
-- `is_focused(&self) -> bool` - Check if focused
-- `options(&self) -> u16` - Get view option flags (default: 0)
-- `set_options(&mut self, options: u16)` - Set view option flags
-- `state(&self) -> StateFlags` - Get view state flags (default: 0)
-- `set_state(&mut self, state: StateFlags)` - Set view state flags
-- `set_state_flag(&mut self, flag: StateFlags, enable: bool)` - Set/clear specific flag(s)
-- `get_state_flag(&self, flag: StateFlags) -> bool` - Check if flag(s) set
-- `has_shadow(&self) -> bool` - Check if shadow enabled
-- `shadow_bounds(&self) -> Rect` - Get bounds including shadow
-- `update_cursor(&self, terminal: &mut Terminal)` - Update cursor state (default: do nothing)
-- `dump_to_file(&self, terminal: &Terminal, path: &str) -> io::Result<()>` - Dump view region to ANSI file
-- `is_default_button(&self) -> bool` - Check if default button (default: false)
-- `button_command(&self) -> Option<u16>` - Get button command ID (default: None)
-- `set_list_selection(&mut self, index: usize)` - Set listbox selection (default: do nothing)
-- `get_list_selection(&self) -> usize` - Get listbox selection (default: 0)
-- `get_redraw_union(&self) -> Option<Rect>` - Get union rect for movement tracking (default: None)
-- `clear_move_tracking(&mut self)` - Clear movement tracking (default: do nothing)
-- `get_end_state(&self) -> CommandId` - Get end state for modal views (default: 0)
-- `set_end_state(&mut self, command: CommandId)` - Set end state for modal views
+**Defaults reading the core:**
+- `bounds()` / `set_bounds(Rect)`, `state() -> State` / `set_state(State)`, `options() -> Options` / `set_options(Options)`, `grow_mode() -> Grow` / `set_grow_mode(Grow)`, `set_palette_chain` / `get_palette_chain`
+- `set_state_flag(State, bool)`, `get_state_flag(State) -> bool`, `is_focused()`, `has_shadow()`, `shadow_bounds()`
+
+**Other defaults:**
+- `can_focus() -> bool` (false), `set_focus(bool)`, `update_cursor(&Terminal)`, `zoom(Rect)`, `valid(CommandId) -> bool` (true)
+- `idle(&mut self)` - Called on every idle tick for overlay widgets (no-op by default)
+- `as_group() -> Option<&dyn GroupLike>` / `as_group_mut()` - The container interface, if the view is one (Borland: `dynamic_cast<TGroup*>`)
+- `window_number()`, `label_link()`, `init_after_add()`, `constrain_to_parent_bounds()`, `set_parent_bounds(Rect)`, `get_redraw_union()`, `clear_move_tracking()`, `dump_to_file(..)`
+
+A `Box<T: View>` is itself a `View`, so `add(Box::new(v))` and `add(v)` are both accepted.
+
+#### ViewCore Struct
+- `bounds: Rect`, `state: State`, `options: Options`, `grow_mode: Grow`, `palette_chain: Option<PaletteChainNode>`
+- `ViewCore::new(bounds)`, `ViewCore::with_options(bounds, options)`
 
 **Helper Functions:**
 - `write_line_to_terminal(terminal: &mut Terminal, x: i16, y: i16, buf: &DrawBuffer)` - Draw line to terminal
-- `draw_shadow(terminal: &mut Terminal, bounds: Rect, shadow_attr: u8)` - Draw shadow for view
+
+---
+
+### GroupLike Trait (`src/views/group.rs`)
+
+`GroupLike: View` - Borland's `TGroup` behaviour as default methods over a `Group`.
+- Required: `group(&self) -> &Group`, `group_mut(&mut self) -> &mut Group`
+- Base implementations (callable as base calls): `group_draw`, `group_handle_event`, `group_set_bounds`, `group_update_cursor`, `group_valid`
+- Modal loop: `execute(&mut self, app) -> CommandId`, `end_modal(CommandId)`, `end_state() -> CommandId`
+- Children: `add(impl View) -> ViewId`, `add_boxed(Box<dyn View>)`, `add_typed(T) -> Handle<T>`, `get(Handle<T>) -> Option<&T>`, `get_mut(Handle<T>)`, `child_count()`, `child_at(i)`, `child_at_mut(i)`, `child_by_id(id)`, `child_by_id_mut(id)`, `remove_by_id(id)`, `set_initial_focus()`, `set_focus_to(i)`, `broadcast(&mut Event, Option<usize>)`
+
+#### Handle Struct (`src/views/handle.rs`)
+- `Handle<T: View>`: `Copy`; `from_id(ViewId)`, `id() -> ViewId`. A wrong `T` makes `get` return `None`.
+
+---
+
+### WindowLike Trait and `impl_view_for_window!` (`src/views/window.rs`)
+
+`WindowLike: GroupLike` - Borland's `TWindow` behaviour as `window_*` default methods over a `Window`.
+- Required: `window(&self) -> &Window`, `window_mut(&mut self) -> &mut Window`
+- Base implementations: `window_set_bounds`, `window_draw`, `window_update_cursor`, `window_handle_event`, `window_set_focus`, `window_zoom`, `window_valid`, `window_get_palette`, `window_init_after_add`, `window_constrain_to_parent_bounds`, `window_set_parent_bounds`
+- `impl_view_for_window!(MyWindow)` generates `impl View for MyWindow` forwarding every method to the `window_*` body; `impl_view_for_window!(MyWindow { fn handle_event(..) { self.window_handle_event(event); .. } })` writes overrides inline, and the base stays reachable by its `window_*` name.
+
+#### Shared Struct (`src/views/shared.rs`)
+- `Shared<T: View>(Rc<RefCell<T>>)`: the one forwarding wrapper for a child the owner keeps calling; `new(rc)`, `inner() -> &Rc<RefCell<T>>`. Forwards `idle` too.
+
+---
+
+### Dialog Close Policy (`src/views/dialog.rs`)
+- `CloseOn::Standard` (`CM_OK`, `CM_CANCEL`, `CM_YES`, `CM_NO`), `CloseOn::StandardAndButtons` (default: plus the dialog's own buttons), `CloseOn::Commands(Vec<CommandId>)`
+- `DialogBuilder::close_on(CloseOn)`, `Dialog::set_close_on(CloseOn)`, `Dialog::close_on()`
+
+---
+
+### Application Hooks (`src/app/application.rs`)
+- `AppHandler` trait: `pre_event(&mut self, app, event)`, `handle_command(&mut self, app, command, event) -> bool`, `idle(&mut self, app)`, `window_closed(&mut self, app, id)`; `Application::run_with(&mut handler)`; `run()` is `run_with(&mut ())`
+- `Application::execute_modal(&mut view: impl WindowLike, tick: FnMut(&mut Application, &mut V) -> ModalTick) -> CommandId` - The single modal loop; `ModalTick::Continue` / `ModalTick::End(CommandId)`
+- `Application::add_overlay_widget(impl View)`, `Application::exec_view(impl View) -> CommandId`
 
 ---
 

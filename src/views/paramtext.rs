@@ -63,7 +63,7 @@ impl ParamText {
 
     /// Set text with both string and numeric parameters
     /// Example: template = "File: %s, Size: %d bytes"
-    ///          set_params("test.txt", &[1024])
+    ///          `set_params("test.txt", &[1024])`
     pub fn set_params(&mut self, str_params: &[&str], num_params: &[i64]) {
         let mut result = self.template.clone();
 

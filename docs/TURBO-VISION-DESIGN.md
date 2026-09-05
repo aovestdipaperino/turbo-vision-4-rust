@@ -80,46 +80,111 @@ TObject (Base)
 
 ## Rust Turbo Vision Architecture
 
-**Key Difference: Composition over Inheritance**
+**Key Difference: layered traits over a shared core, not inheritance**
 
-```
-┌─────────────────────────────────────────────┐
-│            View Trait                       │
-│  (Base behavior - no data)                  │
-│                                             │
-│  fn bounds() -> Rect                        │
-│  fn draw(&mut self, terminal)               │
-│  fn handle_event(&mut self, event)          │
-│  fn can_focus() -> bool                     │
-│  fn set_focus(&mut self, focused)           │
-│  fn state() -> StateFlags                   │
-│  fn options() -> OptionsFlags               │
-└─────────────────────────────────────────────┘
-                    △
-                    │ implements
-        ┌───────────┴───────────┐
-        │                       │
-        │                       │
-┌───────┴────────┐      ┌───────┴────────┐
-│  Leaf Views    │      │  Container     │
-│  (Components)  │      │  Views         │
-│                │      │                │
-│  • Button      │      │  • Group       │
-│  • InputLine   │      │  • Window      │
-│  • Label       │      │  • Dialog      │
-│  • StaticText  │      │  • Desktop     │
-│  • CheckBox    │      │  • Application │
-│  • RadioButton │      └────────────────┘
-│  • ScrollBar   │              │
-│  • Indicator   │              │ contains
-│  • Editor      │              │
-│  • ListBox     │              ▼
-│  • MenuBar     │      children: Vec<Box<dyn View>>
-│  • StatusLine  │
-└────────────────┘
+Borland's tree is single inheritance. The Rust crate cannot inherit data or
+behaviour, so since 3.0.0 each Borland class becomes a pair: a plain struct
+holding that class's own fields, and a trait holding its behaviour as default
+methods. Because default methods dispatch through `self`, an override in an
+outer type is seen by the base code that calls it, which is the late binding
+the earlier wrapper-and-forward design lost.
+
+```mermaid
+classDiagram
+    class ViewCore {
+        +bounds
+        +state State
+        +options Options
+        +grow_mode Grow
+        +palette_chain
+    }
+    class View {
+        <<trait>>
+        +core()* ViewCore
+        +core_mut()*
+        +draw(term)*
+        +handle_event(ev)*
+        +get_palette()*
+        +as_any()*
+        +bounds() default via core
+        +state() default via core
+        +options() default via core
+        +idle() default noop
+        +as_group() default None
+    }
+    class Group {
+        +core ViewCore
+        +children
+        +focused
+        +end_state
+    }
+    class GroupLike {
+        <<trait>>
+        +group()* Group
+        +group_draw(term)
+        +group_handle_event(ev)
+        +execute(app)
+        +end_modal(cmd)
+        +add(view) ViewId
+        +add_typed(view) Handle
+        +get(handle)
+    }
+    class Window {
+        +interior Group
+        +frame
+        +frame_children
+        +number
+    }
+    class WindowLike {
+        <<trait>>
+        +window()* Window
+        +window_draw(term)
+        +window_handle_event(ev)
+        +window_get_palette()
+        +window_valid(cmd)
+    }
+    class Dialog {
+        -window Window
+        -close_on CloseOn
+        +handle_event(ev) base call then CM_OK
+        +get_palette() gray dialog
+        +valid(cmd)
+    }
+    class Button {
+        -core ViewCore
+        -title
+    }
+    View <|-- GroupLike : supertrait
+    GroupLike <|-- WindowLike : supertrait
+    WindowLike <.. Dialog : implements
+    View <.. Button : implements
+    ViewCore <-- Group : embeds
+    Group <-- Window : embeds
+    Dialog *-- Window
+    Button *-- ViewCore
 ```
 
-## Borland vs Rust: Inheritance vs Composition
+* **`ViewCore`** holds the fields Borland declares once in `TView`. Every view
+  owns one and returns it from `View::core()`; the accessors for bounds,
+  state, options, grow mode and palette chain are trait defaults that read
+  it, so a view cannot forget to report its state.
+* **`GroupLike: View`** requires `group()` and carries `TGroup`'s behaviour as
+  `group_*` default methods plus the modal loop (`execute`, `end_modal`,
+  `end_state`) and child access (`add`, `add_typed`, `get`, `child_at`, ...).
+* **`WindowLike: GroupLike`** requires `window()` and carries `TWindow`'s
+  behaviour as `window_*` default methods. A window-shaped type gets its
+  `View` implementation from `impl_view_for_window!`, which forwards every
+  `View` method to the `window_*` body unless the type writes an override
+  inline. The `window_*` name is the base call: `Dialog::handle_event`
+  starts with `self.window_handle_event(event)`, exactly where
+  `TDialog::handleEvent` calls `TWindow::handleEvent`.
+* **`Shared<T>`** is the one `Rc<RefCell<T>>` forwarding wrapper, for a child
+  the owner must keep calling (an editor's scroll bars); **`Handle<T>`** is a
+  typed id for reaching a child back through its group.
+* **Runtime type information** is `View::as_any()` (required) and
+  `View::as_group()`, the `dynamic_cast<TGroup*>` analogue.
+
+## Borland vs Rust: Inheritance vs Layered Traits
 
 ### Borland (C++ Inheritance)
 
@@ -139,20 +204,29 @@ TDialog (inherits TWindow)
    └─ All inherited fields accessible directly
 ```
 
-### Rust (Composition)
+### Rust (Layered Traits)
 
+```rust
+impl GroupLike for Dialog { fn group(&self) -> &Group { self.window.group() } /* ... */ }
+impl WindowLike for Dialog { fn window(&self) -> &Window { &self.window } /* ... */ }
+impl_view_for_window!(Dialog {
+    fn handle_event(&mut self, event: &mut Event) {
+        self.window_handle_event(event);   // TWindow::handleEvent(event)
+        // dialog-specific handling of CM_OK, CM_CANCEL, ...
+    }
+    fn get_palette(&self) -> Option<Palette> { Some(Palette::from_slice(palettes::CP_GRAY_DIALOG)) }
+});
 ```
-Dialog
-   ├─> window: Window  (composed, not inherited!)
-   │    ├─> group: Group
-   │    │    ├─ bounds: Rect
-   │    │    ├─ state: StateFlags
-   │    │    └─ children: Vec<Box<dyn View>>
-   │    │
-   │    └─ frame: Frame
-   │
-   └─ Delegates View trait methods to window
-```
+
+`window_draw` builds the palette chain from `self.get_palette()`, so the
+`Dialog` override is what the frame is painted with; partial forwarding cannot
+recur because the macro generates the whole `View` surface.
+
+What the layering does not give back is the owner pointer: a child still
+cannot reach its parent. The palette chain is pushed down at draw time, and
+sibling coordination (a `History` button filling its `InputLine`, a directory
+list updating its input) is done by the owner, which resolves a `Handle<T>`
+through its own child list.
 
 ## Key Architectural Patterns
 
@@ -162,13 +236,15 @@ Dialog
 Borland:                          Rust:
 ═══════                           ═════
 
-TView                             View trait
-  └─> TGroup                        └─> Group struct
-        └─> TWindow                       └─> Window struct
-              └─> TDialog                       └─> Dialog struct
+TView                             View trait  +  ViewCore struct
+  └─> TGroup                        └─> GroupLike trait  +  Group struct
+        └─> TWindow                       └─> WindowLike trait  +  Window struct
+              └─> TDialog                       └─> Dialog: impl WindowLike + impl_view_for_window!
 
-Inheritance Chain                 Composition Chain
-(is-a relationships)              (has-a relationships)
+Inheritance Chain                 Trait layering: each level's behaviour is a
+(is-a relationships)              set of default methods over the level's core
+                                  struct; an override in the outer type is seen
+                                  by the base code (late binding through self)
 ```
 
 ### 2. Event Flow (Both Systems)

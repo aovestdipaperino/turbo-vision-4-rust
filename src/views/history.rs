@@ -30,11 +30,11 @@ use crate::terminal::Terminal;
 ///
 /// Matches Borland: THistory. The button is linked to an `InputLine` by a
 /// typed [`Handle`] (Borland: the `link` pointer):
-/// - When the owning dialog is accepted with OK, [`record_history_in`] adds
+/// - When the owning dialog is accepted with OK, the owner adds
 ///   the linked input's text to the history list (Borland: cmRecordHistory).
 /// - On click, the event is converted into a `CM_SHOW_HISTORY` command (history
 ///   id in `event.info`) so the owning dialog/application can open the popup.
-/// - After the popup, [`apply_history_selection`] copies the choice back into
+/// - After the popup, the owner copies the choice back into
 ///   the linked input.
 ///
 /// A child cannot reach a sibling on its own, so both steps run in the owner,

@@ -59,7 +59,7 @@ fn create_minimal_menu(app: &Application) -> MenuBar {
             "~F~ile",
             KB_ALT_F,
             Menu::new(vec![
-                MenuItem::new("E~x~it", CM_QUIT, KB_ALT_X, 0),
+                MenuItemBuilder::new().text("E~x~it").command(CM_QUIT).key("Alt+X").build(),
             ]),
             0,
         ))
@@ -69,6 +69,7 @@ fn create_minimal_menu(app: &Application) -> MenuBar {
 }
 
 fn create_minimal_status(app: &Application) -> StatusLine {
+    use turbo_vision::core::status_data::StatusItemBuilder;
     use turbo_vision::views::status_line::*;
 
     let (width, height) = app.terminal.size();
@@ -76,8 +77,8 @@ fn create_minimal_status(app: &Application) -> StatusLine {
     StatusLine::new(
         Rect::new(0, height as i16 - 1, width as i16, height as i16),
         vec![
-            StatusItem::new("~F10~ Menu", KB_F10, 0),
-            StatusItem::new("~Alt-X~ Exit", KB_ALT_X, CM_QUIT),
+            StatusItemBuilder::new().text("~F10~ Menu").key("F10").build(),
+            StatusItemBuilder::new().text("~Alt-X~ Exit").key("Alt+X").command(CM_QUIT).build(),
         ]
     )
 }
@@ -110,7 +111,7 @@ impl DisplayApp {
         let status_line = StatusLine::new(
             Rect::new(0, height as i16 - 1, width as i16, height as i16),
             vec![
-                StatusItem::new("~Esc~ Exit", KB_ESC, CM_QUIT),
+                StatusItemBuilder::new().text("~Esc~ Exit").key("Esc").command(CM_QUIT).build(),
             ]
         );
         app.set_status_line(status_line);
@@ -134,13 +135,13 @@ impl DisplayApp {
             content.to_string()
         );
 
-        window.add(Box::new(text_view));
+        window.add(text_view);
 
         // Make window non-interactive
         window.set_state(SF_DRAGGABLE, false);
         window.set_state(SF_CLOSEABLE, false);
 
-        self.app.desktop.add(Box::new(window));
+        self.app.desktop.add(window);
     }
 
     fn run(&mut self) {
@@ -219,7 +220,7 @@ impl EmbeddedApp {
         let status_line = StatusLine::new(
             Rect::new(0, height as i16 - 1, width as i16, height as i16),
             vec![
-                StatusItem::new("Quit", KB_ALT_X, CM_QUIT),
+                StatusItemBuilder::new().text("Quit").key("Alt+X").command(CM_QUIT).build(),
             ]
         );
         self.app.set_status_line(status_line);
@@ -236,10 +237,10 @@ impl EmbeddedApp {
                 "~S~ystem",
                 KB_ALT_S,
                 Menu::new(vec![
-                    MenuItem::new("~S~tatus", CM_STATUS, KB_F1, 0),
-                    MenuItem::new("~R~eset", CM_RESET, KB_CTRL_R, 0),
+                    MenuItemBuilder::new().text("~S~tatus").command(CM_STATUS).key("F1").build(),
+                    MenuItemBuilder::new().text("~R~eset").command(CM_RESET).key("Ctrl+R").build(),
                     MenuItem::separator(),
-                    MenuItem::new("E~x~it", CM_QUIT, KB_ALT_X, 0),
+                    MenuItemBuilder::new().text("E~x~it").command(CM_QUIT).key("Alt+X").build(),
                 ]),
                 0,
             ))
@@ -253,9 +254,9 @@ impl EmbeddedApp {
         let status_line = StatusLine::new(
             Rect::new(0, height as i16 - 1, width as i16, height as i16),
             vec![
-                StatusItem::new("~F1~ Status", KB_F1, CM_STATUS),
-                StatusItem::new("~Ctrl-R~ Reset", KB_CTRL_R, CM_RESET),
-                StatusItem::new("~Alt-X~ Quit", KB_ALT_X, CM_QUIT),
+                StatusItemBuilder::new().text("~F1~ Status").key("F1").command(CM_STATUS).build(),
+                StatusItemBuilder::new().text("~Ctrl-R~ Reset").key("Ctrl+R").command(CM_RESET).build(),
+                StatusItemBuilder::new().text("~Alt-X~ Quit").key("Alt+X").command(CM_QUIT).build(),
             ]
         );
         self.app.set_status_line(status_line);
@@ -411,7 +412,7 @@ fn example_minimal() -> std::io::Result<()> {
         .with_menu(false)
         .with_history(false)
         .status_line(vec![
-            StatusItem::new("~Esc~ Exit", KB_ESC, CM_QUIT),
+            StatusItemBuilder::new().text("~Esc~ Exit").key("Esc").command(CM_QUIT).build(),
         ])
         .build()?;
 
@@ -426,7 +427,7 @@ fn example_display_only() -> std::io::Result<()> {
         .with_mouse(false)
         .with_history(false)
         .status_line(vec![
-            StatusItem::new("Read-only mode", 0, 0),
+            StatusItemBuilder::new().text("Read-only mode").build(),
         ])
         .build()?;
 
@@ -443,8 +444,8 @@ fn example_full() -> std::io::Result<()> {
             "~F~ile",
             KB_ALT_F,
             Menu::new(vec![
-                MenuItem::new("~O~pen", CM_OPEN, KB_F3, 0),
-                MenuItem::new("E~x~it", CM_QUIT, KB_ALT_X, 0),
+                MenuItemBuilder::new().text("~O~pen").command(CM_OPEN).key("F3").build(),
+                MenuItemBuilder::new().text("E~x~it").command(CM_QUIT).key("Alt+X").build(),
             ]),
             0,
         ))
@@ -453,8 +454,8 @@ fn example_full() -> std::io::Result<()> {
     let mut app = ApplicationBuilder::new()
         .menu_bar(MenuBar::new(menu))
         .status_line(vec![
-            StatusItem::new("~F10~ Menu", KB_F10, 0),
-            StatusItem::new("~Alt-X~ Exit", KB_ALT_X, CM_QUIT),
+            StatusItemBuilder::new().text("~F10~ Menu").key("F10").build(),
+            StatusItemBuilder::new().text("~Alt-X~ Exit").key("Alt+X").command(CM_QUIT).build(),
         ])
         .build()?;
 
@@ -466,6 +467,75 @@ fn main() -> std::io::Result<()> {
     example_minimal()
 }
 ```
+
+---
+
+## Example 5: A Custom Window Type
+
+**Use Case:** A window that draws something of its own and reacts to one extra
+command, the way `TDialog` specialises `TWindow`.
+
+Borland subclasses `TWindow` and overrides `handleEvent` and `draw`, calling
+the base first. The Rust shape is the same: implement `GroupLike` and
+`WindowLike` over a `Window`, then let `impl_view_for_window!` generate the
+`View` implementation, writing only the overrides inline. The `window_*`
+methods are the base calls.
+
+```rust
+use turbo_vision::core::command::{CM_USER, CommandId};
+use turbo_vision::core::event::Event;
+use turbo_vision::core::geometry::Rect;
+use turbo_vision::impl_view_for_window;
+use turbo_vision::terminal::Terminal;
+use turbo_vision::views::group::{Group, GroupLike};
+use turbo_vision::views::window::{Window, WindowLike};
+
+const CM_TOGGLE_BANNER: CommandId = CM_USER + 1;
+
+pub struct BannerWindow {
+    window: Window,
+    show_banner: bool,
+}
+
+impl BannerWindow {
+    pub fn new(bounds: Rect) -> Self {
+        Self { window: Window::new(bounds, "Banner"), show_banner: true }
+    }
+}
+
+impl GroupLike for BannerWindow {
+    fn group(&self) -> &Group { self.window.group() }
+    fn group_mut(&mut self) -> &mut Group { self.window.group_mut() }
+}
+
+impl WindowLike for BannerWindow {
+    fn window(&self) -> &Window { &self.window }
+    fn window_mut(&mut self) -> &mut Window { &mut self.window }
+}
+
+impl_view_for_window!(BannerWindow {
+    fn draw(&mut self, terminal: &mut Terminal) {
+        self.window_draw(terminal); // TWindow::draw()
+        if self.show_banner {
+            // paint the banner over the interior here
+        }
+    }
+
+    fn handle_event(&mut self, event: &mut Event) {
+        self.window_handle_event(event); // TWindow::handleEvent(event)
+        if event.what == turbo_vision::core::event::EventType::Command
+            && event.command == CM_TOGGLE_BANNER
+        {
+            self.show_banner = !self.show_banner;
+            event.clear();
+        }
+    }
+});
+```
+
+Every other `View` method (`set_bounds`, `valid`, `get_palette`, `zoom`,
+`as_any`, ...) is forwarded to the `Window` base by the macro, so the type
+cannot forward selectively and fall back to a trait default by accident.
 
 ---
 
@@ -547,13 +617,14 @@ cargo build
 
 ## Summary: Rust vs C++ Approach
 
-| C++ (Inheritance) | Rust (Composition) |
+| C++ (Inheritance) | Rust (Layered Traits) |
 |-------------------|-------------------|
-| Derive from TProgram | Use feature flags |
+| Derive from TProgram | Implement `AppHandler` and call `run_with` |
+| Derive from TWindow, override `handleEvent` | Implement `WindowLike`, override inside `impl_view_for_window!` |
+| Call the base method first | Call the `window_*` / `group_*` base method first |
 | Override constructor | Use builder pattern |
 | Selective Init* calls | Conditional compilation |
 | Runtime overhead | Zero-cost abstraction |
-| Complex inheritance | Simple composition |
 
 **Rust Advantages:**
 1. **Compile-time optimization** - Unused code eliminated at compile time

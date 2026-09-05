@@ -422,7 +422,7 @@ impl EditorWindow {
     }
 
     /// True when the redo stack has at least one entry. The redo stack is
-    /// cleared on every fresh edit (see [`Self::push_undo`]), so this only
+    /// cleared on every fresh edit (see `push_undo`), so this only
     /// returns true between an undo and the next mutation.
     pub fn can_redo(&self) -> bool {
         !self.redo_stack.is_empty()
