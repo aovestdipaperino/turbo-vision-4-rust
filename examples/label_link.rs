@@ -6,12 +6,12 @@
 use turbo_vision::app::Application;
 use turbo_vision::core::command::{CM_CANCEL, CM_OK};
 use turbo_vision::core::geometry::Rect;
-use turbo_vision::helpers::msgbox::{MF_INFORMATION, MF_OK_BUTTON, message_box};
 use turbo_vision::views::GroupLike;
 use turbo_vision::views::button::ButtonBuilder;
 use turbo_vision::views::dialog::DialogBuilder;
 use turbo_vision::views::input_line::{InputLine, InputLineBuilder};
 use turbo_vision::views::label::LabelBuilder;
+use turbo_vision::views::msgbox::{MF_INFORMATION, MF_OK_BUTTON, message_box};
 
 fn main() -> turbo_vision::core::error::Result<()> {
     let mut app = Application::new()?;

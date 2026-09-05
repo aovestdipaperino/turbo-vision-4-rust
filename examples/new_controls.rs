@@ -35,7 +35,7 @@ use turbo_vision::views::static_text::StaticText;
 use turbo_vision::views::status_line::{StatusItem, StatusLine};
 use turbo_vision::views::tabbed_pane::TabbedPane;
 use turbo_vision::views::table::{Column, Table};
-use turbo_vision::views::{IdleView, View, ViewId};
+use turbo_vision::views::{View, ViewId};
 
 // Combo registration ids. Each must be unique among the live combo boxes.
 const COMBO_STYLE: u16 = 1;

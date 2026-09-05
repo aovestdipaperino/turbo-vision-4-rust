@@ -100,7 +100,7 @@ pub struct ProgressBar {
     marquee_forward: bool,
     /// Minimum wall-clock gap between automatic marquee steps.
     tick_interval: Duration,
-    /// When the marquee last stepped, for the `IdleView` animation.
+    /// When the marquee last stepped, for the idle-tick animation.
     last_tick: Instant,
 }
 
@@ -394,9 +394,7 @@ impl View for ProgressBar {
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
     }
-}
 
-impl crate::views::view::IdleView for ProgressBar {
     /// Step the marquee, rate-limited to the tick interval. Determinate bars
     /// are left alone, so adding one as an overlay widget costs nothing.
     fn idle(&mut self) {

@@ -5,7 +5,7 @@
 //   1. Smooth determinate bar with the percentage shown.
 //   2. The same bar with the percentage suppressed.
 //   3. ASCII determinate bar with a fixed caption.
-//   4. Marquee bar, which steps itself via IdleView.
+//   4. Marquee bar, which steps itself on idle ticks.
 //
 // Press Alt-X to exit.
 
@@ -19,7 +19,7 @@ use turbo_vision::terminal::Terminal;
 use turbo_vision::views::progress_bar::{ProgressBar, ProgressBarBuilder, ProgressStyle};
 use turbo_vision::views::static_text::StaticText;
 use turbo_vision::views::status_line::{StatusItem, StatusLine};
-use turbo_vision::views::{IdleView, View, ViewCore};
+use turbo_vision::views::{View, ViewCore};
 
 /// A caption plus a bar, driving the bar's value from wall-clock time.
 struct DemoRow {
@@ -72,9 +72,7 @@ impl View for DemoRow {
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
     }
-}
 
-impl IdleView for DemoRow {
     fn idle(&mut self) {
         if self.animate_value && self.last_step.elapsed().as_millis() >= self.step_ms {
             self.last_step = Instant::now();

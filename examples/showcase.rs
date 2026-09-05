@@ -22,7 +22,7 @@ use turbo_vision::views::ViewCore;
 use turbo_vision::views::shared::Shared;
 use turbo_vision::views::view::write_line_to_terminal;
 use turbo_vision::views::{
-    IdleView, View,
+    View,
     button::ButtonBuilder,
     chdir_dialog::ChDirDialog,
     dialog::DialogBuilder,
@@ -246,9 +246,7 @@ impl View for CrabWidget {
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
     }
-}
 
-impl IdleView for CrabWidget {
     fn idle(&mut self) {
         // Don't update animation if paused
         if self.paused {
@@ -348,7 +346,7 @@ fn create_status_line(width: i16, height: i16) -> StatusLine {
 }
 
 fn show_about_dialog(app: &mut Application) {
-    use turbo_vision::helpers::msgbox::{MF_ABOUT, MF_OK_BUTTON, message_box};
+    use turbo_vision::views::msgbox::{MF_ABOUT, MF_OK_BUTTON, message_box};
 
     let message = "Turbo Vision Demo\n\
                    Version 1.0\n\
@@ -1442,7 +1440,7 @@ fn show_open_file_dialog(app: &mut Application, crab: &Rc<RefCell<CrabWidget>>) 
             filename,
             path.display()
         );
-        use turbo_vision::helpers::msgbox::{MF_INFORMATION, MF_OK_BUTTON, message_box};
+        use turbo_vision::views::msgbox::{MF_INFORMATION, MF_OK_BUTTON, message_box};
         message_box(app, &msg, MF_INFORMATION | MF_OK_BUTTON);
     }
 
@@ -1460,7 +1458,7 @@ fn show_chdir_dialog(app: &mut Application) {
     if let Some(new_dir) = chdir_dialog.execute(app) {
         // Directory was changed successfully
         let msg = format!("Changed to: {}", new_dir.display());
-        use turbo_vision::helpers::msgbox::{MF_INFORMATION, MF_OK_BUTTON, message_box};
+        use turbo_vision::views::msgbox::{MF_INFORMATION, MF_OK_BUTTON, message_box};
         message_box(app, &msg, MF_INFORMATION | MF_OK_BUTTON);
     }
 }

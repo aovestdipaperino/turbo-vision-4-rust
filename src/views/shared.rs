@@ -7,7 +7,7 @@
 //! `SharedEditor`, `SharedIndicator`, `SharedHelpViewer` and
 //! `SharedTerminalWidget` newtypes.
 
-use super::view::{IdleView, View, ViewCore, ViewId};
+use super::view::{View, ViewCore, ViewId};
 use crate::core::command::CommandId;
 use crate::core::event::Event;
 use crate::core::geometry::Rect;
@@ -118,6 +118,9 @@ impl<T: View + 'static> View for Shared<T> {
     fn get_palette(&self) -> Option<Palette> {
         self.inner.borrow().get_palette()
     }
+    fn idle(&mut self) {
+        self.inner.borrow_mut().idle();
+    }
 
     fn set_palette_chain(&mut self, node: Option<PaletteChainNode>) {
         self.core.palette_chain = node.clone();
@@ -134,12 +137,6 @@ impl<T: View + 'static> View for Shared<T> {
 
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
-    }
-}
-
-impl<T: IdleView + 'static> IdleView for Shared<T> {
-    fn idle(&mut self) {
-        self.inner.borrow_mut().idle();
     }
 }
 

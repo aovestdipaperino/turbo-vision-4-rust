@@ -18,7 +18,7 @@ use crate::views::help_file::HelpFile;
 use crate::views::help_window::HelpWindow;
 use crate::views::view::ViewId;
 use crate::views::window::WindowLike;
-use crate::views::{IdleView, View, desktop::Desktop, menu_bar::MenuBar, status_line::StatusLine};
+use crate::views::{View, desktop::Desktop, menu_bar::MenuBar, status_line::StatusLine};
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::time::Duration;
@@ -36,7 +36,7 @@ pub struct Application {
     /// Overlay widgets that need idle processing and are drawn on top of everything
     /// These widgets continue to animate even during modal dialogs
     /// Matches Borland: TProgram::idle() continues running during execView()
-    pub(crate) overlay_widgets: Vec<Box<dyn IdleView>>,
+    pub(crate) overlay_widgets: Vec<Box<dyn View>>,
     // Note: Command set is now stored in thread-local static (command_set module)
     // This matches Borland's architecture where TView::curCommandSet is static
     /// Help file for F1 context-sensitive help
@@ -196,7 +196,6 @@ impl Application {
     /// # Examples
     /// ```rust,no_run
     /// use turbo_vision::app::Application;
-    /// # use turbo_vision::views::IdleView;
     /// # struct AnimatedWidget(turbo_vision::views::ViewCore);
     /// # impl turbo_vision::views::View for AnimatedWidget {
     /// #     fn core(&self) -> &turbo_vision::views::ViewCore { &self.0 }
@@ -207,15 +206,15 @@ impl Application {
     /// #     fn get_palette(&self) -> Option<turbo_vision::core::palette::Palette> { None }
     /// #     fn as_any(&self) -> &dyn std::any::Any { self }
     /// #     fn as_any_mut(&mut self) -> &mut dyn std::any::Any { self }
+    /// #     fn idle(&mut self) {}
     /// # }
-    /// # impl IdleView for AnimatedWidget { fn idle(&mut self) {} }
     ///
     /// let mut app = Application::new()?;
     /// let widget = AnimatedWidget(turbo_vision::views::ViewCore::default());
     /// app.add_overlay_widget(widget);
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
-    pub fn add_overlay_widget<V: IdleView + 'static>(&mut self, widget: V) {
+    pub fn add_overlay_widget<V: View + 'static>(&mut self, widget: V) {
         self.overlay_widgets.push(Box::new(widget));
     }
 

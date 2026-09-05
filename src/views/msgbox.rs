@@ -18,6 +18,7 @@ pub const MF_WARNING: u16 = 0x0000;
 pub const MF_ERROR: u16 = 0x0001;
 pub const MF_INFORMATION: u16 = 0x0002;
 pub const MF_CONFIRMATION: u16 = 0x0003;
+pub const MF_ABOUT: u16 = 0x0004;
 
 // Button flags
 pub const MF_YES_BUTTON: u16 = 0x0100;
@@ -166,11 +167,12 @@ pub fn message_box_rect(
     options: u16,
 ) -> CommandId {
     // Determine title based on message type
-    let title = match options & 0x03 {
+    let title = match options & 0x0F {
         MF_WARNING => "\u{26A0} Warning",
         MF_ERROR => "\u{274C} Error",
         MF_INFORMATION => "\u{2139}\u{FE0F} Information",
         MF_CONFIRMATION => "\u{2753} Confirm",
+        MF_ABOUT => "\u{2139}\u{FE0F} About",
         _ => "Message",
     };
 

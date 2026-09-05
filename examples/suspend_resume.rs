@@ -6,11 +6,11 @@ use turbo_vision::app::Application;
 use turbo_vision::core::command::CM_QUIT;
 use turbo_vision::core::event::EventType;
 use turbo_vision::core::geometry::Rect;
-use turbo_vision::helpers::msgbox::{MF_INFORMATION, MF_OK_BUTTON, message_box};
 use turbo_vision::views::GroupLike;
 use turbo_vision::views::View;
 use turbo_vision::views::button::ButtonBuilder;
 use turbo_vision::views::dialog::DialogBuilder;
+use turbo_vision::views::msgbox::{MF_INFORMATION, MF_OK_BUTTON, message_box};
 use turbo_vision::views::static_text::StaticTextBuilder;
 
 const CMD_SUSPEND: u16 = 100;

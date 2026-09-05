@@ -499,7 +499,7 @@ fn validate_birth_date(birth_date: &NaiveDate) -> bool {
 
 /// Display application information dialog with biorhythm cycle details
 fn show_about_dialog(app: &mut Application) {
-    use turbo_vision::helpers::msgbox::{MF_ABOUT, MF_OK_BUTTON, message_box};
+    use turbo_vision::views::msgbox::{MF_ABOUT, MF_OK_BUTTON, message_box};
 
     let message = r"Biorhythm Calculator v1.0
 
@@ -535,7 +535,7 @@ fn run_modal_birth_date_dialog(
     app: &mut Application,
     birth_date: Option<&NaiveDate>,
 ) -> Option<NaiveDate> {
-    use turbo_vision::helpers::msgbox::{MF_ERROR, MF_OK_BUTTON, message_box};
+    use turbo_vision::views::msgbox::{MF_ERROR, MF_OK_BUTTON, message_box};
 
     // Loop until user cancels or provides valid input
     loop {

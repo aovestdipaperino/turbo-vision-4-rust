@@ -42,6 +42,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `CM_ZOOM_OUT`, `CM_TOGGLE_SIDEBAR`, `CM_TOGGLE_STATUSBAR`,
   `CM_KEYBOARD_REF`, `CM_LISTBOX_DEMO`, `CM_LISTBOX_SELECT`, `CM_MEMO_DEMO`)
   leave the library; define them in your program.
+- **One message-box module, one `StatusItem`, `idle` on `View`.**
+  `views::msgbox` is the only message-box implementation (it gains
+  `MF_ABOUT`); `helpers::msgbox` re-exports it, with deprecated
+  `input_box` / `input_box_rect` shims keeping the old tuple return.
+  `views::status_line::StatusItem` is now a re-export of
+  `core::status_data::StatusItem`. The `IdleView` trait is gone: `View` has
+  `fn idle(&mut self) {}` and `Application::add_overlay_widget` takes any
+  `View`.
 - **`add` takes any view.** `GroupLike::add`, `Desktop::add`,
   `Application::exec_view` and `add_overlay_widget` accept `impl View`
   (`impl IdleView` for overlays); `Box<dyn View>` still works because a boxed

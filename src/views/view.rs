@@ -242,6 +242,13 @@ pub trait View {
     /// Allows accessing specific view type methods from trait object
     fn as_any(&self) -> &dyn std::any::Any;
 
+    /// Called periodically while the application is idle, so animations and
+    /// timers can advance (Borland: `TProgram::idle`, which keeps running
+    /// during `execView`). Overlay widgets added with
+    /// `Application::add_overlay_widget` get this on every idle tick; the
+    /// default does nothing.
+    fn idle(&mut self) {}
+
     /// The container interface of this view, if it is one (Borland:
     /// `dynamic_cast<TGroup*>`). Containers built on `Group` return `Some`;
     /// leaf views keep the default `None`. `Application::exec_view` uses it
@@ -490,38 +497,6 @@ pub trait View {
     }
 }
 
-/// Trait for views that need idle processing (animations, timers, etc.)
-/// These views have their idle() method called periodically even during modal dialogs,
-/// matching Borland's TProgram::idle() behavior which continues running during execView().
-///
-/// # Examples
-///
-/// ```ignore
-/// use turbo_vision::views::{View, IdleView};
-/// use turbo_vision::terminal::Terminal;
-/// use std::time::Instant;
-///
-/// struct AnimatedWidget {
-///     position: usize,
-///     last_update: Instant,
-///     // ... other View fields
-/// }
-///
-/// impl IdleView for AnimatedWidget {
-///     fn idle(&mut self) {
-///         if self.last_update.elapsed().as_millis() > 100 {
-///             self.position = (self.position + 1) % 10;
-///             self.last_update = Instant::now();
-///         }
-///     }
-/// }
-/// ```
-pub trait IdleView: View {
-    /// Called periodically to update animation state, timers, etc.
-    /// Matches Borland: TProgram::idle() continues running even during modal dialogs
-    fn idle(&mut self);
-}
-
 /// Helper to draw a line to the terminal
 pub fn write_line_to_terminal(terminal: &mut Terminal, x: i16, y: i16, buf: &DrawBuffer) {
     if y < 0 || y >= terminal.size().1 {
@@ -687,17 +662,14 @@ macro_rules! forward_view_through_box {
             fn get_palette(&self) -> Option<crate::core::palette::Palette> {
                 (**self).get_palette()
             }
+            fn idle(&mut self) {
+                (**self).idle()
+            }
         }
     };
 }
 
 forward_view_through_box!(Box<T>);
-
-impl<T: IdleView + ?Sized> IdleView for Box<T> {
-    fn idle(&mut self) {
-        (**self).idle()
-    }
-}
 
 #[cfg(test)]
 mod tests {

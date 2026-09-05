@@ -13,13 +13,13 @@ use turbo_vision::core::event::{Event, EventType};
 use turbo_vision::core::geometry::Rect;
 use turbo_vision::core::menu_data::{Menu, MenuItem};
 use turbo_vision::core::palette::{Attr, Palette, TvColor};
-use turbo_vision::helpers::msgbox::{MF_ABOUT, MF_OK_BUTTON, message_box};
 use turbo_vision::terminal::Terminal;
 use turbo_vision::views::ViewCore;
 use turbo_vision::views::ansi_background::AnsiBackground;
+use turbo_vision::views::msgbox::{MF_ABOUT, MF_OK_BUTTON, message_box};
 use turbo_vision::views::view::write_line_to_terminal;
 use turbo_vision::views::{
-    IdleView, View,
+    View,
     menu_bar::{MenuBar, SubMenu},
     status_line::{StatusItem, StatusLine},
 };
@@ -91,9 +91,7 @@ impl View for CrabWidget {
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
     }
-}
 
-impl IdleView for CrabWidget {
     fn idle(&mut self) {
         // Update animation every 100ms
         if self.last_update.elapsed().as_millis() > 100 {

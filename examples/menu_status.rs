@@ -338,7 +338,7 @@ fn show_message(app: &mut Application, title: &str, message: &str) {
 
 /// Show the About dialog
 fn show_about(app: &mut Application) {
-    use turbo_vision::helpers::msgbox::{MF_ABOUT, MF_OK_BUTTON, message_box};
+    use turbo_vision::views::msgbox::{MF_ABOUT, MF_OK_BUTTON, message_box};
 
     let message = "Welcome To Turbo Vision for Rust!\n\
                    \n\

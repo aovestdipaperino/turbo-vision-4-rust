@@ -3,10 +3,9 @@
 //! StatusLine view - bottom status bar with keyboard shortcuts and context help.
 
 use super::view::{View, ViewCore, write_line_to_terminal};
-use crate::core::command::CommandId;
 use crate::core::command_set;
 use crate::core::draw::DrawBuffer;
-use crate::core::event::{Event, EventType, KeyCode, MB_LEFT_BUTTON};
+use crate::core::event::{Event, EventType, MB_LEFT_BUTTON};
 use crate::core::geometry::Rect;
 use crate::core::palette::{
     STATUSLINE_DISABLED, STATUSLINE_NORMAL, STATUSLINE_SELECTED, STATUSLINE_SELECTED_SHORTCUT,
@@ -14,21 +13,7 @@ use crate::core::palette::{
 };
 use crate::terminal::Terminal;
 
-pub struct StatusItem {
-    pub text: String,
-    pub key_code: KeyCode,
-    pub command: CommandId,
-}
-
-impl StatusItem {
-    pub fn new(text: &str, key_code: KeyCode, command: CommandId) -> Self {
-        Self {
-            text: text.to_string(),
-            key_code,
-            command,
-        }
-    }
-}
+pub use crate::core::status_data::StatusItem;
 
 pub struct StatusLine {
     core: ViewCore,
@@ -367,6 +352,8 @@ impl View for StatusLine {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::command::CommandId;
+    use crate::core::event::KeyCode;
     use crate::core::geometry::Point;
     use crate::views::view::View;
 

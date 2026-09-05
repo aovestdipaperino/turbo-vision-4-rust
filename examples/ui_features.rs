@@ -6,11 +6,11 @@ use turbo_vision::prelude::*;
 use std::time::Duration;
 use turbo_vision::core::command::{CM_NO, CM_QUIT, CM_YES};
 use turbo_vision::core::event::KB_ALT_X;
-use turbo_vision::helpers::msgbox::{
-    MF_CONFIRMATION, MF_INFORMATION, MF_OK_BUTTON, MF_YES_NO_CANCEL, input_box, message_box,
-};
 use turbo_vision::views::button::ButtonBuilder;
 use turbo_vision::views::dialog::DialogBuilder;
+use turbo_vision::views::msgbox::{
+    MF_CONFIRMATION, MF_INFORMATION, MF_OK_BUTTON, MF_YES_NO_CANCEL, input_box, message_box,
+};
 use turbo_vision::views::static_text::StaticTextBuilder;
 
 const CMD_BEEP: u16 = 100;
@@ -113,11 +113,13 @@ fn main() -> turbo_vision::core::error::Result<()> {
                     }
                     CMD_INPUT => {
                         // Feature 3: Input Box
-                        let (result, text) =
-                            input_box(&mut app, "Input Demo", "Enter your name:", "", 50);
-                        if result == turbo_vision::core::command::CM_OK && !text.trim().is_empty() {
-                            let msg = format!("Hello, {}!", text);
-                            message_box(&mut app, &msg, MF_INFORMATION | MF_OK_BUTTON);
+                        if let Some(text) =
+                            input_box(&mut app, "Input Demo", "Enter your name:", "", 50)
+                        {
+                            if !text.trim().is_empty() {
+                                let msg = format!("Hello, {}!", text);
+                                message_box(&mut app, &msg, MF_INFORMATION | MF_OK_BUTTON);
+                            }
                         }
                     }
                     CMD_TITLE => {
