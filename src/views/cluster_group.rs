@@ -399,6 +399,14 @@ impl View for ClusterGroup {
         use crate::core::palette::{Palette, palettes};
         Some(Palette::from_slice(palettes::CP_CLUSTER))
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
 }
 
 /// Generates the shared surface of [`CheckBoxes`] and [`RadioButtons`].

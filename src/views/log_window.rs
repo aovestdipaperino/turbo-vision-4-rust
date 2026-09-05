@@ -315,6 +315,7 @@ impl Default for LogWindowBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::views::View;
 
     #[test]
     fn test_level_attr_colors() {

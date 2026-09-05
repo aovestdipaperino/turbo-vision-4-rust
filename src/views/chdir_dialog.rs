@@ -262,6 +262,14 @@ impl View for SharedDirListBox {
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
         self.inner.borrow().get_palette()
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
 }
 
 /// Change Directory Dialog

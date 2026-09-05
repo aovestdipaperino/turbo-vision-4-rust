@@ -20,7 +20,7 @@ use std::rc::Rc;
 
 /// A `View` that forwards everything to an `Rc<RefCell<T>>` so the same view
 /// can be inserted into a group and still be reached by its creator.
-pub struct Shared<T: View> {
+pub struct Shared<T: View + 'static> {
     inner: Rc<RefCell<T>>,
     /// Mirror of the inner view's base fields so `core()` and
     /// `get_palette_chain()` can hand out references (a `RefCell` borrow
@@ -30,7 +30,7 @@ pub struct Shared<T: View> {
     core: ViewCore,
 }
 
-impl<T: View> Shared<T> {
+impl<T: View + 'static> Shared<T> {
     pub fn new(inner: Rc<RefCell<T>>) -> Self {
         let core = inner.borrow().core().clone();
         Self { inner, core }
@@ -41,7 +41,7 @@ impl<T: View> Shared<T> {
     }
 }
 
-impl<T: View> View for Shared<T> {
+impl<T: View + 'static> View for Shared<T> {
     fn core(&self) -> &ViewCore {
         &self.core
     }
@@ -145,9 +145,17 @@ impl<T: View> View for Shared<T> {
     fn get_palette_chain(&self) -> Option<&PaletteChainNode> {
         self.core.palette_chain.as_ref()
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
 }
 
-impl<T: IdleView> IdleView for Shared<T> {
+impl<T: IdleView + 'static> IdleView for Shared<T> {
     fn idle(&mut self) {
         self.inner.borrow_mut().idle();
     }

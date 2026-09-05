@@ -196,6 +196,14 @@ impl View for ColorSelector {
         // Returning None achieves the same effect - skip to parent's palette
         None
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
 }
 
 /// Builder for creating color selectors with a fluent API.

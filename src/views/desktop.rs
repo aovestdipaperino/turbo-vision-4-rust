@@ -723,6 +723,14 @@ impl View for Desktop {
         let app_palette_data = palettes::get_app_palette();
         Some(Palette::from_slice(&app_palette_data))
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
 }
 
 /// Builder for creating desktops with a fluent API.

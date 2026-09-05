@@ -129,6 +129,14 @@ impl View for BroadcastButton {
     fn get_palette(&self) -> Option<turbo_vision::core::palette::Palette> {
         None
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
 }
 
 fn main() -> turbo_vision::core::error::Result<()> {

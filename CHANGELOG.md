@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed (breaking)
+- **`View::core()` and `View::core_mut()` are required.** Every view owns a
+  `ViewCore` holding `bounds`, `state`, `options`, `grow_mode` and
+  `palette_chain`; the ten field accessors are now trait defaults that read
+  it, so a view can no longer forget to report its state.
+- **`View::as_any()` and `View::as_any_mut()` are required.** The panicking
+  defaults are gone; every view can be downcast.
+- **`GroupLike` and `WindowLike` traits.** `Group`'s and `Window`'s behaviour
+  live in trait defaults with `group_*` / `window_*` names so a container
+  type can make a base call. `Window` and `Dialog` no longer have inherent
+  `add`, `child_*`, `execute`, `end_modal`, `get_end_state` or
+  `set_end_state`; import `GroupLike` (it is in the prelude) to keep calling
+  them. Window-shaped types get their `View` impl from
+  `impl_view_for_window!`, with overrides written inline.
+- **`Shared<T>`** replaces the per-type `SharedScrollBar`, `SharedEditor`,
+  `SharedIndicator`, `SharedHelpViewer` and `SharedTerminalWidget` newtypes.
+
 ## [2.4.0] - 2026-09-05
 
 ### Added

@@ -894,6 +894,14 @@ impl View for Group {
         // Returning None achieves the same effect - skip to parent's palette
         None
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
 }
 
 /// Builder for creating groups with a fluent API.
@@ -976,6 +984,14 @@ mod tests {
             fn get_palette(&self) -> Option<crate::core::palette::Palette> {
                 None
             }
+
+            fn as_any(&self) -> &dyn std::any::Any {
+                self
+            }
+
+            fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+                self
+            }
         }
         impl GroupLike for Counting {
             fn group(&self) -> &Group {
@@ -1035,6 +1051,14 @@ mod tests {
         fn get_palette(&self) -> Option<crate::core::palette::Palette> {
             None
         }
+
+        fn as_any(&self) -> &dyn std::any::Any {
+            self
+        }
+
+        fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+            self
+        }
     }
 
     // Test view that records events, can take focus, and stores a grow mode
@@ -1078,6 +1102,14 @@ mod tests {
 
         fn get_palette(&self) -> Option<crate::core::palette::Palette> {
             None
+        }
+
+        fn as_any(&self) -> &dyn std::any::Any {
+            self
+        }
+
+        fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+            self
         }
     }
 
@@ -1185,6 +1217,14 @@ mod tests {
             }
             fn get_palette(&self) -> Option<crate::core::palette::Palette> {
                 None
+            }
+
+            fn as_any(&self) -> &dyn std::any::Any {
+                self
+            }
+
+            fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+                self
             }
         }
 

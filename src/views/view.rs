@@ -241,15 +241,11 @@ pub trait View {
 
     /// Downcast to concrete type (immutable)
     /// Allows accessing specific view type methods from trait object
-    fn as_any(&self) -> &dyn std::any::Any {
-        panic!("as_any() not implemented for this view type")
-    }
+    fn as_any(&self) -> &dyn std::any::Any;
 
     /// Downcast to concrete type (mutable)
     /// Allows accessing specific view type methods from trait object
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-        panic!("as_any_mut() not implemented for this view type")
-    }
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any;
 
     /// Dump this view's region of the terminal buffer to an ANSI file for debugging
     fn dump_to_file(&self, terminal: &Terminal, path: &str) -> io::Result<()> {
@@ -623,6 +619,20 @@ mod tests {
     use super::*;
 
     #[test]
+    fn every_view_in_a_group_can_be_downcast_without_panicking() {
+        use crate::views::button::Button;
+        use crate::views::group::{Group, GroupLike};
+        use crate::views::static_text::StaticText;
+        let mut g = Group::new(Rect::new(0, 0, 40, 10));
+        g.add(Box::new(Button::new(Rect::new(0, 0, 10, 2), "ok", 1, true)));
+        g.add(Box::new(StaticText::new(Rect::new(0, 3, 10, 4), "hi")));
+        for i in 0..g.len() {
+            let _ = g.child_at(i).as_any(); // would have panicked with the old default
+        }
+        assert!(g.child_at(0).as_any().downcast_ref::<Button>().is_some());
+    }
+
+    #[test]
     fn accessors_read_and_write_the_core() {
         struct Probe(ViewCore);
         impl View for Probe {
@@ -636,6 +646,14 @@ mod tests {
             fn handle_event(&mut self, _e: &mut Event) {}
             fn get_palette(&self) -> Option<crate::core::palette::Palette> {
                 None
+            }
+
+            fn as_any(&self) -> &dyn std::any::Any {
+                self
+            }
+
+            fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+                self
             }
         }
         let mut p = Probe(ViewCore::new(Rect::new(1, 2, 3, 4)));

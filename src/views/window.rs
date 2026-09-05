@@ -1254,6 +1254,14 @@ mod tests {
             fn get_palette(&self) -> Option<crate::core::palette::Palette> {
                 None
             }
+
+            fn as_any(&self) -> &dyn std::any::Any {
+                self
+            }
+
+            fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+                self
+            }
         }
 
         // Window with a vetoing child: CM_CLOSE must NOT mark it closed

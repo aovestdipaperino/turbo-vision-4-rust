@@ -428,6 +428,14 @@ impl View for Frame {
         // Frame indices to Window indices.
         None
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
 }
 
 /// Builder for creating frames with a fluent API.

@@ -99,6 +99,14 @@ impl View for StaticText {
         use crate::core::palette::{Palette, palettes};
         Some(Palette::from_slice(palettes::CP_STATIC_TEXT))
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
 }
 
 /// Builder for creating static text views with a fluent API.

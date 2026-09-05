@@ -83,6 +83,14 @@ impl View for CrabWidget {
     fn get_palette(&self) -> Option<Palette> {
         None
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
 }
 
 impl IdleView for CrabWidget {
@@ -207,6 +215,14 @@ impl View for LogoBackground {
 
     fn get_palette(&self) -> Option<turbo_vision::core::palette::Palette> {
         None
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
     }
 }
 

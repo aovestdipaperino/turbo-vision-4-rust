@@ -149,6 +149,14 @@ impl View for History {
         use crate::core::palette::{Palette, palettes};
         Some(Palette::from_slice(palettes::CP_HISTORY))
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
 }
 
 /// Builder for creating history buttons with a fluent API.

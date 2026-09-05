@@ -794,6 +794,14 @@ impl View for MenuBar {
         use crate::core::palette::{Palette, palettes};
         Some(Palette::from_slice(palettes::CP_MENU_BAR))
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
 }
 
 // Implement MenuViewer trait for dropdown menu items

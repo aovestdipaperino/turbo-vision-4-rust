@@ -2072,6 +2072,14 @@ impl View for EditorWindow {
         // Matches Borland: cpEditor = [6, 7] for normal and selected text
         Some(Palette::from_slice(palettes::CP_EDITOR))
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
 }
 
 #[cfg(test)]

@@ -543,6 +543,14 @@ impl View for InputLine {
         use crate::core::palette::{Palette, palettes};
         Some(Palette::from_slice(palettes::CP_INPUT_LINE))
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
 }
 
 /// Builder for creating input lines with a fluent API.

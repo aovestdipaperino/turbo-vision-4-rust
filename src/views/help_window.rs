@@ -316,6 +316,7 @@ crate::impl_view_for_window!(HelpWindow {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::views::View;
     use std::io::Write;
     use tempfile::NamedTempFile;
 

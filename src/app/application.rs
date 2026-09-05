@@ -159,6 +159,8 @@ impl Application {
     /// #     fn handle_event(&mut self, _: &mut turbo_vision::core::event::Event) {}
     /// #     fn update_cursor(&self, _: &mut turbo_vision::terminal::Terminal) {}
     /// #     fn get_palette(&self) -> Option<turbo_vision::core::palette::Palette> { None }
+    /// #     fn as_any(&self) -> &dyn std::any::Any { self }
+    /// #     fn as_any_mut(&mut self) -> &mut dyn std::any::Any { self }
     /// # }
     /// # impl IdleView for AnimatedWidget { fn idle(&mut self) {} }
     ///
@@ -1042,6 +1044,14 @@ mod resize_tests {
         fn get_palette(&self) -> Option<crate::core::palette::Palette> {
             None
         }
+
+        fn as_any(&self) -> &dyn std::any::Any {
+            self
+        }
+
+        fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+            self
+        }
     }
 
     /// Wraps a plain `Group` so it can itself be added as a Desktop child;
@@ -1072,6 +1082,14 @@ mod resize_tests {
         }
         fn get_palette(&self) -> Option<crate::core::palette::Palette> {
             None
+        }
+
+        fn as_any(&self) -> &dyn std::any::Any {
+            self
+        }
+
+        fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+            self
         }
     }
 

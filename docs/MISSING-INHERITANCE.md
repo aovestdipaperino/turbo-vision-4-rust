@@ -1379,11 +1379,11 @@ git commit -m "refactor(views): all window-shaped types implement WindowLike via
 - Modify: `src/views/shared.rs` (add the two methods returning `self`)
 - Modify: `CHANGELOG.md` (`Unreleased` entry: `View::as_any` and `as_any_mut` are now required)
 
-- [ ] **Step 1: Remove the defaults**
+- [x] **Step 1: Remove the defaults**
 
 Delete the bodies of `as_any` and `as_any_mut` in `pub trait View`, leaving the two signatures. Run `cargo build --all-targets 2>&1 | grep -c "missing.*as_any"` and note the count.
 
-- [ ] **Step 2: Add the two methods to each listed type**
+- [x] **Step 2: Add the two methods to each listed type**
 
 For each error, add to that type's `impl View for X`:
 
@@ -1394,7 +1394,7 @@ For each error, add to that type's `impl View for X`:
 
 Types produced by `impl_view_for_window!` already have them.
 
-- [ ] **Step 3: Write the regression test**
+- [x] **Step 3: Write the regression test**
 
 ```rust
 // src/views/view.rs tests
@@ -1414,7 +1414,7 @@ fn every_view_in_a_group_can_be_downcast_without_panicking() {
 
 Run: `cargo test --lib views::view::tests`. Expected: PASS.
 
-- [ ] **Step 4: Full suite and commit**
+- [x] **Step 4: Full suite and commit**
 
 ```bash
 cargo test && cargo clippy --all-targets -- -D warnings

@@ -152,6 +152,14 @@ impl View for ClockView {
     fn get_palette(&self) -> Option<turbo_vision::core::palette::Palette> {
         None
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
 }
 
 // Animated Crab Widget for Status Bar
@@ -229,6 +237,14 @@ impl View for CrabWidget {
 
     fn get_palette(&self) -> Option<Palette> {
         None
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
     }
 }
 
@@ -430,6 +446,14 @@ impl View for AsciiTable {
 
     fn get_palette(&self) -> Option<turbo_vision::core::palette::Palette> {
         None
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
     }
 }
 
@@ -706,6 +730,14 @@ impl View for CalcDisplay {
 
     fn get_palette(&self) -> Option<turbo_vision::core::palette::Palette> {
         None // CalcDisplay uses hardcoded colors
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
     }
 }
 
@@ -1054,6 +1086,14 @@ impl View for CalendarView {
     fn get_palette(&self) -> Option<turbo_vision::core::palette::Palette> {
         None
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
 }
 
 fn show_calendar_placeholder(app: &mut Application) {
@@ -1340,6 +1380,14 @@ impl View for PuzzleView {
 
     fn get_palette(&self) -> Option<turbo_vision::core::palette::Palette> {
         None
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
     }
 }
 

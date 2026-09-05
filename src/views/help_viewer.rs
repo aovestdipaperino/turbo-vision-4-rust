@@ -608,6 +608,14 @@ impl View for HelpViewer {
         use crate::core::palette::{Palette, palettes};
         Some(Palette::from_slice(palettes::CP_HELP_VIEWER))
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
 }
 
 /// Builder for creating help viewers with a fluent API.

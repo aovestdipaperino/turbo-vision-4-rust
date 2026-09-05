@@ -446,6 +446,14 @@ impl View for HeaderPainter {
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
         Some(crate::core::palette::Palette::from_slice(self.palette))
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
 }
 
 impl View for TabbedPane {
