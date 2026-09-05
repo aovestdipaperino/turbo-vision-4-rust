@@ -105,7 +105,11 @@ Borland's `TView` is, and its owner's clip is what stops it.
 `window_draw`, `Desktop::draw` and `Application::draw` follow the same pattern
 for the children they hold directly (frame, interior, menu bar, status line).
 `group_update_cursor` pushes the focused child's origin before delegating so that
-`show_cursor` lands in the right cell. `write_line_to_terminal` and
+`show_cursor` lands in the right cell. Two helpers in `views::view` capture the
+pattern for any view that holds children by value: `draw_child(terminal, child)`
+and `dispatch_to_child(child, event)`. Code outside the tree that draws a
+top-level view itself, as several examples do in hand-written loops, calls
+`terminal.draw_view(&mut view)`, which is the same push, draw, pop. `write_line_to_terminal` and
 `draw_shadow_bounds` lose their `y < 0` and `x.max(0)` guards, since the terminal
 now clips after translation.
 

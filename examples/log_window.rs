@@ -82,11 +82,11 @@ fn main() -> turbo_vision::core::error::Result<()> {
         // Poll for events with timeout (allows periodic heartbeat)
         if let Ok(Some(mut event)) = app.terminal.poll_event(Duration::from_millis(100)) {
             // Desktop handles window focus, dragging, etc.
-            app.desktop.handle_event(&mut event);
+            turbo_vision::views::view::dispatch_to_child(&mut app.desktop, &mut event);
 
             // Status line converts key shortcuts to commands (KB_F5 -> CM_BURST)
             if let Some(ref mut status_line) = app.status_line {
-                status_line.handle_event(&mut event);
+                turbo_vision::views::view::dispatch_to_child(status_line, &mut event);
             }
 
             // Handle commands after status line has had a chance to convert keys

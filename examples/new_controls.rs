@@ -226,9 +226,9 @@ fn run_loop(app: &mut Application, handles: &Handles) {
     loop {
         apply_settings(app, handles);
 
-        app.desktop.draw(&mut app.terminal);
+        app.terminal.draw_view(&mut app.desktop);
         if let Some(ref mut status) = app.status_line {
-            status.draw(&mut app.terminal);
+            app.terminal.draw_view(status);
         }
         let _ = app.terminal.flush();
 
@@ -245,7 +245,7 @@ fn run_loop(app: &mut Application, handles: &Handles) {
             break;
         }
 
-        app.desktop.handle_event(&mut event);
+        turbo_vision::views::view::dispatch_to_child(&mut app.desktop, &mut event);
 
         if event.what == EventType::Command {
             if event.command == CM_QUIT {

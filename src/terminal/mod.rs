@@ -407,6 +407,16 @@ impl Terminal {
         self.origin_stack.pop();
     }
 
+    /// Draw a view in its own coordinate space: push its origin, call `draw`,
+    /// pop. Use this whenever code outside the view tree draws a top-level
+    /// view itself (`app.terminal.draw_view(&mut app.desktop)`); calling
+    /// `view.draw(&mut terminal)` directly paints it at the current origin.
+    pub fn draw_view(&mut self, view: &mut (impl crate::views::View + ?Sized)) {
+        self.push_origin(view.bounds().a);
+        view.draw(self);
+        self.pop_origin();
+    }
+
     /// The accumulated origin: where the current local `(0, 0)` is on screen.
     pub fn origin(&self) -> Point {
         self.origin_stack

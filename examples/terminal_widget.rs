@@ -253,9 +253,9 @@ fn main() -> turbo_vision::core::error::Result<()> {
     while app.running {
         // Call idle() to broadcast command set changes, then draw
         app.idle();
-        app.desktop.draw(&mut app.terminal);
+        app.terminal.draw_view(&mut app.desktop);
         if let Some(ref mut status_line) = app.status_line {
-            status_line.draw(&mut app.terminal);
+            app.terminal.draw_view(status_line);
         }
         let _ = app.terminal.flush();
 
@@ -269,10 +269,10 @@ fn main() -> turbo_vision::core::error::Result<()> {
             .ok()
             .flatten()
         {
-            app.desktop.handle_event(&mut event);
+            turbo_vision::views::view::dispatch_to_child(&mut app.desktop, &mut event);
 
             if let Some(ref mut status_line) = app.status_line {
-                status_line.handle_event(&mut event);
+                turbo_vision::views::view::dispatch_to_child(status_line, &mut event);
             }
 
             if event.what == EventType::Command {

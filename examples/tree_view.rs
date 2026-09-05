@@ -39,7 +39,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
 
     // Simple event loop
     loop {
-        app.desktop.draw(&mut app.terminal);
+        app.terminal.draw_view(&mut app.desktop);
         let _ = app.terminal.flush();
 
         if let Some(mut event) = app
@@ -48,7 +48,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
             .ok()
             .flatten()
         {
-            app.desktop.handle_event(&mut event);
+            turbo_vision::views::view::dispatch_to_child(&mut app.desktop, &mut event);
 
             // Handle Alt+X to quit
             if event.what == turbo_vision::core::event::EventType::Keyboard {

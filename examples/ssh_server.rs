@@ -90,7 +90,7 @@ fn run_tui_inner(mut terminal: Terminal) {
 
         // Handle events
         if let Ok(Some(mut event)) = terminal.poll_event(Duration::from_millis(50)) {
-            dialog.handle_event(&mut event);
+            turbo_vision::views::view::dispatch_to_child(&mut dialog, &mut event);
 
             // Check if dialog ended via button press
             // Dialog::handle_event() intercepts commands and calls end_modal(),

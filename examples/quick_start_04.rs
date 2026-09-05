@@ -87,12 +87,12 @@ fn run_event_loop(app: &mut Application) {
         {
             // Handles menu navigation
             if let Some(ref mut menu_bar) = app.menu_bar {
-                menu_bar.handle_event(&mut event);
+                turbo_vision::views::view::dispatch_to_child(menu_bar, &mut event);
             }
 
             // Handles status line shortcuts
             if let Some(ref mut status_line) = app.status_line {
-                status_line.handle_event(&mut event);
+                turbo_vision::views::view::dispatch_to_child(status_line, &mut event);
             }
 
             // Handles command
@@ -124,12 +124,12 @@ fn handle_command(app: &mut Application, command: u16) {
 
 /// Redraw UI components (desktop, menu bar, status line)
 fn redraw_screen(app: &mut Application) {
-    app.desktop.draw(&mut app.terminal);
+    app.terminal.draw_view(&mut app.desktop);
     if let Some(ref mut menu_bar) = app.menu_bar {
-        menu_bar.draw(&mut app.terminal);
+        app.terminal.draw_view(menu_bar);
     }
     if let Some(ref mut status_line) = app.status_line {
-        status_line.draw(&mut app.terminal);
+        app.terminal.draw_view(status_line);
     }
     let _ = app.terminal.flush();
 }

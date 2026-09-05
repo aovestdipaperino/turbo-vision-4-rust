@@ -91,11 +91,11 @@ fn run_event_loop(app: &mut Application) {
             handle_global_shortcuts(&mut event);
 
             if let Some(ref mut menu_bar) = app.menu_bar {
-                menu_bar.handle_event(&mut event); // Handle F10 when pressed
+                turbo_vision::views::view::dispatch_to_child(menu_bar, &mut event); // Handle F10 when pressed
             }
 
             if let Some(ref mut status_line) = app.status_line {
-                status_line.handle_event(&mut event);
+                turbo_vision::views::view::dispatch_to_child(status_line, &mut event);
             }
 
             if event.what == EventType::Command {
@@ -125,12 +125,12 @@ fn handle_command(app: &mut Application, command: u16) {
 }
 
 fn redraw_screen(app: &mut Application) {
-    app.desktop.draw(&mut app.terminal);
+    app.terminal.draw_view(&mut app.desktop);
     if let Some(ref mut menu_bar) = app.menu_bar {
-        menu_bar.draw(&mut app.terminal);
+        app.terminal.draw_view(menu_bar);
     }
     if let Some(ref mut status_line) = app.status_line {
-        status_line.draw(&mut app.terminal);
+        app.terminal.draw_view(status_line);
     }
     let _ = app.terminal.flush();
 }

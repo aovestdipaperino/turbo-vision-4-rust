@@ -282,7 +282,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
     // Run the application
     app.running = true;
     while app.running {
-        app.desktop.draw(&mut app.terminal);
+        app.terminal.draw_view(&mut app.desktop);
         let _ = app.terminal.flush();
 
         if let Ok(Some(mut event)) = app
@@ -298,7 +298,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
                 }
             }
 
-            app.desktop.handle_event(&mut event);
+            turbo_vision::views::view::dispatch_to_child(&mut app.desktop, &mut event);
 
             if event.what == EventType::Command && event.command == CM_QUIT {
                 let _ = app.terminal.clear_kitty_images();

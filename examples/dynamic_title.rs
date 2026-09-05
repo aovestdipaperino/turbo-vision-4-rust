@@ -58,7 +58,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
     let mut title_index = 0;
 
     loop {
-        app.desktop.draw(&mut app.terminal);
+        app.terminal.draw_view(&mut app.desktop);
         let _ = app.terminal.flush();
 
         if let Some(mut event) = app
@@ -67,7 +67,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
             .ok()
             .flatten()
         {
-            app.desktop.handle_event(&mut event);
+            turbo_vision::views::view::dispatch_to_child(&mut app.desktop, &mut event);
 
             if event.what == EventType::Command {
                 match event.command {

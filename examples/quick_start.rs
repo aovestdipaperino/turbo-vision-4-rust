@@ -26,13 +26,13 @@ fn main() -> turbo_vision::core::error::Result<()> {
     // Event loop
     app.running = true;
     while app.running {
-        app.desktop.draw(&mut app.terminal);
+        app.terminal.draw_view(&mut app.desktop);
         app.terminal.flush()?;
         if let Ok(Some(mut event)) = app
             .terminal
             .poll_event(std::time::Duration::from_millis(50))
         {
-            app.desktop.handle_event(&mut event);
+            turbo_vision::views::view::dispatch_to_child(&mut app.desktop, &mut event);
             if event.command == CM_OK {
                 // Handle button click
                 app.running = false;

@@ -148,8 +148,8 @@ fn draw_screen(
     case_sensitive: bool,
 ) {
     // Draw base elements
-    app.desktop.draw(&mut app.terminal);
-    listbox.draw(&mut app.terminal);
+    app.terminal.draw_view(&mut app.desktop);
+    app.terminal.draw_view(listbox);
 
     // Draw instructions panel
     draw_instructions_panel(&mut app.terminal, instructions, case_sensitive);
@@ -159,7 +159,7 @@ fn draw_screen(
 
     // Draw status line
     if let Some(ref mut status_line) = app.status_line {
-        status_line.draw(&mut app.terminal);
+        app.terminal.draw_view(status_line);
     }
 
     let _ = app.terminal.flush();

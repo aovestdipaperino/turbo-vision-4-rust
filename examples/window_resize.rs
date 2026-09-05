@@ -59,12 +59,12 @@ fn run_event_loop(app: &mut Application) {
     app.running = true;
     while app.running {
         // Draw everything
-        app.desktop.draw(&mut app.terminal);
+        app.terminal.draw_view(&mut app.desktop);
         if let Some(ref mut menu_bar) = app.menu_bar {
-            menu_bar.draw(&mut app.terminal);
+            app.terminal.draw_view(menu_bar);
         }
         if let Some(ref mut status_line) = app.status_line {
-            status_line.draw(&mut app.terminal);
+            app.terminal.draw_view(status_line);
         }
         let _ = app.terminal.flush();
 
@@ -92,25 +92,25 @@ fn run_event_loop(app: &mut Application) {
 
             // Menu bar handles events FIRST (priority when menu is open)
             if let Some(ref mut menu_bar) = app.menu_bar {
-                menu_bar.handle_event(&mut event);
+                turbo_vision::views::view::dispatch_to_child(menu_bar, &mut event);
             }
 
             // Desktop handles events AFTER menu bar (only if not consumed)
-            app.desktop.handle_event(&mut event);
+            turbo_vision::views::view::dispatch_to_child(&mut app.desktop, &mut event);
 
             // Status line handles events
             if let Some(ref mut status_line) = app.status_line {
-                status_line.handle_event(&mut event);
+                turbo_vision::views::view::dispatch_to_child(status_line, &mut event);
             }
 
             // Redraw before showing dialog
             if event.what == EventType::Command {
-                app.desktop.draw(&mut app.terminal);
+                app.terminal.draw_view(&mut app.desktop);
                 if let Some(ref mut menu_bar) = app.menu_bar {
-                    menu_bar.draw(&mut app.terminal);
+                    app.terminal.draw_view(menu_bar);
                 }
                 if let Some(ref mut status_line) = app.status_line {
-                    status_line.draw(&mut app.terminal);
+                    app.terminal.draw_view(status_line);
                 }
                 let _ = app.terminal.flush();
             }

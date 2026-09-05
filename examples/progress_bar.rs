@@ -54,8 +54,8 @@ impl View for DemoRow {
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        self.label.draw(terminal);
-        self.bar.draw(terminal);
+        terminal.draw_view(&mut self.label);
+        terminal.draw_view(&mut self.bar);
     }
 
     fn handle_event(&mut self, _event: &mut Event) {}

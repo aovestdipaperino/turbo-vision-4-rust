@@ -96,9 +96,9 @@ fn main() -> turbo_vision::core::error::Result<()> {
     ));
 
     loop {
-        app.desktop.draw(&mut app.terminal);
+        app.terminal.draw_view(&mut app.desktop);
         if let Some(ref mut status) = app.status_line {
-            status.draw(&mut app.terminal);
+            app.terminal.draw_view(status);
         }
         let _ = app.terminal.flush();
 
@@ -107,7 +107,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
                 if event.what == EventType::Keyboard && event.key_code == KB_ALT_X {
                     break;
                 }
-                app.desktop.handle_event(&mut event);
+                turbo_vision::views::view::dispatch_to_child(&mut app.desktop, &mut event);
                 if event.what == EventType::Command && event.command == CM_QUIT {
                     break;
                 }

@@ -47,9 +47,9 @@ fn main() -> turbo_vision::core::error::Result<()> {
 
     loop {
         // Draw everything
-        dir_list.draw(&mut app.terminal);
-        file_list.draw(&mut app.terminal);
-        status.draw(&mut app.terminal);
+        app.terminal.draw_view(&mut dir_list);
+        app.terminal.draw_view(&mut file_list);
+        app.terminal.draw_view(&mut status);
 
         // Update cursor
         if focused_left {
@@ -77,14 +77,14 @@ fn main() -> turbo_vision::core::error::Result<()> {
 
             // Let focused panel handle the event
             if focused_left {
-                dir_list.handle_event(&mut event);
+                turbo_vision::views::view::dispatch_to_child(&mut dir_list, &mut event);
 
                 // Sync file list with directory list
                 if dir_list.current_path() != file_list.current_path() {
                     let _ = file_list.change_dir(dir_list.current_path());
                 }
             } else {
-                file_list.handle_event(&mut event);
+                turbo_vision::views::view::dispatch_to_child(&mut file_list, &mut event);
 
                 // Sync directory list with file list (if directory changed)
                 if file_list.current_path() != dir_list.current_path() {

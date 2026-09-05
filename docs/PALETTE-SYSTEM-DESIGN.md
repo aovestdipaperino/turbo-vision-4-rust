@@ -108,7 +108,7 @@ fn map_color(&self, color_index: u8) -> Attr;          // original signature pre
 // New methods (with defaults):
 fn set_palette_chain(&mut self, _: Option<PaletteChainNode>) {}
 fn get_palette_chain(&self) -> Option<&PaletteChainNode> { None }
-fn set_parent_bounds(&mut self, _: Rect) {}             // for Window drag limits
+fn set_owner_extent(&mut self, _: Rect) {}              // for Window drag limits
 ```
 
 ### Chain setup during draw
@@ -148,8 +148,8 @@ No token parameter needed -- `palette_token()` returns `&'static QCellOwner`.
 
 ### Non-palette owner uses
 
-**Window drag limits**: `Desktop::add()` calls `view.set_parent_bounds(self.bounds())`
-so that `Window::get_drag_limits()` returns the desktop bounds without any pointer.
+**Window drag limits**: `Desktop::add()` calls `view.set_owner_extent(self.extent())`
+so that `Window::get_drag_limits()` returns the desktop's extent without any pointer.
 
 **Label hotkey focus**: Label emits a `CM_FOCUS_LINK` broadcast event. Group
 handles it by calling `focus_by_view_id()`. No unsafe cast to `&mut Group`.

@@ -9,7 +9,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 A major release: the `View` trait changes for every downstream crate, so the
 other API changes that needed a breaking release ride along. The analysis and
-plan are in `docs/MISSING-INHERITANCE.md`.
+plan are in `docs/MISSING-INHERITANCE.md`; the coordinate model is in
+`docs/OWNER-COORDINATES.md`.
+
+### Migrating to owner-relative coordinates
+
+A view's `bounds()` are now relative to its owner, as Borland's `TView::origin`
+is, and stay put when the owner moves. A view draws in its own space, `(0, 0)`
+to `extent()`, and mouse positions arrive in that same space; the owner
+translates on the way down and back up.
+
+```rust
+// 2.x: bounds were screen coordinates once added
+let x = self.bounds().a.x;
+write_line_to_terminal(terminal, x, self.bounds().a.y + row, &buf);
+if self.bounds().contains(event.mouse.pos) { .. }
+
+// 3.0.0: draw at (0, 0); mouse positions are view-local
+write_line_to_terminal(terminal, 0, row, &buf);
+if self.extent().contains(event.mouse.pos) { .. }
+```
+
+A view that holds children by value pushes each child's origin around its
+`draw` and dispatches events in the child's space: `views::view::draw_child`
+and `views::view::dispatch_to_child` do both. Code outside the tree that draws
+a top-level view itself (`app.desktop.draw(&mut app.terminal)` in a custom
+loop) calls `app.terminal.draw_view(&mut app.desktop)` instead, and dispatches
+with `dispatch_to_child(&mut app.desktop, &mut event)`. Positions given when
+adding a child were always owner-relative and do not change.
 
 ### Migrating a downstream view
 
@@ -63,6 +90,13 @@ impl_view_for_window!(MyWindow {
 
 
 ### Added
+- **Owner-relative coordinates.** `View::extent()` (Borland `getExtent`);
+  `Terminal::push_origin` / `pop_origin` / `origin` and `Terminal::draw_view`;
+  `views::view::draw_child` and `dispatch_to_child` for owners that hold
+  children by value. `Terminal::write_cell`, `write_line`, `read_cell`,
+  `show_cursor` and `push_clip` take local `i16` coordinates and translate by
+  the pushed origins. `TestBackend::cursor_handle` reads back the cursor
+  position a test drew.
 - **`AppHandler` and `Application::run_with`.** Application-level hooks
   (`pre_event`, `handle_command`, `idle`, `window_closed`) replace the
   hand-written copies of the event loop that programs wrote to handle their
@@ -79,6 +113,17 @@ impl_view_for_window!(MyWindow {
   three methods for its windows.
 
 ### Changed (breaking)
+- **Owner-relative coordinates.** `Group::add`, `Window::add` and
+  `Window::add_frame_child` store the bounds they are given instead of
+  converting them to screen coordinates; `group_set_bounds` no longer shifts
+  children on a move, only applies the grow bits on a resize (Borland:
+  `TGroup::changeBounds`). Every view draws at `(0, 0)` and sees view-local
+  mouse positions (see the migration section above). `set_parent_bounds` is
+  `set_owner_extent` and receives the owner's extent; `make_global` and
+  `make_local` convert one hop, between a view and its owner. Standalone
+  popups (`MenuBox`, `HistoryWindow`, the combo box drop-down) push their own
+  origin. Tests that inspected a child's `bounds()` after adding it now see
+  owner coordinates.
 - **Typed flag sets.** `State`, `Options` and `Grow` (in `core::state`),
   `MsgBox` (in `views::msgbox`) and `ValidatorOptions` (in
   `views::validator`) replace the bare `u16` / `u8` bit masks, so a state

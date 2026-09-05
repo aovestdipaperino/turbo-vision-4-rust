@@ -380,7 +380,7 @@ Generated: 2025-11-06
 - `can_focus() -> bool` (false), `set_focus(bool)`, `update_cursor(&Terminal)`, `zoom(Rect)`, `valid(CommandId) -> bool` (true)
 - `idle(&mut self)` - Called on every idle tick for overlay widgets (no-op by default)
 - `as_group() -> Option<&dyn GroupLike>` / `as_group_mut()` - The container interface, if the view is one (Borland: `dynamic_cast<TGroup*>`)
-- `window_number()`, `label_link()`, `init_after_add()`, `constrain_to_parent_bounds()`, `set_parent_bounds(Rect)`, `get_redraw_union()`, `clear_move_tracking()`, `dump_to_file(..)`
+- `window_number()`, `label_link()`, `init_after_add()`, `constrain_to_parent_bounds()`, `set_owner_extent(Rect)`, `extent() -> Rect` (the view's own `(0,0,w,h)`; bounds are owner-relative), `get_redraw_union()`, `clear_move_tracking()`, `dump_to_file(..)`
 
 A `Box<T: View>` is itself a `View`, so `add(Box::new(v))` and `add(v)` are both accepted.
 
@@ -410,7 +410,7 @@ A `Box<T: View>` is itself a `View`, so `add(Box::new(v))` and `add(v)` are both
 
 `WindowLike: GroupLike` - Borland's `TWindow` behaviour as `window_*` default methods over a `Window`.
 - Required: `window(&self) -> &Window`, `window_mut(&mut self) -> &mut Window`
-- Base implementations: `window_set_bounds`, `window_draw`, `window_update_cursor`, `window_handle_event`, `window_set_focus`, `window_zoom`, `window_valid`, `window_get_palette`, `window_init_after_add`, `window_constrain_to_parent_bounds`, `window_set_parent_bounds`
+- Base implementations: `window_set_bounds`, `window_draw`, `window_update_cursor`, `window_handle_event`, `window_set_focus`, `window_zoom`, `window_valid`, `window_get_palette`, `window_init_after_add`, `window_constrain_to_parent_bounds`, `window_set_owner_extent`
 - `impl_view_for_window!(MyWindow)` generates `impl View for MyWindow` forwarding every method to the `window_*` body; `impl_view_for_window!(MyWindow { fn handle_event(..) { self.window_handle_event(event); .. } })` writes overrides inline, and the base stays reachable by its `window_*` name.
 
 #### Shared Struct (`src/views/shared.rs`)

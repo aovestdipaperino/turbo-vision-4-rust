@@ -185,7 +185,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
     // Event loop
     loop {
         // Draw
-        app.desktop.draw(&mut app.terminal);
+        app.terminal.draw_view(&mut app.desktop);
 
         // Draw title
         let mut title_buf = DrawBuffer::new(group_width as usize);
@@ -231,7 +231,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
             &info_buf,
         );
 
-        group.draw(&mut app.terminal);
+        app.terminal.draw_view(&mut group);
         let _ = app.terminal.flush();
 
         // Poll events
@@ -249,7 +249,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
             }
 
             // Let group handle event
-            group.handle_event(&mut event);
+            turbo_vision::views::view::dispatch_to_child(&mut group, &mut event);
 
             // Check if a button was clicked
             if event.what == EventType::Command

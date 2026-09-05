@@ -494,9 +494,7 @@ pub trait View {
 /// Draw a child view in its own coordinate space: push its origin, draw,
 /// pop. Every owner that holds children by value uses this.
 pub fn draw_child(terminal: &mut Terminal, child: &mut (impl View + ?Sized)) {
-    terminal.push_origin(child.bounds().a);
-    child.draw(terminal);
-    terminal.pop_origin();
+    terminal.draw_view(child);
 }
 
 /// Hand an event to a child view in the child's coordinate space and put

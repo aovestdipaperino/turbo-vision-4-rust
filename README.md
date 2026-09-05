@@ -67,7 +67,7 @@ The built-in file dialog with directory navigation, file list, and keyboard/mous
   - Owner-aware broadcast system to prevent echo back to sender
 - **Mouse Support**: Full mouse support for buttons, menus, status bar, dialog close buttons, scroll wheel, and double-click detection
 - **Window Dragging and Resizing**: Drag windows by title bar, resize by bottom-right corner
-- **Flexible Layout System**: Geometry primitives with absolute and relative positioning
+- **Owner-Relative Layout**: Children keep coordinates relative to their owner, as in Borland's `TView::origin`; views draw at `(0,0)` and the owners translate (see `docs/OWNER-COORDINATES.md`)
 - **Color Support**: 16-color palette with Borland-accurate attribute system and context-aware remapping
 - **Text Styling**: Bold, dim, italic, underline, reverse, and strikethrough attributes — composable via `Attr::new(fg, bg).bold().italic()`, emitted as real SGR codes on the terminal and in ANSI dumps (see `cargo run --example text_styling`)
 - **Editor Selection**: Stream selection (Shift+arrows / drag) plus rectangular **block selection** with columnar copy/cut and single-step undo, switched with the global block-edit mode (`Application::set_block_edit_mode`, `CM_TOGGLE_BLOCK_MODE`) rather than a modifier key; `CM_SELECT_ALL` command and Ctrl+A select all content of the focused window

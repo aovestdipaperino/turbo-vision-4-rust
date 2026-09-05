@@ -373,7 +373,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
         {
             // Menu bar handles events first
             if let Some(ref mut menu_bar) = app.menu_bar {
-                menu_bar.handle_event(&mut event);
+                turbo_vision::views::view::dispatch_to_child(menu_bar, &mut event);
 
                 // Check for cascading submenu
                 if event.what == EventType::Keyboard || event.what == EventType::MouseUp {
@@ -387,11 +387,11 @@ fn main() -> turbo_vision::core::error::Result<()> {
 
             // Status line handles events
             if let Some(ref mut status_line) = app.status_line {
-                status_line.handle_event(&mut event);
+                turbo_vision::views::view::dispatch_to_child(status_line, &mut event);
             }
 
             // Desktop handles events
-            app.desktop.handle_event(&mut event);
+            turbo_vision::views::view::dispatch_to_child(&mut app.desktop, &mut event);
 
             // Handle commands
             if event.what == EventType::Command {

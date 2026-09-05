@@ -1721,7 +1721,7 @@ fn run_event_loop(
 
         // Draw everything
         app.draw();
-        clock.draw(&mut app.terminal);
+        app.terminal.draw_view(clock);
         app.terminal.flush()?;
 
         // Poll for events
@@ -1739,7 +1739,7 @@ fn run_event_loop(
                 // Redraw if needed (after modal dialogs)
                 if needs_redraw {
                     app.draw();
-                    clock.draw(&mut app.terminal);
+                    app.terminal.draw_view(clock);
                     app.terminal.flush()?;
                 }
             }
@@ -1762,14 +1762,14 @@ fn main() -> turbo_vision::core::error::Result<()> {
     let (mut app, mut clock, crab_widget) = init_application()?;
 
     // Initial draw
-    app.desktop.draw(&mut app.terminal);
+    app.terminal.draw_view(&mut app.desktop);
     if let Some(ref mut menu_bar) = app.menu_bar {
-        menu_bar.draw(&mut app.terminal);
+        app.terminal.draw_view(menu_bar);
     }
     if let Some(ref mut status_line) = app.status_line {
-        status_line.draw(&mut app.terminal);
+        app.terminal.draw_view(status_line);
     }
-    clock.draw(&mut app.terminal);
+    app.terminal.draw_view(&mut clock);
     app.terminal.flush()?;
 
     // Show about dialog on startup

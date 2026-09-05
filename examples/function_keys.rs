@@ -35,7 +35,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
     // Event loop
     while app.running {
         // Draw everything
-        app.desktop.draw(&mut app.terminal);
+        app.terminal.draw_view(&mut app.desktop);
 
         // Configuration for the "box"
         let box_width = 40;
@@ -107,7 +107,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
 
         // Draw status line
         if let Some(ref mut status_line) = app.status_line {
-            status_line.draw(&mut app.terminal);
+            app.terminal.draw_view(status_line);
         }
 
         let _ = app.terminal.flush();
@@ -119,7 +119,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
         {
             // Status line handles shortcuts
             if let Some(ref mut status_line) = app.status_line {
-                status_line.handle_event(&mut event);
+                turbo_vision::views::view::dispatch_to_child(status_line, &mut event);
             }
 
             // Handle commands
