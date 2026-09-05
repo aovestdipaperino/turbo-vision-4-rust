@@ -513,6 +513,10 @@ impl View for Dialog {
         self.window.get_end_state()
     }
 
+    fn set_end_state(&mut self, command: crate::core::command::CommandId) {
+        self.window.set_end_state(command);
+    }
+
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
     }

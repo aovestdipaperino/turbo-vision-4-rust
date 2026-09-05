@@ -814,6 +814,63 @@ impl View for FileDialog {
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
         self.dialog.get_palette()
     }
+
+    fn can_focus(&self) -> bool {
+        self.dialog.can_focus()
+    }
+
+    fn set_focus(&mut self, focused: bool) {
+        self.dialog.set_focus(focused);
+    }
+
+    fn update_cursor(&self, terminal: &mut Terminal) {
+        self.dialog.update_cursor(terminal);
+    }
+
+    fn valid(&mut self, command: CommandId) -> bool {
+        self.dialog.valid(command)
+    }
+
+    fn get_end_state(&self) -> CommandId {
+        View::get_end_state(&self.dialog)
+    }
+
+    fn set_end_state(&mut self, command: CommandId) {
+        View::set_end_state(&mut self.dialog, command);
+    }
+
+    fn init_after_add(&mut self) {
+        self.dialog.init_after_add();
+    }
+
+    fn constrain_to_parent_bounds(&mut self) {
+        self.dialog.constrain_to_parent_bounds();
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+}
+
+#[cfg(test)]
+mod forwarding_tests {
+    use super::*;
+    use crate::core::state::SF_MODAL;
+
+    #[test]
+    fn file_dialog_reports_the_inner_dialogs_state_and_end_state() {
+        let mut fd = FileDialog::new(Rect::new(0, 0, 60, 20), "Open", "*.rs", None);
+        fd.set_state(fd.state() | SF_MODAL);
+        assert_ne!(View::state(&fd) & SF_MODAL, 0);
+        assert!(fd.can_focus());
+        fd.set_end_state(CM_OK);
+        assert_eq!(View::get_end_state(&fd), CM_OK);
+        assert!(fd.as_any().downcast_ref::<FileDialog>().is_some());
+    }
 }
 
 /// Builder for creating file dialogs with a fluent API.
