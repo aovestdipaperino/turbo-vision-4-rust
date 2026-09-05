@@ -807,7 +807,7 @@ pub trait WindowLike: GroupLike {
         self.window_mut().constrain_to_limits();
     }
 
-    fn window_set_parent_bounds(&mut self, bounds: Rect) {
+    fn window_set_owner_extent(&mut self, bounds: Rect) {
         self.window_mut().explicit_drag_limits = Some(bounds);
     }
 }
@@ -871,7 +871,7 @@ macro_rules! impl_view_for_window {
             $crate::impl_view_for_window!(@fwd as_group_mut; $($name)*);
             $crate::impl_view_for_window!(@fwd zoom; $($name)*);
             $crate::impl_view_for_window!(@fwd valid; $($name)*);
-            $crate::impl_view_for_window!(@fwd set_parent_bounds; $($name)*);
+            $crate::impl_view_for_window!(@fwd set_owner_extent; $($name)*);
             $crate::impl_view_for_window!(@fwd get_palette; $($name)*);
             $crate::impl_view_for_window!(@fwd init_after_add; $($name)*);
             $crate::impl_view_for_window!(@fwd constrain_to_parent_bounds; $($name)*);
@@ -894,7 +894,7 @@ macro_rules! impl_view_for_window {
     (@fwd as_group_mut; as_group_mut $($rest:ident)*) => {};
     (@fwd zoom; zoom $($rest:ident)*) => {};
     (@fwd valid; valid $($rest:ident)*) => {};
-    (@fwd set_parent_bounds; set_parent_bounds $($rest:ident)*) => {};
+    (@fwd set_owner_extent; set_owner_extent $($rest:ident)*) => {};
     (@fwd get_palette; get_palette $($rest:ident)*) => {};
     (@fwd init_after_add; init_after_add $($rest:ident)*) => {};
     (@fwd constrain_to_parent_bounds; constrain_to_parent_bounds $($rest:ident)*) => {};
@@ -971,9 +971,9 @@ macro_rules! impl_view_for_window {
             $crate::views::window::WindowLike::window_valid(self, command)
         }
     };
-    (@fwd set_parent_bounds;) => {
-        fn set_parent_bounds(&mut self, bounds: $crate::core::geometry::Rect) {
-            $crate::views::window::WindowLike::window_set_parent_bounds(self, bounds)
+    (@fwd set_owner_extent;) => {
+        fn set_owner_extent(&mut self, bounds: $crate::core::geometry::Rect) {
+            $crate::views::window::WindowLike::window_set_owner_extent(self, bounds)
         }
     };
     (@fwd get_palette;) => {

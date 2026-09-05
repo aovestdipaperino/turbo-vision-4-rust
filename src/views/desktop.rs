@@ -57,7 +57,7 @@ impl Desktop {
         let mut view: Box<dyn View> = Box::new(view);
 
         // Set parent bounds for safe drag limit resolution
-        view.set_parent_bounds(self.bounds());
+        view.set_owner_extent(self.bounds());
 
         // Apply automatic centering if Options::CENTERED flags are set
         // Matches Borland: TView with ofCentered is centered when inserted

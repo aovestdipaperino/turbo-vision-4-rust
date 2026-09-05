@@ -113,8 +113,8 @@ impl<T: View + 'static> View for Shared<T> {
     fn constrain_to_parent_bounds(&mut self) {
         self.inner.borrow_mut().constrain_to_parent_bounds();
     }
-    fn set_parent_bounds(&mut self, bounds: Rect) {
-        self.inner.borrow_mut().set_parent_bounds(bounds);
+    fn set_owner_extent(&mut self, bounds: Rect) {
+        self.inner.borrow_mut().set_owner_extent(bounds);
     }
     fn get_palette(&self) -> Option<Palette> {
         self.inner.borrow().get_palette()

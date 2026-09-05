@@ -105,11 +105,21 @@ pub trait View {
     fn core(&self) -> &ViewCore;
     fn core_mut(&mut self) -> &mut ViewCore;
 
+    /// The rectangle this view occupies in its owner's coordinate space
+    /// (Borland: `origin` and `size`). A child at `(2, 3)` stays at `(2, 3)`
+    /// however its owner moves.
     fn bounds(&self) -> Rect {
         self.core().bounds
     }
     fn set_bounds(&mut self, bounds: Rect) {
         self.core_mut().bounds = bounds;
+    }
+    /// The view's own coordinate space, `(0, 0)` to its size (Borland:
+    /// `TView::getExtent`). This is the rectangle `draw` writes into and the
+    /// space mouse positions arrive in.
+    fn extent(&self) -> Rect {
+        let b = self.core().bounds;
+        Rect::new(0, 0, b.b.x - b.a.x, b.b.y - b.a.y)
     }
     fn draw(&mut self, terminal: &mut Terminal);
     fn handle_event(&mut self, event: &mut Event);
@@ -291,39 +301,20 @@ pub trait View {
         // Default: do nothing (no movement tracking)
     }
 
-    /// Convert local coordinates to global (screen) coordinates
-    /// Matches Borland: TView::makeGlobal(TPoint source, TPoint& dest)
-    ///
-    /// In Borland, makeGlobal traverses the owner chain and accumulates offsets.
-    /// In this Rust implementation, views store absolute bounds (converted in Group::add()),
-    /// so we simply add the view's origin to the local coordinates.
-    ///
-    /// # Arguments
-    /// * `local_x` - X coordinate relative to view's interior (0,0 = top-left of view)
-    /// * `local_y` - Y coordinate relative to view's interior
-    ///
-    /// # Returns
-    /// Global (screen) coordinates as (x, y) tuple
+    /// Convert a point in this view's space to its owner's space
+    /// (Borland: `TView::makeGlobal`, but one hop: there is no owner chain to
+    /// walk, and a group translates as it dispatches, so one hop is all a
+    /// view ever needs).
     fn make_global(&self, local_x: i16, local_y: i16) -> (i16, i16) {
         let bounds = self.bounds();
         (bounds.a.x + local_x, bounds.a.y + local_y)
     }
 
-    /// Convert global (screen) coordinates to local view coordinates
-    /// Matches Borland: TView::makeLocal(TPoint source, TPoint& dest)
-    ///
-    /// In Borland, makeLocal is the inverse of makeGlobal, converting screen
-    /// coordinates back to view-relative coordinates.
-    ///
-    /// # Arguments
-    /// * `global_x` - X coordinate in screen space
-    /// * `global_y` - Y coordinate in screen space
-    ///
-    /// # Returns
-    /// Local coordinates as (x, y) tuple, where (0,0) is the view's top-left
-    fn make_local(&self, global_x: i16, global_y: i16) -> (i16, i16) {
+    /// Convert a point in the owner's space to this view's space (Borland:
+    /// `TView::makeLocal`, one hop; see `make_global`).
+    fn make_local(&self, owner_x: i16, owner_y: i16) -> (i16, i16) {
         let bounds = self.bounds();
-        (global_x - bounds.a.x, global_y - bounds.a.y)
+        (owner_x - bounds.a.x, owner_y - bounds.a.y)
     }
 
     /// Draw shadow for this view
@@ -416,9 +407,10 @@ pub trait View {
         self.core().palette_chain.as_ref()
     }
 
-    /// Set the parent's bounds for drag/resize limit resolution.
-    /// Called by Desktop when adding windows.
-    fn set_parent_bounds(&mut self, _bounds: crate::core::geometry::Rect) {
+    /// Tell the view how big its owner is, for drag and resize limits
+    /// (Borland: `TFrame::dragWindow` reads `owner->owner->getExtent()`).
+    /// Called by `Desktop` when adding windows.
+    fn set_owner_extent(&mut self, _extent: crate::core::geometry::Rect) {
         // Default: do nothing (only Window needs this)
     }
 
@@ -654,8 +646,8 @@ macro_rules! forward_view_through_box {
             fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
                 (**self).get_palette_chain()
             }
-            fn set_parent_bounds(&mut self, bounds: Rect) {
-                (**self).set_parent_bounds(bounds)
+            fn set_owner_extent(&mut self, extent: Rect) {
+                (**self).set_owner_extent(extent)
             }
             fn get_palette(&self) -> Option<crate::core::palette::Palette> {
                 (**self).get_palette()
@@ -685,6 +677,35 @@ mod tests {
             let _ = g.child_at(i).as_any(); // would have panicked with the old default
         }
         assert!(g.child_at(0).as_any().downcast_ref::<Button>().is_some());
+    }
+
+    #[test]
+    fn extent_is_the_view_s_own_rectangle_at_the_origin() {
+        struct Probe(ViewCore);
+        impl View for Probe {
+            fn core(&self) -> &ViewCore {
+                &self.0
+            }
+            fn core_mut(&mut self) -> &mut ViewCore {
+                &mut self.0
+            }
+            fn draw(&mut self, _t: &mut Terminal) {}
+            fn handle_event(&mut self, _e: &mut Event) {}
+            fn get_palette(&self) -> Option<crate::core::palette::Palette> {
+                None
+            }
+            fn as_any(&self) -> &dyn std::any::Any {
+                self
+            }
+            fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+                self
+            }
+        }
+        let v = Probe(ViewCore::new(Rect::new(5, 7, 15, 10)));
+        assert_eq!(v.extent(), Rect::new(0, 0, 10, 3));
+        // one hop between the view's space and its owner's
+        assert_eq!(v.make_global(1, 1), (6, 8));
+        assert_eq!(v.make_local(6, 8), (1, 1));
     }
 
     #[test]
