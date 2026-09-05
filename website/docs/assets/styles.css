@@ -69,68 +69,125 @@
   }
 }
 
-/* Zoomable Mermaid diagrams (assets/zoom.js). */
+/* Full-screen Mermaid diagrams (assets/zoom.js). */
 .md-typeset .tv-zoom {
   position: relative;
   margin: 1em 0;
-  border: 1px solid var(--md-default-fg-color--lightest);
-  border-radius: 0.2rem;
-  overflow: hidden;
-  background: var(--md-code-bg-color);
 }
 
-.md-typeset .tv-zoom__stage {
-  position: relative;
-  overflow: hidden;
-  min-height: 8rem;
-  touch-action: none;
-  user-select: none;
-}
-
-.md-typeset .tv-zoom__stage .mermaid {
+.md-typeset .tv-zoom .mermaid {
   margin: 0;
-  will-change: transform;
+  cursor: zoom-in;
 }
 
-.md-typeset .tv-zoom__bar {
-  user-select: none;
-  display: flex;
-  align-items: center;
-  gap: 0.3rem;
-  padding: 0.25rem 0.5rem;
-  font-size: 0.65rem;
-  color: var(--md-default-fg-color--light);
-  border-bottom: 1px solid var(--md-default-fg-color--lightest);
-  background: var(--md-default-bg-color);
+.md-typeset .tv-zoom__open {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.4rem;
+  opacity: 0;
+  transition: opacity 0.15s;
 }
 
-.md-typeset .tv-zoom__hint {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.md-typeset .tv-zoom:hover .tv-zoom__open,
+.md-typeset .tv-zoom__open:focus-visible {
+  opacity: 1;
 }
 
-.md-typeset .tv-zoom__pct {
-  min-width: 2.6em;
-  text-align: center;
-  font-variant-numeric: tabular-nums;
-}
-
-.md-typeset .tv-zoom__btn {
-  width: 1.5rem;
-  height: 1.3rem;
+.tv-zoom__btn {
+  width: 1.7rem;
+  height: 1.5rem;
   padding: 0;
   border: 1px solid var(--md-default-fg-color--lightest);
   border-radius: 0.15rem;
   background: var(--md-default-bg-color);
   color: var(--md-default-fg-color);
   font: inherit;
+  font-size: 0.8rem;
   line-height: 1;
   cursor: pointer;
 }
 
-.md-typeset .tv-zoom__btn:hover {
+.tv-zoom__btn:hover {
   border-color: var(--md-accent-fg-color);
   color: var(--md-accent-fg-color);
+}
+
+.tv-zoom__btn--close {
+  margin-left: 0.6rem;
+}
+
+.tv-zoom-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  width: 100vw;
+  height: 100vh;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: none;
+  display: none;
+  flex-direction: column;
+  background: var(--md-default-bg-color);
+  color: var(--md-default-fg-color);
+}
+
+.tv-zoom-dialog[open] {
+  display: flex;
+}
+
+.tv-zoom-dialog__bar {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.7rem;
+  color: var(--md-default-fg-color--light);
+  border-bottom: 1px solid var(--md-default-fg-color--lightest);
+  user-select: none;
+  flex: none;
+}
+
+.tv-zoom-dialog__hint {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tv-zoom-dialog__pct {
+  min-width: 3em;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.tv-zoom-dialog__stage {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  background: var(--md-code-bg-color);
+}
+
+.tv-zoom-dialog__stage--dragging {
+  cursor: grabbing;
+}
+
+/* The moved diagram fills the stage width at scale 1; the transform does
+   the rest. No will-change: a promoted layer is rasterised once and scaled
+   as a bitmap, which blurs the vector diagram. */
+.tv-zoom-dialog__stage .mermaid {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  margin: 0;
+}
+
+/* Keep the page from scrolling behind the dialog. */
+html.tv-zoom-open {
+  overflow: hidden;
 }
