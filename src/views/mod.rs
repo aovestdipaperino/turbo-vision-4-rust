@@ -135,6 +135,7 @@ pub use cluster_group::{CheckBoxes, RadioButtons};
 #[doc(inline)]
 pub use combo_box::{ComboBox, ComboState};
 #[doc(inline)]
+pub use group::GroupLike;
 pub use label::Label;
 #[doc(inline)]
 pub use list_viewer::{ListViewer, ListViewerState};

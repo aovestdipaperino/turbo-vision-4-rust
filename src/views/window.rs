@@ -3,7 +3,7 @@
 //! Window view - draggable, resizable window with frame and shadow.
 
 use super::frame::Frame;
-use super::group::Group;
+use super::group::{Group, GroupLike};
 use super::view::{View, ViewCore, ViewId};
 use crate::core::command::{CM_CANCEL, CM_CLOSE};
 use crate::core::event::{Event, EventType};

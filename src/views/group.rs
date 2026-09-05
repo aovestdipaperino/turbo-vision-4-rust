@@ -276,53 +276,6 @@ impl Group {
         }
     }
 
-    /// Execute a modal event loop
-    /// Matches Borland: TGroup::execute() (tgroup.cc:182-195)
-    ///
-    /// This is the KEY method that makes modal views work.
-    /// In Borland, TGroup has an execute() method with an event loop that calls
-    /// getEvent() and handleEvent() until endState is set by endModal().
-    ///
-    /// The event loop:
-    /// 1. Calls app.get_event() which handles drawing and returns events
-    /// 2. Calls self.handle_event() to process the event
-    /// 3. Continues until end_state is set (by endModal)
-    ///
-    /// This is used by Dialog, Window, and any other container that needs
-    /// modal execution.
-    pub fn execute(
-        &mut self,
-        app: &mut crate::app::Application,
-    ) -> crate::core::command::CommandId {
-        self.end_state = 0;
-
-        loop {
-            // Get event from Application (which handles drawing)
-            // Matches Borland: TGroup::execute() calls getEvent(e)
-            if let Some(mut event) = app.get_event() {
-                // Handle the event
-                // Matches Borland: TGroup::execute() calls handleEvent(e)
-                self.handle_event(&mut event);
-            }
-
-            // Check if we should end the modal loop
-            // Matches Borland: while( endState == 0 )
-            // IMPORTANT: This must be OUTSIDE the event check, so we check
-            // end_state even when there are no events (timeout)
-            if self.end_state != 0 {
-                // Matches Borland: do { ... } while( !valid(endState) ) —
-                // a failing validator vetoes the close and re-enters the loop
-                let end_state = self.end_state;
-                if self.valid(end_state) {
-                    break;
-                }
-                self.end_state = 0;
-            }
-        }
-
-        self.end_state
-    }
-
     /// End the modal event loop with a result code
     /// Matches Borland: TView::endModal(ushort command) (tview.cc:391-395)
     ///
@@ -478,33 +431,39 @@ impl Group {
     }
 }
 
-impl View for Group {
-    fn core(&self) -> &ViewCore {
-        &self.core
-    }
+/// The behaviour of Borland's `TGroup`, expressed as default methods over a
+/// `Group` core so that a container type (`Window`, `Dialog`, ...) inherits
+/// it and can still override any `View` hook.
+///
+/// Each inherited implementation has a `group_` name so an override can make
+/// the base call, the way `TDialog::handleEvent` starts with
+/// `TWindow::handleEvent(event)`. `execute`, `handle_event`, `valid` and
+/// `get_palette` are called through `self`, so a type that overrides them in
+/// its `View` impl is seen by this base code.
+pub trait GroupLike: View {
+    fn group(&self) -> &Group;
+    fn group_mut(&mut self) -> &mut Group;
 
-    fn core_mut(&mut self) -> &mut ViewCore {
-        &mut self.core
-    }
+    // ---- inherited implementations, callable as base calls ----
 
-    fn set_bounds(&mut self, bounds: Rect) {
+    fn group_set_bounds(&mut self, bounds: Rect) {
         // Calculate the offset (how much the group moved)
-        let dx = bounds.a.x - self.core.bounds.a.x;
-        let dy = bounds.a.y - self.core.bounds.a.y;
+        let dx = bounds.a.x - self.bounds().a.x;
+        let dy = bounds.a.y - self.bounds().a.y;
 
         // Calculate the size change (how much the group was resized)
-        let dw = bounds.width() - self.core.bounds.width();
-        let dh = bounds.height() - self.core.bounds.height();
+        let dw = bounds.width() - self.bounds().width();
+        let dh = bounds.height() - self.bounds().height();
 
         // Update our bounds
-        self.core.bounds = bounds;
+        self.core_mut().bounds = bounds;
 
         // Update all children's bounds. Every child shifts by the group's
         // offset (children store absolute coordinates); each edge additionally
         // follows the size delta only if the matching grow bit is set.
         // Matches Borland: TView::calcBounds() driven by growMode.
         use crate::core::state::{GF_GROW_HI_X, GF_GROW_HI_Y, GF_GROW_LO_X, GF_GROW_LO_Y};
-        for child in &mut self.children {
+        for child in &mut self.group_mut().children {
             let grow = child.grow_mode();
             let child_bounds = child.bounds();
             let new_bounds = Rect::new(
@@ -517,19 +476,19 @@ impl View for Group {
         }
     }
 
-    fn draw(&mut self, terminal: &mut Terminal) {
+    fn group_draw(&mut self, terminal: &mut Terminal) {
         // Draw background if specified
-        if let Some(bg_attr) = self.background {
-            let width = self.core.bounds.width_clamped() as usize;
-            let height = self.core.bounds.height_clamped() as usize;
+        if let Some(bg_attr) = self.group().background {
+            let width = self.bounds().width_clamped() as usize;
+            let height = self.bounds().height_clamped() as usize;
 
             for y in 0..height {
                 let mut buf = DrawBuffer::new(width);
                 buf.move_char(0, ' ', bg_attr, width);
                 write_line_to_terminal(
                     terminal,
-                    self.core.bounds.a.x,
-                    self.core.bounds.a.y + y as i16,
+                    self.bounds().a.x,
+                    self.bounds().a.y + y as i16,
                     &buf,
                 );
             }
@@ -537,7 +496,7 @@ impl View for Group {
 
         // Push clipping region for this group's bounds
         // Expand by 1 on all sides to allow children (like scrollbars) to overlap with parent's frame
-        let mut clip_bounds = self.core.bounds;
+        let mut clip_bounds = self.bounds();
         clip_bounds.grow(1, 1);
         terminal.push_clip(clip_bounds);
 
@@ -545,15 +504,16 @@ impl View for Group {
         // Group is typically transparent (no palette), but carries the parent link.
         let my_chain_node = crate::core::palette_chain::PaletteChainNode::new(
             self.get_palette(),
-            self.core.palette_chain.clone(),
+            self.get_palette_chain().cloned(),
         );
 
         // Only draw children that intersect with this group's bounds
         // The clipping region ensures children can't render outside parent boundaries
-        for child in &mut self.children {
+        let my_bounds = self.bounds();
+        for child in &mut self.group_mut().children {
             child.set_palette_chain(Some(my_chain_node.clone()));
             let child_bounds = child.bounds();
-            if self.core.bounds.intersects(&child_bounds) {
+            if my_bounds.intersects(&child_bounds) {
                 child.draw(terminal);
             }
         }
@@ -562,7 +522,7 @@ impl View for Group {
         terminal.pop_clip();
     }
 
-    fn handle_event(&mut self, event: &mut Event) {
+    fn group_handle_event(&mut self, event: &mut Event) {
         use crate::core::state::{OF_POST_PROCESS, OF_PRE_PROCESS};
 
         // Mouse events: positional events (no three-phase processing)
@@ -578,23 +538,24 @@ impl View for Group {
             // If so, send the event to it even if mouse is outside its bounds
             // This allows dragging and resizing beyond window boundaries (matches Borland behavior)
             if (event.what == EventType::MouseMove || event.what == EventType::MouseUp)
-                && self.focused < self.children.len()
+                && self.group().focused < self.group_mut().children.len()
             {
                 // Check if focused child is in dragging or resizing state
-                let child_state = self.children[self.focused].state();
+                let g = self.group_mut();
+                let child_state = g.children[g.focused].state();
                 if (child_state
                     & (crate::core::state::SF_DRAGGING | crate::core::state::SF_RESIZING))
                     != 0
                 {
-                    self.children[self.focused].handle_event(event);
+                    g.children[g.focused].handle_event(event);
                     return;
                 }
             }
 
             // First pass: find which child contains the mouse (search in reverse z-order)
             let mut clicked_child_index: Option<usize> = None;
-            for i in (0..self.children.len()).rev() {
-                let child_bounds = self.children[i].bounds();
+            for i in (0..self.group_mut().children.len()).rev() {
+                let child_bounds = self.group_mut().children[i].bounds();
                 if child_bounds.contains(mouse_pos) {
                     clicked_child_index = Some(i);
                     break;
@@ -606,28 +567,29 @@ impl View for Group {
                 if event.what == EventType::MouseDown {
                     // Check if this is a label with a link (Borland: TLabel::focusLink)
                     // If so, focus the linked control instead of the label
-                    if let Some(link_id) = self.children[i].label_link() {
+                    if let Some(link_id) = self.group_mut().children[i].label_link() {
                         // Find the child with the matching ViewId
-                        if let Some(link_index) = self.view_ids.iter().position(|&id| id == link_id)
+                        if let Some(link_index) =
+                            self.group().view_ids.iter().position(|&id| id == link_id)
                         {
-                            if self.children[link_index].can_focus() {
-                                self.clear_all_focus();
-                                self.focused = link_index;
-                                self.children[link_index].set_focus(true);
+                            if self.group_mut().children[link_index].can_focus() {
+                                self.group_mut().clear_all_focus();
+                                self.group_mut().focused = link_index;
+                                self.group_mut().children[link_index].set_focus(true);
                                 event.clear(); // Event consumed by focus transfer
                                 return;
                             }
                         }
-                    } else if self.children[i].can_focus() {
+                    } else if self.group_mut().children[i].can_focus() {
                         // Regular focusable view - give it focus
-                        self.clear_all_focus();
-                        self.focused = i;
-                        self.children[i].set_focus(true);
+                        self.group_mut().clear_all_focus();
+                        self.group_mut().focused = i;
+                        self.group_mut().children[i].set_focus(true);
                     }
                 }
 
                 // Second pass: handle the event
-                self.children[i].handle_event(event);
+                self.group_mut().children[i].handle_event(event);
 
                 // IMPORTANT: If the child converted the event to Broadcast (e.g., calculator buttons),
                 // we need to handle that broadcast now (matches Borland's putEvent behavior)
@@ -665,7 +627,7 @@ impl View for Group {
         if event.what == EventType::Keyboard || event.what == EventType::Command {
             // Phase 1: PreProcess
             // Views with OF_PRE_PROCESS get first chance at the event
-            for child in &mut self.children {
+            for child in &mut self.group_mut().children {
                 if event.what == EventType::Nothing {
                     break; // Event was handled
                 }
@@ -676,14 +638,19 @@ impl View for Group {
 
             // Phase 2: Focused
             // Give focused view a chance if event wasn't handled
-            if event.what != EventType::Nothing && self.focused < self.children.len() {
-                self.children[self.focused].handle_event(event);
+            if event.what != EventType::Nothing
+                && self.group().focused < self.group_mut().children.len()
+            {
+                {
+                    let g = self.group_mut();
+                    g.children[g.focused].handle_event(event);
+                }
             }
 
             // Phase 3: PostProcess
             // Views with OF_POST_PROCESS get last chance (e.g., status line, buttons)
             if event.what != EventType::Nothing {
-                for child in &mut self.children {
+                for child in &mut self.group_mut().children {
                     if event.what == EventType::Nothing {
                         break; // Event was handled
                     }
@@ -705,11 +672,11 @@ impl View for Group {
             // Only handle if event wasn't consumed by any child
             if event.what == EventType::Keyboard {
                 if event.key_code == KB_TAB {
-                    self.select_next();
+                    self.group_mut().select_next();
                     event.clear();
                     return;
                 } else if event.key_code == KB_SHIFT_TAB {
-                    self.select_previous();
+                    self.group_mut().select_previous();
                     event.clear();
                     return;
                 }
@@ -721,7 +688,7 @@ impl View for Group {
                 // Handle CM_FOCUS_LINK: Label hotkey requests focus on linked control
                 if event.command == crate::core::command::CM_FOCUS_LINK {
                     let view_id = super::view::ViewId::from_u16(event.key_code);
-                    if self.focus_by_view_id(view_id) {
+                    if self.group_mut().focus_by_view_id(view_id) {
                         event.clear();
                     }
                     return;
@@ -730,48 +697,44 @@ impl View for Group {
                 // children via forEach(doHandleEvent) — delivery does not stop
                 // when one child clears the event, so every child sees the
                 // broadcast.
-                for child in &mut self.children {
+                for child in &mut self.group_mut().children {
                     child.handle_event(event);
                 }
             } else {
                 // Other event types: send to focused child only
-                if self.focused < self.children.len() {
-                    self.children[self.focused].handle_event(event);
+                if self.group().focused < self.group_mut().children.len() {
+                    {
+                        let g = self.group_mut();
+                        g.children[g.focused].handle_event(event);
+                    }
                 }
             }
         }
     }
 
-    fn update_cursor(&self, terminal: &mut Terminal) {
+    fn group_update_cursor(&self, terminal: &mut Terminal) {
         // Hide cursor by default
         let _ = terminal.hide_cursor();
 
         // Update cursor for the focused child (it can show it if needed)
-        if self.focused < self.children.len() {
-            self.children[self.focused].update_cursor(terminal);
+        if self.group().focused < self.group().children.len() {
+            self.group().children[self.group().focused].update_cursor(terminal);
         }
-    }
-
-    fn get_end_state(&self) -> crate::core::command::CommandId {
-        self.end_state
-    }
-
-    fn set_end_state(&mut self, command: crate::core::command::CommandId) {
-        self.end_state = command;
     }
 
     /// Validate group before performing command
     /// Matches Borland: TGroup::valid(ushort command)
     /// - If command is CM_RELEASED_FOCUS, validate current focused child if it has OF_VALIDATE
     /// - Otherwise, validate all children (return false if any child is invalid)
-    fn valid(&mut self, command: crate::core::command::CommandId) -> bool {
+    fn group_valid(&mut self, command: crate::core::command::CommandId) -> bool {
         use crate::core::command::CM_RELEASED_FOCUS;
         use crate::core::state::OF_VALIDATE;
 
         if command == CM_RELEASED_FOCUS {
             // Validate only the currently focused child if it has OF_VALIDATE flag
-            if self.focused < self.children.len() {
-                let child = &mut self.children[self.focused];
+            if self.group().focused < self.group_mut().children.len() {
+                let g = self.group_mut();
+                let child = &mut g.children[g.focused];
                 if (child.options() & OF_VALIDATE) != 0 {
                     return child.valid(command);
                 }
@@ -780,13 +743,150 @@ impl View for Group {
         } else {
             // Validate all children - return false if any child is invalid
             // Matches Borland: firstThat(isInvalid, &command) == nullptr
-            for child in &mut self.children {
+            for child in &mut self.group_mut().children {
                 if !child.valid(command) {
                     return false;
                 }
             }
             true
         }
+    }
+
+    // ---- modal loop (Borland: TGroup::execute) ----
+
+    /// Execute a modal event loop
+    /// Matches Borland: TGroup::execute() (tgroup.cc:182-195)
+    ///
+    /// This is the KEY method that makes modal views work.
+    /// In Borland, TGroup has an execute() method with an event loop that calls
+    /// getEvent() and handleEvent() until endState is set by endModal().
+    ///
+    /// The event loop:
+    /// 1. Calls app.get_event() which handles drawing and returns events
+    /// 2. Calls self.handle_event() to process the event
+    /// 3. Continues until end_state is set (by endModal)
+    ///
+    /// This is used by Dialog, Window, and any other container that needs
+    /// modal execution.
+    fn execute(&mut self, app: &mut crate::app::Application) -> crate::core::command::CommandId {
+        self.group_mut().end_state = 0;
+
+        loop {
+            // Get event from Application (which handles drawing)
+            // Matches Borland: TGroup::execute() calls getEvent(e)
+            if let Some(mut event) = app.get_event() {
+                // Handle the event
+                // Matches Borland: TGroup::execute() calls handleEvent(e)
+                self.handle_event(&mut event);
+            }
+
+            // Check if we should end the modal loop
+            // Matches Borland: while( endState == 0 )
+            // IMPORTANT: This must be OUTSIDE the event check, so we check
+            // end_state even when there are no events (timeout)
+            if self.group().end_state != 0 {
+                // Matches Borland: do { ... } while( !valid(endState) ) —
+                // a failing validator vetoes the close and re-enters the loop
+                let end_state = self.group().end_state;
+                if self.valid(end_state) {
+                    break;
+                }
+                self.group_mut().end_state = 0;
+            }
+        }
+
+        self.group().end_state
+    }
+
+    /// End the modal event loop with a result code
+    /// Matches Borland: TView::endModal(ushort command) (tview.cc:391-395)
+    fn end_modal(&mut self, command: crate::core::command::CommandId) {
+        self.group_mut().end_state = command;
+    }
+
+    /// The command the modal loop ended with, or 0 while it is still running.
+    fn end_state(&self) -> crate::core::command::CommandId {
+        self.group().end_state
+    }
+
+    // ---- child access, forwarded to Group's inherent methods ----
+
+    fn add(&mut self, view: Box<dyn View>) -> ViewId {
+        self.group_mut().add(view)
+    }
+    fn child_count(&self) -> usize {
+        self.group().len()
+    }
+    fn child_at(&self, index: usize) -> &dyn View {
+        self.group().child_at(index)
+    }
+    fn child_at_mut(&mut self, index: usize) -> &mut dyn View {
+        self.group_mut().child_at_mut(index)
+    }
+    fn child_by_id(&self, id: ViewId) -> Option<&dyn View> {
+        self.group().child_by_id(id)
+    }
+    fn child_by_id_mut(&mut self, id: ViewId) -> Option<&mut (dyn View + '_)> {
+        self.group_mut().child_by_id_mut(id)
+    }
+    fn remove_by_id(&mut self, id: ViewId) -> bool {
+        self.group_mut().remove_by_id(id)
+    }
+    fn set_initial_focus(&mut self) {
+        self.group_mut().set_initial_focus();
+    }
+    fn set_focus_to(&mut self, index: usize) {
+        self.group_mut().set_focus_to(index);
+    }
+    fn broadcast(&mut self, event: &mut Event, owner_index: Option<usize>) {
+        self.group_mut().broadcast(event, owner_index);
+    }
+}
+
+impl GroupLike for Group {
+    fn group(&self) -> &Group {
+        self
+    }
+    fn group_mut(&mut self) -> &mut Group {
+        self
+    }
+}
+
+impl View for Group {
+    fn core(&self) -> &ViewCore {
+        &self.core
+    }
+
+    fn core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
+    }
+
+    fn set_bounds(&mut self, bounds: Rect) {
+        self.group_set_bounds(bounds)
+    }
+
+    fn draw(&mut self, terminal: &mut Terminal) {
+        self.group_draw(terminal)
+    }
+
+    fn handle_event(&mut self, event: &mut Event) {
+        self.group_handle_event(event)
+    }
+
+    fn update_cursor(&self, terminal: &mut Terminal) {
+        self.group_update_cursor(terminal)
+    }
+
+    fn valid(&mut self, command: crate::core::command::CommandId) -> bool {
+        self.group_valid(command)
+    }
+
+    fn get_end_state(&self) -> crate::core::command::CommandId {
+        self.end_state()
+    }
+
+    fn set_end_state(&mut self, command: crate::core::command::CommandId) {
+        self.end_modal(command)
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
@@ -845,6 +945,59 @@ impl Default for GroupBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn group_like_handle_event_dispatches_to_the_outer_override() {
+        use std::cell::Cell;
+        use std::rc::Rc;
+
+        struct Counting {
+            group: Group,
+            seen: Rc<Cell<u32>>,
+        }
+        impl View for Counting {
+            fn core(&self) -> &ViewCore {
+                self.group.core()
+            }
+            fn core_mut(&mut self) -> &mut ViewCore {
+                self.group.core_mut()
+            }
+            fn draw(&mut self, t: &mut Terminal) {
+                self.group_draw(t)
+            }
+            fn handle_event(&mut self, e: &mut Event) {
+                self.seen.set(self.seen.get() + 1);
+                self.group_handle_event(e); // base call
+                if e.what == EventType::Command && e.command == 42 {
+                    self.end_modal(42);
+                    e.clear();
+                }
+            }
+            fn get_palette(&self) -> Option<crate::core::palette::Palette> {
+                None
+            }
+        }
+        impl GroupLike for Counting {
+            fn group(&self) -> &Group {
+                &self.group
+            }
+            fn group_mut(&mut self) -> &mut Group {
+                &mut self.group
+            }
+        }
+
+        let seen = Rc::new(Cell::new(0));
+        let mut c = Counting {
+            group: Group::new(Rect::new(0, 0, 10, 10)),
+            seen: Rc::clone(&seen),
+        };
+        let mut ev = Event::command(42);
+        // drive one iteration of the loop body by hand, as execute() needs an Application
+        c.handle_event(&mut ev);
+        assert_eq!(seen.get(), 1);
+        assert_eq!(c.end_state(), 42);
+        assert_eq!(ev.what, EventType::Nothing);
+    }
 
     // Helper to count how many times draw is called on views
     struct DrawCountView {
