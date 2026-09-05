@@ -12,12 +12,13 @@ use turbo_vision::app::Application;
 use turbo_vision::core::command::CM_QUIT;
 use turbo_vision::core::draw::DrawBuffer;
 use turbo_vision::core::event::{
-    EventType, KB_ALT_X, KB_F1, KB_F2, KB_F3, KB_F4, KB_F5, KB_F6, KB_F7, KB_F8, KB_F9, KB_F10,
+    EventType, KB_F1, KB_F2, KB_F3, KB_F4, KB_F5, KB_F6, KB_F7, KB_F8, KB_F9, KB_F10,
 };
 use turbo_vision::core::geometry::Rect;
 use turbo_vision::core::palette::Attr;
+use turbo_vision::core::status_data::StatusItemBuilder;
 use turbo_vision::views::View;
-use turbo_vision::views::status_line::{StatusItem, StatusLine};
+use turbo_vision::views::status_line::StatusLine;
 use turbo_vision::views::view::write_line_to_terminal;
 
 fn main() -> turbo_vision::core::error::Result<()> {
@@ -159,6 +160,12 @@ fn setup_status_line(app: &Application) -> StatusLine {
 
     StatusLine::new(
         Rect::new(0, h as i16 - 1, w as i16, h as i16),
-        vec![StatusItem::new("~Alt-X~ Exit", KB_ALT_X, CM_QUIT)],
+        vec![
+            StatusItemBuilder::new()
+                .text("~Alt-X~ Exit")
+                .key("Alt+X")
+                .command(CM_QUIT)
+                .build(),
+        ],
     )
 }

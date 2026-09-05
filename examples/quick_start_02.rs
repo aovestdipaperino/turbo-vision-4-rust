@@ -1,9 +1,9 @@
 // (C) 2025 - Enzo Lombardi
 // The status line code is in a function
 
-use turbo_vision::core::event::KB_ALT_X;
+use turbo_vision::core::status_data::StatusItemBuilder;
 use turbo_vision::prelude::*;
-use turbo_vision::views::status_line::{StatusItem, StatusLine};
+use turbo_vision::views::status_line::StatusLine;
 
 fn main() -> turbo_vision::core::error::Result<()> {
     let mut app = Application::new()?;
@@ -21,6 +21,12 @@ fn setup_status_line(app: &Application) -> StatusLine {
 
     StatusLine::new(
         Rect::new(0, h as i16 - 1, w as i16, h as i16),
-        vec![StatusItem::new("~Alt-X~ Exit", KB_ALT_X, CM_QUIT)],
+        vec![
+            StatusItemBuilder::new()
+                .text("~Alt-X~ Exit")
+                .key("Alt+X")
+                .command(CM_QUIT)
+                .build(),
+        ],
     )
 }

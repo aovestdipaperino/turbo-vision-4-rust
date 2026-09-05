@@ -18,16 +18,18 @@
 
 use turbo_vision::core::command::{CM_NEW, CM_OPEN, CM_QUIT, CM_SAVE};
 use turbo_vision::core::event::{
-    KB_ALT_X, KB_CTRL_C, KB_CTRL_N, KB_CTRL_O, KB_CTRL_S, KB_ESC_ESC, KB_F1, KB_F10,
+    KB_ALT_X, KB_CTRL_C, KB_CTRL_N, KB_CTRL_O, KB_CTRL_S, KB_ESC_ESC, KB_F1,
 };
+use turbo_vision::core::menu_data::MenuItemBuilder;
 use turbo_vision::core::menu_data::{Menu, MenuItem};
+use turbo_vision::core::status_data::StatusItemBuilder;
 use turbo_vision::prelude::*;
 use turbo_vision::views::button::ButtonBuilder;
 use turbo_vision::views::dialog::DialogBuilder;
 use turbo_vision::views::menu_bar::{MenuBar, SubMenu};
 use turbo_vision::views::msgbox::message_box_ok;
 use turbo_vision::views::static_text::StaticTextBuilder;
-use turbo_vision::views::status_line::{StatusItem, StatusLine};
+use turbo_vision::views::status_line::StatusLine;
 use turbo_vision::views::text_viewer::TextViewer;
 use turbo_vision::views::window::WindowBuilder;
 
@@ -171,28 +173,51 @@ fn setup_menu_bar(app: &mut Application) {
 
     // File menu with shortcuts
     let file_menu_items = vec![
-        MenuItem::with_shortcut("~N~ew", CM_NEW, 0, "Ctrl+N", 0),
-        MenuItem::with_shortcut("~O~pen...", CM_OPEN, 0, "Ctrl+O", 0),
-        MenuItem::with_shortcut("~S~ave", CM_SAVE, 0, "Ctrl+S", 0),
+        MenuItemBuilder::new()
+            .text("~N~ew")
+            .command(CM_NEW)
+            .key("Ctrl+N")
+            .build(),
+        MenuItemBuilder::new()
+            .text("~O~pen...")
+            .command(CM_OPEN)
+            .key("Ctrl+O")
+            .build(),
+        MenuItemBuilder::new()
+            .text("~S~ave")
+            .command(CM_SAVE)
+            .key("Ctrl+S")
+            .build(),
         MenuItem::separator(),
-        MenuItem::with_shortcut("E~x~it", CM_QUIT, 0, "Alt+X", 0),
+        MenuItemBuilder::new()
+            .text("E~x~it")
+            .command(CM_QUIT)
+            .key("Alt+X")
+            .build(),
     ];
     let file_menu = SubMenu::new("~F~ile", Menu::from_items(file_menu_items));
 
     // Window menu - No action behind
     let window_menu_items = vec![
-        MenuItem::new("~T~ile", 0, 0, 0),
-        MenuItem::new("~C~ascade", 0, 0, 0),
+        MenuItemBuilder::new().text("~T~ile").command(0).build(),
+        MenuItemBuilder::new().text("~C~ascade").command(0).build(),
         MenuItem::separator(),
-        MenuItem::new("~N~ext", 0, 0, 0),
+        MenuItemBuilder::new().text("~N~ext").command(0).build(),
     ];
     let window_menu = SubMenu::new("~W~indow", Menu::from_items(window_menu_items));
 
     // Help menu with shortcuts
     let help_menu_items = vec![
-        MenuItem::with_shortcut("~H~elp", CMD_HELP, 0, "F1", 0),
+        MenuItemBuilder::new()
+            .text("~H~elp")
+            .command(CMD_HELP)
+            .key("F1")
+            .build(),
         MenuItem::separator(),
-        MenuItem::new("~A~bout", CMD_ABOUT, 0, 0),
+        MenuItemBuilder::new()
+            .text("~A~bout")
+            .command(CMD_ABOUT)
+            .build(),
     ];
     let help_menu = SubMenu::new("~H~elp", Menu::from_items(help_menu_items));
 
@@ -208,8 +233,14 @@ fn setup_status_line(app: &mut Application) {
     let status_line = StatusLine::new(
         Rect::new(0, height - 1, width, height),
         vec![
-            StatusItem::new("~F10~ Menu", KB_F10, 0),
-            StatusItem::new("~F1~ Help", 0, CMD_HELP),
+            StatusItemBuilder::new()
+                .text("~F10~ Menu")
+                .key("F10")
+                .build(),
+            StatusItemBuilder::new()
+                .text("~F1~ Help")
+                .command(CMD_HELP)
+                .build(),
         ],
     );
     app.set_status_line(status_line);

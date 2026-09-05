@@ -840,8 +840,8 @@ mod tests {
 
     fn make_menu_bar() -> MenuBar {
         let menu = MenuBuilder::new()
-            .item_with_shortcut("~O~pen a very long item name", 100, 0, "Ctrl+O")
-            .item("~S~ave", 101, 0)
+            .item_key("~O~pen a very long item name", 100, "Ctrl+O")
+            .item("~S~ave", 101)
             .build();
         let mut bar = MenuBar::new(Rect::new(0, 0, 80, 1));
         bar.add_submenu(SubMenu::new("~F~ile", menu));

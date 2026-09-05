@@ -28,23 +28,6 @@ pub struct StatusItem {
 }
 
 impl StatusItem {
-    /// Create a new status item
-    ///
-    /// Matches Borland: `TStatusItem(text, keyCode, command)`
-    ///
-    /// # Example
-    /// ```ignore
-    /// let item = StatusItem::new("~F1~ Help", KB_F1, CM_HELP);
-    /// ```
-    pub fn new(text: &str, key_code: KeyCode, command: CommandId) -> Self {
-        Self {
-            text: text.to_string(),
-            key_code,
-            command,
-        }
-    }
-
-    /// Extract the accelerator key from the text (character between ~ marks)
     pub fn get_accelerator(&self) -> Option<char> {
         let mut chars = self.text.chars();
         while let Some(ch) = chars.next() {
@@ -100,6 +83,17 @@ impl StatusItemBuilder {
     #[must_use]
     pub fn key_code(mut self, key_code: KeyCode) -> Self {
         self.key_code = key_code;
+        self
+    }
+
+    /// Binds the item to a key chord such as `"Alt+X"` or `"F10"`.
+    ///
+    /// # Panics
+    ///
+    /// Panics on a chord `parse_key_chord` does not understand.
+    #[must_use]
+    pub fn key(mut self, chord: &str) -> Self {
+        self.key_code = crate::core::menu_data::key_code_for_chord(chord);
         self
     }
 
@@ -159,8 +153,8 @@ impl StatusDef {
     /// # Example
     /// ```ignore
     /// let def = StatusDef::new(0, 0xFFFF, vec![
-    ///     StatusItem::new("~F1~ Help", KB_F1, CM_HELP),
-    ///     StatusItem::new("~Alt+X~ Exit", KB_ALT_X, CM_QUIT),
+    ///     StatusItemBuilder::new().text("~F1~ Help").key("F1").command(CM_HELP).build(),
+    ///     StatusItemBuilder::new().text("~Alt+X~ Exit").key("Alt+X").command(CM_QUIT).build(),
     /// ]);
     /// ```
     pub fn new(min: u16, max: u16, items: Vec<StatusItem>) -> Self {
@@ -211,8 +205,8 @@ impl StatusDef {
 ///
 /// let def = StatusDefBuilder::new()
 ///     .range(0, 100)
-///     .add_item(StatusItem::new("~F1~ Help", 0x3B00, 100))
-///     .add_item(StatusItem::new("~F2~ Save", 0x3C00, 101))
+///     .add_item(StatusItemBuilder::new().text("~F1~ Help").key_code(0x3B00).command(100).build())
+///     .add_item(StatusItemBuilder::new().text("~F2~ Save").key_code(0x3C00).command(101).build())
 ///     .build();
 /// ```
 pub struct StatusDefBuilder {
@@ -330,8 +324,8 @@ impl StatusLine {
 /// ```ignore
 /// let status = StatusLineBuilder::new()
 ///     .add_def(0, 0xFFFF, vec![
-///         StatusItem::new("~F1~ Help", KB_F1, CM_HELP),
-///         StatusItem::new("~Alt+X~ Exit", KB_ALT_X, CM_QUIT),
+///         StatusItemBuilder::new().text("~F1~ Help").key("F1").command(CM_HELP).build(),
+///         StatusItemBuilder::new().text("~Alt+X~ Exit").key("Alt+X").command(CM_QUIT).build(),
 ///     ])
 ///     .build();
 /// ```
@@ -381,8 +375,16 @@ mod tests {
             0,
             100,
             vec![
-                StatusItem::new("~F1~ Help", 0x3B00, 100),
-                StatusItem::new("~Alt+X~ Exit", 0x2D00, 101),
+                StatusItemBuilder::new()
+                    .text("~F1~ Help")
+                    .key_code(0x3B00)
+                    .command(100)
+                    .build(),
+                StatusItemBuilder::new()
+                    .text("~Alt+X~ Exit")
+                    .key("Alt+X")
+                    .command(101)
+                    .build(),
             ],
         );
 
@@ -400,16 +402,32 @@ mod tests {
                 0,
                 100,
                 vec![
-                    StatusItem::new("~F1~ Help", 0x3B00, 100),
-                    StatusItem::new("~F2~ Save", 0x3C00, 101),
+                    StatusItemBuilder::new()
+                        .text("~F1~ Help")
+                        .key_code(0x3B00)
+                        .command(100)
+                        .build(),
+                    StatusItemBuilder::new()
+                        .text("~F2~ Save")
+                        .key_code(0x3C00)
+                        .command(101)
+                        .build(),
                 ],
             )
             .add_def(
                 101,
                 200,
                 vec![
-                    StatusItem::new("~F1~ Help", 0x3B00, 100),
-                    StatusItem::new("~Esc~ Cancel", 0x011B, 102),
+                    StatusItemBuilder::new()
+                        .text("~F1~ Help")
+                        .key_code(0x3B00)
+                        .command(100)
+                        .build(),
+                    StatusItemBuilder::new()
+                        .text("~Esc~ Cancel")
+                        .key_code(0x011B)
+                        .command(102)
+                        .build(),
                 ],
             )
             .build();
@@ -427,7 +445,11 @@ mod tests {
 
     #[test]
     fn test_accelerator() {
-        let item = StatusItem::new("~F1~ Help", 0x3B00, 100);
+        let item = StatusItemBuilder::new()
+            .text("~F1~ Help")
+            .key_code(0x3B00)
+            .command(100)
+            .build();
         assert_eq!(item.get_accelerator(), Some('f'));
     }
 }

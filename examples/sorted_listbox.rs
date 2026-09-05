@@ -10,13 +10,14 @@
 use turbo_vision::app::Application;
 use turbo_vision::core::command::CM_QUIT;
 use turbo_vision::core::draw::DrawBuffer;
-use turbo_vision::core::event::{EventType, KB_ALT_A, KB_ALT_B, KB_ALT_C, KB_ALT_T, KB_ALT_X};
+use turbo_vision::core::event::EventType;
 use turbo_vision::core::geometry::Rect;
 use turbo_vision::core::palette::Attr;
+use turbo_vision::core::status_data::StatusItemBuilder;
 use turbo_vision::terminal::Terminal;
 use turbo_vision::views::View;
 use turbo_vision::views::sorted_listbox::SortedListBox;
-use turbo_vision::views::status_line::{StatusItem, StatusLine};
+use turbo_vision::views::status_line::StatusLine;
 use turbo_vision::views::view::write_line_to_terminal;
 
 const CMD_SEARCH_A: u16 = 100;
@@ -58,11 +59,31 @@ fn setup_status_line(app: &Application) -> StatusLine {
     StatusLine::new(
         Rect::new(0, h - 1, w, h),
         vec![
-            StatusItem::new("~Alt+X~ Quit", KB_ALT_X, CM_QUIT),
-            StatusItem::new("~Alt+A~ Jump to A", KB_ALT_A, CMD_SEARCH_A),
-            StatusItem::new("~Alt+B~ Jump to B", KB_ALT_B, CMD_SEARCH_B),
-            StatusItem::new("~Alt+C~ Jump to C", KB_ALT_C, CMD_SEARCH_C),
-            StatusItem::new("~Alt+T~ Toggle Case", KB_ALT_T, CMD_TOGGLE_CASE),
+            StatusItemBuilder::new()
+                .text("~Alt+X~ Quit")
+                .key("Alt+X")
+                .command(CM_QUIT)
+                .build(),
+            StatusItemBuilder::new()
+                .text("~Alt+A~ Jump to A")
+                .key("Alt+A")
+                .command(CMD_SEARCH_A)
+                .build(),
+            StatusItemBuilder::new()
+                .text("~Alt+B~ Jump to B")
+                .key("Alt+B")
+                .command(CMD_SEARCH_B)
+                .build(),
+            StatusItemBuilder::new()
+                .text("~Alt+C~ Jump to C")
+                .key("Alt+C")
+                .command(CMD_SEARCH_C)
+                .build(),
+            StatusItemBuilder::new()
+                .text("~Alt+T~ Toggle Case")
+                .key("Alt+T")
+                .command(CMD_TOGGLE_CASE)
+                .build(),
         ],
     )
 }

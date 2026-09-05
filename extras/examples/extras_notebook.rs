@@ -11,15 +11,17 @@
 
 use std::cell::RefCell;
 use std::rc::Rc;
+use turbo_vision::core::menu_data::MenuItemBuilder;
+use turbo_vision::core::status_data::StatusItemBuilder;
 use turbo_vision::views::GroupLike;
 
 use turbo_vision::app::Application;
 use turbo_vision::core::command::CM_QUIT;
-use turbo_vision::core::event::{EventType, KB_ALT_X, KB_ESC_ESC, KB_F9};
+use turbo_vision::core::event::{EventType, KB_ESC_ESC, KB_F9};
 use turbo_vision::core::geometry::{Point, Rect};
 use turbo_vision::core::menu_data::{Menu, MenuItem};
 use turbo_vision::views::static_text::StaticText;
-use turbo_vision::views::status_line::{StatusItem, StatusLine};
+use turbo_vision::views::status_line::StatusLine;
 use turbo_vision::views::window::WindowBuilder;
 use turbo_vision_extras::{
     ComboBox, Notebook, ScrollPane, SpinControl, is_menu_item_checked, popup_menu,
@@ -37,9 +39,21 @@ fn main() -> turbo_vision::core::error::Result<()> {
     app.set_status_line(StatusLine::new(
         Rect::new(0, height - 1, width, height),
         vec![
-            StatusItem::new("~F9~ Menu", KB_F9, CM_POPUP),
-            StatusItem::new("~Alt-X~ Exit", KB_ALT_X, CM_QUIT),
-            StatusItem::new("~Esc-Esc~ Exit", KB_ESC_ESC, CM_QUIT),
+            StatusItemBuilder::new()
+                .text("~F9~ Menu")
+                .key("F9")
+                .command(CM_POPUP)
+                .build(),
+            StatusItemBuilder::new()
+                .text("~Alt-X~ Exit")
+                .key("Alt+X")
+                .command(CM_QUIT)
+                .build(),
+            StatusItemBuilder::new()
+                .text("~Esc-Esc~ Exit")
+                .key_code(KB_ESC_ESC)
+                .command(CM_QUIT)
+                .build(),
         ],
     ));
 
@@ -113,10 +127,19 @@ fn main() -> turbo_vision::core::error::Result<()> {
     // ---- Event loop with a context menu ------------------------------------
     // The menu keeps state across openings so the check mark persists
     let mut context_menu = Menu::from_items(vec![
-        MenuItem::new("Word wrap", CM_TOGGLE_WRAP, 0, 0),
+        MenuItemBuilder::new()
+            .text("Word wrap")
+            .command(CM_TOGGLE_WRAP)
+            .build(),
         MenuItem::separator(),
-        MenuItem::new("Say hello", CM_SAY_HELLO, 0, 0),
-        MenuItem::new("E~x~it", CM_QUIT, 0, 0),
+        MenuItemBuilder::new()
+            .text("Say hello")
+            .command(CM_SAY_HELLO)
+            .build(),
+        MenuItemBuilder::new()
+            .text("E~x~it")
+            .command(CM_QUIT)
+            .build(),
     ]);
     set_menu_item_checked(&mut context_menu, 0, true);
 

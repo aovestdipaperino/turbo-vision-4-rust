@@ -56,46 +56,23 @@ pub enum MenuItem {
 }
 
 impl MenuItem {
-    /// Create a regular menu item
-    ///
-    /// Matches Borland: `TMenuItem(name, command, keyCode, helpCtx)`
-    ///
-    /// # Example
-    /// ```ignore
-    /// let item = MenuItem::new("~O~pen", CM_OPEN, KB_F3, hcOpen);
-    /// ```
-    pub fn new(text: &str, command: CommandId, key_code: KeyCode, help_ctx: u16) -> Self {
-        Self::Regular {
-            text: text.to_string(),
-            command,
-            key_code,
-            help_ctx,
-            enabled: true,
-            shortcut: None,
-            checked: None,
-        }
-    }
-
-    /// Create a menu item with display shortcut
-    ///
-    /// # Example
-    /// ```ignore
-    /// let item = MenuItem::with_shortcut("~O~pen", CM_OPEN, KB_F3, "F3", hcOpen);
-    /// ```
-    pub fn with_shortcut(
+    /// Assemble a regular item; the public way in is [`MenuItemBuilder`] or
+    /// [`MenuBuilder::item`] / [`MenuBuilder::item_key`].
+    pub(crate) fn from_parts(
         text: &str,
         command: CommandId,
         key_code: KeyCode,
-        shortcut: &str,
+        shortcut: Option<String>,
         help_ctx: u16,
+        enabled: bool,
     ) -> Self {
         Self::Regular {
             text: text.to_string(),
             command,
             key_code,
             help_ctx,
-            enabled: true,
-            shortcut: Some(shortcut.to_string()),
+            enabled,
+            shortcut,
             checked: None,
         }
     }
@@ -124,19 +101,6 @@ impl MenuItem {
             enabled: true,
             shortcut: None,
             checked: Some(checked),
-        }
-    }
-
-    /// Create a disabled menu item
-    pub fn new_disabled(text: &str, command: CommandId, key_code: KeyCode, help_ctx: u16) -> Self {
-        Self::Regular {
-            text: text.to_string(),
-            command,
-            key_code,
-            help_ctx,
-            enabled: false,
-            shortcut: None,
-            checked: None,
         }
     }
 
@@ -330,10 +294,10 @@ impl Default for Menu {
 /// # Example (Borland-style)
 /// ```ignore
 /// let menu = MenuBuilder::new()
-///     .item("~O~pen", CM_OPEN, KB_F3)
-///     .item("~S~ave", CM_SAVE, KB_F2)
+///     .item_key("~O~pen", CM_OPEN, "F3")
+///     .item_key("~S~ave", CM_SAVE, "F2")
 ///     .separator()
-///     .item("E~x~it", CM_QUIT, KB_ALT_X)
+///     .item_key("E~x~it", CM_QUIT, "Alt+X")
 ///     .build();
 /// ```
 pub struct MenuBuilder {
@@ -356,39 +320,60 @@ impl MenuBuilder {
         self
     }
 
-    /// Add a regular menu item
-    pub fn item(mut self, text: &str, command: CommandId, key_code: KeyCode) -> Self {
-        self.items
-            .push(MenuItem::new(text, command, key_code, self.help_ctx));
-        self
-    }
-
-    /// Add a menu item with shortcut display
-    pub fn item_with_shortcut(
-        mut self,
-        text: &str,
-        command: CommandId,
-        key_code: KeyCode,
-        shortcut: &str,
-    ) -> Self {
-        self.items.push(MenuItem::with_shortcut(
+    /// Add an item with no key binding.
+    #[must_use]
+    pub fn item(mut self, text: &str, command: CommandId) -> Self {
+        self.items.push(MenuItem::from_parts(
             text,
             command,
-            key_code,
-            shortcut,
+            0,
+            None,
             self.help_ctx,
+            true,
         ));
         self
     }
 
-    /// Add a disabled menu item
-    pub fn item_disabled(mut self, text: &str, command: CommandId, key_code: KeyCode) -> Self {
-        self.items.push(MenuItem::new_disabled(
+    /// Add an item bound to a key chord such as `"Ctrl+O"`, `"F3"` or
+    /// `"Alt+X"`; the chord is both bound and shown next to the text.
+    ///
+    /// # Panics
+    ///
+    /// Panics on a chord `parse_key_chord` does not understand: a menu
+    /// definition is program text, and a typo should fail at first run rather
+    /// than silently bind nothing.
+    #[must_use]
+    pub fn item_key(mut self, text: &str, command: CommandId, chord: &str) -> Self {
+        let key = key_code_for_chord(chord);
+        self.items.push(MenuItem::from_parts(
             text,
             command,
-            key_code,
+            key,
+            Some(chord.to_string()),
             self.help_ctx,
+            true,
         ));
+        self
+    }
+
+    /// Add a disabled item.
+    #[must_use]
+    pub fn item_disabled(mut self, text: &str, command: CommandId) -> Self {
+        self.items.push(MenuItem::from_parts(
+            text,
+            command,
+            0,
+            None,
+            self.help_ctx,
+            false,
+        ));
+        self
+    }
+
+    /// Add an item built elsewhere, typically with [`MenuItemBuilder`].
+    #[must_use]
+    pub fn add(mut self, item: MenuItem) -> Self {
+        self.items.push(item);
         self
     }
 
@@ -512,10 +497,24 @@ impl MenuItemBuilder {
         self
     }
 
-    /// Sets the shortcut display text (e.g., "F3", "Ctrl+O").
+    /// Sets the shortcut display text (e.g., "F3", "Ctrl+O") without binding
+    /// a key; see [`key`](Self::key) to do both from one chord.
     #[must_use]
     pub fn shortcut(mut self, shortcut: impl Into<String>) -> Self {
         self.shortcut = Some(shortcut.into());
+        self
+    }
+
+    /// Binds the item to a key chord such as `"Ctrl+O"` and shows it next to
+    /// the text.
+    ///
+    /// # Panics
+    ///
+    /// Panics on a chord `parse_key_chord` does not understand.
+    #[must_use]
+    pub fn key(mut self, chord: &str) -> Self {
+        self.key_code = key_code_for_chord(chord);
+        self.shortcut = Some(chord.to_string());
         self
     }
 
@@ -547,6 +546,17 @@ impl MenuItemBuilder {
     }
 }
 
+/// The key code a chord string stands for.
+///
+/// # Panics
+///
+/// Panics on a chord `parse_key_chord` does not understand.
+pub(crate) fn key_code_for_chord(chord: &str) -> KeyCode {
+    crate::core::event::parse_key_chord(chord)
+        .map(|e| e.key_code)
+        .unwrap_or_else(|| panic!("unknown key chord {chord:?}"))
+}
+
 impl Default for MenuItemBuilder {
     fn default() -> Self {
         Self::new()
@@ -558,12 +568,39 @@ mod tests {
     use super::*;
 
     #[test]
+    fn item_key_binds_and_displays_the_chord() {
+        use crate::core::event::KB_CTRL_O;
+        let menu = MenuBuilder::new().item_key("~O~pen", 301, "Ctrl+O").build();
+        let item = &menu.items[0];
+        assert_eq!(item.shortcut(), Some("Ctrl+O"));
+        assert_eq!(menu.find_hotkey(KB_CTRL_O), Some(301));
+    }
+
+    #[test]
     fn test_menu_builder() {
         let menu = MenuBuilder::new()
-            .item("~O~pen", 100, 0x3D00)
-            .item("~S~ave", 101, 0x3C00)
+            .add(
+                MenuItemBuilder::new()
+                    .text("~O~pen")
+                    .command(100)
+                    .key_code(0x3D00)
+                    .build(),
+            )
+            .add(
+                MenuItemBuilder::new()
+                    .text("~S~ave")
+                    .command(101)
+                    .key_code(0x3C00)
+                    .build(),
+            )
             .separator()
-            .item("E~x~it", 102, 0x2D00)
+            .add(
+                MenuItemBuilder::new()
+                    .text("E~x~it")
+                    .command(102)
+                    .key_code(0x2D00)
+                    .build(),
+            )
             .build();
 
         assert_eq!(menu.len(), 4);
@@ -573,7 +610,11 @@ mod tests {
 
     #[test]
     fn test_accelerator() {
-        let item = MenuItem::new("~O~pen", 100, 0x3D00, 0);
+        let item = MenuItemBuilder::new()
+            .text("~O~pen")
+            .command(100)
+            .key_code(0x3D00)
+            .build();
         assert_eq!(item.get_accelerator(), Some('o'));
     }
 

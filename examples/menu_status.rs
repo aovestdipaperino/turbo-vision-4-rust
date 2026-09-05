@@ -9,10 +9,12 @@ use turbo_vision::app::Application;
 use turbo_vision::core::command::{CM_NEW, CM_OK, CM_OPEN, CM_QUIT, CM_SAVE};
 use turbo_vision::core::event::{
     Event, EventType, KB_ALT_X, KB_CTRL_C, KB_CTRL_N, KB_CTRL_O, KB_CTRL_S, KB_CTRL_V, KB_CTRL_X,
-    KB_F10, MB_RIGHT_BUTTON,
+    MB_RIGHT_BUTTON,
 };
 use turbo_vision::core::geometry::{Point, Rect};
+use turbo_vision::core::menu_data::MenuItemBuilder;
 use turbo_vision::core::menu_data::{Menu, MenuItem};
+use turbo_vision::core::status_data::StatusItemBuilder;
 use turbo_vision::views::GroupLike;
 use turbo_vision::views::View;
 use turbo_vision::views::button::ButtonBuilder;
@@ -20,7 +22,7 @@ use turbo_vision::views::dialog::DialogBuilder;
 use turbo_vision::views::menu_bar::{MenuBar, SubMenu};
 use turbo_vision::views::menu_box::MenuBox;
 use turbo_vision::views::static_text::StaticTextBuilder;
-use turbo_vision::views::status_line::{StatusItem, StatusLine};
+use turbo_vision::views::status_line::StatusLine;
 
 // Custom command IDs for this example
 const CMD_ABOUT: u16 = 100;
@@ -64,42 +66,97 @@ fn setup_menu_bar(app: &mut Application, width: i16) {
 
     // File menu with Recent Files submenu
     let recent_files_submenu = Menu::from_items(vec![
-        MenuItem::with_shortcut("~1~. document.txt", CMD_RECENT_1, 0, "", 0),
-        MenuItem::with_shortcut("~2~. project.rs", CMD_RECENT_2, 0, "", 0),
-        MenuItem::with_shortcut("~3~. readme.md", CMD_RECENT_3, 0, "", 0),
+        MenuItemBuilder::new()
+            .text("~1~. document.txt")
+            .command(CMD_RECENT_1)
+            .build(),
+        MenuItemBuilder::new()
+            .text("~2~. project.rs")
+            .command(CMD_RECENT_2)
+            .build(),
+        MenuItemBuilder::new()
+            .text("~3~. readme.md")
+            .command(CMD_RECENT_3)
+            .build(),
         MenuItem::separator(),
-        MenuItem::with_shortcut("~C~lear Recent", CMD_CLEAR_RECENT, 0, "", 0),
+        MenuItemBuilder::new()
+            .text("~C~lear Recent")
+            .command(CMD_CLEAR_RECENT)
+            .build(),
     ]);
 
     let file_menu_items = vec![
-        MenuItem::with_shortcut("~N~ew", CM_NEW, 0, "Ctrl+N", 0),
-        MenuItem::with_shortcut("~O~pen...", CM_OPEN, 0, "Ctrl+O", 0),
+        MenuItemBuilder::new()
+            .text("~N~ew")
+            .command(CM_NEW)
+            .key("Ctrl+N")
+            .build(),
+        MenuItemBuilder::new()
+            .text("~O~pen...")
+            .command(CM_OPEN)
+            .key("Ctrl+O")
+            .build(),
         MenuItem::submenu("~R~ecent Files", 0, recent_files_submenu, 0),
         MenuItem::separator(),
-        MenuItem::with_shortcut("~S~ave", CM_SAVE, 0, "Ctrl+S", 0),
+        MenuItemBuilder::new()
+            .text("~S~ave")
+            .command(CM_SAVE)
+            .key("Ctrl+S")
+            .build(),
         MenuItem::separator(),
-        MenuItem::with_shortcut("E~x~it", CM_QUIT, 0, "Alt+X", 0),
+        MenuItemBuilder::new()
+            .text("E~x~it")
+            .command(CM_QUIT)
+            .key("Alt+X")
+            .build(),
     ];
     let file_menu = SubMenu::new("~F~ile", Menu::from_items(file_menu_items));
 
     // Edit menu with Preferences submenu
     let preferences_submenu = Menu::from_items(vec![
-        MenuItem::with_shortcut("~G~eneral", CMD_GENERAL_PREFS, 0, "", 0),
-        MenuItem::with_shortcut("~A~ppearance", CMD_APPEARANCE_PREFS, 0, "", 0),
-        MenuItem::with_shortcut("~K~eyboard Shortcuts", CMD_SHORTCUTS_PREFS, 0, "", 0),
+        MenuItemBuilder::new()
+            .text("~G~eneral")
+            .command(CMD_GENERAL_PREFS)
+            .build(),
+        MenuItemBuilder::new()
+            .text("~A~ppearance")
+            .command(CMD_APPEARANCE_PREFS)
+            .build(),
+        MenuItemBuilder::new()
+            .text("~K~eyboard Shortcuts")
+            .command(CMD_SHORTCUTS_PREFS)
+            .build(),
     ]);
 
     let edit_menu_items = vec![
-        MenuItem::with_shortcut("Cu~t~", CMD_CUT, 0, "Ctrl+X", 0),
-        MenuItem::with_shortcut("~C~opy", CMD_COPY, 0, "Ctrl+C", 0),
-        MenuItem::with_shortcut("~P~aste", CMD_PASTE, 0, "Ctrl+V", 0),
+        MenuItemBuilder::new()
+            .text("Cu~t~")
+            .command(CMD_CUT)
+            .key("Ctrl+X")
+            .build(),
+        MenuItemBuilder::new()
+            .text("~C~opy")
+            .command(CMD_COPY)
+            .key("Ctrl+C")
+            .build(),
+        MenuItemBuilder::new()
+            .text("~P~aste")
+            .command(CMD_PASTE)
+            .key("Ctrl+V")
+            .build(),
         MenuItem::separator(),
         MenuItem::submenu("P~r~eferences", 0, preferences_submenu, 0),
     ];
     let edit_menu = SubMenu::new("~E~dit", Menu::from_items(edit_menu_items));
 
     // Help menu
-    let help_menu_items = vec![MenuItem::with_shortcut("~A~bout", CMD_ABOUT, 0, "F1", 0)];
+    let help_menu_items = vec![
+        MenuItemBuilder::new()
+            .text("~A~bout")
+            .command(CMD_ABOUT)
+            .key("F1")
+            .build(),
+    ];
     let help_menu = SubMenu::new("~H~elp", Menu::from_items(help_menu_items));
 
     menu_bar.add_submenu(file_menu);
@@ -113,9 +170,12 @@ fn setup_status_line(app: &mut Application, width: i16, height: i16) {
     let status_line = StatusLine::new(
         Rect::new(0, height - 1, width, height),
         vec![
-            StatusItem::new("~F10~ Menu", KB_F10, 0),
-            StatusItem::new("~F1~ Help", 0, 0),
-            StatusItem::new("~Right-Click~ Popup", 0, 0),
+            StatusItemBuilder::new()
+                .text("~F10~ Menu")
+                .key("F10")
+                .build(),
+            StatusItemBuilder::new().text("~F1~ Help").build(),
+            StatusItemBuilder::new().text("~Right-Click~ Popup").build(),
         ],
     );
     app.set_status_line(status_line);
@@ -283,10 +343,21 @@ fn handle_command(app: &mut Application, command: u16) {
 /// Returns the command ID of the selected item, or 0 if cancelled
 fn show_popup_menu(app: &mut Application, position: Point) -> u16 {
     let popup_menu = Menu::from_items(vec![
-        MenuItem::with_shortcut("~N~ew File", CMD_POPUP_NEW, 0, "Ctrl+N", 0),
-        MenuItem::with_shortcut("~O~pen File", CMD_POPUP_OPEN, 0, "Ctrl+O", 0),
+        MenuItemBuilder::new()
+            .text("~N~ew File")
+            .command(CMD_POPUP_NEW)
+            .key("Ctrl+N")
+            .build(),
+        MenuItemBuilder::new()
+            .text("~O~pen File")
+            .command(CMD_POPUP_OPEN)
+            .key("Ctrl+O")
+            .build(),
         MenuItem::separator(),
-        MenuItem::with_shortcut("~P~roperties", CMD_POPUP_PROPERTIES, 0, "", 0),
+        MenuItemBuilder::new()
+            .text("~P~roperties")
+            .command(CMD_POPUP_PROPERTIES)
+            .build(),
     ]);
 
     let mut menu_box = MenuBox::new(position, popup_menu);

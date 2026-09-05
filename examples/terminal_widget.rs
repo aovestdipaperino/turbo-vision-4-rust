@@ -11,16 +11,16 @@
 // - Color-coded messages (warnings, errors, success)
 // - Interactive buttons to control log playback
 
+use turbo_vision::core::status_data::StatusItemBuilder;
 use turbo_vision::prelude::*;
 
 use std::time::{Duration, Instant};
 use turbo_vision::core::command::CM_QUIT;
 use turbo_vision::core::command_set;
-use turbo_vision::core::event::KB_ALT_X;
 use turbo_vision::core::palette::Attr;
 use turbo_vision::views::button::ButtonBuilder;
 use turbo_vision::views::dialog::{Dialog, DialogBuilder};
-use turbo_vision::views::status_line::{StatusItem, StatusLine};
+use turbo_vision::views::status_line::StatusLine;
 use turbo_vision::views::terminal_widget::TerminalWidget;
 use turbo_vision::views::view::ViewId;
 
@@ -231,7 +231,13 @@ fn main() -> turbo_vision::core::error::Result<()> {
     let (width, height) = app.terminal.size();
     let status_line = StatusLine::new(
         Rect::new(0, height - 1, width, height),
-        vec![StatusItem::new("~Alt+X~ Exit", KB_ALT_X, CM_QUIT)],
+        vec![
+            StatusItemBuilder::new()
+                .text("~Alt+X~ Exit")
+                .key("Alt+X")
+                .command(CM_QUIT)
+                .build(),
+        ],
     );
     app.set_status_line(status_line);
 

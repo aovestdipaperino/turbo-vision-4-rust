@@ -12,10 +12,12 @@ use turbo_vision::core::command::{
 };
 use turbo_vision::core::command_set;
 use turbo_vision::core::draw::DrawBuffer;
-use turbo_vision::core::event::{Event, EventType, KB_ALT_F3, KB_ALT_X, KB_F3, KB_F6, KB_F10};
+use turbo_vision::core::event::{Event, EventType, KB_ALT_F3, KB_F3, KB_F6};
 use turbo_vision::core::geometry::Rect;
+use turbo_vision::core::menu_data::MenuItemBuilder;
 use turbo_vision::core::menu_data::{Menu, MenuItem};
 use turbo_vision::core::palette::{Attr, Palette, TvColor, colors};
+use turbo_vision::core::status_data::StatusItemBuilder;
 use turbo_vision::terminal::Terminal;
 use turbo_vision::views::GroupLike;
 use turbo_vision::views::ViewCore;
@@ -28,7 +30,7 @@ use turbo_vision::views::{
     dialog::DialogBuilder,
     file_dialog::FileDialogBuilder,
     menu_bar::{MenuBar, SubMenu},
-    status_line::{StatusItem, StatusLine},
+    status_line::StatusLine,
     window::WindowBuilder,
 };
 
@@ -297,32 +299,76 @@ fn create_menu_bar(width: i16) -> MenuBar {
 
     // System menu (using ☼ symbol as in original Borland TV)
     let system_menu_items = vec![
-        MenuItem::with_shortcut("~A~bout...", CM_ABOUT, 0, "", 0),
+        MenuItemBuilder::new()
+            .text("~A~bout...")
+            .command(CM_ABOUT)
+            .build(),
         MenuItem::separator(),
-        MenuItem::with_shortcut("~A~scii Table", CM_ASCII_TABLE, 0, "", 0),
-        MenuItem::with_shortcut("Ca~l~culator", CM_CALCULATOR, 0, "", 0),
-        MenuItem::with_shortcut("Ca~l~endar", CM_CALENDAR, 0, "", 0),
-        MenuItem::with_shortcut("~P~uzzle", CM_PUZZLE, 0, "", 0),
+        MenuItemBuilder::new()
+            .text("~A~scii Table")
+            .command(CM_ASCII_TABLE)
+            .build(),
+        MenuItemBuilder::new()
+            .text("Ca~l~culator")
+            .command(CM_CALCULATOR)
+            .build(),
+        MenuItemBuilder::new()
+            .text("Ca~l~endar")
+            .command(CM_CALENDAR)
+            .build(),
+        MenuItemBuilder::new()
+            .text("~P~uzzle")
+            .command(CM_PUZZLE)
+            .build(),
     ];
     let system_menu = SubMenu::new("~☼~", Menu::from_items(system_menu_items));
 
     // File menu
     let file_menu_items = vec![
-        MenuItem::with_shortcut("~O~pen...", CM_OPEN, 0, "F3", 0),
-        MenuItem::with_shortcut("~C~hange Dir...", CM_CHDIR, 0, "", 0),
+        MenuItemBuilder::new()
+            .text("~O~pen...")
+            .command(CM_OPEN)
+            .key("F3")
+            .build(),
+        MenuItemBuilder::new()
+            .text("~C~hange Dir...")
+            .command(CM_CHDIR)
+            .build(),
         MenuItem::separator(),
-        MenuItem::with_shortcut("E~x~it", CM_QUIT, 0, "Alt+X", 0),
+        MenuItemBuilder::new()
+            .text("E~x~it")
+            .command(CM_QUIT)
+            .key("Alt+X")
+            .build(),
     ];
     let file_menu = SubMenu::new("~F~ile", Menu::from_items(file_menu_items));
 
     // Windows menu
     let windows_menu_items = vec![
-        MenuItem::with_shortcut("~Z~oom", CM_ZOOM, 0, "F5", 0),
-        MenuItem::with_shortcut("~N~ext", CM_NEXT, 0, "F6", 0),
-        MenuItem::with_shortcut("~C~lose", CM_CLOSE, 0, "Alt+F3", 0),
+        MenuItemBuilder::new()
+            .text("~Z~oom")
+            .command(CM_ZOOM)
+            .key("F5")
+            .build(),
+        MenuItemBuilder::new()
+            .text("~N~ext")
+            .command(CM_NEXT)
+            .key("F6")
+            .build(),
+        MenuItemBuilder::new()
+            .text("~C~lose")
+            .command(CM_CLOSE)
+            .key("Alt+F3")
+            .build(),
         MenuItem::separator(),
-        MenuItem::with_shortcut("~T~ile", CM_TILE, 0, "", 0),
-        MenuItem::with_shortcut("C~a~scade", CM_CASCADE, 0, "", 0),
+        MenuItemBuilder::new()
+            .text("~T~ile")
+            .command(CM_TILE)
+            .build(),
+        MenuItemBuilder::new()
+            .text("C~a~scade")
+            .command(CM_CASCADE)
+            .build(),
     ];
     let windows_menu = SubMenu::new("~W~indows", Menu::from_items(windows_menu_items));
 
@@ -337,10 +383,17 @@ fn create_status_line(width: i16, height: i16) -> StatusLine {
     StatusLine::new(
         Rect::new(0, height - 1, width, height),
         vec![
-            // StatusItem::new("~F1~ Help", KB_F1, CM_ABOUT),
-            StatusItem::new("~Alt-X~ Exit", KB_ALT_X, CM_QUIT),
-            // StatusItem::new("~F3~ Open", KB_F3, CM_OPEN),
-            StatusItem::new("~F10~ Menu", KB_F10, 0),
+            // StatusItemBuilder::new().text("~F1~ Help").key("F1").command(CM_ABOUT).build(),
+            StatusItemBuilder::new()
+                .text("~Alt-X~ Exit")
+                .key("Alt+X")
+                .command(CM_QUIT)
+                .build(),
+            // StatusItemBuilder::new().text("~F3~ Open").key("F3").command(CM_OPEN).build(),
+            StatusItemBuilder::new()
+                .text("~F10~ Menu")
+                .key("F10")
+                .build(),
         ],
     )
 }

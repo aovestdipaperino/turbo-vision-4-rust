@@ -21,12 +21,12 @@
 
 use turbo_vision::app::Application;
 use turbo_vision::core::command::{CM_QUIT, CM_SCREENSHOT};
-use turbo_vision::core::event::{KB_ALT_X, KB_ESC, KB_F12};
 use turbo_vision::core::geometry::Rect;
+use turbo_vision::core::status_data::StatusItemBuilder;
 use turbo_vision::views::GroupLike;
 use turbo_vision::views::label::LabelBuilder;
 use turbo_vision::views::static_text::StaticTextBuilder;
-use turbo_vision::views::status_line::{StatusItem, StatusLine};
+use turbo_vision::views::status_line::StatusLine;
 use turbo_vision::views::window::WindowBuilder;
 
 fn main() -> turbo_vision::core::error::Result<()> {
@@ -37,10 +37,24 @@ fn main() -> turbo_vision::core::error::Result<()> {
     let status_line = StatusLine::new(
         Rect::new(0, height - 1, width, height),
         vec![
-            StatusItem::new("~F12~ ASCII", KB_F12, 0),
-            StatusItem::new("~Ctrl+F12~ PNG", 0, CM_SCREENSHOT),
-            StatusItem::new("~Alt+X~ Exit", KB_ALT_X, CM_QUIT),
-            StatusItem::new("~Esc-X~ Exit", KB_ESC, CM_QUIT),
+            StatusItemBuilder::new()
+                .text("~F12~ ASCII")
+                .key("F12")
+                .build(),
+            StatusItemBuilder::new()
+                .text("~Ctrl+F12~ PNG")
+                .command(CM_SCREENSHOT)
+                .build(),
+            StatusItemBuilder::new()
+                .text("~Alt+X~ Exit")
+                .key("Alt+X")
+                .command(CM_QUIT)
+                .build(),
+            StatusItemBuilder::new()
+                .text("~Esc-X~ Exit")
+                .key("Esc")
+                .command(CM_QUIT)
+                .build(),
         ],
     );
     app.set_status_line(status_line);

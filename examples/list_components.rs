@@ -12,11 +12,12 @@ use turbo_vision::core::command::{CM_NEW, CM_OPEN, CM_QUIT, CM_SAVE};
 use turbo_vision::core::event::EventType;
 use turbo_vision::core::geometry::{Point, Rect};
 use turbo_vision::core::menu_data::MenuBuilder;
+use turbo_vision::core::status_data::StatusItemBuilder;
 use turbo_vision::views::View;
 use turbo_vision::views::listbox::ListBoxBuilder;
 use turbo_vision::views::menu_bar::{MenuBar, SubMenu};
 use turbo_vision::views::menu_box::MenuBox;
-use turbo_vision::views::status_line::{StatusItem, StatusLine};
+use turbo_vision::views::status_line::StatusLine;
 
 // Custom command IDs
 const CMD_SHOW_MENU: u16 = 100;
@@ -31,15 +32,15 @@ fn main() -> turbo_vision::core::error::Result<()> {
 
     // File menu with MenuBuilder
     let file_menu = MenuBuilder::new()
-        .item_with_shortcut("~N~ew", CM_NEW, 0, "Ctrl+N")
-        .item_with_shortcut("~O~pen...", CM_OPEN, 0, "Ctrl+O")
-        .item_with_shortcut("~S~ave", CM_SAVE, 0, "Ctrl+S")
+        .item_key("~N~ew", CM_NEW, "Ctrl+N")
+        .item_key("~O~pen...", CM_OPEN, "Ctrl+O")
+        .item_key("~S~ave", CM_SAVE, "Ctrl+S")
         .separator()
-        .item("E~x~it", CM_QUIT, 0)
+        .item("E~x~it", CM_QUIT)
         .build();
 
     // Help menu
-    let help_menu = MenuBuilder::new().item("~A~bout", CMD_SHOW_MENU, 0).build();
+    let help_menu = MenuBuilder::new().item("~A~bout", CMD_SHOW_MENU).build();
 
     menu_bar.add_submenu(SubMenu::new("~F~ile", file_menu));
     menu_bar.add_submenu(SubMenu::new("~H~elp", help_menu));
@@ -69,10 +70,16 @@ fn main() -> turbo_vision::core::error::Result<()> {
     let status_line = StatusLine::new(
         Rect::new(0, height - 1, width, height),
         vec![
-            StatusItem::new("~↑~↓~ Navigate", 0, 0),
-            StatusItem::new("~Enter~ Select", 0, 0),
-            StatusItem::new("~F1~ Popup Menu", 0, CMD_SHOW_MENU),
-            StatusItem::new("~F10~ Quit", 0, CM_QUIT),
+            StatusItemBuilder::new().text("~↑~↓~ Navigate").build(),
+            StatusItemBuilder::new().text("~Enter~ Select").build(),
+            StatusItemBuilder::new()
+                .text("~F1~ Popup Menu")
+                .command(CMD_SHOW_MENU)
+                .build(),
+            StatusItemBuilder::new()
+                .text("~F10~ Quit")
+                .command(CM_QUIT)
+                .build(),
         ],
     );
     app.set_status_line(status_line);
@@ -169,10 +176,10 @@ fn main() -> turbo_vision::core::error::Result<()> {
                         CMD_SHOW_MENU => {
                             // Demonstrate MenuBox popup
                             let popup_menu = MenuBuilder::new()
-                                .item("~N~ew Window", CM_NEW, 0)
-                                .item("~C~lose Window", 102, 0)
+                                .item("~N~ew Window", CM_NEW)
+                                .item("~C~lose Window", 102)
                                 .separator()
-                                .item("~R~efresh", 103, 0)
+                                .item("~R~efresh", 103)
                                 .build();
 
                             let mut menubox = MenuBox::new(Point::new(35, 8), popup_menu);

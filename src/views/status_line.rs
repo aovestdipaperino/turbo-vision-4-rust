@@ -104,7 +104,11 @@ impl StatusLine {
     fn convert_items(items: &[crate::core::status_data::StatusItem]) -> Vec<StatusItem> {
         items
             .iter()
-            .map(|i| StatusItem::new(&i.text, i.key_code, i.command))
+            .map(|i| StatusItem {
+                text: i.text.clone(),
+                key_code: i.key_code,
+                command: i.command,
+            })
             .collect()
     }
 
@@ -352,17 +356,23 @@ impl View for StatusLine {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::status_data::StatusItemBuilder;
     use crate::core::command::CommandId;
     use crate::core::event::KeyCode;
     use crate::core::geometry::Point;
-    use crate::views::view::View;
 
     const TEST_KEY: KeyCode = 0x1234;
 
     fn make_status_line(command: CommandId) -> StatusLine {
         StatusLine::new(
             Rect::new(0, 0, 80, 1),
-            vec![StatusItem::new("~F9~ Test", TEST_KEY, command)],
+            vec![
+                StatusItemBuilder::new()
+                    .text("~F9~ Test")
+                    .key_code(TEST_KEY)
+                    .command(command)
+                    .build(),
+            ],
         )
     }
 
@@ -441,16 +451,34 @@ mod tests {
 
     #[test]
     fn test_status_defs_switch_with_help_context() {
-        use crate::core::status_data::{StatusDef, StatusItem as DataItem};
+        use crate::core::status_data::StatusDef;
 
         let defs = vec![
-            StatusDef::new(0, 99, vec![DataItem::new("~Alt+X~ Exit", 0x2D00, 1)]),
+            StatusDef::new(
+                0,
+                99,
+                vec![
+                    StatusItemBuilder::new()
+                        .text("~Alt+X~ Exit")
+                        .key("Alt+X")
+                        .command(1)
+                        .build(),
+                ],
+            ),
             StatusDef::new(
                 100,
                 199,
                 vec![
-                    DataItem::new("~F2~ Save", 0x3C00, 302),
-                    DataItem::new("~F3~ Open", 0x3D00, 301),
+                    StatusItemBuilder::new()
+                        .text("~F2~ Save")
+                        .key("F2")
+                        .command(302)
+                        .build(),
+                    StatusItemBuilder::new()
+                        .text("~F3~ Open")
+                        .key("F3")
+                        .command(301)
+                        .build(),
                 ],
             ),
         ];

@@ -11,8 +11,10 @@ use turbo_vision::core::command::CM_QUIT;
 use turbo_vision::core::draw::DrawBuffer;
 use turbo_vision::core::event::{Event, EventType};
 use turbo_vision::core::geometry::Rect;
+use turbo_vision::core::menu_data::MenuItemBuilder;
 use turbo_vision::core::menu_data::{Menu, MenuItem};
 use turbo_vision::core::palette::{Attr, Palette, TvColor};
+use turbo_vision::core::status_data::StatusItemBuilder;
 use turbo_vision::terminal::Terminal;
 use turbo_vision::views::ViewCore;
 use turbo_vision::views::ansi_background::AnsiBackground;
@@ -21,7 +23,7 @@ use turbo_vision::views::view::write_line_to_terminal;
 use turbo_vision::views::{
     View,
     menu_bar::{MenuBar, SubMenu},
-    status_line::{StatusItem, StatusLine},
+    status_line::StatusLine,
 };
 
 // Custom commands
@@ -229,16 +231,32 @@ fn create_menu_bar(width: i16) -> MenuBar {
 
     // File menu with logo options
     let file_menu_items = vec![
-        MenuItem::with_shortcut("Load ~A~NSI File", CM_LOAD_FILE, 0, "", 0),
-        MenuItem::with_shortcut("Load AS~C~II Art", CM_LOAD_ASCII, 0, "", 0),
+        MenuItemBuilder::new()
+            .text("Load ~A~NSI File")
+            .command(CM_LOAD_FILE)
+            .build(),
+        MenuItemBuilder::new()
+            .text("Load AS~C~II Art")
+            .command(CM_LOAD_ASCII)
+            .build(),
         MenuItem::separator(),
-        MenuItem::with_shortcut("E~x~it", CM_QUIT, 0, "Alt+X", 0),
+        MenuItemBuilder::new()
+            .text("E~x~it")
+            .command(CM_QUIT)
+            .key("Alt+X")
+            .build(),
     ];
     let file_menu = SubMenu::new("~F~ile", Menu::from_items(file_menu_items));
     menu_bar.add_submenu(file_menu);
 
     // About menu
-    let about_menu_items = vec![MenuItem::with_shortcut("~A~bout", CM_ABOUT, 0, "Alt+A", 0)];
+    let about_menu_items = vec![
+        MenuItemBuilder::new()
+            .text("~A~bout")
+            .command(CM_ABOUT)
+            .key("Alt+A")
+            .build(),
+    ];
     let about_menu = SubMenu::new("~A~bout", Menu::from_items(about_menu_items));
 
     menu_bar.add_submenu(about_menu);
@@ -246,9 +264,13 @@ fn create_menu_bar(width: i16) -> MenuBar {
 }
 
 fn create_status_line(width: i16, height: i16) -> StatusLine {
-    use turbo_vision::core::event::KB_ALT_X;
-
-    let status_items = vec![StatusItem::new("~Alt+X~ Exit", KB_ALT_X, CM_QUIT)];
+    let status_items = vec![
+        StatusItemBuilder::new()
+            .text("~Alt+X~ Exit")
+            .key("Alt+X")
+            .command(CM_QUIT)
+            .build(),
+    ];
 
     StatusLine::new(Rect::new(0, height - 1, width, height), status_items)
 }

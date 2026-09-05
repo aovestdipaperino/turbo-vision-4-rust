@@ -476,8 +476,8 @@ mod tests {
     #[test]
     fn test_menubox_creation() {
         let menu = MenuBuilder::new()
-            .item("~O~pen", 100, 0)
-            .item("~S~ave", 101, 0)
+            .item("~O~pen", 100)
+            .item("~S~ave", 101)
             .build();
 
         let menubox = MenuBox::new(Point::new(10, 5), menu);
@@ -491,9 +491,9 @@ mod tests {
     #[test]
     fn test_menubox_with_separators() {
         let menu = MenuBuilder::new()
-            .item("Item 1", 100, 0)
+            .item("Item 1", 100)
             .separator()
-            .item("Item 2", 101, 0)
+            .item("Item 2", 101)
             .build();
 
         let menubox = MenuBox::new(Point::new(0, 0), menu);
@@ -504,8 +504,8 @@ mod tests {
     #[test]
     fn test_menubox_get_item_rect() {
         let menu = MenuBuilder::new()
-            .item("Item 1", 100, 0)
-            .item("Item 2", 101, 0)
+            .item("Item 1", 100)
+            .item("Item 2", 101)
             .build();
 
         let menubox = MenuBox::new(Point::new(10, 5), menu);
@@ -524,7 +524,7 @@ mod tests {
         const TEST_CMD: CommandId = 530;
         command_set::disable_command(TEST_CMD);
 
-        let menu = MenuBuilder::new().item("~T~est", TEST_CMD, 0).build();
+        let menu = MenuBuilder::new().item("~T~est", TEST_CMD).build();
         let mut menubox = MenuBox::new(Point::new(0, 0), menu);
 
         let mut event = Event::keyboard(KB_ENTER);
@@ -542,7 +542,7 @@ mod tests {
         const TEST_CMD: CommandId = 531;
         command_set::disable_command(TEST_CMD);
 
-        let menu = MenuBuilder::new().item("~T~est", TEST_CMD, 0).build();
+        let menu = MenuBuilder::new().item("~T~est", TEST_CMD).build();
         let mut menubox = MenuBox::new(Point::new(0, 0), menu);
 
         let item_pos = menubox.get_item_rect(0).a;
@@ -563,7 +563,7 @@ mod tests {
         const TEST_CMD: CommandId = 532;
         command_set::enable_command(TEST_CMD);
 
-        let menu = MenuBuilder::new().item("~T~est", TEST_CMD, 0).build();
+        let menu = MenuBuilder::new().item("~T~est", TEST_CMD).build();
         let mut menubox = MenuBox::new(Point::new(0, 0), menu);
 
         let mut event = Event::keyboard(KB_ENTER);
@@ -576,8 +576,8 @@ mod tests {
     #[test]
     fn test_menubox_selection() {
         let menu = MenuBuilder::new()
-            .item("Item 1", 100, 0)
-            .item("Item 2", 101, 0)
+            .item("Item 1", 100)
+            .item("Item 2", 101)
             .build();
 
         let mut menubox = MenuBox::new(Point::new(0, 0), menu);

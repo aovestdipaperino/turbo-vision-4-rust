@@ -12,13 +12,14 @@
 use std::time::Instant;
 use turbo_vision::app::Application;
 use turbo_vision::core::command::CM_QUIT;
-use turbo_vision::core::event::{Event, KB_ALT_X};
+use turbo_vision::core::event::Event;
 use turbo_vision::core::geometry::Rect;
 use turbo_vision::core::palette::Palette;
+use turbo_vision::core::status_data::StatusItemBuilder;
 use turbo_vision::terminal::Terminal;
 use turbo_vision::views::progress_bar::{ProgressBar, ProgressBarBuilder, ProgressStyle};
 use turbo_vision::views::static_text::StaticText;
-use turbo_vision::views::status_line::{StatusItem, StatusLine};
+use turbo_vision::views::status_line::StatusLine;
 use turbo_vision::views::{View, ViewCore};
 
 /// A caption plus a bar, driving the bar's value from wall-clock time.
@@ -132,7 +133,13 @@ fn main() -> turbo_vision::core::error::Result<()> {
     let (w, h) = app.terminal.size();
     app.set_status_line(StatusLine::new(
         Rect::new(0, h as i16 - 1, w as i16, h as i16),
-        vec![StatusItem::new("~Alt-X~ Exit", KB_ALT_X, CM_QUIT)],
+        vec![
+            StatusItemBuilder::new()
+                .text("~Alt-X~ Exit")
+                .key("Alt+X")
+                .command(CM_QUIT)
+                .build(),
+        ],
     ));
 
     app.run();

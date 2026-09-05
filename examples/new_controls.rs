@@ -24,6 +24,7 @@ use turbo_vision::app::Application;
 use turbo_vision::core::command::CM_QUIT;
 use turbo_vision::core::event::{EventType, KB_ALT_X};
 use turbo_vision::core::geometry::Rect;
+use turbo_vision::core::status_data::StatusItemBuilder;
 use turbo_vision::views::GroupLike;
 use turbo_vision::views::button::Button;
 use turbo_vision::views::combo_box::{ComboBox, ComboState};
@@ -32,7 +33,7 @@ use turbo_vision::views::group::Group;
 use turbo_vision::views::progress_bar::{ProgressBar, ProgressMode, ProgressStyle};
 use turbo_vision::views::spinner::Spinner;
 use turbo_vision::views::static_text::StaticText;
-use turbo_vision::views::status_line::{StatusItem, StatusLine};
+use turbo_vision::views::status_line::StatusLine;
 use turbo_vision::views::tabbed_pane::TabbedPane;
 use turbo_vision::views::table::{Column, Table};
 use turbo_vision::views::{View, ViewId};
@@ -105,7 +106,13 @@ fn main() -> turbo_vision::core::error::Result<()> {
     let (w, h) = app.terminal.size();
     app.set_status_line(StatusLine::new(
         Rect::new(0, h as i16 - 1, w as i16, h as i16),
-        vec![StatusItem::new("~Alt-X~ Exit", KB_ALT_X, CM_QUIT)],
+        vec![
+            StatusItemBuilder::new()
+                .text("~Alt-X~ Exit")
+                .key("Alt+X")
+                .command(CM_QUIT)
+                .build(),
+        ],
     ));
 
     run_loop(&mut app, &handles);

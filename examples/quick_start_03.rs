@@ -1,13 +1,14 @@
 // (C) 2025 - Enzo Lombardi
 // Add a menu bar but no action behind yet
 
-use turbo_vision::core::event::KB_ALT_X;
+use turbo_vision::core::menu_data::MenuItemBuilder;
+use turbo_vision::core::status_data::StatusItemBuilder;
 use turbo_vision::prelude::*;
 
 use turbo_vision::core::menu_data::{Menu, MenuItem};
 use turbo_vision::views::menu_bar::{MenuBar, SubMenu};
 
-use turbo_vision::views::status_line::{StatusItem, StatusLine};
+use turbo_vision::views::status_line::StatusLine;
 
 // Custom command IDs for this example
 const CMD_ABOUT: u16 = 100; // [100, 255] + [1_000, 65_535]
@@ -32,21 +33,39 @@ fn setup_status_line(app: &Application) -> StatusLine {
 
     StatusLine::new(
         Rect::new(0, h as i16 - 1, w as i16, h as i16),
-        vec![StatusItem::new("~Alt-X~ Exit", KB_ALT_X, CM_QUIT)],
+        vec![
+            StatusItemBuilder::new()
+                .text("~Alt-X~ Exit")
+                .key("Alt+X")
+                .command(CM_QUIT)
+                .build(),
+        ],
     )
 }
 
 /// Create and configure the menu bar with File and Help menus
 fn setup_menu_bar(app: &Application) -> MenuBar {
     let file_menu_items = vec![
-        MenuItem::with_shortcut("~O~pen...", CM_OPEN, 0, "Ctrl+O", 0),
+        MenuItemBuilder::new()
+            .text("~O~pen...")
+            .command(CM_OPEN)
+            .key("Ctrl+O")
+            .build(),
         MenuItem::separator(),
-        MenuItem::with_shortcut("E~x~it", CM_QUIT, 0, "Alt+X", 0),
+        MenuItemBuilder::new()
+            .text("E~x~it")
+            .command(CM_QUIT)
+            .key("Alt+X")
+            .build(),
     ];
     let file_menu = SubMenu::new("~F~ile", Menu::from_items(file_menu_items));
 
     let help_menu_items = vec![
-        MenuItem::with_shortcut("~A~bout", CMD_ABOUT, 0, "F1", 0), //
+        MenuItemBuilder::new()
+            .text("~A~bout")
+            .command(CMD_ABOUT)
+            .key("F1")
+            .build(), //
     ];
     let help_menu = SubMenu::new("~H~elp", Menu::from_items(help_menu_items));
 

@@ -50,6 +50,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `core::status_data::StatusItem`. The `IdleView` trait is gone: `View` has
   `fn idle(&mut self) {}` and `Application::add_overlay_widget` takes any
   `View`.
+- **Key chords in the menu and status builders.** `MenuBuilder::item(text,
+  command)` binds no key, `item_key(text, command, "Ctrl+O")` binds and
+  shows the chord, `MenuItemBuilder::key(..)` and `StatusItemBuilder::key(..)`
+  do the same for single items, and `MenuBuilder::add(item)` takes a
+  prebuilt item. The positional `MenuItem::new`, `MenuItem::with_shortcut`,
+  `MenuItem::new_disabled` and `StatusItem::new` are gone; `MenuItem::flag`,
+  `submenu` and `separator` stay, and the `KB_*` constants remain public for
+  `handle_event` match arms. An unknown chord panics at first run.
 - **`add` takes any view.** `GroupLike::add`, `Desktop::add`,
   `Application::exec_view` and `add_overlay_widget` accept `impl View`
   (`impl IdleView` for overlays); `Box<dyn View>` still works because a boxed

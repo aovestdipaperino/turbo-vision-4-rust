@@ -27,8 +27,8 @@ const UNCHECK_PREFIX: &str = "  ";
 /// use turbo_vision_extras::popup_menu;
 ///
 /// let menu = Menu::from_items(vec![
-///     MenuItem::new("~C~opy", 21, 0, 0),
-///     MenuItem::new("~P~aste", 22, 0, 0),
+///     MenuItemBuilder::new().text("~C~opy").command(21).build(),
+///     MenuItemBuilder::new().text("~P~aste").command(22).build(),
 /// ]);
 /// if let Some(cmd) = popup_menu(&mut terminal, event.mouse.pos, menu) {
 ///     // dispatch cmd
@@ -73,12 +73,19 @@ pub fn is_menu_item_checked(menu: &Menu, index: usize) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use turbo_vision::core::menu_data::MenuItemBuilder;
 
     fn menu() -> Menu {
         Menu::from_items(vec![
-            MenuItem::new("Word wrap", 200, 0, 0),
+            MenuItemBuilder::new()
+                .text("Word wrap")
+                .command(200)
+                .build(),
             MenuItem::separator(),
-            MenuItem::new("Line numbers", 201, 0, 0),
+            MenuItemBuilder::new()
+                .text("Line numbers")
+                .command(201)
+                .build(),
         ])
     }
 

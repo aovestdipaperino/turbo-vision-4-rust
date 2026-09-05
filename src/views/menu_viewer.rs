@@ -366,10 +366,10 @@ mod tests {
     #[test]
     fn test_menu_viewer_state_with_menu() {
         let menu = MenuBuilder::new()
-            .item("~O~pen", 100, 0)
-            .item("~S~ave", 101, 0)
+            .item("~O~pen", 100)
+            .item("~S~ave", 101)
             .separator()
-            .item("E~x~it", 102, 0)
+            .item("E~x~it", 102)
             .build();
 
         let state = MenuViewerState::with_menu(menu);
@@ -381,10 +381,10 @@ mod tests {
     #[test]
     fn test_menu_navigation() {
         let menu = MenuBuilder::new()
-            .item("Item 1", 100, 0)
-            .item("Item 2", 101, 0)
+            .item("Item 1", 100)
+            .item("Item 2", 101)
             .separator()
-            .item("Item 3", 102, 0)
+            .item("Item 3", 102)
             .build();
 
         let mut state = MenuViewerState::with_menu(menu);
@@ -410,9 +410,9 @@ mod tests {
     #[test]
     fn test_find_item_by_char() {
         let menu = MenuBuilder::new()
-            .item("~O~pen", 100, 0)
-            .item("~S~ave", 101, 0)
-            .item("E~x~it", 102, 0)
+            .item("~O~pen", 100)
+            .item("~S~ave", 101)
+            .item("E~x~it", 102)
             .build();
 
         let state = MenuViewerState::with_menu(menu);
@@ -443,8 +443,8 @@ mod tests {
     #[test]
     fn test_get_current_item() {
         let menu = MenuBuilder::new()
-            .item("First", 100, 0)
-            .item("Second", 101, 0)
+            .item("First", 100)
+            .item("Second", 101)
             .build();
 
         let state = MenuViewerState::with_menu(menu);

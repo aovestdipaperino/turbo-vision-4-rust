@@ -6,8 +6,10 @@
 
 use turbo_vision::core::command::*;
 use turbo_vision::core::event::*;
+use turbo_vision::core::menu_data::MenuItemBuilder;
 use turbo_vision::core::menu_data::{Menu, MenuBuilder, MenuItem};
-use turbo_vision::core::status_data::{StatusItem, StatusLine, StatusLineBuilder};
+use turbo_vision::core::status_data::StatusItemBuilder;
+use turbo_vision::core::status_data::{StatusLine, StatusLineBuilder};
 
 // Define some example commands and key codes for demonstration
 const CM_HELP: u16 = 1000;
@@ -20,9 +22,6 @@ const CM_NEXT: u16 = 1006;
 const CM_DELETE_LINE: u16 = 1007;
 const CM_CLEAR: u16 = 1008;
 
-const KB_CTRL_N: KeyCode = 0x310E;
-const KB_CTRL_Z: KeyCode = 0x2C1A;
-const KB_CTRL_Y: KeyCode = 0x1519;
 const KB_CTRL_INS: KeyCode = 0x0452;
 const KB_SHIFT_INS: KeyCode = 0x0552;
 const KB_SHIFT_DEL: KeyCode = 0x0553;
@@ -34,12 +33,12 @@ fn main() {
     // Example 1: Building a File menu using MenuBuilder (Borland-style)
     println!("1. Building a File menu with MenuBuilder:");
     let file_menu = MenuBuilder::new()
-        .item_with_shortcut("~N~ew", CM_NEW, KB_CTRL_N, "Ctrl+N")
-        .item_with_shortcut("~O~pen", CM_OPEN, KB_F3, "F3")
-        .item_with_shortcut("~S~ave", CM_SAVE, KB_F2, "F2")
-        .item("Save ~a~s...", CM_SAVE_AS, 0)
+        .item_key("~N~ew", CM_NEW, "Ctrl+N")
+        .item_key("~O~pen", CM_OPEN, "F3")
+        .item_key("~S~ave", CM_SAVE, "F2")
+        .item("Save ~a~s...", CM_SAVE_AS)
         .separator()
-        .item_with_shortcut("E~x~it", CM_QUIT, KB_ALT_X, "Alt+X")
+        .item_key("E~x~it", CM_QUIT, "Alt+X")
         .build();
 
     println!("  File menu has {} items", file_menu.len());
@@ -61,13 +60,35 @@ fn main() {
     // Example 2: Building menus manually (direct construction)
     println!("2. Building an Edit menu manually:");
     let edit_menu = Menu::from_items(vec![
-        MenuItem::with_shortcut("~U~ndo", CM_UNDO, KB_CTRL_Z, "Ctrl+Z", 0),
+        MenuItemBuilder::new()
+            .text("~U~ndo")
+            .command(CM_UNDO)
+            .key("Ctrl+Z")
+            .build(),
         MenuItem::separator(),
-        MenuItem::with_shortcut("Cu~t~", CM_CUT, KB_SHIFT_DEL, "Shift+Del", 0),
-        MenuItem::with_shortcut("~C~opy", CM_COPY, KB_CTRL_INS, "Ctrl+Ins", 0),
-        MenuItem::with_shortcut("~P~aste", CM_PASTE, KB_SHIFT_INS, "Shift+Ins", 0),
+        MenuItemBuilder::new()
+            .text("Cu~t~")
+            .command(CM_CUT)
+            .key_code(KB_SHIFT_DEL)
+            .shortcut("Shift+Del")
+            .build(),
+        MenuItemBuilder::new()
+            .text("~C~opy")
+            .command(CM_COPY)
+            .key_code(KB_CTRL_INS)
+            .shortcut("Ctrl+Ins")
+            .build(),
+        MenuItemBuilder::new()
+            .text("~P~aste")
+            .command(CM_PASTE)
+            .key_code(KB_SHIFT_INS)
+            .shortcut("Shift+Ins")
+            .build(),
         MenuItem::separator(),
-        MenuItem::new("~C~lear", CM_CLEAR, 0, 0),
+        MenuItemBuilder::new()
+            .text("~C~lear")
+            .command(CM_CLEAR)
+            .build(),
     ]);
 
     println!("  Edit menu has {} items", edit_menu.len());
@@ -76,16 +97,23 @@ fn main() {
     // Example 3: Building a nested menu (submenu)
     println!("3. Building a Help menu with submenu:");
     let help_topics_menu = MenuBuilder::new()
-        .item("~I~ndex", CM_HELP_INDEX, 0)
-        .item("~K~eyboard", CM_HELP_KEYBOARD, 0)
-        .item("~C~ommands", CM_HELP_COMMANDS, 0)
+        .item("~I~ndex", CM_HELP_INDEX)
+        .item("~K~eyboard", CM_HELP_KEYBOARD)
+        .item("~C~ommands", CM_HELP_COMMANDS)
         .build();
 
     let help_menu = Menu::from_items(vec![
-        MenuItem::new("~C~ontents", CM_HELP_CONTENTS, KB_F1, 0),
+        MenuItemBuilder::new()
+            .text("~C~ontents")
+            .command(CM_HELP_CONTENTS)
+            .key_code(KB_F1)
+            .build(),
         MenuItem::submenu("~T~opics", 0, help_topics_menu, 0),
         MenuItem::separator(),
-        MenuItem::new("~A~bout", CM_HELP_ABOUT, 0, 0),
+        MenuItemBuilder::new()
+            .text("~A~bout")
+            .command(CM_HELP_ABOUT)
+            .build(),
     ]);
 
     println!("  Help menu has {} items", help_menu.len());
@@ -97,10 +125,26 @@ fn main() {
     // Example 4: Building a status line (simple)
     println!("4. Building a simple status line:");
     let simple_status = StatusLine::single(vec![
-        StatusItem::new("~F1~ Help", KB_F1, CM_HELP),
-        StatusItem::new("~F2~ Save", KB_F2, CM_SAVE),
-        StatusItem::new("~F3~ Open", KB_F3, CM_OPEN),
-        StatusItem::new("~Alt+X~ Exit", KB_ALT_X, CM_QUIT),
+        StatusItemBuilder::new()
+            .text("~F1~ Help")
+            .key("F1")
+            .command(CM_HELP)
+            .build(),
+        StatusItemBuilder::new()
+            .text("~F2~ Save")
+            .key("F2")
+            .command(CM_SAVE)
+            .build(),
+        StatusItemBuilder::new()
+            .text("~F3~ Open")
+            .key("F3")
+            .command(CM_OPEN)
+            .build(),
+        StatusItemBuilder::new()
+            .text("~Alt+X~ Exit")
+            .key("Alt+X")
+            .command(CM_QUIT)
+            .build(),
     ]);
 
     println!(
@@ -124,19 +168,47 @@ fn main() {
     let context_status = StatusLineBuilder::new()
         // Default status (all contexts)
         .add_default_def(vec![
-            StatusItem::new("~F1~ Help", KB_F1, CM_HELP),
-            StatusItem::new("~Alt+X~ Exit", KB_ALT_X, CM_QUIT),
+            StatusItemBuilder::new()
+                .text("~F1~ Help")
+                .key("F1")
+                .command(CM_HELP)
+                .build(),
+            StatusItemBuilder::new()
+                .text("~Alt+X~ Exit")
+                .key("Alt+X")
+                .command(CM_QUIT)
+                .build(),
         ])
         // Editor context (command set 100-199)
         .add_def(
             100,
             199,
             vec![
-                StatusItem::new("~F1~ Help", KB_F1, CM_HELP),
-                StatusItem::new("~F2~ Save", KB_F2, CM_SAVE),
-                StatusItem::new("~F3~ Open", KB_F3, CM_OPEN),
-                StatusItem::new("~Ctrl+Y~ Delete line", KB_CTRL_Y, CM_DELETE_LINE),
-                StatusItem::new("~Alt+X~ Exit", KB_ALT_X, CM_QUIT),
+                StatusItemBuilder::new()
+                    .text("~F1~ Help")
+                    .key("F1")
+                    .command(CM_HELP)
+                    .build(),
+                StatusItemBuilder::new()
+                    .text("~F2~ Save")
+                    .key("F2")
+                    .command(CM_SAVE)
+                    .build(),
+                StatusItemBuilder::new()
+                    .text("~F3~ Open")
+                    .key("F3")
+                    .command(CM_OPEN)
+                    .build(),
+                StatusItemBuilder::new()
+                    .text("~Ctrl+Y~ Delete line")
+                    .key("Ctrl+Y")
+                    .command(CM_DELETE_LINE)
+                    .build(),
+                StatusItemBuilder::new()
+                    .text("~Alt+X~ Exit")
+                    .key("Alt+X")
+                    .command(CM_QUIT)
+                    .build(),
             ],
         )
         // Dialog context (command set 200-299)
@@ -144,9 +216,21 @@ fn main() {
             200,
             299,
             vec![
-                StatusItem::new("~F1~ Help", KB_F1, CM_HELP),
-                StatusItem::new("~Tab~ Next", KB_TAB, CM_NEXT),
-                StatusItem::new("~Esc~ Cancel", KB_ESC, CM_CANCEL),
+                StatusItemBuilder::new()
+                    .text("~F1~ Help")
+                    .key("F1")
+                    .command(CM_HELP)
+                    .build(),
+                StatusItemBuilder::new()
+                    .text("~Tab~ Next")
+                    .key("Tab")
+                    .command(CM_NEXT)
+                    .build(),
+                StatusItemBuilder::new()
+                    .text("~Esc~ Cancel")
+                    .key("Esc")
+                    .command(CM_CANCEL)
+                    .build(),
             ],
         )
         .build();
@@ -186,12 +270,20 @@ fn main() {
 
     // Example 7: Testing accelerator extraction
     println!("7. Testing accelerator key extraction:");
-    let item = MenuItem::new("~O~pen File", CM_OPEN, KB_F3, 0);
+    let item = MenuItemBuilder::new()
+        .text("~O~pen File")
+        .command(CM_OPEN)
+        .key_code(KB_F3)
+        .build();
     if let Some(accel) = item.get_accelerator() {
         println!("  Menu item '{}' has accelerator: '{}'", item.text(), accel);
     }
 
-    let status_item = StatusItem::new("~F1~ Help", KB_F1, CM_HELP);
+    let status_item = StatusItemBuilder::new()
+        .text("~F1~ Help")
+        .key("F1")
+        .command(CM_HELP)
+        .build();
     if let Some(accel) = status_item.get_accelerator() {
         println!(
             "  Status item '{}' has accelerator: '{}'",
@@ -206,28 +298,49 @@ fn main() {
         (
             "~F~ile",
             MenuBuilder::new()
-                .item_with_shortcut("~N~ew", CM_NEW, KB_CTRL_N, "Ctrl+N")
-                .item_with_shortcut("~O~pen", CM_OPEN, KB_F3, "F3")
+                .item_key("~N~ew", CM_NEW, "Ctrl+N")
+                .item_key("~O~pen", CM_OPEN, "F3")
                 .separator()
-                .item_with_shortcut("E~x~it", CM_QUIT, KB_ALT_X, "Alt+X")
+                .item_key("E~x~it", CM_QUIT, "Alt+X")
                 .build(),
         ),
         (
             "~E~dit",
             MenuBuilder::new()
-                .item_with_shortcut("~U~ndo", CM_UNDO, KB_CTRL_Z, "Ctrl+Z")
+                .item_key("~U~ndo", CM_UNDO, "Ctrl+Z")
                 .separator()
-                .item_with_shortcut("Cu~t~", CM_CUT, KB_SHIFT_DEL, "Shift+Del")
-                .item_with_shortcut("~C~opy", CM_COPY, KB_CTRL_INS, "Ctrl+Ins")
-                .item_with_shortcut("~P~aste", CM_PASTE, KB_SHIFT_INS, "Shift+Ins")
+                .add(
+                    MenuItemBuilder::new()
+                        .text("Cu~t~")
+                        .command(CM_CUT)
+                        .key_code(KB_SHIFT_DEL)
+                        .shortcut("Shift+Del")
+                        .build(),
+                )
+                .add(
+                    MenuItemBuilder::new()
+                        .text("~C~opy")
+                        .command(CM_COPY)
+                        .key_code(KB_CTRL_INS)
+                        .shortcut("Ctrl+Ins")
+                        .build(),
+                )
+                .add(
+                    MenuItemBuilder::new()
+                        .text("~P~aste")
+                        .command(CM_PASTE)
+                        .key_code(KB_SHIFT_INS)
+                        .shortcut("Shift+Ins")
+                        .build(),
+                )
                 .build(),
         ),
         (
             "~H~elp",
             MenuBuilder::new()
-                .item_with_shortcut("~C~ontents", CM_HELP_CONTENTS, KB_F1, "F1")
+                .item_key("~C~ontents", CM_HELP_CONTENTS, "F1")
                 .separator()
-                .item("~A~bout", CM_HELP_ABOUT, 0)
+                .item("~A~bout", CM_HELP_ABOUT)
                 .build(),
         ),
     ];

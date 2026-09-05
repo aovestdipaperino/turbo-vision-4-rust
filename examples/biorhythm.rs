@@ -8,16 +8,18 @@ use std::rc::Rc;
 use turbo_vision::app::{AppHandler, Application};
 use turbo_vision::core::command::{CM_CANCEL, CM_CLOSE, CM_OK, CM_QUIT};
 use turbo_vision::core::draw::DrawBuffer;
-use turbo_vision::core::event::{Event, EventType, KB_ALT_C, KB_ALT_X, KB_F1, KB_F10};
+use turbo_vision::core::event::{Event, EventType, KB_ALT_C, KB_ALT_X, KB_F1};
 use turbo_vision::core::geometry::Rect;
+use turbo_vision::core::menu_data::MenuItemBuilder;
 use turbo_vision::core::menu_data::{Menu, MenuItem};
 use turbo_vision::core::palette::{Attr, TvColor, colors};
 use turbo_vision::core::state::SF_VISIBLE;
+use turbo_vision::core::status_data::StatusItemBuilder;
 use turbo_vision::terminal::Terminal;
 use turbo_vision::views::dialog::DialogBuilder;
 use turbo_vision::views::input_line::InputLine;
 use turbo_vision::views::menu_bar::{MenuBar, SubMenu};
-use turbo_vision::views::status_line::{StatusItem, StatusLine};
+use turbo_vision::views::status_line::StatusLine;
 use turbo_vision::views::validator::Validator;
 use turbo_vision::views::view::write_line_to_terminal;
 use turbo_vision::views::{GroupLike, Handle};
@@ -692,13 +694,25 @@ fn add_menu_bar(app: &mut Application) {
     let (width, _) = app.terminal.size();
     let mut menu_bar = MenuBar::new(Rect::new(0, 0, width, 1));
     let biorhythm_menu = Menu::from_items(vec![
-        MenuItem::with_shortcut("~C~alculate", CM_BIORHYTHM, 0, "Alt+C", 0),
+        MenuItemBuilder::new()
+            .text("~C~alculate")
+            .command(CM_BIORHYTHM)
+            .key("Alt+C")
+            .build(),
         MenuItem::separator(),
-        MenuItem::with_shortcut("E~x~it", CM_QUIT, 0, "Alt+X", 0),
+        MenuItemBuilder::new()
+            .text("E~x~it")
+            .command(CM_QUIT)
+            .key("Alt+X")
+            .build(),
     ]);
-    let help_menu = Menu::from_items(vec![MenuItem::with_shortcut(
-        "~A~bout", CM_ABOUT, 0, "F1", 0,
-    )]);
+    let help_menu = Menu::from_items(vec![
+        MenuItemBuilder::new()
+            .text("~A~bout")
+            .command(CM_ABOUT)
+            .key("F1")
+            .build(),
+    ]);
     menu_bar.add_submenu(SubMenu::new("~B~iorhythm", biorhythm_menu));
     menu_bar.add_submenu(SubMenu::new("~H~elp", help_menu));
     app.set_menu_bar(menu_bar);
@@ -711,9 +725,20 @@ fn add_status_line(app: &mut Application) {
     let status_line = StatusLine::new(
         Rect::new(0, height - 1, width, height),
         vec![
-            StatusItem::new("~F1~ Help", KB_F1, CM_ABOUT),
-            StatusItem::new("~F10~ Menu", KB_F10, 0),
-            StatusItem::new("~Alt-X~ Exit", 0x2D00, CM_QUIT),
+            StatusItemBuilder::new()
+                .text("~F1~ Help")
+                .key("F1")
+                .command(CM_ABOUT)
+                .build(),
+            StatusItemBuilder::new()
+                .text("~F10~ Menu")
+                .key("F10")
+                .build(),
+            StatusItemBuilder::new()
+                .text("~Alt-X~ Exit")
+                .key("Alt+X")
+                .command(CM_QUIT)
+                .build(),
         ],
     );
     app.set_status_line(status_line);

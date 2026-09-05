@@ -7,11 +7,12 @@
 
 use turbo_vision::app::Application;
 use turbo_vision::core::command::CM_QUIT;
-use turbo_vision::core::event::{EventType, KB_ALT_X, KB_F5};
+use turbo_vision::core::event::{EventType, KB_ALT_X};
 use turbo_vision::core::geometry::Rect;
+use turbo_vision::core::status_data::StatusItemBuilder;
 use turbo_vision::views::View;
 use turbo_vision::views::log_window::LogWindowBuilder;
-use turbo_vision::views::status_line::{StatusItem, StatusLine};
+use turbo_vision::views::status_line::StatusLine;
 
 use std::time::{Duration, Instant};
 
@@ -26,8 +27,16 @@ fn main() -> turbo_vision::core::error::Result<()> {
     let status_line = StatusLine::new(
         Rect::new(0, height - 1, width, height),
         vec![
-            StatusItem::new("~Alt-X~ Exit", KB_ALT_X, CM_QUIT),
-            StatusItem::new("~F5~ Log burst", KB_F5, CM_BURST),
+            StatusItemBuilder::new()
+                .text("~Alt-X~ Exit")
+                .key("Alt+X")
+                .command(CM_QUIT)
+                .build(),
+            StatusItemBuilder::new()
+                .text("~F5~ Log burst")
+                .key("F5")
+                .command(CM_BURST)
+                .build(),
         ],
     );
     app.set_status_line(status_line);

@@ -10,14 +10,15 @@
 
 use turbo_vision::app::Application;
 use turbo_vision::core::command::{CM_CLOSE, CM_HELP_INDEX, CM_QUIT, CM_TOGGLE_BLOCK_MODE};
-use turbo_vision::core::event::KB_F10;
 use turbo_vision::core::geometry::Rect;
+use turbo_vision::core::menu_data::MenuItemBuilder;
 use turbo_vision::core::menu_data::{Menu, MenuItem};
+use turbo_vision::core::status_data::StatusItemBuilder;
 use turbo_vision::views::edit_window::EditWindow;
 use turbo_vision::views::help_file::HelpFile;
 use turbo_vision::views::menu_bar::{MenuBar, SubMenu};
 use turbo_vision::views::msgbox::{MF_AUTO_DISMISS, MF_INFORMATION, message_box};
-use turbo_vision::views::status_line::{StatusItem, StatusLine};
+use turbo_vision::views::status_line::StatusLine;
 use turbo_vision::views::syntax::{SyntaxHighlighter, Token, TokenType};
 
 // Help context IDs
@@ -487,9 +488,19 @@ fn main() -> turbo_vision::core::error::Result<()> {
     menu_bar.add_submenu(SubMenu::new(
         "~F~ile",
         Menu::from_items(vec![
-            MenuItem::with_shortcut("~C~lose", CM_CLOSE, 0, "Alt+F3", HC_FILE_MENU),
+            MenuItemBuilder::new()
+                .text("~C~lose")
+                .command(CM_CLOSE)
+                .key("Alt+F3")
+                .help_ctx(HC_FILE_MENU)
+                .build(),
             MenuItem::separator(),
-            MenuItem::with_shortcut("E~x~it", CM_QUIT, 0, "Alt+X", HC_FILE_MENU),
+            MenuItemBuilder::new()
+                .text("E~x~it")
+                .command(CM_QUIT)
+                .key("Alt+X")
+                .help_ctx(HC_FILE_MENU)
+                .build(),
         ]),
     ));
     menu_bar.add_submenu(SubMenu::new(
@@ -504,13 +515,13 @@ fn main() -> turbo_vision::core::error::Result<()> {
     ));
     menu_bar.add_submenu(SubMenu::new(
         "~H~elp",
-        Menu::from_items(vec![MenuItem::with_shortcut(
-            "~C~ontents",
-            CM_HELP_INDEX,
-            0,
-            "F1",
-            0,
-        )]),
+        Menu::from_items(vec![
+            MenuItemBuilder::new()
+                .text("~C~ontents")
+                .command(CM_HELP_INDEX)
+                .key("F1")
+                .build(),
+        ]),
     ));
     app.set_menu_bar(menu_bar);
 
@@ -518,9 +529,19 @@ fn main() -> turbo_vision::core::error::Result<()> {
     let mut status_line = StatusLine::new(
         Rect::new(0, h - 1, w, h),
         vec![
-            StatusItem::new("~F1~ Help", 0, CM_HELP_INDEX),
-            StatusItem::new("~F10~ Menu", KB_F10, 0),
-            StatusItem::new("~Alt+X~ Exit", 0x012D, CM_QUIT),
+            StatusItemBuilder::new()
+                .text("~F1~ Help")
+                .command(CM_HELP_INDEX)
+                .build(),
+            StatusItemBuilder::new()
+                .text("~F10~ Menu")
+                .key("F10")
+                .build(),
+            StatusItemBuilder::new()
+                .text("~Alt+X~ Exit")
+                .key("Alt+X")
+                .command(CM_QUIT)
+                .build(),
         ],
     );
     // Block-edit mode marker at the right end of the status line

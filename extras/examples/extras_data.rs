@@ -10,10 +10,11 @@
 
 use turbo_vision::app::Application;
 use turbo_vision::core::command::CM_QUIT;
-use turbo_vision::core::event::{KB_ALT_X, KB_ESC_ESC};
+use turbo_vision::core::event::KB_ESC_ESC;
 use turbo_vision::core::geometry::Rect;
+use turbo_vision::core::status_data::StatusItemBuilder;
 use turbo_vision::views::GroupLike;
-use turbo_vision::views::status_line::{StatusItem, StatusLine};
+use turbo_vision::views::status_line::StatusLine;
 use turbo_vision::views::window::WindowBuilder;
 use turbo_vision_extras::{GridColumn, GridView, ListProvider, RowProvider, VirtualListBox};
 
@@ -56,8 +57,16 @@ fn main() -> turbo_vision::core::error::Result<()> {
     app.set_status_line(StatusLine::new(
         Rect::new(0, height - 1, width, height),
         vec![
-            StatusItem::new("~Alt-X~ Exit", KB_ALT_X, CM_QUIT),
-            StatusItem::new("~Esc-Esc~ Exit", KB_ESC_ESC, CM_QUIT),
+            StatusItemBuilder::new()
+                .text("~Alt-X~ Exit")
+                .key("Alt+X")
+                .command(CM_QUIT)
+                .build(),
+            StatusItemBuilder::new()
+                .text("~Esc-Esc~ Exit")
+                .key_code(KB_ESC_ESC)
+                .command(CM_QUIT)
+                .build(),
         ],
     ));
 
