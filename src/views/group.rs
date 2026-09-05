@@ -996,8 +996,7 @@ mod tests {
     /// untouched cell from one a view drew over.
     #[cfg(test)]
     fn fill(terminal: &mut Terminal, ch: char) {
-        use crate::core::draw::DrawBuffer;
-        use crate::core::palette::{Attr, TvColor};
+        use crate::core::palette::TvColor;
         let (w, h) = terminal.size();
         for y in 0..h {
             let mut buf = DrawBuffer::new(w as usize);

@@ -9,7 +9,7 @@ use crate::core::command::{CM_CANCEL, CM_CLOSE};
 use crate::core::event::{Event, EventType};
 use crate::core::geometry::{Point, Rect};
 use crate::core::state::Options;
-use crate::core::state::{State, shadow_size};
+use crate::core::state::{Grow, State, shadow_size};
 use crate::terminal::Terminal;
 
 pub struct Window {
@@ -353,6 +353,24 @@ impl Window {
         self.interior.set_bounds(interior_bounds);
     }
 
+    /// Move and stretch the frame children by a size change, edge by edge,
+    /// through their grow bits (Borland: `TView::calcBounds`).
+    fn grow_frame_children(&mut self, dw: i16, dh: i16) {
+        for child in &mut self.frame_children {
+            let grow = child.grow_mode();
+            if grow.is_empty() {
+                continue;
+            }
+            let b = child.bounds();
+            child.set_bounds(Rect::new(
+                b.a.x + if grow.contains(Grow::LO_X) { dw } else { 0 },
+                b.a.y + if grow.contains(Grow::LO_Y) { dh } else { 0 },
+                b.b.x + if grow.contains(Grow::HI_X) { dw } else { 0 },
+                b.b.y + if grow.contains(Grow::HI_Y) { dh } else { 0 },
+            ));
+        }
+    }
+
     /// Set the maximum size for zoom operations
     /// Typically set to desktop size when added to desktop
     pub fn set_max_size(&mut self, _max_size: Point) {
@@ -433,12 +451,19 @@ pub trait WindowLike: GroupLike {
     fn window_mut(&mut self) -> &mut Window;
 
     fn window_set_bounds(&mut self, bounds: Rect) {
+        let dw = bounds.width() - self.bounds().width();
+        let dh = bounds.height() - self.bounds().height();
         self.core_mut().bounds = bounds;
         self.window_mut().layout_frame_and_interior();
-
-        // NOTE: We do NOT automatically update frame_children here
-        // Subclasses like EditWindow handle frame_children positioning manually
-        // because scrollbars need to be repositioned based on new window SIZE, not just offset
+        // Frame children (a scroll bar on the border) follow the edges their
+        // grow bits anchor them to, by the same rule the interior's children
+        // use. One with no grow bits stays where it was put, as Borland leaves
+        // any view that declares no growth. A subclass that positions its own
+        // frame children, as EditWindow does, is unaffected: its scroll bars
+        // carry no grow bits and it recomputes them before it draws.
+        if dw != 0 || dh != 0 {
+            self.window_mut().grow_frame_children(dw, dh);
+        }
     }
 
     fn window_draw(&mut self, terminal: &mut Terminal) {
@@ -1302,6 +1327,48 @@ mod tests {
             .palette_type(WindowPaletteType::Gray)
             .build();
         assert_eq!(window.bounds(), Rect::new(5, 5, 40, 20));
+    }
+
+    /// A frame child (a scroll bar on the window's border) follows the edge it
+    /// is anchored to when the window is resized, by the same grow bits the
+    /// interior's children use. Second half of #108.
+    #[test]
+    fn a_frame_child_follows_the_edge_its_grow_bits_anchor_it_to() {
+        use crate::core::state::Grow;
+        use crate::views::scrollbar::ScrollBar;
+
+        let mut window = Window::new(Rect::new(0, 0, 40, 10), "Test");
+
+        // A vertical scroll bar hugging the right border, window-relative, with
+        // Borland's growth for one: both x edges move, the bottom edge grows.
+        let mut bar = ScrollBar::new_vertical(Rect::new(39, 1, 40, 9));
+        bar.set_grow_mode(Grow::LO_X | Grow::HI_X | Grow::HI_Y);
+        let idx = window.add_frame_child(Box::new(bar));
+
+        window.set_bounds(Rect::new(0, 0, 30, 14));
+
+        let moved = window.get_frame_child_mut(idx).unwrap().bounds();
+        assert_eq!(moved.a.x, 29, "the bar's left edge follows the new width");
+        assert_eq!(moved.b.x, 30, "and so does its right edge");
+        assert_eq!(moved.a.y, 1, "the top edge is anchored, so it stays");
+        assert_eq!(moved.b.y, 13, "the bottom edge grows with the window");
+    }
+
+    /// A frame child with no grow bits keeps its place, which is what Borland
+    /// does for any view that declares no growth.
+    #[test]
+    fn a_frame_child_without_grow_bits_stays_where_it_was_put() {
+        use crate::views::scrollbar::ScrollBar;
+
+        let mut window = Window::new(Rect::new(0, 0, 40, 10), "Test");
+        let idx = window.add_frame_child(Box::new(ScrollBar::new_vertical(Rect::new(
+            39, 1, 40, 9,
+        ))));
+
+        window.set_bounds(Rect::new(0, 0, 30, 14));
+
+        let same = window.get_frame_child_mut(idx).unwrap().bounds();
+        assert_eq!(same, Rect::new(39, 1, 40, 9));
     }
 
     #[test]

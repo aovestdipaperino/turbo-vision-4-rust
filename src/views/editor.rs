@@ -2551,7 +2551,9 @@ mod tests {
 
     /// Serializes the tests that flip the process-wide block-edit mode, and
     /// clears it again when the guard drops.
-    struct BlockModeGuard(std::sync::MutexGuard<'static, ()>);
+    /// Holds the block-mode test lock for the life of a test. The guard is
+    /// never read; it exists so the lock is released on drop.
+    struct BlockModeGuard(#[allow(dead_code, reason = "held for Drop")] std::sync::MutexGuard<'static, ()>);
 
     impl BlockModeGuard {
         fn on() -> Self {

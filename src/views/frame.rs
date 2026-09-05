@@ -714,7 +714,13 @@ mod tests {
         assert_ne!(e.what, EventType::Command);
     }
 
+    /// The deprecated override still works for a bare frame that was never
+    /// told the extent a zoom would fill.
     #[test]
+    #[allow(
+        deprecated,
+        reason = "covers the fallback set_zoomed still stands in for"
+    )]
     fn the_triangle_follows_the_zoomed_state() {
         let mut frame = zoomable_frame();
         assert!(!frame.is_zoomed());

@@ -324,7 +324,7 @@ mod send_assertions {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::palette::{Attr, TvColor};
+    use crate::core::palette::TvColor;
 
     #[test]
     fn test_mock_terminal_basic() {

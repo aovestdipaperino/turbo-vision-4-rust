@@ -655,7 +655,6 @@ impl Default for InputLineBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::event::{KB_BACKSPACE, KB_DEL, KB_LEFT};
     use std::rc::Rc;
 
     fn make(text: &str) -> InputLine {

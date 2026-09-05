@@ -113,6 +113,13 @@ impl_view_for_window!(MyWindow {
   three methods for its windows.
 
 ### Fixed
+- **Frame children follow the window when it is resized** (#108). A view added
+  with `Window::add_frame_child`, a scroll bar on the border being the usual
+  case, kept its place through a resize, so it no longer hugged the edge it was
+  put on. It now moves and stretches by its grow bits, the same rule the
+  interior's children follow; one with no grow bits stays put, as Borland
+  leaves any view that declares no growth. `EditWindow` is unaffected: its
+  scroll bars carry no grow bits and it positions them itself.
 - **A child too big for its group painted over the frame around it** (#108).
   `Group` clipped its children to its own extent grown by one cell in each
   direction, an allowance meant for the shadow a window casts outside its
