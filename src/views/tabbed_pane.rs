@@ -548,7 +548,7 @@ impl View for TabbedPane {
 
     /// Transparent, so a page's controls map their colours through whatever
     /// owns the pane, exactly as if they sat in the dialog directly. The strip
-    /// resolves its own button colours through [`TabStrip`].
+    /// resolves its own colours through a private painter instead.
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
         None
     }

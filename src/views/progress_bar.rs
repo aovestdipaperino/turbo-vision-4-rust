@@ -256,7 +256,7 @@ impl ProgressBar {
         }
     }
 
-    /// Set how often [`IdleView::idle`] steps the marquee. Ignored when the
+    /// Set how often the idle animation steps the marquee. Ignored when the
     /// bar is stepped manually with [`ProgressBar::tick`].
     pub fn set_tick_interval(&mut self, interval: Duration) {
         self.tick_interval = interval;

@@ -92,6 +92,12 @@
 //!   - [`View`](views::View) - Base trait for all UI components
 //!   - [`Window`](views::window::Window), [`Dialog`](views::dialog::Dialog) - Containers
 //!   - [`Button`](views::button::Button), [`InputLine`](views::input_line::InputLine) - Controls
+//!   - [`ComboBox`](views::combo_box::ComboBox), [`Spinner`](views::spinner::Spinner) - Choice and number fields
+//!   - [`CheckBoxes`](views::cluster_group::CheckBoxes), [`RadioButtons`](views::cluster_group::RadioButtons) - Multi-item clusters
+//!   - [`ListBox`](views::listbox::ListBox), [`Table`](views::table::Table) - Lists and grids
+//!   - [`ProgressBar`](views::progress_bar::ProgressBar) - Determinate or marquee progress
+//!   - [`TabbedPane`](views::tabbed_pane::TabbedPane), [`SplitPane`](views::split_pane::SplitPane) - Layout containers
+//!   - [`Tooltip`](views::tooltip::Tooltip) - Hover hints
 //!   - [`EditorWindow`](views::editor::EditorWindow) - Multi-line text editor
 //!   - [`MenuBar`](views::menu_bar::MenuBar), [`StatusLine`](views::status_line::StatusLine) - Navigation
 //!
