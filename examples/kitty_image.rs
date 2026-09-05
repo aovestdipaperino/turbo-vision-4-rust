@@ -23,7 +23,6 @@ use turbo_vision::core::geometry::Rect;
 use turbo_vision::core::palette::{Attr, TvColor};
 use turbo_vision::core::status_data::StatusItemBuilder;
 use turbo_vision::views::GroupLike;
-use turbo_vision::views::View;
 use turbo_vision::views::kitty_image::KittyImage;
 use turbo_vision::views::label::LabelBuilder;
 use turbo_vision::views::status_line::StatusLine;

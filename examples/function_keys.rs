@@ -17,7 +17,6 @@ use turbo_vision::core::event::{
 use turbo_vision::core::geometry::Rect;
 use turbo_vision::core::palette::Attr;
 use turbo_vision::core::status_data::StatusItemBuilder;
-use turbo_vision::views::View;
 use turbo_vision::views::status_line::StatusLine;
 use turbo_vision::views::view::write_line_to_terminal;
 

@@ -19,7 +19,6 @@ use turbo_vision::core::event::{EventType, KB_ALT_X};
 use turbo_vision::core::geometry::Rect;
 use turbo_vision::core::status_data::StatusItemBuilder;
 use turbo_vision::views::GroupLike;
-use turbo_vision::views::View;
 use turbo_vision::views::button::Button;
 use turbo_vision::views::cluster_group::{CheckBoxes, RadioButtons};
 use turbo_vision::views::dialog::Dialog;

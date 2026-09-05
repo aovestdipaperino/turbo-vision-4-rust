@@ -1226,7 +1226,6 @@ mod resize_tests {
     /// interior (2,1); returns the app and the button's command.
     fn desktop_window_button() -> (Application, crate::core::command::CommandId) {
         use crate::views::button::Button;
-        use crate::views::window::Window;
         let cmd = crate::core::command::CM_USER + 50;
         let (mut app, _size, _calls) = build_test_app(80, 25);
         app.handle_redraw(); // desktop becomes (0,1)-(80,24): a non-zero origin

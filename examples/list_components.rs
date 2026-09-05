@@ -13,7 +13,6 @@ use turbo_vision::core::event::EventType;
 use turbo_vision::core::geometry::{Point, Rect};
 use turbo_vision::core::menu_data::MenuBuilder;
 use turbo_vision::core::status_data::StatusItemBuilder;
-use turbo_vision::views::View;
 use turbo_vision::views::listbox::ListBoxBuilder;
 use turbo_vision::views::menu_bar::{MenuBar, SubMenu};
 use turbo_vision::views::menu_box::MenuBox;

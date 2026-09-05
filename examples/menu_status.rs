@@ -16,7 +16,6 @@ use turbo_vision::core::menu_data::MenuItemBuilder;
 use turbo_vision::core::menu_data::{Menu, MenuItem};
 use turbo_vision::core::status_data::StatusItemBuilder;
 use turbo_vision::views::GroupLike;
-use turbo_vision::views::View;
 use turbo_vision::views::button::ButtonBuilder;
 use turbo_vision::views::dialog::DialogBuilder;
 use turbo_vision::views::menu_bar::{MenuBar, SubMenu};
