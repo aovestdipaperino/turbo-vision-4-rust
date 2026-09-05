@@ -31,6 +31,8 @@
 //! - [`ListBox`](listbox::ListBox) - Scrollable list of selectable items
 //! - [`Memo`](memo::Memo) - Multi-line read-only text display
 //! - [`ProgressBar`](progress_bar::ProgressBar) - Determinate or marquee progress indicator
+//! - [`Table`](table::Table) - Scrollable grid with a header row and sized columns
+//! - [`TabbedPane`](tabbed_pane::TabbedPane) - Tab strip over a stack of pages
 //!
 //! ## Menus and Status
 //! - [`MenuBar`](menu_bar::MenuBar) - Top menu bar with pull-down menus
@@ -110,6 +112,8 @@ pub mod spinner;
 pub mod static_text;
 pub mod status_line;
 pub mod syntax;
+pub mod tabbed_pane;
+pub mod table;
 pub mod terminal_widget;
 pub mod text_viewer;
 pub mod validator;
@@ -132,5 +136,9 @@ pub use menu_viewer::{MenuViewer, MenuViewerState};
 pub use progress_bar::{ProgressBar, ProgressMode, ProgressStyle};
 #[doc(inline)]
 pub use spinner::Spinner;
+#[doc(inline)]
+pub use tabbed_pane::TabbedPane;
+#[doc(inline)]
+pub use table::{Align, Column, Table};
 #[doc(inline)]
 pub use view::{IdleView, View, ViewId};

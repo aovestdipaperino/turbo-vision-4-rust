@@ -285,6 +285,8 @@ Currently implements:
 - ✅ ProgressBar (determinate and marquee, three glyph styles)
 - ✅ ComboBox (read-only field with a drop-down list)
 - ✅ Spinner (numeric field with steppers, range-clamped)
+- ✅ Table (grid with header row, sized columns, cell focus)
+- ✅ TabbedPane (enclosed tabs over a stack of pages)
 - ✅ Mouse support (buttons, menus, status bar, close buttons, hover effects, listbox clicks, scroll wheel, double-click detection)
 - ✅ Window dragging and resizing (drag by title bar, resize from bottom-right corner with minimum size constraints)
 - ✅ Window closing (non-modal windows close with close button, modal dialogs convert to cancel)

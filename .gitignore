@@ -25,6 +25,10 @@ CLAUDE.md
 mouse_test.txt
 event_test.txt
 screen-dump.txt
+turbo-vision-debug.log
+
+# scratch notes
+autodismiss.md
 
 # tooling
 sync-fork.ps1

@@ -33,8 +33,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   first digit of a focus session replaces the value instead of extending it.
   Arrows step, PgUp and PgDn step ten times as far, Home and End jump to the
   range ends, Backspace drops a digit. Optional wrap-around and unit suffix.
-- **`examples/new_controls.rs`.** One dialog running all three new controls
-  wired together.
+- **`Table` view.** A scrollable grid with a header row, per-column widths and
+  alignment. Focus is a cell rather than a row: Up and Down move rows, Left and
+  Right move columns, Ctrl+Left and Ctrl+Right jump to the end columns, and the
+  grid scrolls in both directions by whole columns so a column is never clipped
+  in half. Rows are read positionally, so a ragged row draws blank cells instead
+  of panicking. This is the control `ListViewer::num_cols` was never meant to be:
+  that field lays one list out in newspaper columns.
+- **`TabbedPane` view.** A tab strip over a stack of pages, each page a `Group`
+  that holds ordinary controls and runs its own focus traversal. Drawn as
+  enclosed tab boxes sitting on the page frame, with the active tab's floor open
+  so the two read as one shape. F6 and Shift+F6 switch pages; Ctrl+PgUp and
+  Ctrl+PgDn do too, where the terminal sends them, and a tilde-marked letter in a
+  title is its Alt hotkey. The pane is transparent, so a page's controls take the
+  owner's colours as if they sat in the dialog directly.
+- **`examples/new_controls.rs`.** One dialog running all five new controls: a
+  tabbed pane over two pages, the first wiring three combo boxes and a spinner to
+  a progress bar, the second a table.
 - **`docs/MORE-CONTROLS.md`.** Gap analysis of the widget set against Borland
   Turbo Vision and modern text-UI expectations, with a checklist roadmap.
 

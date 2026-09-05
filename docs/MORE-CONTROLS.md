@@ -42,12 +42,16 @@ Ordered by benefit-to-effort. Each one composes existing views wherever it can.
       Arrows step, PgUp and PgDn step ten times as far, Home and End jump to the
       ends, digits edit the number, and the steppers are clickable. Optional
       wrap-around and a unit suffix.
-- [ ] **TabbedPane / notebook** — tab strip plus a page `Group`, so multi-page
-      settings and property dialogs become expressible. Needs a design pass on
-      focus traversal across pages.
-- [ ] **Table / grid view** — `ListViewer` carries `num_cols` but has no header
-      row, no per-column widths and no column-aware navigation. A real grid is a
-      separate control, not a `ListBox` flag.
+- [x] **TabbedPane / notebook** — done, `src/views/tabbed_pane.rs`. Each page is
+      a `Group`, so it holds ordinary controls and runs its own focus traversal.
+      Drawn as enclosed tab boxes over a framed page, the active tab's floor
+      open. F6 and Shift+F6 switch, as do Ctrl+PgUp/PgDn where the terminal
+      sends them, tilde hotkeys, and clicking a tab. Tab cycles within the
+      active page rather than escaping it.
+- [x] **Table / grid view** — done, `src/views/table.rs`. Header row, per-column
+      widths and alignment, and a focused cell rather than a focused row: Up and
+      Down move rows, Left and Right move columns, and the grid scrolls in both
+      directions by whole columns. Ragged rows draw blank instead of panicking.
 - [ ] **Splitter** — draggable divider resizing two sibling views. The geometry
       maths already exists in `Desktop`'s tiling code.
 - [ ] **Tooltip / hint popup** — transient hover text. Borland pushed this to the
@@ -70,9 +74,9 @@ Ordered by benefit-to-effort. Each one composes existing views wherever it can.
 
 ## Demo
 
-`examples/new_controls.rs` runs all three new controls in one dialog, wired to
-each other: the combo boxes pick the progress bar's glyph style, its mode and
-whether the percentage is shown, and the spinner sets the target.
+`examples/new_controls.rs` runs all five new controls in one dialog. A tabbed
+pane holds two pages: the first wires three combo boxes and a spinner to a
+progress bar, the second is a table.
 
 ## Notes
 
