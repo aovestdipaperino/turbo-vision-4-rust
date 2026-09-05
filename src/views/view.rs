@@ -593,7 +593,7 @@ mod tests {
     #[test]
     fn every_view_in_a_group_can_be_downcast_without_panicking() {
         use crate::views::button::Button;
-        use crate::views::group::{Group, GroupLike};
+        use crate::views::group::Group;
         use crate::views::static_text::StaticText;
         let mut g = Group::new(Rect::new(0, 0, 40, 10));
         g.add(Box::new(Button::new(Rect::new(0, 0, 10, 2), "ok", 1, true)));

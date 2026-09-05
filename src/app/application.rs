@@ -16,6 +16,7 @@ use crate::terminal::Terminal;
 use crate::views::help_context::HelpContext;
 use crate::views::help_file::HelpFile;
 use crate::views::help_window::HelpWindow;
+use crate::views::view::ViewId;
 use crate::views::{IdleView, View, desktop::Desktop, menu_bar::MenuBar, status_line::StatusLine};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -50,6 +51,39 @@ pub struct Application {
     /// arrows above all, can keep repeating without any polling of their own.
     mouse_held: bool,
 }
+
+/// Application-level hooks for [`Application::run_with`].
+///
+/// Borland programs subclass `TApplication` and override `handleEvent` and
+/// `idle`; this trait is the Rust shape of those overrides, with defaults
+/// that do nothing so a handler implements only what it needs. `()` is the
+/// handler behind plain [`Application::run`].
+pub trait AppHandler {
+    /// Called before the menu bar, status line and desktop see the event.
+    /// Translate keys into commands or consume application-level commands
+    /// here (Borland: `TApplication::handleEvent` before `TProgram` passes
+    /// the event to the desktop).
+    fn pre_event(&mut self, _app: &mut Application, _event: &mut Event) {}
+
+    /// Called after the desktop has seen the event and only if it is still a
+    /// `Command`. Return `true` to mark the event handled.
+    fn handle_command(
+        &mut self,
+        _app: &mut Application,
+        _command: CommandId,
+        _event: &Event,
+    ) -> bool {
+        false
+    }
+
+    /// Called on each idle tick, after [`Application::idle`].
+    fn idle(&mut self, _app: &mut Application) {}
+
+    /// Called once for every window the desktop removed after `SF_CLOSED`.
+    fn window_closed(&mut self, _app: &mut Application, _id: ViewId) {}
+}
+
+impl AppHandler for () {}
 
 impl Application {
     /// Creates a new application instance and initializes the terminal.
@@ -425,7 +459,14 @@ impl Application {
         }
     }
 
+    /// Run the event loop with no application hooks; see [`run_with`](Self::run_with).
     pub fn run(&mut self) {
+        self.run_with(&mut ());
+    }
+
+    /// Run the event loop, giving `handler` a chance before and after each
+    /// event, on idle, and when a window closes.
+    pub fn run_with<H: AppHandler>(&mut self, handler: &mut H) {
         self.running = true;
 
         // Initial draw
@@ -451,7 +492,13 @@ impl Application {
                 Some(mut event) => {
                     // Event received - handle it immediately without calling idle()
                     // Matches magiblot: idle() is NOT called when events are present
+                    handler.pre_event(self, &mut event);
                     self.handle_event(&mut event);
+                    if event.what == EventType::Command
+                        && handler.handle_command(self, event.command, &event)
+                    {
+                        event.clear();
+                    }
 
                     // Event occurred: do full redraw for content changes
                     // This could be optimized further by tracking which views changed
@@ -462,6 +509,7 @@ impl Application {
                     // Timeout with no events - call idle() to update animations, etc.
                     // Matches magiblot: idle() only called when truly idle
                     self.idle();
+                    handler.idle(self);
 
                     // After idle, draw overlay widgets (animations) if any
                     // Don't redraw everything, just flush overlay widget changes
@@ -477,8 +525,11 @@ impl Application {
             // Remove closed windows (those with SF_CLOSED flag)
             // In Borland, views call CLY_destroy() to remove themselves
             // In Rust, views set SF_CLOSED and parent removes them
-            let had_closed_windows = self.desktop.remove_closed_windows();
-            if had_closed_windows {
+            let closed = self.desktop.remove_closed_windows();
+            for id in &closed {
+                handler.window_closed(self, *id);
+            }
+            if !closed.is_empty() {
                 self.needs_redraw = true; // Window removal requires full redraw
             }
 
@@ -1016,6 +1067,32 @@ impl Drop for Application {
 #[cfg(test)]
 mod resize_tests {
     use super::*;
+
+    #[test]
+    fn run_with_delivers_unhandled_commands_to_the_handler() {
+        struct Recorder {
+            seen: Vec<CommandId>,
+        }
+        impl AppHandler for Recorder {
+            fn handle_command(
+                &mut self,
+                app: &mut Application,
+                command: CommandId,
+                _e: &Event,
+            ) -> bool {
+                self.seen.push(command);
+                if command == 1234 {
+                    app.running = false;
+                }
+                true
+            }
+        }
+        let (mut app, _size, _calls) = build_test_app(80, 25);
+        app.put_event(Event::command(1234));
+        let mut rec = Recorder { seen: vec![] };
+        app.run_with(&mut rec);
+        assert_eq!(rec.seen, vec![1234]);
+    }
     use crate::core::state::{GF_GROW_HI_X, GF_GROW_HI_Y};
     use crate::test_util::TestBackend;
     use crate::views::group::GroupLike;

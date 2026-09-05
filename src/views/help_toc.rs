@@ -6,6 +6,7 @@
 //!
 //! Provides a tree view of help topics organized hierarchically.
 
+use super::ViewId;
 use super::button::Button;
 use super::dialog::Dialog;
 use super::group::{Group, GroupLike};
@@ -13,7 +14,6 @@ use super::help_file::HelpFile;
 use super::outline::{Node, OutlineViewer};
 use super::static_text::StaticText;
 use super::window::{Window, WindowLike};
-use super::ViewId;
 use crate::core::command::{CM_CANCEL, CM_OK};
 use crate::core::event::Event;
 use crate::core::geometry::Rect;

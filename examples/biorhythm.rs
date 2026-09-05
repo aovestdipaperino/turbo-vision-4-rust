@@ -5,7 +5,7 @@
 use chrono::{Datelike, Local, NaiveDate};
 use std::cell::RefCell;
 use std::rc::Rc;
-use turbo_vision::app::Application;
+use turbo_vision::app::{AppHandler, Application};
 use turbo_vision::core::command::{CM_CANCEL, CM_CLOSE, CM_OK, CM_QUIT};
 use turbo_vision::core::draw::DrawBuffer;
 use turbo_vision::core::event::{Event, EventType, KB_ALT_C, KB_ALT_X, KB_F1, KB_F10};
@@ -641,6 +641,32 @@ fn handle_command_event(
     }
 }
 
+/// The application state the event loop needs between events.
+struct BiorhythmApp {
+    data: Rc<RefCell<Option<Biorhythm>>>,
+    birth_date: Option<NaiveDate>,
+}
+
+impl AppHandler for BiorhythmApp {
+    fn pre_event(&mut self, _app: &mut Application, event: &mut Event) {
+        // Convert global keyboard shortcuts to commands so that F1, Alt+C etc.
+        // work even when menus are closed.
+        handle_global_shortcuts(event);
+    }
+
+    fn handle_command(&mut self, app: &mut Application, command: u16, _e: &Event) -> bool {
+        // CM_CLOSE and CM_QUIT are already handled by Application::handle_event.
+        handle_command_event(command, app, &self.data, &mut self.birth_date)
+    }
+
+    fn idle(&mut self, app: &mut Application) {
+        // Exit if all windows are closed
+        if app.desktop.child_count() == 0 {
+            app.running = false;
+        }
+    }
+}
+
 /// Convert global keyboard shortcuts (Alt+C, Alt+X, F1) to command events
 fn handle_global_shortcuts(event: &mut Event) {
     if event.what != EventType::Keyboard {
@@ -742,69 +768,17 @@ fn main() -> turbo_vision::core::error::Result<()> {
 
     // Process the birth date and update birth_state
     process_birth_date_result(&biorhythm_data, &birth_date);
-    let mut current_birth_date = Some(birth_date);
+    let current_birth_date = Some(birth_date);
 
     add_chart(&mut app, &biorhythm_data);
 
-    // Main event loop
-    app.running = true;
-
-    while app.running {
-        app.draw();
-        app.terminal.flush()?;
-
-        if let Ok(Some(mut event)) = app
-            .terminal
-            .poll_event(std::time::Duration::from_millis(50))
-        {
-            // Order matters (very first)
-            // Convert global keyboard shortcuts to commands so that F1, Ctrl+N etc. work even when menus are closed
-            handle_global_shortcuts(&mut event);
-
-            // Let menu bar handle events first
-            if let Some(ref mut menu_bar) = app.menu_bar {
-                menu_bar.handle_event(&mut event);
-
-                // Check for cascading submenu
-                if event.what == EventType::Keyboard || event.what == EventType::MouseUp {
-                    if let Some(command) = menu_bar.check_cascading_submenu(&mut app.terminal) {
-                        if command != 0 {
-                            event = Event::command(command);
-                        }
-                    }
-                }
-            }
-
-            // Let status line handle events
-            if let Some(ref mut status_line) = app.status_line {
-                status_line.handle_event(&mut event);
-            }
-
-            // Let desktop handle events
-            app.desktop.handle_event(&mut event);
-
-            // Handle custom commands
-            if event.what == EventType::Command {
-                if !handle_command_event(
-                    event.command,
-                    &mut app,
-                    &biorhythm_data,
-                    &mut current_birth_date,
-                ) {
-                    app.running = false;
-                }
-            }
-        }
-
-        app.idle();
-        app.desktop.remove_closed_windows();
-        app.desktop.handle_moved_windows(&mut app.terminal);
-
-        // Exit if all windows are closed
-        if app.desktop.child_count() == 0 {
-            app.running = false;
-        }
-    }
+    // Main event loop: the application hooks replace the hand-written loop
+    // (Borland: TApplication::handleEvent / idle overrides).
+    let mut handler = BiorhythmApp {
+        data: biorhythm_data,
+        birth_date: current_birth_date,
+    };
+    app.run_with(&mut handler);
 
     Ok(())
 }

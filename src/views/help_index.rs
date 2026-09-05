@@ -6,6 +6,7 @@
 //!
 //! Provides a searchable list of all help topics with filtering capability.
 
+use super::ViewId;
 use super::button::Button;
 use super::dialog::Dialog;
 use super::group::{Group, GroupLike};
@@ -15,7 +16,6 @@ use super::label::Label;
 use super::listbox::ListBox;
 use super::static_text::StaticText;
 use super::window::{Window, WindowLike};
-use super::ViewId;
 use crate::core::command::{CM_CANCEL, CM_OK};
 use crate::core::event::{Event, EventType};
 use crate::core::geometry::Rect;

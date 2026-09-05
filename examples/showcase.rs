@@ -1696,7 +1696,7 @@ fn run_event_loop(
 
         // Idle processing and cleanup
         app.idle();
-        app.desktop.remove_closed_windows();
+        let _ = app.desktop.remove_closed_windows();
         app.desktop.handle_moved_windows(&mut app.terminal);
     }
 

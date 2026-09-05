@@ -538,10 +538,12 @@ impl Desktop {
     /// In Rust, views set SF_CLOSED flag and the parent removes them
     /// This is called after event handling in the main loop
     /// Returns true if any windows were removed
-    pub fn remove_closed_windows(&mut self) -> bool {
+    /// Returns the ids of the windows removed, so the caller can tell which
+    /// ones went away (`AppHandler::window_closed`); empty when nothing closed.
+    pub fn remove_closed_windows(&mut self) -> Vec<ViewId> {
         use crate::core::state::SF_CLOSED;
 
-        let mut had_removals = false;
+        let mut removed = Vec::new();
 
         // Remove windows marked as closed (skip background at index 0)
         // We need to iterate in reverse to avoid index shifting issues
@@ -550,12 +552,14 @@ impl Desktop {
             // Don't remove background at index 0
             i -= 1;
             if (self.children.child_at(i).state() & SF_CLOSED) != 0 {
+                if let Some(id) = self.children.view_id_at(i) {
+                    removed.push(id);
+                }
                 self.children.remove(i);
-                had_removals = true;
             }
         }
 
-        had_removals
+        removed
     }
 }
 

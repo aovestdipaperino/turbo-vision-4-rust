@@ -7,7 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **`AppHandler` and `Application::run_with`.** Application-level hooks
+  (`pre_event`, `handle_command`, `idle`, `window_closed`) replace the
+  hand-written copies of the event loop that programs wrote to handle their
+  own commands (Borland: `TApplication::handleEvent` and `idle` overrides).
+  `Application::run()` is now `run_with(&mut ())`.
+
 ### Changed (breaking)
+- **`Desktop::remove_closed_windows` returns `Vec<ViewId>`** (the windows it
+  removed) instead of `bool`.
 - **`View::core()` and `View::core_mut()` are required.** Every view owns a
   `ViewCore` holding `bounds`, `state`, `options`, `grow_mode` and
   `palette_chain`; the ten field accessors are now trait defaults that read
