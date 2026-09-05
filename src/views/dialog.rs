@@ -8,11 +8,14 @@ use crate::core::command::{CM_CANCEL, CommandId};
 use crate::core::event::{Event, EventType, KB_ENTER, KB_ESC_ESC};
 use crate::core::geometry::Rect;
 use crate::terminal::Terminal;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 pub struct Dialog {
     window: Window,
     result: CommandId,
+    /// When set, `execute` closes the dialog with the given command once
+    /// this much time has passed without the user closing it first.
+    auto_dismiss: Option<(Duration, CommandId)>,
 }
 
 impl Dialog {
@@ -20,7 +23,23 @@ impl Dialog {
         Self {
             window: Window::new_for_dialog(bounds, title),
             result: CM_CANCEL,
+            auto_dismiss: None,
         }
+    }
+
+    /// Close the dialog automatically with `command` once `timeout` has
+    /// elapsed in `execute`, unless the user closes it earlier.
+    ///
+    /// The timer starts when `execute` is entered. Only the `execute`
+    /// modal loop honours it; a dialog run through `Application::exec_view`
+    /// is unaffected.
+    pub fn set_auto_dismiss(&mut self, timeout: Duration, command: CommandId) {
+        self.auto_dismiss = Some((timeout, command));
+    }
+
+    /// The auto-dismiss timeout and command, if one was set.
+    pub fn auto_dismiss(&self) -> Option<(Duration, CommandId)> {
+        self.auto_dismiss
     }
 
     /// Create a new modal dialog for use with Application::exec_view()
@@ -145,6 +164,8 @@ impl Dialog {
         // which selects the first visible, selectable child when views are added
         self.set_initial_focus();
 
+        let started = Instant::now();
+
         // Event loop matching Borland's TGroup::execute() (tgroup.cc:182-195)
         // IMPORTANT: We can't just delegate to window.execute() because that would
         // call Group::handle_event(), but we need Dialog::handle_event() to be called
@@ -238,6 +259,15 @@ impl Dialog {
                     break;
                 }
                 self.window.set_end_state(0);
+            }
+
+            // Auto-dismiss: the user did not close the dialog in time, so
+            // close it on their behalf with the configured command.
+            if let Some((timeout, command)) = self.auto_dismiss {
+                if started.elapsed() >= timeout {
+                    self.result = command;
+                    break;
+                }
             }
         }
 
@@ -625,6 +655,17 @@ impl Default for DialogBuilder {
 mod tests {
     use super::*;
     use crate::core::state::SF_MODAL;
+
+    #[test]
+    fn auto_dismiss_is_off_by_default_and_settable() {
+        let mut dialog = Dialog::new(Rect::new(0, 0, 20, 10), "T");
+        assert_eq!(dialog.auto_dismiss(), None);
+        dialog.set_auto_dismiss(Duration::from_secs(3), crate::core::command::CM_OK);
+        assert_eq!(
+            dialog.auto_dismiss(),
+            Some((Duration::from_secs(3), crate::core::command::CM_OK))
+        );
+    }
 
     /// Regression test for FileDialog folder navigation bug (issue #73 follow-up)
     ///

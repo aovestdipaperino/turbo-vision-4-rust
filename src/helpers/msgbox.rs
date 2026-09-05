@@ -13,6 +13,7 @@ use crate::views::input_line::InputLine;
 use crate::views::static_text::StaticText;
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::time::Duration;
 
 // Message box type flags (matches Borland: mfWarning, mfError, etc.)
 pub const MF_WARNING: u16 = 0x0000;
@@ -27,6 +28,15 @@ pub const MF_NO_BUTTON: u16 = 0x0200;
 pub const MF_OK_BUTTON: u16 = 0x0400;
 pub const MF_CANCEL_BUTTON: u16 = 0x0800;
 
+// Behaviour flags
+/// Close the message box on its own after [`MESSAGE_BOX_AUTO_DISMISS_TIMEOUT`]
+/// if the user has not dismissed it. The result is the default button's
+/// command (OK when present, otherwise the first button).
+pub const MF_AUTO_DISMISS: u16 = 0x1000;
+
+/// How long an `MF_AUTO_DISMISS` message box stays open before closing itself.
+pub const MESSAGE_BOX_AUTO_DISMISS_TIMEOUT: Duration = Duration::from_secs(3);
+
 // Standard button combinations (matches Borland: mfYesNoCancel, mfOKCancel)
 pub const MF_YES_NO_CANCEL: u16 = MF_YES_BUTTON | MF_NO_BUTTON | MF_CANCEL_BUTTON;
 pub const MF_OK_CANCEL: u16 = MF_OK_BUTTON | MF_CANCEL_BUTTON;
@@ -37,6 +47,7 @@ pub const MF_OK_CANCEL: u16 = MF_OK_BUTTON | MF_CANCEL_BUTTON;
 /// Options is a combination of message box type (lower 4 bits) and button flags:
 /// - Type: MF_WARNING, MF_ERROR, MF_INFORMATION, MF_CONFIRMATION, MF_ABOUT
 /// - Buttons: MF_YES_BUTTON, MF_NO_BUTTON, MF_OK_BUTTON, MF_CANCEL_BUTTON
+/// - Behaviour: `MF_AUTO_DISMISS` (closes after 3 seconds with the default button)
 ///
 /// Returns the command ID of the button pressed (CM_YES, CM_NO, CM_OK, CM_CANCEL)
 ///
@@ -64,7 +75,13 @@ pub fn message_box(app: &mut Application, msg: &str, options: u16) -> CommandId 
 
     // Height: 1 (top margin) + num_lines + 1 (spacing before buttons) + 3 (button area)
     // Minimum 9 (Borland default), maximum 20 (leave margin on 24-row screen)
-    let dialog_height = (1 + num_lines + 2 + 3).clamp(9, 20);
+    // Without buttons the button area is dropped and the minimum shrinks to match.
+    let has_buttons = (options & (MF_YES_NO_CANCEL | MF_OK_BUTTON)) != 0;
+    let dialog_height = if has_buttons {
+        (1 + num_lines + 2 + 3).clamp(9, 20)
+    } else {
+        (1 + num_lines + 2).clamp(5, 20)
+    };
 
     let dialog_x = (width - dialog_width) / 2;
     let dialog_y = (height - dialog_height - 2) / 2; // -2 for menu and status
@@ -95,7 +112,13 @@ pub fn message_box_rect(app: &mut Application, bounds: Rect, msg: &str, options:
     let mut dialog = Dialog::new(bounds, title);
 
     // Add static text for message (inset by 1 from left/top, 2 from right/bottom)
-    let text_bounds = Rect::new(1, 1, bounds.width() - 2, bounds.height() - 3);
+    // Without buttons the text area runs down to the bottom frame.
+    let text_bottom = if (options & (MF_YES_NO_CANCEL | MF_OK_BUTTON)) != 0 {
+        bounds.height() - 3
+    } else {
+        bounds.height() - 1
+    };
+    let text_bounds = Rect::new(1, 1, bounds.width() - 2, text_bottom);
     dialog.add(Box::new(StaticText::new(text_bounds, msg)));
 
     // Collect buttons to add
@@ -122,12 +145,19 @@ pub fn message_box_rect(app: &mut Application, bounds: Rect, msg: &str, options:
     let mut x = (bounds.width() - total_width) / 2;
     let y = bounds.height() - 4; // Position buttons one row lower
 
+    // The first button is the default one; an auto-dismissed box reports it.
+    let default_command = buttons.first().map_or(CM_CANCEL, |(_, cmd)| *cmd);
+
     for (mut button, _cmd) in buttons {
         // Position button
         let button_bounds = Rect::new(x, y, x + 10, y + 2);
         button.set_bounds(button_bounds);
         dialog.add(Box::new(button));
         x += 12; // Button width (10) + spacing (2)
+    }
+
+    if (options & MF_AUTO_DISMISS) != 0 {
+        dialog.set_auto_dismiss(MESSAGE_BOX_AUTO_DISMISS_TIMEOUT, default_command);
     }
 
     dialog.set_initial_focus();

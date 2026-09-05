@@ -12,6 +12,7 @@ use crate::core::command::{CM_CANCEL, CM_NO, CM_OK, CM_YES, CommandId};
 use crate::core::geometry::Rect;
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::time::Duration;
 
 // Message box types
 pub const MF_WARNING: u16 = 0x0000;
@@ -24,6 +25,15 @@ pub const MF_YES_BUTTON: u16 = 0x0100;
 pub const MF_NO_BUTTON: u16 = 0x0200;
 pub const MF_OK_BUTTON: u16 = 0x0400;
 pub const MF_CANCEL_BUTTON: u16 = 0x0800;
+
+// Behaviour flags
+/// Close the message box on its own after [`MESSAGE_BOX_AUTO_DISMISS_TIMEOUT`]
+/// if the user has not dismissed it. The result is the default button's
+/// command (OK when present, otherwise the first button).
+pub const MF_AUTO_DISMISS: u16 = 0x1000;
+
+/// How long an `MF_AUTO_DISMISS` message box stays open before closing itself.
+pub const MESSAGE_BOX_AUTO_DISMISS_TIMEOUT: Duration = Duration::from_secs(3);
 
 // Combined flags
 pub const MF_YES_NO_CANCEL: u16 = MF_YES_BUTTON | MF_NO_BUTTON | MF_CANCEL_BUTTON;
@@ -56,8 +66,12 @@ pub fn message_box(app: &mut Application, message: &str, options: u16) -> Comman
     let msg_height = wrapped.lines().count().max(1);
 
     let width = (msg_width + 6).min(target_w).max(30);
-    let max_height = (screen_h as usize).saturating_sub(2).max(7);
-    let height = (msg_height + 6).min(max_height).max(7);
+    // Frame, one row of padding above and below the text, and the
+    // button row only when there is at least one button to show.
+    let chrome_rows = if has_buttons(options) { 6 } else { 4 };
+    let min_height = chrome_rows + 1;
+    let max_height = (screen_h as usize).saturating_sub(2).max(min_height);
+    let height = (msg_height + chrome_rows).min(max_height).max(min_height);
 
     let x = (screen_w - width as i16) / 2;
     let y = (screen_h - height as i16) / 2;
@@ -167,7 +181,13 @@ pub fn message_box_rect(
     // wrapped lines hang from a consistent left margin instead of
     // each being independently centered (which makes a wrapped
     // diagnostic look like staggered poetry).
-    let text_bounds = Rect::new(3, 1, bounds.width() - 2, bounds.height() - 4);
+    // Without buttons the text area runs down to the bottom frame.
+    let text_bottom = if has_buttons(options) {
+        bounds.height() - 4
+    } else {
+        bounds.height() - 2
+    };
+    let text_bounds = Rect::new(3, 1, bounds.width() - 2, text_bottom);
     dialog.add(Box::new(StaticText::new(text_bounds, message)));
 
     // Determine which buttons to show
@@ -205,8 +225,30 @@ pub fn message_box_rect(
         x += button_width as usize + 2;
     }
 
+    if options & MF_AUTO_DISMISS != 0 {
+        dialog.set_auto_dismiss(
+            MESSAGE_BOX_AUTO_DISMISS_TIMEOUT,
+            auto_dismiss_command(&buttons.iter().map(|(_, cmd)| *cmd).collect::<Vec<_>>()),
+        );
+    }
+
     dialog.set_initial_focus();
     dialog.execute(app)
+}
+
+/// Whether `options` asks for at least one button.
+fn has_buttons(options: u16) -> bool {
+    options & (MF_YES_NO_CANCEL | MF_OK_BUTTON) != 0
+}
+
+/// The command an auto-dismissed message box reports: OK when present,
+/// otherwise the first button, matching the default-button choice above.
+fn auto_dismiss_command(commands: &[CommandId]) -> CommandId {
+    if commands.contains(&CM_OK) {
+        CM_OK
+    } else {
+        commands.first().copied().unwrap_or(CM_CANCEL)
+    }
 }
 
 /// Display a simple message box with OK button
@@ -566,7 +608,27 @@ pub fn goto_line_box(app: &mut Application, title: &str) -> Option<usize> {
 
 #[cfg(test)]
 mod tests {
-    use super::wrap_message;
+    use super::*;
+
+    #[test]
+    fn auto_dismiss_prefers_ok_then_first_button() {
+        assert_eq!(auto_dismiss_command(&[CM_YES, CM_NO, CM_OK]), CM_OK);
+        assert_eq!(auto_dismiss_command(&[CM_YES, CM_NO]), CM_YES);
+        assert_eq!(auto_dismiss_command(&[]), CM_CANCEL);
+    }
+
+    #[test]
+    fn has_buttons_reflects_button_flags_only() {
+        assert!(has_buttons(MF_INFORMATION | MF_OK_BUTTON));
+        assert!(has_buttons(MF_CONFIRMATION | MF_YES_NO_CANCEL));
+        assert!(!has_buttons(MF_INFORMATION | MF_AUTO_DISMISS));
+    }
+
+    #[test]
+    fn auto_dismiss_flag_does_not_overlap_type_or_button_bits() {
+        assert_eq!(MF_AUTO_DISMISS & 0x0F, 0);
+        assert_eq!(MF_AUTO_DISMISS & (MF_YES_NO_CANCEL | MF_OK_BUTTON), 0);
+    }
 
     #[test]
     fn wraps_long_lines_at_word_boundaries() {

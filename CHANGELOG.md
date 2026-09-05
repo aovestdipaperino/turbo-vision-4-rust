@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.1] - 2026-09-05
+
+### Added
+- **Auto-dismissing message boxes.** A new `MF_AUTO_DISMISS` flag on both
+  `views::msgbox` and `helpers::msgbox` closes the box after
+  `MESSAGE_BOX_AUTO_DISMISS_TIMEOUT` (3 seconds) if the user has not
+  dismissed it, returning the default button's command (OK when present,
+  otherwise the first button, `CM_CANCEL` when there are none). It is
+  built on a generic `Dialog::set_auto_dismiss(timeout, command)` that the
+  `Dialog::execute` modal loop honours, so any dialog can use it.
+
+### Changed
+- **Message-box height follows the buttons.** A message box with no button
+  flags no longer reserves the button row: the text area runs to the
+  bottom frame and the box is two rows shorter (three in `helpers::msgbox`,
+  whose minimum drops from 9 to 5 rows). This makes button-less,
+  auto-dismissing boxes usable as splash screens.
+- The Pascal IDE example's startup about box is now such a splash: no OK
+  button, gone after 3 seconds, Esc closes it early.
+
 ## [2.3.0] - 2026-09-04
 
 ### Fixed

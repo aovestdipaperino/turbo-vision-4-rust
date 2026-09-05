@@ -16,7 +16,7 @@ use turbo_vision::core::menu_data::{Menu, MenuItem};
 use turbo_vision::views::edit_window::EditWindow;
 use turbo_vision::views::help_file::HelpFile;
 use turbo_vision::views::menu_bar::{MenuBar, SubMenu};
-use turbo_vision::views::msgbox::message_box_ok;
+use turbo_vision::views::msgbox::{MF_AUTO_DISMISS, MF_INFORMATION, message_box};
 use turbo_vision::views::status_line::{StatusItem, StatusLine};
 use turbo_vision::views::syntax::{SyntaxHighlighter, Token, TokenType};
 
@@ -545,14 +545,16 @@ fn main() -> turbo_vision::core::error::Result<()> {
         .set_text(SAMPLE_PROGRAM);
     app.desktop.add(Box::new(edit_window));
 
-    // Show about dialog at startup
-    message_box_ok(
+    // Splash-style about box: no buttons, closes itself after 3 seconds.
+    // Esc dismisses it early.
+    message_box(
         &mut app,
         "\x03Bruto Pascal IDE\n\n\
          Version 0.1.0\n\n\
          A Mini-Pascal IDE built with\n\
          Turbo Vision for Rust\n\n\
          \x03(c) 2026 Enzo Lombardi",
+        MF_INFORMATION | MF_AUTO_DISMISS,
     );
 
     app.run();

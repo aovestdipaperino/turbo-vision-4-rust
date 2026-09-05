@@ -3,7 +3,7 @@ members = [".", "extras"]
 
 [package]
 name = "turbo-vision"
-version = "2.3.0"
+version = "2.3.1"
 edition = "2024"
 authors = ["enzinol@gmail.com"]
 license = "MIT"
