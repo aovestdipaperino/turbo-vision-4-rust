@@ -23,6 +23,11 @@ impl Desktop {
         let width = bounds.width();
         let height = bounds.height();
         let mut children = Group::new(Rect::new(0, 0, width, height));
+        // A window draws its shadow outside its own bounds, so the group that
+        // holds the windows lets them paint that far past its edge. Every
+        // other group clips its children tight.
+        let (shadow_x, shadow_y) = crate::core::state::shadow_size();
+        children.set_child_overhang(crate::core::geometry::Point::new(shadow_x, shadow_y));
 
         // Add background as first child (matches Borland's TDeskTop::TDeskTop)
         let background_bounds = Rect::new(0, 0, width, height);

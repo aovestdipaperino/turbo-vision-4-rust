@@ -5,7 +5,7 @@
 use super::view::{View, ViewCore, ViewId, write_line_to_terminal};
 use crate::core::draw::DrawBuffer;
 use crate::core::event::{Event, EventType, KB_SHIFT_TAB, KB_TAB};
-use crate::core::geometry::Rect;
+use crate::core::geometry::{Point, Rect};
 use crate::core::palette::Attr;
 use crate::core::state::Options;
 use crate::core::state::{Grow, State};
@@ -20,6 +20,11 @@ pub struct Group {
     focused: usize,
     background: Option<Attr>,
     end_state: crate::core::command::CommandId, // For execute() event loop (Borland: endState)
+    /// How far past its own extent this group lets a child paint. Zero for an
+    /// ordinary group, so an oversized child is clipped instead of drawing
+    /// over whatever surrounds the group (a window's frame, say). The desktop
+    /// raises it, because a window draws its shadow outside its own bounds.
+    child_overhang: Point,
 }
 
 impl Group {
@@ -36,7 +41,23 @@ impl Group {
             focused: 0,
             background: None,
             end_state: 0,
+            child_overhang: Point::new(0, 0),
         }
+    }
+
+    /// Let this group's children paint up to `overhang` cells past its extent.
+    ///
+    /// Defaults to nothing: a child larger than the group is clipped to it, so
+    /// it cannot erase the frame of the window that owns the group. Raise it
+    /// only where an overhang is part of the design, as the desktop does for
+    /// the shadow a window casts outside its own bounds.
+    pub fn set_child_overhang(&mut self, overhang: Point) {
+        self.child_overhang = overhang;
+    }
+
+    /// How far past its extent this group lets a child paint.
+    pub fn child_overhang(&self) -> Point {
+        self.child_overhang
     }
 
     pub fn with_background(bounds: Rect, background: Attr) -> Self {
@@ -52,6 +73,7 @@ impl Group {
             focused: 0,
             background: Some(background),
             end_state: 0,
+            child_overhang: Point::new(0, 0),
         }
     }
 
@@ -463,10 +485,13 @@ pub trait GroupLike: View {
             }
         }
 
-        // Clip to this group's extent, grown by one so children that sit on
-        // the owner's frame (scroll bars) and window shadows still show.
+        // Clip children to this group's extent. A group that expects an
+        // overhang (the desktop, whose windows cast a shadow outside their own
+        // bounds) asks for it; everything else clips tight, so a child too big
+        // for its group cannot paint over the frame around it.
+        let overhang = self.group().child_overhang;
         let mut clip_bounds = self.extent();
-        clip_bounds.grow(1, 1);
+        clip_bounds.grow(overhang.x, overhang.y);
         terminal.push_clip(clip_bounds);
 
         // Build this Group's palette chain node for safe palette traversal.
@@ -966,7 +991,87 @@ impl Default for GroupBuilder {
 mod tests {
     use super::*;
     use crate::core::event::MB_LEFT_BUTTON;
-    use crate::core::geometry::Point;
+
+    /// Paint every cell of a test terminal, so a later assertion can tell an
+    /// untouched cell from one a view drew over.
+    #[cfg(test)]
+    fn fill(terminal: &mut Terminal, ch: char) {
+        use crate::core::draw::DrawBuffer;
+        use crate::core::palette::{Attr, TvColor};
+        let (w, h) = terminal.size();
+        for y in 0..h {
+            let mut buf = DrawBuffer::new(w as usize);
+            buf.move_char(0, ch, Attr::new(TvColor::White, TvColor::Black), w as usize);
+            terminal.write_line(0, y, &buf.data);
+        }
+    }
+
+    /// A child too big for the group it sits in must be clipped to the group,
+    /// not allowed to paint over whatever surrounds it. Reported as #108: an
+    /// ASCII table in a window shrunk below its content erased the window's
+    /// right border and bottom edge.
+    #[test]
+    fn a_child_larger_than_its_group_is_clipped_to_the_group() {
+        use crate::test_util::test_terminal;
+        use crate::views::static_text::StaticText;
+
+        let mut terminal = test_terminal(40, 6);
+        // Paint the whole screen so anything the group leaves alone stays '#'.
+        fill(&mut terminal, '#');
+
+        // A 10x3 group holding a child twice its width and a row too tall.
+        let mut group = Group::new(Rect::new(5, 1, 15, 4));
+        group.add(StaticText::new(Rect::new(0, 0, 20, 4), "XXXXXXXXXXXXXXXXXXXX"));
+        terminal.draw_view(&mut group);
+
+        assert_eq!(
+            terminal.read_cell(14, 1).map(|c| c.ch),
+            Some('X'),
+            "the child paints inside the group"
+        );
+        assert_eq!(
+            terminal.read_cell(15, 1).map(|c| c.ch),
+            Some('#'),
+            "the column just past the group's right edge is untouched"
+        );
+        assert_eq!(
+            terminal.read_cell(16, 1).map(|c| c.ch),
+            Some('#'),
+            "and so is the one after it"
+        );
+        assert_eq!(
+            terminal.read_cell(5, 4).map(|c| c.ch),
+            Some('#'),
+            "the row just past the group's bottom edge is untouched"
+        );
+    }
+
+    /// The desktop is the exception: a window draws its shadow outside its own
+    /// bounds, so the group holding the windows allows that much overhang.
+    #[test]
+    fn a_group_can_allow_its_children_an_overhang() {
+        use crate::test_util::test_terminal;
+        use crate::views::static_text::StaticText;
+
+        let mut terminal = test_terminal(40, 6);
+        fill(&mut terminal, '#');
+
+        let mut group = Group::new(Rect::new(5, 1, 15, 4));
+        group.set_child_overhang(Point::new(2, 1));
+        group.add(StaticText::new(Rect::new(0, 0, 20, 4), "XXXXXXXXXXXXXXXXXXXX"));
+        terminal.draw_view(&mut group);
+
+        assert_eq!(
+            terminal.read_cell(16, 1).map(|c| c.ch),
+            Some('X'),
+            "two columns of overhang are allowed"
+        );
+        assert_eq!(
+            terminal.read_cell(17, 1).map(|c| c.ch),
+            Some('#'),
+            "but no more than that"
+        );
+    }
 
     #[test]
     fn add_accepts_unboxed_and_boxed_views() {

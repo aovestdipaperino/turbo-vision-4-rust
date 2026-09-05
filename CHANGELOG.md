@@ -113,6 +113,14 @@ impl_view_for_window!(MyWindow {
   three methods for its windows.
 
 ### Fixed
+- **A child too big for its group painted over the frame around it** (#108).
+  `Group` clipped its children to its own extent grown by one cell in each
+  direction, an allowance meant for the shadow a window casts outside its
+  bounds. Any interior view larger than the window it sits in used that cell
+  to erase the window's right border and bottom edge: the showcase's ASCII
+  table did it as soon as the window was tiled below the table's width. The
+  overhang is now opt-in, `Group::set_child_overhang`, and only `Desktop`
+  asks for it, sized from `shadow_size()`. Every other group clips tight.
 - A window as large as its owner (a full-desktop editor with a shadow) was
   pushed to a negative origin, hiding its top row and left column. Drag limits
   now clamp the far edges first and the near edges last, as Borland's
