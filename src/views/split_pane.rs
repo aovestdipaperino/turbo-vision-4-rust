@@ -43,7 +43,7 @@ use super::view::{View, ViewCore, write_line_to_terminal};
 use crate::core::draw::DrawBuffer;
 use crate::core::event::{Event, EventType, KB_F8, MB_LEFT_BUTTON};
 use crate::core::geometry::{Point, Rect};
-use crate::core::state::{SF_DRAGGING, SF_FOCUSED, StateFlags};
+use crate::core::state::{State, StateFlags};
 use crate::terminal::Terminal;
 
 /// The divider drawn between two side-by-side panes.
@@ -104,7 +104,7 @@ impl SplitPane {
             first: Group::new(Rect::new(0, 0, 0, 0)),
             second: Group::new(Rect::new(0, 0, 0, 0)),
             focus_second: false,
-            view_state: 0,
+            view_state: State::empty(),
         };
         split.position = split.clamp_position(position);
         split.first.set_bounds(split.first_area());
@@ -290,11 +290,11 @@ impl SplitPane {
     }
 
     fn is_dragging(&self) -> bool {
-        self.view_state & SF_DRAGGING != 0
+        self.view_state.contains(State::DRAGGING)
     }
 
     fn set_dragging(&mut self, dragging: bool) {
-        self.set_state_flag(SF_DRAGGING, dragging);
+        self.set_state_flag(State::DRAGGING, dragging);
     }
 }
 
@@ -322,7 +322,7 @@ impl View for SplitPane {
     }
 
     fn set_focus(&mut self, focused: bool) {
-        self.set_state_flag(SF_FOCUSED, focused);
+        self.set_state_flag(State::FOCUSED, focused);
         if focused {
             self.focus_half(self.focus_second);
         } else {
@@ -379,7 +379,7 @@ impl View for SplitPane {
 
     fn handle_event(&mut self, event: &mut Event) {
         // A drag in progress owns every mouse event, even once the pointer has
-        // left the divider; the group forwards them here while SF_DRAGGING is
+        // left the divider; the group forwards them here while State::DRAGGING is
         // set on the focused child.
         if self.is_dragging() {
             match event.what {

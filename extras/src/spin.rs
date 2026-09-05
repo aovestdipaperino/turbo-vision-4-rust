@@ -4,6 +4,7 @@
 
 use std::cell::RefCell;
 use std::rc::Rc;
+use turbo_vision::core::state::State;
 
 use turbo_vision::core::draw::DrawBuffer;
 use turbo_vision::core::event::{
@@ -55,7 +56,7 @@ impl SpinControl {
         Self {
             core: ViewCore {
                 bounds,
-                state: 0,
+                state: State::empty(),
                 ..ViewCore::default()
             },
             min,

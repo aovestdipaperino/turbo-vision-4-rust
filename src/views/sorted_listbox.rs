@@ -27,6 +27,7 @@ use super::view::{View, ViewCore};
 use crate::core::command::CommandId;
 use crate::core::event::{Event, EventType, KB_BACKSPACE};
 use crate::core::geometry::Rect;
+use crate::core::state::State;
 use crate::terminal::Terminal;
 
 /// SortedListBox - A list that maintains items in sorted order
@@ -49,7 +50,7 @@ impl SortedListBox {
         Self {
             core: ViewCore {
                 bounds,
-                state: 0,
+                state: State::empty(),
                 palette_chain: None,
                 ..ViewCore::default()
             },

@@ -17,6 +17,8 @@ use turbo_vision::core::geometry::Rect;
 use turbo_vision::core::menu_data::MenuItemBuilder;
 use turbo_vision::core::menu_data::{Menu, MenuItem};
 use turbo_vision::core::palette::{Attr, Palette, TvColor, colors};
+use turbo_vision::core::state::Options;
+use turbo_vision::core::state::State;
 use turbo_vision::core::status_data::StatusItemBuilder;
 use turbo_vision::terminal::Terminal;
 use turbo_vision::views::GroupLike;
@@ -100,7 +102,7 @@ impl ClockView {
         Self {
             core: ViewCore {
                 bounds,
-                state: 0,
+                state: State::empty(),
                 ..ViewCore::default()
             },
             palette_chain: None,
@@ -182,7 +184,7 @@ impl CrabWidget {
         Self {
             core: ViewCore {
                 bounds: Rect::new(x, y, x + Self::WIDTH, y + 1),
-                state: 0,
+                state: State::empty(),
                 ..ViewCore::default()
             },
             position: 0,
@@ -399,7 +401,7 @@ fn create_status_line(width: i16, height: i16) -> StatusLine {
 }
 
 fn show_about_dialog(app: &mut Application) {
-    use turbo_vision::views::msgbox::{MF_ABOUT, MF_OK_BUTTON, message_box};
+    use turbo_vision::views::msgbox::{MsgBox, message_box};
 
     let message = "Turbo Vision Demo\n\
                    Version 1.0\n\
@@ -407,7 +409,7 @@ fn show_about_dialog(app: &mut Application) {
                    A demonstration of the\n\
                    Turbo Vision framework";
 
-    message_box(app, message, MF_ABOUT | MF_OK_BUTTON);
+    message_box(app, message, MsgBox::ABOUT | MsgBox::OK_BUTTON);
 }
 
 // ASCII Table Window
@@ -421,7 +423,7 @@ impl AsciiTable {
         Self {
             core: ViewCore {
                 bounds,
-                state: 0,
+                state: State::empty(),
                 ..ViewCore::default()
             },
             palette_chain: None,
@@ -555,13 +557,11 @@ struct CalcDisplay {
 
 impl CalcDisplay {
     fn new(bounds: Rect) -> Self {
-        use turbo_vision::core::state::{OF_SELECTABLE, SF_VISIBLE};
-
         Self {
             core: ViewCore {
                 bounds,
-                state: SF_VISIBLE,
-                options: OF_SELECTABLE, // Must be selectable to receive keyboard events
+                state: State::VISIBLE,
+                options: Options::SELECTABLE, // Must be selectable to receive keyboard events
                 ..ViewCore::default()
             },
             calc_state: CalcState::First,
@@ -875,7 +875,7 @@ impl CalendarView {
         Self {
             core: ViewCore {
                 bounds,
-                state: 0,
+                state: State::empty(),
                 ..ViewCore::default()
             },
             month,
@@ -1174,7 +1174,7 @@ impl PuzzleView {
         let mut puzzle = Self {
             core: ViewCore {
                 bounds,
-                state: 0,
+                state: State::empty(),
                 ..ViewCore::default()
             },
             board: [[' '; 6]; 6],
@@ -1493,8 +1493,8 @@ fn show_open_file_dialog(app: &mut Application, crab: &Rc<RefCell<CrabWidget>>) 
             filename,
             path.display()
         );
-        use turbo_vision::views::msgbox::{MF_INFORMATION, MF_OK_BUTTON, message_box};
-        message_box(app, &msg, MF_INFORMATION | MF_OK_BUTTON);
+        use turbo_vision::views::msgbox::{MsgBox, message_box};
+        message_box(app, &msg, MsgBox::INFORMATION | MsgBox::OK_BUTTON);
     }
 
     // Hide cursor after dialog closes (file dialog may have left it visible)
@@ -1511,8 +1511,8 @@ fn show_chdir_dialog(app: &mut Application) {
     if let Some(new_dir) = chdir_dialog.execute(app) {
         // Directory was changed successfully
         let msg = format!("Changed to: {}", new_dir.display());
-        use turbo_vision::views::msgbox::{MF_INFORMATION, MF_OK_BUTTON, message_box};
-        message_box(app, &msg, MF_INFORMATION | MF_OK_BUTTON);
+        use turbo_vision::views::msgbox::{MsgBox, message_box};
+        message_box(app, &msg, MsgBox::INFORMATION | MsgBox::OK_BUTTON);
     }
 }
 

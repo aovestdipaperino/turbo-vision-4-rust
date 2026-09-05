@@ -11,6 +11,7 @@ use crate::core::event::{
 };
 use crate::core::geometry::Rect;
 use crate::core::palette::{INPUT_ARROWS, INPUT_FOCUSED, INPUT_NORMAL, INPUT_SELECTED};
+use crate::core::state::State;
 use crate::terminal::Terminal;
 
 // Control key codes
@@ -48,7 +49,7 @@ impl InputLine {
         Self {
             core: ViewCore {
                 bounds,
-                state: 0,
+                state: State::empty(),
                 palette_chain: None,
                 ..ViewCore::default()
             },
@@ -497,7 +498,7 @@ impl View for InputLine {
     /// replaces it); losing focus collapses the selection.
     fn set_focus(&mut self, focused: bool) {
         let was_focused = self.is_focused();
-        self.set_state_flag(crate::core::state::SF_FOCUSED, focused);
+        self.set_state_flag(crate::core::state::State::FOCUSED, focused);
         if focused && !was_focused {
             self.select_all();
         } else if !focused {
@@ -519,7 +520,7 @@ impl View for InputLine {
     }
 
     // set_focus() now uses default implementation from View trait
-    // which sets/clears SF_FOCUSED flag
+    // which sets/clears State::FOCUSED flag
 
     fn update_cursor(&self, terminal: &mut Terminal) {
         if self.is_focused() {

@@ -17,7 +17,7 @@ use turbo_vision::core::status_data::StatusItemBuilder;
 use turbo_vision::views::edit_window::EditWindow;
 use turbo_vision::views::help_file::HelpFile;
 use turbo_vision::views::menu_bar::{MenuBar, SubMenu};
-use turbo_vision::views::msgbox::{MF_AUTO_DISMISS, MF_INFORMATION, message_box};
+use turbo_vision::views::msgbox::{MsgBox, message_box};
 use turbo_vision::views::status_line::StatusLine;
 use turbo_vision::views::syntax::{SyntaxHighlighter, Token, TokenType};
 
@@ -571,7 +571,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
          A Mini-Pascal IDE built with\n\
          Turbo Vision for Rust\n\n\
          \x03(c) 2026 Enzo Lombardi",
-        MF_INFORMATION | MF_AUTO_DISMISS,
+        MsgBox::INFORMATION | MsgBox::AUTO_DISMISS,
     );
 
     app.run();

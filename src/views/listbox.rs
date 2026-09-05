@@ -15,6 +15,7 @@ use crate::core::draw::DrawBuffer;
 use crate::core::event::{Event, EventType, KB_ENTER, MB_LEFT_BUTTON};
 use crate::core::geometry::Rect;
 use crate::core::palette::{LISTBOX_FOCUSED, LISTBOX_NORMAL, LISTBOX_SELECTED};
+use crate::core::state::State;
 use crate::terminal::Terminal;
 use std::collections::BTreeSet;
 
@@ -50,7 +51,7 @@ impl ListBox {
         Self {
             core: ViewCore {
                 bounds,
-                state: 0,
+                state: State::empty(),
                 palette_chain: None,
                 ..ViewCore::default()
             },
@@ -583,7 +584,7 @@ mod tests {
         let mut lb = ListBox::new(Rect::new(0, 0, 20, 5), 1000);
         lb.set_items((0..8).map(|i| format!("item{i}")).collect());
         lb.set_multi_select(true);
-        lb.set_state(crate::core::state::SF_FOCUSED);
+        lb.set_state(crate::core::state::State::FOCUSED);
         lb
     }
 

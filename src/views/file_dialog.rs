@@ -114,6 +114,7 @@ use crate::app::ModalTick;
 use crate::core::command::{CM_CANCEL, CM_FILE_FOCUSED, CM_OK, CommandId};
 use crate::core::event::{Event, EventType};
 use crate::core::geometry::Rect;
+use crate::core::state::State;
 use std::fs;
 use std::path::PathBuf;
 
@@ -352,12 +353,10 @@ impl FileDialog {
     }
 
     pub fn execute(&mut self, app: &mut crate::app::Application) -> Option<PathBuf> {
-        use crate::core::state::SF_MODAL;
-
         // Set modal flag - file dialogs are modal
         // Matches Borland: TFileDialog in modal state
         let old_state = self.dialog.state();
-        self.dialog.set_state(old_state | SF_MODAL);
+        self.dialog.set_state(old_state | State::MODAL);
         self.selected = None;
         self.update_ok_button_state();
 
@@ -613,8 +612,6 @@ impl FileDialog {
     }
 
     fn update_ok_button_state(&mut self) {
-        use crate::core::state::SF_DISABLED;
-
         let file_name = self.file_name_text();
 
         // OK button is enabled whenever the input is non-empty. The CM_OK handler
@@ -627,7 +624,7 @@ impl FileDialog {
         // Matches Borland's TView::setState(sfDisabled, enable) pattern
         if CHILD_OK_BUTTON < self.dialog.child_count() {
             let ok_button = self.dialog.child_at_mut(CHILD_OK_BUTTON);
-            ok_button.set_state_flag(SF_DISABLED, should_disable);
+            ok_button.set_state_flag(State::DISABLED, should_disable);
         }
     }
 
@@ -821,13 +818,12 @@ crate::impl_view_for_window!(FileDialog {
 #[cfg(test)]
 mod forwarding_tests {
     use super::*;
-    use crate::core::state::SF_MODAL;
 
     #[test]
     fn file_dialog_reports_the_inner_dialogs_state_and_end_state() {
         let mut fd = FileDialog::new(Rect::new(0, 0, 60, 20), "Open", "*.rs", None);
-        fd.set_state(fd.state() | SF_MODAL);
-        assert_ne!(View::state(&fd) & SF_MODAL, 0);
+        fd.set_state(fd.state() | State::MODAL);
+        assert!(View::state(&fd).contains(State::MODAL));
         assert!(fd.can_focus());
         fd.end_modal(CM_OK);
         assert_eq!(fd.end_state(), CM_OK);

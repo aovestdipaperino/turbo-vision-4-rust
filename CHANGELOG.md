@@ -24,6 +24,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   three methods for its windows.
 
 ### Changed (breaking)
+- **Typed flag sets.** `State`, `Options` and `Grow` (in `core::state`),
+  `MsgBox` (in `views::msgbox`) and `ValidatorOptions` (in
+  `views::validator`) replace the bare `u16` / `u8` bit masks, so a state
+  cannot be handed to an options parameter by mistake. `View::options()` and
+  `set_options` use `Options`; `ViewCore`'s fields are typed. The old
+  constants (`SF_MODAL`, `OF_SELECTABLE`, `GF_GROW_ALL`, `MF_OK_BUTTON`,
+  `VO_FILL`, ...) remain as deprecated aliases of the associated constants
+  (`State::MODAL`, `Options::SELECTABLE`, `Grow::ALL`, `MsgBox::OK_BUTTON`,
+  `ValidatorOptions::FILL`) for one release. Tests like `state & SF_X != 0`
+  become `state.contains(State::X)`; `StateFlags` and `GrowFlags` are type
+  aliases of `State` and `Grow`.
 - **`CloseOn` replaces the "commands below 1000 close the dialog" rule.**
   A modal `Dialog` now ends on `CM_OK`, `CM_CANCEL`, `CM_YES`, `CM_NO` and
   on the commands of the buttons added to it (`CloseOn::StandardAndButtons`,

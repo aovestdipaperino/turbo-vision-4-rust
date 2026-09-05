@@ -23,6 +23,7 @@ use crate::core::draw::DrawBuffer;
 use crate::core::event::{Event, EventType, MB_LEFT_BUTTON};
 use crate::core::geometry::{Point, Rect};
 use crate::core::history::HistoryManager;
+use crate::core::state::State;
 use crate::terminal::Terminal;
 
 /// History - Dropdown button for accessing input history
@@ -53,7 +54,7 @@ impl History {
         Self {
             core: ViewCore {
                 bounds: Rect::new(pos.x, pos.y, pos.x + 2, pos.y + 1),
-                state: 0,
+                state: State::empty(),
                 palette_chain: None,
                 ..ViewCore::default()
             },

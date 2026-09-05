@@ -11,6 +11,7 @@ use crate::core::event::{
     KB_PGUP, KB_RIGHT, KB_UP,
 };
 use crate::core::geometry::{Point, Rect};
+use crate::core::state::State;
 use crate::terminal::Terminal;
 use std::cmp::min;
 
@@ -47,7 +48,7 @@ impl Memo {
         Self {
             core: ViewCore {
                 bounds,
-                state: 0,
+                state: State::empty(),
                 palette_chain: None,
                 ..ViewCore::default()
             },
@@ -810,7 +811,7 @@ impl View for Memo {
     }
 
     // set_focus() now uses default implementation from View trait
-    // which sets/clears SF_FOCUSED flag
+    // which sets/clears State::FOCUSED flag
 
     fn update_cursor(&self, terminal: &mut Terminal) {
         if self.is_focused() {

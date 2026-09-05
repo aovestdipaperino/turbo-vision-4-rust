@@ -11,6 +11,7 @@ use crate::core::palette::{
     STATUSLINE_DISABLED, STATUSLINE_NORMAL, STATUSLINE_SELECTED, STATUSLINE_SELECTED_SHORTCUT,
     STATUSLINE_SHORTCUT,
 };
+use crate::core::state::Options;
 use crate::terminal::Terminal;
 
 pub use crate::core::status_data::StatusItem;
@@ -31,12 +32,10 @@ pub struct StatusLine {
 
 impl StatusLine {
     pub fn new(bounds: Rect, items: Vec<StatusItem>) -> Self {
-        use crate::core::state::OF_PRE_PROCESS;
-
         Self {
             core: ViewCore {
                 bounds,
-                options: OF_PRE_PROCESS, // Status line processes in pre-process phase (matches Borland)
+                options: Options::PRE_PROCESS, // Status line processes in pre-process phase (matches Borland)
                 palette_chain: None,
                 ..ViewCore::default()
             },
@@ -356,10 +355,10 @@ impl View for StatusLine {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::status_data::StatusItemBuilder;
     use crate::core::command::CommandId;
     use crate::core::event::KeyCode;
     use crate::core::geometry::Point;
+    use crate::core::status_data::StatusItemBuilder;
 
     const TEST_KEY: KeyCode = 0x1234;
 

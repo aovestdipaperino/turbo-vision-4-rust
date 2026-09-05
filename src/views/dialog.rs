@@ -11,6 +11,7 @@ use crate::app::ModalTick;
 use crate::core::command::{CM_CANCEL, CommandId};
 use crate::core::event::{Event, EventType, KB_ENTER, KB_ESC_ESC};
 use crate::core::geometry::Rect;
+use crate::core::state::State;
 use crate::terminal::Terminal;
 use std::time::{Duration, Instant};
 
@@ -87,12 +88,11 @@ impl Dialog {
     }
 
     /// Create a new modal dialog for use with Application::exec_view()
-    /// Matches Borland pattern: Dialog is created with SF_MODAL set, then passed to execView()
+    /// Matches Borland pattern: Dialog is created with State::MODAL set, then passed to execView()
     pub fn new_modal(bounds: Rect, title: &str) -> Box<Self> {
-        use crate::core::state::SF_MODAL;
         let mut dialog = Self::new(bounds, title);
         let current_state = dialog.state();
-        dialog.set_state(current_state | SF_MODAL);
+        dialog.set_state(current_state | State::MODAL);
         Box::new(dialog)
     }
 
@@ -134,19 +134,17 @@ impl Dialog {
     ///
     /// Both patterns work identically. Pattern 1 is simpler for standalone use.
     /// Pattern 2 matches Borland's TProgram::execView() architecture.
-    /// Put the dialog into its modal state: `SF_MODAL`, drag limits from the
+    /// Put the dialog into its modal state: `State::MODAL`, drag limits from the
     /// desktop, position constrained to it, first focusable child focused.
     /// `execute` does this before entering the loop; a type wrapping a `Dialog`
     /// that runs `Application::execute_modal` on itself calls it directly.
     pub(crate) fn prepare_modal(&mut self, app: &mut crate::app::Application) {
-        use crate::core::state::SF_MODAL;
-
         self.result = CM_CANCEL;
 
         // Set modal flag - dialogs are modal by default
         // Matches Borland: TDialog in modal state (tdialog.cc)
         let old_state = self.state();
-        self.set_state(old_state | SF_MODAL);
+        self.set_state(old_state | State::MODAL);
 
         // Set explicit drag limits from desktop bounds
         // This allows modal dialogs to be constrained even though they're not added to desktop
@@ -248,10 +246,9 @@ crate::impl_view_for_window!(Dialog {
         // Non-modal dialogs should let keyboard events pass to parent handlers
         // Matches Borland: TDialog::handleEvent() (tdialog.cc:48-86)
         if event.what == EventType::Keyboard {
-            use crate::core::state::SF_MODAL;
 
             // Only intercept keyboard shortcuts if this dialog is modal
-            if self.state() & SF_MODAL != 0 {
+            if self.state().contains(State::MODAL) {
                 // ESC ESC always closes modal dialogs with CM_CANCEL
                 // Matches Borland: cmCancel on Esc-Esc (tdialog.cc:71-73)
                 if event.key_code == KB_ESC_ESC {
@@ -293,10 +290,9 @@ crate::impl_view_for_window!(Dialog {
         // Matches Borland: TDialog::handleEvent() checks for these commands
         if event.what == EventType::Command {
             use crate::core::command::{CM_CANCEL, CM_NO, CM_OK, CM_YES};
-            use crate::core::state::SF_MODAL;
 
             // Only intercept commands if this dialog is modal
-            if self.state() & SF_MODAL != 0 {
+            if self.state().contains(State::MODAL) {
                 match event.command {
                     CM_CANCEL | CM_OK | CM_YES | CM_NO if self.closes_on(event.command) => {
                         // The standard four end the modal loop (Borland:
@@ -458,7 +454,7 @@ impl DialogBuilder {
     }
 
     /// Sets whether the dialog should be modal (default: false).
-    /// Modal dialogs are created with SF_MODAL flag set.
+    /// Modal dialogs are created with State::MODAL flag set.
     #[must_use]
     pub fn modal(mut self, modal: bool) -> Self {
         self.modal = modal;
@@ -490,9 +486,8 @@ impl DialogBuilder {
         }
 
         if self.modal {
-            use crate::core::state::SF_MODAL;
             let current_state = dialog.state();
-            dialog.set_state(current_state | SF_MODAL);
+            dialog.set_state(current_state | State::MODAL);
         }
 
         dialog
@@ -526,7 +521,7 @@ mod tests {
             .close_on(CloseOn::Standard)
             .build();
         d.add(Button::new(Rect::new(1, 1, 10, 3), "Go", 7, false));
-        d.set_state(d.state() | SF_MODAL);
+        d.set_state(d.state() | State::MODAL);
         let mut ev = Event::command(7);
         d.handle_event(&mut ev);
         assert_eq!(d.end_state(), 0);
@@ -537,7 +532,7 @@ mod tests {
     fn default_policy_closes_on_commands_of_added_buttons_regardless_of_number() {
         let mut d = Dialog::new(Rect::new(0, 0, 30, 8), "t");
         d.add(Button::new(Rect::new(1, 1, 10, 3), "Go", 5000, false));
-        d.set_state(d.state() | SF_MODAL);
+        d.set_state(d.state() | State::MODAL);
         let mut ev = Event::command(5000);
         d.handle_event(&mut ev);
         assert_eq!(d.end_state(), 5000);
@@ -546,7 +541,7 @@ mod tests {
     #[test]
     fn default_policy_leaves_other_child_commands_to_the_caller() {
         let mut d = Dialog::new(Rect::new(0, 0, 30, 8), "t");
-        d.set_state(d.state() | SF_MODAL);
+        d.set_state(d.state() | State::MODAL);
         let mut ev = Event::command(42);
         d.handle_event(&mut ev);
         assert_eq!(d.end_state(), 0, "42 is not a button of this dialog");
@@ -581,7 +576,6 @@ mod tests {
             palettes::CP_GRAY_DIALOG[0]
         );
     }
-    use crate::core::state::SF_MODAL;
 
     #[test]
     fn auto_dismiss_is_off_by_default_and_settable() {
@@ -613,7 +607,7 @@ mod tests {
         {
             let mut dialog = Dialog::new(Rect::new(0, 0, 40, 10), "Test");
             let current_state = dialog.state();
-            dialog.set_state(current_state | SF_MODAL);
+            dialog.set_state(current_state | State::MODAL);
 
             let mut event = Event::command(1000);
             dialog.handle_event(&mut event);
@@ -637,7 +631,7 @@ mod tests {
             let mut dialog = Dialog::new(Rect::new(0, 0, 40, 10), "Test");
             dialog.add(Button::new(Rect::new(1, 1, 10, 3), "Go", 100, false));
             let current_state = dialog.state();
-            dialog.set_state(current_state | SF_MODAL);
+            dialog.set_state(current_state | State::MODAL);
 
             let mut event = Event::command(100);
             dialog.handle_event(&mut event);
@@ -656,7 +650,7 @@ mod tests {
             let mut dialog = Dialog::new(Rect::new(0, 0, 40, 10), "Test");
             dialog.set_close_on(CloseOn::Commands(vec![999]));
             let current_state = dialog.state();
-            dialog.set_state(current_state | SF_MODAL);
+            dialog.set_state(current_state | State::MODAL);
 
             let mut event = Event::command(999);
             dialog.handle_event(&mut event);
@@ -666,7 +660,7 @@ mod tests {
             let mut dialog = Dialog::new(Rect::new(0, 0, 40, 10), "Test");
             dialog.set_close_on(CloseOn::Commands(vec![999]));
             let current_state = dialog.state();
-            dialog.set_state(current_state | SF_MODAL);
+            dialog.set_state(current_state | State::MODAL);
             let mut event = Event::command(CM_OK);
             dialog.handle_event(&mut event);
             assert_eq!(dialog.end_state(), 0, "CM_OK is not in the list");
@@ -676,7 +670,7 @@ mod tests {
     #[test]
     fn test_non_modal_dialog_commands() {
         let mut dialog = Dialog::new(Rect::new(0, 0, 40, 10), "Test");
-        // Don't set SF_MODAL - this is a non-modal dialog
+        // Don't set State::MODAL - this is a non-modal dialog
 
         // Non-modal dialogs should not call end_modal() for any command
         let mut event = Event::command(100);
@@ -716,7 +710,7 @@ mod tests {
         let make_dialog = |text: &str| {
             let mut dialog = Dialog::new(Rect::new(0, 0, 40, 10), "Test");
             let state = dialog.state();
-            dialog.set_state(state | SF_MODAL);
+            dialog.set_state(state | State::MODAL);
             let mut input = InputLine::new(Rect::new(2, 2, 28, 3), 32);
             input.set_text(text);
             let input = dialog.add_typed(input);
@@ -749,7 +743,7 @@ mod tests {
 
         let mut dialog = Dialog::new(Rect::new(0, 0, 40, 10), "Test");
         let state = dialog.state();
-        dialog.set_state(state | SF_MODAL);
+        dialog.set_state(state | State::MODAL);
 
         let mut event = Event::command(CM_SHOW_HISTORY);
         event.info = 42;
@@ -774,7 +768,7 @@ mod tests {
 
         let mut dialog = Dialog::new(Rect::new(0, 0, 40, 10), "Test");
         let state = dialog.state();
-        dialog.set_state(state | SF_MODAL);
+        dialog.set_state(state | State::MODAL);
 
         dialog.add(Button::new(
             Rect::new(2, 2, 12, 4),
@@ -808,7 +802,7 @@ mod tests {
 
         let mut dialog = Dialog::new(Rect::new(0, 0, 40, 10), "Test");
         let state = dialog.state();
-        dialog.set_state(state | SF_MODAL);
+        dialog.set_state(state | State::MODAL);
 
         dialog.add(StaticText::new(Rect::new(2, 2, 20, 3), "Hello"));
         dialog.add(Button::new(Rect::new(2, 4, 12, 6), "OK", CM_OK, true));
@@ -851,6 +845,6 @@ mod tests {
             .modal(true)
             .build();
         assert_eq!(dialog.bounds(), Rect::new(5, 5, 50, 20));
-        assert_ne!(dialog.state() & SF_MODAL, 0, "Should be modal");
+        assert!(dialog.state().contains(State::MODAL), "Should be modal");
     }
 }

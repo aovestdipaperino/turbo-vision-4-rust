@@ -4,6 +4,7 @@
 
 use turbo_vision::core::event::{Event, EventType, MB_LEFT_BUTTON};
 use turbo_vision::core::geometry::Rect;
+use turbo_vision::core::state::State;
 use turbo_vision::terminal::Terminal;
 use turbo_vision::views::GroupLike;
 use turbo_vision::views::group::Group;
@@ -62,7 +63,7 @@ impl ScrollPane {
         Self {
             core: ViewCore {
                 bounds,
-                state: 0,
+                state: State::empty(),
                 ..ViewCore::default()
             },
             virtual_height: virtual_height.max(bounds.height()),
@@ -217,7 +218,7 @@ impl View for ScrollPane {
     }
 
     fn set_focus(&mut self, focused: bool) {
-        self.set_state_flag(turbo_vision::core::state::SF_FOCUSED, focused);
+        self.set_state_flag(turbo_vision::core::state::State::FOCUSED, focused);
         if focused {
             self.group.set_initial_focus();
         } else {

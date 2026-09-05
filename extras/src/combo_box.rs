@@ -4,6 +4,7 @@
 
 use std::cell::RefCell;
 use std::rc::Rc;
+use turbo_vision::core::state::State;
 
 use turbo_vision::core::draw::DrawBuffer;
 use turbo_vision::core::event::{
@@ -58,7 +59,7 @@ impl ComboBox {
         Self {
             core: ViewCore {
                 bounds,
-                state: 0,
+                state: State::empty(),
                 ..ViewCore::default()
             },
             items,
@@ -253,7 +254,7 @@ impl View for ComboBox {
     }
 
     fn set_focus(&mut self, focused: bool) {
-        self.set_state_flag(turbo_vision::core::state::SF_FOCUSED, focused);
+        self.set_state_flag(turbo_vision::core::state::State::FOCUSED, focused);
         if !focused {
             self.open = false;
         }

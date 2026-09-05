@@ -10,7 +10,8 @@ use crate::core::geometry::Rect;
 use crate::core::palette::{
     BUTTON_DEFAULT, BUTTON_DISABLED, BUTTON_NORMAL, BUTTON_SELECTED, BUTTON_SHADOW, BUTTON_SHORTCUT,
 };
-use crate::core::state::{SF_DISABLED, SHADOW_BOTTOM, SHADOW_SOLID, SHADOW_TOP};
+use crate::core::state::Options;
+use crate::core::state::{SHADOW_BOTTOM, SHADOW_SOLID, SHADOW_TOP, State};
 use crate::terminal::Terminal;
 
 pub struct Button {
@@ -32,20 +33,19 @@ pub struct Button {
 impl Button {
     pub fn new(bounds: Rect, title: &str, command: CommandId, is_default: bool) -> Self {
         use crate::core::command_set;
-        use crate::core::state::OF_POST_PROCESS;
 
         // Check if command is initially enabled
         // Matches Borland: TButton constructor checks commandEnabled() (tbutton.cc:55-56)
-        let mut state = 0;
+        let mut state = State::empty();
         if !command_set::command_enabled(command) {
-            state |= SF_DISABLED;
+            state |= State::DISABLED;
         }
 
         Self {
             core: ViewCore {
                 bounds,
                 state,
-                options: OF_POST_PROCESS, // Buttons process in post-process phase
+                options: Options::POST_PROCESS, // Buttons process in post-process phase
                 palette_chain: None,
                 ..ViewCore::default()
             },
@@ -76,11 +76,11 @@ impl Button {
     }
 
     pub fn set_disabled(&mut self, disabled: bool) {
-        self.set_state_flag(SF_DISABLED, disabled);
+        self.set_state_flag(State::DISABLED, disabled);
     }
 
     pub fn is_disabled(&self) -> bool {
-        self.get_state_flag(SF_DISABLED)
+        self.get_state_flag(State::DISABLED)
     }
 
     /// Set whether this button broadcasts its command instead of sending it as a command event
@@ -92,11 +92,10 @@ impl Button {
     /// Set whether this button is selectable (can receive focus)
     /// Matches Borland: ofSelectable flag
     pub fn set_selectable(&mut self, selectable: bool) {
-        use crate::core::state::OF_SELECTABLE;
         if selectable {
-            self.core.options |= OF_SELECTABLE;
+            self.core.options |= Options::SELECTABLE;
         } else {
-            self.core.options &= !OF_SELECTABLE;
+            self.core.options &= !Options::SELECTABLE;
         }
     }
 
@@ -353,9 +352,8 @@ impl View for Button {
     }
 
     fn set_focus(&mut self, focused: bool) {
-        // Default View behavior: set/clear SF_FOCUSED
-        use crate::core::state::SF_FOCUSED;
-        self.set_state_flag(SF_FOCUSED, focused);
+        // Default View behavior: set/clear State::FOCUSED
+        self.set_state_flag(State::FOCUSED, focused);
 
         // Default-role handoff (Borland: TButton::setState() sends
         // cmGrabDefault on focus gain and cmReleaseDefault on focus loss).

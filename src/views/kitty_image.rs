@@ -37,6 +37,7 @@ use crate::core::draw::DrawBuffer;
 use crate::core::event::Event;
 use crate::core::geometry::Rect;
 use crate::core::palette::Attr;
+use crate::core::state::State;
 use crate::terminal::Terminal;
 use std::io;
 use std::path::Path;
@@ -81,7 +82,7 @@ impl KittyImage {
         Self {
             core: ViewCore {
                 bounds,
-                state: 0,
+                state: State::empty(),
                 palette_chain: None,
                 ..ViewCore::default()
             },

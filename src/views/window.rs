@@ -8,7 +8,8 @@ use super::view::{View, ViewCore};
 use crate::core::command::{CM_CANCEL, CM_CLOSE};
 use crate::core::event::{Event, EventType};
 use crate::core::geometry::{Point, Rect};
-use crate::core::state::{SF_DRAGGING, SF_MODAL, SF_RESIZING, SF_SHADOW, shadow_size};
+use crate::core::state::Options;
+use crate::core::state::{State, shadow_size};
 use crate::terminal::Terminal;
 
 pub struct Window {
@@ -43,12 +44,12 @@ pub struct Window {
     /// Used when owner is None but we still want to constrain dragging
     explicit_drag_limits: Option<Rect>,
     /// When true (default), a non-modal `CM_CLOSE` makes the window mark
-    /// itself `SF_CLOSED` + clear the event, so the next
+    /// itself `State::CLOSED` + clear the event, so the next
     /// `Desktop::remove_closed_windows()` sweep removes it. Set to `false`
     /// for windows whose owner needs to intercept the close (e.g. an editor
     /// that wants to prompt "save changes?" first); in that case `CM_CLOSE`
     /// bubbles up uncleared and the owner is responsible for both the
-    /// validation and the eventual `set_state(SF_CLOSED)`.
+    /// validation and the eventual `set_state(State::CLOSED)`.
     auto_close: bool,
 }
 
@@ -133,8 +134,6 @@ impl Window {
         window_palette: WindowPaletteType,
         resizable: bool,
     ) -> Self {
-        use crate::core::state::{OF_SELECTABLE, OF_TILEABLE, OF_TOP_SELECT};
-
         let frame = Frame::with_palette(bounds, title, frame_palette, resizable);
 
         // Interior bounds are ABSOLUTE (inset by 1 from window bounds for frame)
@@ -146,8 +145,8 @@ impl Window {
         let window = Self {
             core: ViewCore {
                 bounds,
-                state: SF_SHADOW, // Windows have shadows by default
-                options: OF_SELECTABLE | OF_TOP_SELECT | OF_TILEABLE, // Matches Borland: TWindow/TEditWindow flags
+                state: State::SHADOW, // Windows have shadows by default
+                options: Options::SELECTABLE | Options::TOP_SELECT | Options::TILEABLE, // Matches Borland: TWindow/TEditWindow flags
                 palette_chain: None,
                 // Grow mode flags (Borland: `TWindow::growMode`), controlling how this
                 // window's bounds move when its owner (the Desktop) is resized.
@@ -161,13 +160,13 @@ impl Window {
                 // nothing to fix a full-size window being clipped at the new screen
                 // edge; it would just slide the window away from the corner it was
                 // already filling. The default here is deliberately
-                // `GF_GROW_HI_X | GF_GROW_HI_Y` instead: the window's top-left corner
+                // `Grow::HI_X | Grow::HI_Y` instead: the window's top-left corner
                 // stays put and its bottom-right edge follows the desktop's growth,
                 // i.e. the window actually stretches to fill the new space, which is
                 // the resizing behaviour the bug report asked for. Use
                 // `set_grow_mode()` to opt out (e.g. `0` for a fixed window, or
-                // `GF_GROW_ALL` for corner-tracking).
-                grow_mode: crate::core::state::GF_GROW_HI_X | crate::core::state::GF_GROW_HI_Y,
+                // `Grow::ALL` for corner-tracking).
+                grow_mode: crate::core::state::Grow::HI_X | crate::core::state::Grow::HI_Y,
             },
             frame,
             interior,
@@ -258,7 +257,7 @@ impl Window {
     /// Control whether the window self-closes on a non-modal `CM_CLOSE`.
     ///
     /// Default is `true`: clicking the frame's close button marks the window
-    /// `SF_CLOSED` and clears the event, so the next
+    /// `State::CLOSED` and clears the event, so the next
     /// [`Desktop::remove_closed_windows`] sweep removes it. Mirrors Borland's
     /// `TWindow::close()` flow with a trivial `valid()` (auto-accept).
     ///
@@ -266,7 +265,7 @@ impl Window {
     /// e.g. an editor that prompts "save changes?" before destroying the
     /// buffer. With auto-close off, `CM_CLOSE` bubbles up uncleared and the
     /// owner is responsible for both validation and the eventual
-    /// `set_state(SF_CLOSED)`. Modal windows ignore this flag (they always
+    /// `set_state(State::CLOSED)`. Modal windows ignore this flag (they always
     /// `end_modal(CM_CANCEL)` on `CM_CLOSE`).
     pub fn set_auto_close(&mut self, auto_close: bool) {
         self.auto_close = auto_close;
@@ -315,7 +314,7 @@ impl Window {
         let height = self.core.bounds.height();
 
         // Account for shadow when constraining edges
-        let (shadow_x, shadow_y) = if (self.core.state & SF_SHADOW) != 0 {
+        let (shadow_x, shadow_y) = if self.core.state.contains(State::SHADOW) {
             shadow_size()
         } else {
             (0, 0)
@@ -483,7 +482,7 @@ pub trait WindowLike: GroupLike {
         // confirms, Esc restores the saved bounds)
         if event.what == EventType::Command
             && event.command == crate::core::command::CM_RESIZE
-            && (self.state() & crate::core::state::SF_ACTIVE) != 0
+            && self.state().contains(crate::core::state::State::ACTIVE)
         {
             self.window_mut().keyboard_resize_saved = Some(self.bounds());
             event.clear();
@@ -537,8 +536,8 @@ pub trait WindowLike: GroupLike {
         self.window_mut().frame.handle_event(event);
 
         // Check if frame started dragging or resizing
-        let frame_dragging = (self.window_mut().frame.state() & SF_DRAGGING) != 0;
-        let frame_resizing = (self.window_mut().frame.state() & SF_RESIZING) != 0;
+        let frame_dragging = self.window_mut().frame.state().contains(State::DRAGGING);
+        let frame_resizing = self.window_mut().frame.state().contains(State::RESIZING);
 
         if frame_dragging && self.window_mut().drag_offset.is_none() {
             // Frame just started dragging - record offset
@@ -548,7 +547,7 @@ pub trait WindowLike: GroupLike {
                     mouse_pos.x - self.bounds().a.x,
                     mouse_pos.y - self.bounds().a.y,
                 ));
-                self.set_state_flag(SF_DRAGGING, true);
+                self.set_state_flag(State::DRAGGING, true);
                 event.clear(); // Mark event as handled
                 return;
             }
@@ -564,7 +563,7 @@ pub trait WindowLike: GroupLike {
                     self.bounds().b.x - mouse_pos.x,
                     self.bounds().b.y - mouse_pos.y,
                 ));
-                self.set_state_flag(SF_RESIZING, true);
+                self.set_state_flag(State::RESIZING, true);
                 event.clear(); // Mark event as handled
                 return;
             }
@@ -587,7 +586,7 @@ pub trait WindowLike: GroupLike {
                 let height = self.bounds().height();
 
                 // Account for shadow when constraining edges
-                let (shadow_x, shadow_y) = if (self.state() & SF_SHADOW) != 0 {
+                let (shadow_x, shadow_y) = if self.state().contains(State::SHADOW) {
                     shadow_size()
                 } else {
                     (0, 0)
@@ -672,13 +671,13 @@ pub trait WindowLike: GroupLike {
         // Check if frame ended dragging
         if !frame_dragging && self.window_mut().drag_offset.is_some() {
             self.window_mut().drag_offset = None;
-            self.set_state_flag(SF_DRAGGING, false);
+            self.set_state_flag(State::DRAGGING, false);
         }
 
         // Check if frame ended resizing
         if !frame_resizing && self.window_mut().resize_start_size.is_some() {
             self.window_mut().resize_start_size = None;
-            self.set_state_flag(SF_RESIZING, false);
+            self.set_state_flag(State::RESIZING, false);
         }
 
         // Handle ESC key for modal windows
@@ -687,7 +686,7 @@ pub trait WindowLike: GroupLike {
             let is_esc = event.key_code == crate::core::event::KB_ESC;
             let is_esc_esc = event.key_code == crate::core::event::KB_ESC_ESC;
 
-            if (is_esc || is_esc_esc) && (self.state() & SF_MODAL) != 0 {
+            if (is_esc || is_esc_esc) && self.state().contains(State::MODAL) {
                 // Modal window: ESC ends the modal loop with CM_CANCEL
                 self.end_modal(CM_CANCEL);
                 event.clear();
@@ -698,7 +697,7 @@ pub trait WindowLike: GroupLike {
         // Handle CM_CLOSE command (Borland: twindow.cc TWindow::handleEvent ~118-132)
         // Frame generates CM_CLOSE on close-button MouseUp.
         if event.what == EventType::Command && event.command == CM_CLOSE {
-            if (self.state() & SF_MODAL) != 0 {
+            if self.state().contains(State::MODAL) {
                 // Modal: end_modal with CM_CANCEL (Borland converts cmClose → cmCancel)
                 self.end_modal(CM_CANCEL);
                 event.clear();
@@ -708,17 +707,16 @@ pub trait WindowLike: GroupLike {
                 // valid() hook gives children (editors, dialogs) a chance to
                 // veto the close ("save changes?"). The event is cleared
                 // either way (Borland clears it before calling close()); only
-                // SF_CLOSED is gated on validation.
-                use crate::core::state::SF_CLOSED;
+                // State::CLOSED is gated on validation.
                 if self.valid(CM_CLOSE) {
-                    self.set_state_flag(SF_CLOSED, true);
+                    self.set_state_flag(State::CLOSED, true);
                 }
                 event.clear();
             } else {
                 // Owner opted out of auto-close (set_auto_close(false)) — used
                 // by editors that need to prompt "save changes?" before
                 // destruction. Leave event uncleared so it bubbles up; owner
-                // handles validation and eventual SF_CLOSED.
+                // handles validation and eventual State::CLOSED.
             }
             return; // Don't pass CM_CLOSE to interior
         }
@@ -731,9 +729,10 @@ pub trait WindowLike: GroupLike {
         // Mirror Borland: TWindow::setState(sfSelected) forwards sfActive to
         // the window and its frame, so inactive windows draw with the
         // inactive frame palette (see Frame::get_frame_colors).
-        use crate::core::state::SF_ACTIVE;
-        self.set_state_flag(SF_ACTIVE, focused);
-        self.window_mut().frame.set_state_flag(SF_ACTIVE, focused);
+        self.set_state_flag(State::ACTIVE, focused);
+        self.window_mut()
+            .frame
+            .set_state_flag(State::ACTIVE, focused);
 
         // Propagate focus to the interior group
         // When the window gets focus, set focus on its first focusable child
@@ -1055,7 +1054,7 @@ impl WindowBuilder {
             resizable: true, // Default to resizable (matches Borland TWindow with wfGrow)
             palette_type: WindowPaletteType::Blue,
             // Deliberately not gfGrowAll — see the comment in Window::new_with_palette.
-            grow_mode: crate::core::state::GF_GROW_HI_X | crate::core::state::GF_GROW_HI_Y,
+            grow_mode: crate::core::state::Grow::HI_X | crate::core::state::Grow::HI_Y,
         }
     }
 
@@ -1090,7 +1089,7 @@ impl WindowBuilder {
     }
 
     /// Sets the window's grow mode flags (default:
-    /// `GF_GROW_HI_X | GF_GROW_HI_Y`, so the window stretches to fill new
+    /// `Grow::HI_X | Grow::HI_Y`, so the window stretches to fill new
     /// desktop space rather than translating like Borland's literal
     /// `gfGrowAll`). Controls how the window's bounds move when its owner
     /// (the Desktop) is resized; see the comment in `Window::new_with_palette` and
@@ -1216,23 +1215,19 @@ mod tests {
 
     #[test]
     fn test_set_focus_propagates_sf_active_to_window_and_frame() {
-        use crate::core::state::SF_ACTIVE;
-
         let mut window = Window::new(Rect::new(0, 0, 40, 15), "Test");
 
         window.set_focus(true);
-        assert_ne!(window.state() & SF_ACTIVE, 0);
-        assert_ne!(window.frame.state() & SF_ACTIVE, 0);
+        assert!(window.state().contains(State::ACTIVE));
+        assert!(window.frame.state().contains(State::ACTIVE));
 
         window.set_focus(false);
-        assert_eq!(window.state() & SF_ACTIVE, 0);
-        assert_eq!(window.frame.state() & SF_ACTIVE, 0);
+        assert!(!window.state().contains(State::ACTIVE));
+        assert!(!window.frame.state().contains(State::ACTIVE));
     }
 
     #[test]
     fn test_auto_close_respects_valid() {
-        use crate::core::state::SF_CLOSED;
-
         // A child view whose valid() vetoes the close
         struct Vetoer {
             core: ViewCore,
@@ -1271,14 +1266,14 @@ mod tests {
         });
         let mut event = Event::command(CM_CLOSE);
         window.handle_event(&mut event);
-        assert_eq!(window.state() & SF_CLOSED, 0);
+        assert!(!window.state().contains(State::CLOSED));
         assert_eq!(event.what, EventType::Nothing); // event still consumed
 
         // Window whose children all validate: CM_CLOSE closes it
         let mut window = Window::new(Rect::new(0, 0, 40, 15), "Test");
         let mut event = Event::command(CM_CLOSE);
         window.handle_event(&mut event);
-        assert_ne!(window.state() & SF_CLOSED, 0);
+        assert!(window.state().contains(State::CLOSED));
         assert_eq!(event.what, EventType::Nothing);
     }
 

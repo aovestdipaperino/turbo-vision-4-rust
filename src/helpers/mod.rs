@@ -18,7 +18,7 @@ pub mod msgbox {
 
 pub use crate::views::msgbox::{
     MF_ABOUT, MF_CANCEL_BUTTON, MF_CONFIRMATION, MF_ERROR, MF_INFORMATION, MF_NO_BUTTON,
-    MF_OK_BUTTON, MF_OK_CANCEL, MF_WARNING, MF_YES_BUTTON, MF_YES_NO_CANCEL, message_box,
+    MF_OK_BUTTON, MF_OK_CANCEL, MF_WARNING, MF_YES_BUTTON, MF_YES_NO_CANCEL, MsgBox, message_box,
     message_box_rect,
 };
 

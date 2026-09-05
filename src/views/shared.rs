@@ -13,6 +13,7 @@ use crate::core::event::Event;
 use crate::core::geometry::Rect;
 use crate::core::palette::Palette;
 use crate::core::palette_chain::PaletteChainNode;
+use crate::core::state::Options;
 use crate::core::state::{GrowFlags, StateFlags};
 use crate::terminal::Terminal;
 use std::cell::RefCell;
@@ -73,10 +74,10 @@ impl<T: View + 'static> View for Shared<T> {
     fn window_number(&self) -> Option<u8> {
         self.inner.borrow().window_number()
     }
-    fn options(&self) -> u16 {
+    fn options(&self) -> Options {
         self.inner.borrow().options()
     }
-    fn set_options(&mut self, options: u16) {
+    fn set_options(&mut self, options: Options) {
         self.core.options = options;
         self.inner.borrow_mut().set_options(options);
     }
@@ -143,7 +144,7 @@ impl<T: View + 'static> View for Shared<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::state::{SF_FOCUSED, SF_VISIBLE};
+    use crate::core::state::State;
     use crate::views::button::Button;
     use crate::views::scrollbar::ScrollBar;
 
@@ -157,8 +158,8 @@ mod tests {
         )));
         let mut shared = Shared::new(Rc::clone(&inner));
 
-        shared.set_state(SF_VISIBLE | SF_FOCUSED);
-        assert_eq!(inner.borrow().state(), SF_VISIBLE | SF_FOCUSED);
+        shared.set_state(State::VISIBLE | State::FOCUSED);
+        assert_eq!(inner.borrow().state(), State::VISIBLE | State::FOCUSED);
 
         inner.borrow_mut().set_bounds(Rect::new(5, 5, 6, 15));
         assert_eq!(shared.bounds(), Rect::new(5, 5, 6, 15));
@@ -173,7 +174,7 @@ mod tests {
             false,
         )));
         let mut shared = Shared::new(Rc::clone(&inner));
-        shared.set_state(SF_VISIBLE | SF_FOCUSED);
+        shared.set_state(State::VISIBLE | State::FOCUSED);
         assert_eq!(shared.core().state, inner.borrow().state());
         shared.set_bounds(Rect::new(1, 1, 4, 2));
         assert_eq!(shared.core().bounds, inner.borrow().bounds());

@@ -13,6 +13,7 @@ use crate::core::event::{
     KB_PGUP, KB_RIGHT, KB_TAB, KB_UP, MB_LEFT_BUTTON,
 };
 use crate::core::geometry::{Point, Rect};
+use crate::core::state::State;
 use crate::terminal::Terminal;
 use std::cell::RefCell;
 use std::cmp::min;
@@ -175,8 +176,8 @@ impl EditorWindow {
         Self {
             core: ViewCore {
                 bounds,
-                grow_mode: crate::core::state::GF_GROW_HI_X | crate::core::state::GF_GROW_HI_Y,
-                state: 0,
+                grow_mode: crate::core::state::Grow::HI_X | crate::core::state::Grow::HI_Y,
+                state: State::empty(),
                 palette_chain: None,
                 ..ViewCore::default()
             },
@@ -2051,7 +2052,7 @@ impl View for EditorWindow {
     }
 
     // set_focus() now uses default implementation from View trait
-    // which sets/clears SF_FOCUSED flag
+    // which sets/clears State::FOCUSED flag
 
     fn update_cursor(&self, terminal: &mut Terminal) {
         if self.is_focused() {

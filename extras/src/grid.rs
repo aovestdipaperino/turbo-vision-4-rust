@@ -10,6 +10,7 @@ use turbo_vision::core::event::{
 };
 use turbo_vision::core::geometry::Rect;
 use turbo_vision::core::palette::{Attr, TvColor};
+use turbo_vision::core::state::State;
 use turbo_vision::terminal::Terminal;
 use turbo_vision::views::view::write_line_to_terminal;
 use turbo_vision::views::{View, ViewCore};
@@ -120,7 +121,7 @@ impl GridView {
         Self {
             core: ViewCore {
                 bounds,
-                state: 0,
+                state: State::empty(),
                 ..ViewCore::default()
             },
             columns,

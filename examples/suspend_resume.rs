@@ -10,7 +10,7 @@ use turbo_vision::views::GroupLike;
 use turbo_vision::views::View;
 use turbo_vision::views::button::ButtonBuilder;
 use turbo_vision::views::dialog::DialogBuilder;
-use turbo_vision::views::msgbox::{MF_INFORMATION, MF_OK_BUTTON, message_box};
+use turbo_vision::views::msgbox::{MsgBox, message_box};
 use turbo_vision::views::static_text::StaticTextBuilder;
 
 const CMD_SUSPEND: u16 = 100;
@@ -91,7 +91,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
                         message_box(
                             &mut app,
                             "Welcome back! Application resumed.",
-                            MF_INFORMATION | MF_OK_BUTTON,
+                            MsgBox::INFORMATION | MsgBox::OK_BUTTON,
                         );
                     }
                     CM_QUIT => break,

@@ -13,12 +13,13 @@ use turbo_vision::core::geometry::Rect;
 use turbo_vision::core::menu_data::MenuItemBuilder;
 use turbo_vision::core::menu_data::{Menu, MenuItem};
 use turbo_vision::core::palette::{Attr, TvColor, colors};
-use turbo_vision::core::state::SF_VISIBLE;
+use turbo_vision::core::state::State;
 use turbo_vision::core::status_data::StatusItemBuilder;
 use turbo_vision::terminal::Terminal;
 use turbo_vision::views::dialog::DialogBuilder;
 use turbo_vision::views::input_line::InputLine;
 use turbo_vision::views::menu_bar::{MenuBar, SubMenu};
+use turbo_vision::views::msgbox::MsgBox;
 use turbo_vision::views::status_line::StatusLine;
 use turbo_vision::views::validator::Validator;
 use turbo_vision::views::view::write_line_to_terminal;
@@ -197,7 +198,7 @@ impl BiorhythmChart {
         Self {
             core: ViewCore {
                 bounds,
-                state: SF_VISIBLE,
+                state: State::VISIBLE,
                 ..ViewCore::default()
             },
             biorhythm,
@@ -215,7 +216,7 @@ impl View for BiorhythmChart {
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        if (self.core.state & SF_VISIBLE) == 0 {
+        if !self.core.state.contains(State::VISIBLE) {
             return;
         }
 
@@ -501,7 +502,7 @@ fn validate_birth_date(birth_date: &NaiveDate) -> bool {
 
 /// Display application information dialog with biorhythm cycle details
 fn show_about_dialog(app: &mut Application) {
-    use turbo_vision::views::msgbox::{MF_ABOUT, MF_OK_BUTTON, message_box};
+    use turbo_vision::views::msgbox::message_box;
 
     let message = r"Biorhythm Calculator v1.0
 
@@ -514,7 +515,7 @@ Calculates three cycles:
 
 Semi-graphical ASCII chart";
 
-    message_box(app, message, MF_ABOUT | MF_OK_BUTTON);
+    message_box(app, message, MsgBox::ABOUT | MsgBox::OK_BUTTON);
 }
 
 /// Parse day, month, year strings into NaiveDate (returns None if invalid)
@@ -537,7 +538,7 @@ fn run_modal_birth_date_dialog(
     app: &mut Application,
     birth_date: Option<&NaiveDate>,
 ) -> Option<NaiveDate> {
-    use turbo_vision::views::msgbox::{MF_ERROR, MF_OK_BUTTON, message_box};
+    use turbo_vision::views::msgbox::message_box;
 
     // Loop until user cancels or provides valid input
     loop {
@@ -592,7 +593,7 @@ fn run_modal_birth_date_dialog(
                     message_box(
                         app,
                         "Birth date cannot be in the future!\n\nPlease enter a valid past date.",
-                        MF_ERROR | MF_OK_BUTTON,
+                        MsgBox::ERROR | MsgBox::OK_BUTTON,
                     );
                     // Loop back to show dialog again with same values
                 }
@@ -602,7 +603,7 @@ fn run_modal_birth_date_dialog(
                 message_box(
                     app,
                     "Invalid date entered!\n\nPlease check:\n  • Day is 1-31\n  • Month is 1-12\n  • Year is 1900-2100\n  • Date is valid (e.g., Feb 30 doesn't exist)",
-                    MF_ERROR | MF_OK_BUTTON,
+                    MsgBox::ERROR | MsgBox::OK_BUTTON,
                 );
                 // Loop back to show dialog again with same values
             }

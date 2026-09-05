@@ -8,9 +8,7 @@ use turbo_vision::core::command::{CM_NO, CM_QUIT, CM_YES};
 use turbo_vision::core::event::KB_ALT_X;
 use turbo_vision::views::button::ButtonBuilder;
 use turbo_vision::views::dialog::DialogBuilder;
-use turbo_vision::views::msgbox::{
-    MF_CONFIRMATION, MF_INFORMATION, MF_OK_BUTTON, MF_YES_NO_CANCEL, input_box, message_box,
-};
+use turbo_vision::views::msgbox::{input_box, message_box};
 use turbo_vision::views::static_text::StaticTextBuilder;
 
 const CMD_BEEP: u16 = 100;
@@ -94,7 +92,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
                         message_box(
                             &mut app,
                             "Beep sound played!",
-                            MF_INFORMATION | MF_OK_BUTTON,
+                            MsgBox::INFORMATION | MsgBox::OK_BUTTON,
                         );
                     }
                     CMD_MSGBOX => {
@@ -102,14 +100,14 @@ fn main() -> turbo_vision::core::error::Result<()> {
                         let result = message_box(
                             &mut app,
                             "Do you like this demo?",
-                            MF_CONFIRMATION | MF_YES_NO_CANCEL,
+                            MsgBox::CONFIRMATION | MsgBox::YES_NO_CANCEL,
                         );
                         let response = match result {
                             CM_YES => "Great! Thank you!",
                             CM_NO => "Sorry to hear that.",
                             _ => "No problem.",
                         };
-                        message_box(&mut app, response, MF_INFORMATION | MF_OK_BUTTON);
+                        message_box(&mut app, response, MsgBox::INFORMATION | MsgBox::OK_BUTTON);
                     }
                     CMD_INPUT => {
                         // Feature 3: Input Box
@@ -118,7 +116,11 @@ fn main() -> turbo_vision::core::error::Result<()> {
                         {
                             if !text.trim().is_empty() {
                                 let msg = format!("Hello, {}!", text);
-                                message_box(&mut app, &msg, MF_INFORMATION | MF_OK_BUTTON);
+                                message_box(
+                                    &mut app,
+                                    &msg,
+                                    MsgBox::INFORMATION | MsgBox::OK_BUTTON,
+                                );
                             }
                         }
                     }
@@ -129,7 +131,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
                             &format!(
                                 "Change window title dynamically.\nSee examples/dynamic_title.rs"
                             ),
-                            MF_INFORMATION | MF_OK_BUTTON,
+                            MsgBox::INFORMATION | MsgBox::OK_BUTTON,
                         );
                     }
                     CM_QUIT => break,

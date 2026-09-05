@@ -24,6 +24,7 @@ use crate::core::draw::DrawBuffer;
 use crate::core::event::{Event, EventType, KB_DOWN, KB_END, KB_HOME, KB_PGDN, KB_PGUP, KB_UP};
 use crate::core::geometry::Rect;
 use crate::core::palette::Attr;
+use crate::core::state::State;
 use crate::terminal::Terminal;
 
 /// A line of output with optional color attributes
@@ -72,7 +73,7 @@ impl TerminalWidget {
         Self {
             core: ViewCore {
                 bounds,
-                state: 0,
+                state: State::empty(),
                 palette_chain: None,
                 ..ViewCore::default()
             },

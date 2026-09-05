@@ -46,7 +46,7 @@ use crate::core::event::{
 };
 use crate::core::geometry::{Point, Rect};
 use crate::core::palette::{LISTBOX_DIVIDER, LISTBOX_FOCUSED, LISTBOX_NORMAL, LISTBOX_SELECTED};
-use crate::core::state::StateFlags;
+use crate::core::state::{State, StateFlags};
 use crate::terminal::Terminal;
 
 /// Blank cells between two columns.
@@ -125,7 +125,7 @@ impl Table {
             first_col: 0,
             show_header: true,
             on_select,
-            view_state: 0,
+            view_state: State::empty(),
         }
     }
 
@@ -626,7 +626,6 @@ impl Default for TableBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::state::SF_FOCUSED;
 
     fn table(rows: usize) -> Table {
         // 30 wide, 6 tall: header plus five rows.
@@ -641,7 +640,7 @@ mod tests {
                 .map(|i| vec![format!("file{i}"), format!("{}", i * 10), "text".into()])
                 .collect(),
         );
-        t.set_state(SF_FOCUSED);
+        t.set_state(State::FOCUSED);
         t
     }
 
@@ -780,7 +779,7 @@ mod tests {
     #[test]
     fn keys_do_nothing_when_not_focused() {
         let mut t = table(3);
-        t.set_state(0);
+        t.set_state(State::empty());
         press(&mut t, KB_DOWN);
         assert_eq!(t.selected_row(), Some(0));
     }

@@ -285,5 +285,7 @@ pub mod prelude {
     };
 
     pub use crate::app::{AppHandler, Application, ModalTick};
+    pub use crate::core::state::{Grow, Options, State};
+    pub use crate::views::msgbox::MsgBox;
     pub use crate::views::{GroupLike, Handle, View, ViewCore, WindowLike};
 }

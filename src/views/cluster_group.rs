@@ -46,7 +46,7 @@ use crate::core::geometry::{Point, Rect};
 use crate::core::palette::{
     Attr, CLUSTER_DISABLED, CLUSTER_FOCUSED, CLUSTER_NORMAL, CLUSTER_SHORTCUT,
 };
-use crate::core::state::{SF_FOCUSED, StateFlags};
+use crate::core::state::{State, StateFlags};
 use crate::terminal::Terminal;
 
 /// Key code for the space bar, which toggles or selects an item.
@@ -141,7 +141,7 @@ impl ClusterGroup {
             value: 0,
             focused_item: 0,
             on_change: 0,
-            view_state: 0,
+            view_state: State::empty(),
         };
         group.set_labels(labels);
         if kind == Kind::Radio && !group.items.is_empty() {
@@ -249,7 +249,7 @@ impl ClusterGroup {
     }
 
     fn is_focused_view(&self) -> bool {
-        self.view_state & SF_FOCUSED != 0
+        self.view_state.contains(State::FOCUSED)
     }
 
     fn draw_group(&mut self, terminal: &mut Terminal) {
@@ -597,13 +597,13 @@ mod tests {
 
     fn boxes() -> CheckBoxes {
         let mut c = CheckBoxes::new(Rect::new(0, 0, 20, 3), labels());
-        c.set_state(SF_FOCUSED);
+        c.set_state(State::FOCUSED);
         c
     }
 
     fn radios() -> RadioButtons {
         let mut r = RadioButtons::new(Rect::new(0, 0, 20, 3), labels());
-        r.set_state(SF_FOCUSED);
+        r.set_state(State::FOCUSED);
         r
     }
 

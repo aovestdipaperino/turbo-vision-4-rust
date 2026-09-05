@@ -8,7 +8,7 @@ use crate::core::draw::DrawBuffer;
 use crate::core::event::{Event, EventType, MB_LEFT_BUTTON};
 use crate::core::geometry::Rect;
 use crate::core::palette::Attr;
-use crate::core::state::{SF_ACTIVE, SF_DRAGGING, SF_RESIZING};
+use crate::core::state::State;
 use crate::terminal::Terminal;
 use unicode_width::UnicodeWidthStr;
 
@@ -59,7 +59,7 @@ impl Frame {
         Self {
             core: ViewCore {
                 bounds,
-                state: SF_ACTIVE,
+                state: State::ACTIVE,
                 palette_chain: None,
                 ..ViewCore::default()
             },
@@ -149,8 +149,8 @@ impl Frame {
         // - Dragging: cFrame = 0x0505 (both bytes use palette[5])
         // - Active:   cFrame = 0x0503 (low=palette[3], high=palette[5])
 
-        let is_active = (self.core.state & SF_ACTIVE) != 0;
-        let is_dragging = (self.core.state & SF_DRAGGING) != 0;
+        let is_active = self.core.state.contains(State::ACTIVE);
+        let is_dragging = self.core.state.contains(State::DRAGGING);
 
         if !is_active {
             // Inactive: cFrame = 0x0101, cTitle = 0x0002
@@ -292,7 +292,7 @@ impl View for Frame {
         // Add resize handle for resizable windows when active
         // Matches Borland: dragIcon "~��~" at width-2 when (state & sfActive) && (flags & wfGrow)
         // See tframe.cc:142-144
-        let is_active = (self.core.state & SF_ACTIVE) != 0;
+        let is_active = self.core.state.contains(State::ACTIVE);
         if self.resizable && is_active && width >= 4 {
             // Resize handle at bottom-right corner (width-2 position)
             // Using ◢ (U+25E2) as resize indicator
@@ -308,7 +308,7 @@ impl View for Frame {
     }
 
     fn handle_event(&mut self, event: &mut Event) {
-        // Note: no SF_ACTIVE gate here — the owning Window only forwards
+        // Note: no State::ACTIVE gate here — the owning Window only forwards
         // events to its own frame, and an inactive window can still receive
         // the click that activates it.
 
@@ -341,7 +341,7 @@ impl View for Frame {
                 && mouse_pos.y >= self.core.bounds.b.y - 1
             {
                 // Resize corner - set resizing state
-                self.core.state |= SF_RESIZING;
+                self.core.state |= State::RESIZING;
                 // DON'T clear event - let Window handle it to initialize resize_start_size
                 return;
             }
@@ -373,7 +373,7 @@ impl View for Frame {
                 // Set dragging state and let Window handle the MouseDown event
 
                 // Set dragging state
-                self.core.state |= SF_DRAGGING;
+                self.core.state |= State::DRAGGING;
                 // DON'T clear event - let Window handle it to initialize drag_offset
                 return;
             }
@@ -394,7 +394,7 @@ impl View for Frame {
                     event.clear();
                 }
                 // Also clear drag/resize state if set
-                self.core.state &= !(SF_DRAGGING | SF_RESIZING);
+                self.core.state &= !(State::DRAGGING | State::RESIZING);
                 return;
             }
 
@@ -405,16 +405,16 @@ impl View for Frame {
                 } else {
                     event.clear();
                 }
-                self.core.state &= !(SF_DRAGGING | SF_RESIZING);
+                self.core.state &= !(State::DRAGGING | State::RESIZING);
                 return;
             }
 
             // End dragging or resizing
-            if (self.core.state & SF_DRAGGING) != 0 {
-                self.core.state &= !SF_DRAGGING;
+            if self.core.state.contains(State::DRAGGING) {
+                self.core.state &= !State::DRAGGING;
                 event.clear();
-            } else if (self.core.state & SF_RESIZING) != 0 {
-                self.core.state &= !SF_RESIZING;
+            } else if self.core.state.contains(State::RESIZING) {
+                self.core.state &= !State::RESIZING;
                 event.clear();
             }
         }
@@ -671,9 +671,8 @@ mod tests {
     fn a_press_on_the_zoom_icon_does_not_start_a_drag() {
         let mut frame = zoomable_frame();
         press_at(&mut frame, 36, 0);
-        assert_eq!(
-            frame.state() & SF_DRAGGING,
-            0,
+        assert!(
+            !frame.state().contains(State::DRAGGING),
             "the title bar drag must not begin on an icon"
         );
     }

@@ -31,7 +31,7 @@ use super::view::{View, ViewCore, write_line_to_terminal};
 use crate::core::draw::DrawBuffer;
 use crate::core::event::{Event, EventType};
 use crate::core::geometry::{Point, Rect};
-use crate::core::state::StateFlags;
+use crate::core::state::{State, StateFlags};
 use crate::terminal::Terminal;
 use std::time::{Duration, Instant};
 
@@ -77,7 +77,7 @@ impl Tooltip {
             hover: None,
             shown: None,
             delay: DEFAULT_DELAY,
-            view_state: 0,
+            view_state: State::empty(),
         }
     }
 

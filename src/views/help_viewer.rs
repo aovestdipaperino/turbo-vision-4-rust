@@ -16,6 +16,7 @@ use crate::core::event::{
     KB_SHIFT_TAB, KB_TAB, KB_UP, MB_LEFT_BUTTON,
 };
 use crate::core::geometry::{Point, Rect};
+use crate::core::state::State;
 use crate::terminal::Terminal;
 
 /// HelpViewer - Displays help topic content with cross-reference navigation
@@ -43,7 +44,7 @@ impl HelpViewer {
         Self {
             core: ViewCore {
                 bounds,
-                state: 0,
+                state: State::empty(),
                 palette_chain: None,
                 ..ViewCore::default()
             },

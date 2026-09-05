@@ -19,7 +19,7 @@ use crate::core::draw::DrawBuffer;
 use crate::core::event::{Event, EventType, KB_ENTER, KB_ESC, KB_ESC_ESC, MB_LEFT_BUTTON};
 use crate::core::geometry::{Point, Rect};
 use crate::core::menu_data::{Menu, MenuItem};
-use crate::core::state::SF_SHADOW;
+use crate::core::state::State;
 use crate::terminal::Terminal;
 
 // MenuBox palette indices (same as MenuBar - matches Borland TMenuView)
@@ -51,7 +51,7 @@ impl MenuBox {
         Self {
             core: ViewCore {
                 bounds,
-                state: SF_SHADOW, // MenuBox has shadow by default
+                state: State::SHADOW, // MenuBox has shadow by default
                 palette_chain: None,
                 ..ViewCore::default()
             },
@@ -329,7 +329,7 @@ impl View for MenuBox {
         );
 
         // Draw shadow
-        if self.core.state & SF_SHADOW != 0 {
+        if self.core.state.contains(State::SHADOW) {
             self.draw_shadow(terminal);
         }
     }

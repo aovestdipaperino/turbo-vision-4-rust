@@ -24,6 +24,7 @@ use crate::core::event::{
 };
 use crate::core::geometry::{Point, Rect};
 use crate::core::menu_data::{Menu, MenuItem};
+use crate::core::state::State;
 use crate::terminal::Terminal;
 
 // MenuBar palette indices (matches Borland TMenuView)
@@ -90,7 +91,7 @@ impl MenuBar {
         Self {
             core: ViewCore {
                 bounds,
-                state: 0,
+                state: State::empty(),
                 palette_chain: None,
                 ..ViewCore::default()
             },

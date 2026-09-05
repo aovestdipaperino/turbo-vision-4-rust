@@ -15,6 +15,7 @@ use super::view::{View, ViewCore, write_line_to_terminal};
 use crate::core::draw::DrawBuffer;
 use crate::core::event::{Event, EventType, KB_ENTER, KB_LEFT, KB_RIGHT};
 use crate::core::geometry::Rect;
+use crate::core::state::State;
 use crate::terminal::Terminal;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -146,7 +147,7 @@ impl<T: 'static> OutlineViewer<T> {
         Self {
             core: ViewCore {
                 bounds,
-                state: 0,
+                state: State::empty(),
                 palette_chain: None,
                 ..ViewCore::default()
             },

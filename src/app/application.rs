@@ -12,6 +12,7 @@ use crate::core::command_set;
 use crate::core::error::Result;
 use crate::core::event::{Event, EventType, KB_ALT_X, KB_CTRL_F12, KB_F1, KB_F12};
 use crate::core::geometry::Rect;
+use crate::core::state::State;
 use crate::terminal::Terminal;
 use crate::views::help_context::HelpContext;
 use crate::views::help_file::HelpFile;
@@ -80,7 +81,7 @@ pub trait AppHandler {
     /// Called on each idle tick, after [`Application::idle`].
     fn idle(&mut self, _app: &mut Application) {}
 
-    /// Called once for every window the desktop removed after `SF_CLOSED`.
+    /// Called once for every window the desktop removed after `State::CLOSED`.
     fn window_closed(&mut self, _app: &mut Application, _id: ViewId) {}
 }
 
@@ -379,16 +380,15 @@ impl Application {
     /// Execute a view (modal or modeless)
     /// Matches Borland: TProgram::execView() (tprogram.cc:177-197)
     ///
-    /// If the view has SF_MODAL flag set, runs a modal event loop.
+    /// If the view has State::MODAL flag set, runs a modal event loop.
     /// Otherwise, adds the view to the desktop and returns immediately.
     ///
     /// Returns the view's end_state (the command that closed the modal view)
     pub fn exec_view<V: View + 'static>(&mut self, view: V) -> CommandId {
-        use crate::core::state::SF_MODAL;
         let view: Box<dyn View> = Box::new(view);
 
         // Check if view is modal
-        let is_modal = (view.state() & SF_MODAL) != 0;
+        let is_modal = view.state().contains(State::MODAL);
 
         // Add view to desktop; track it by identity so other children being
         // added or removed during the modal loop can't shift it out from
@@ -643,9 +643,9 @@ impl Application {
                 }
             }
 
-            // Remove closed windows (those with SF_CLOSED flag)
+            // Remove closed windows (those with State::CLOSED flag)
             // In Borland, views call CLY_destroy() to remove themselves
-            // In Rust, views set SF_CLOSED and parent removes them
+            // In Rust, views set State::CLOSED and parent removes them
             let closed = self.desktop.remove_closed_windows();
             for id in &closed {
                 handler.window_closed(self, *id);
@@ -915,8 +915,6 @@ impl Application {
     /// Show help for a specific topic
     /// Opens the help window and displays the given topic
     pub fn show_help_topic(&mut self, topic_id: &str) {
-        use crate::core::state::SF_MODAL;
-
         if let Some(ref help_file) = self.help_file {
             let (width, height) = self.terminal.size();
             let help_width = (width * 3 / 4).max(40).min(width - 4);
@@ -928,10 +926,10 @@ impl Application {
             let mut help_window = HelpWindow::new(bounds, "Help", Rc::clone(help_file));
             help_window.show_topic(topic_id);
 
-            // Set SF_MODAL flag so exec_view runs the modal loop
+            // Set State::MODAL flag so exec_view runs the modal loop
             // Matches Borland: THelpWindow is displayed modally
             let current_state = help_window.state();
-            help_window.set_state(current_state | SF_MODAL);
+            help_window.set_state(current_state | State::MODAL);
 
             // Execute the help window as modal
             self.exec_view(help_window);
@@ -1190,11 +1188,11 @@ impl Drop for Application {
 #[cfg(test)]
 mod resize_tests {
     use super::*;
+    use crate::core::state::Grow;
 
     #[test]
     fn execute_modal_stops_when_the_tick_says_so_and_dispatches_events_to_the_view() {
         use crate::core::command::{CM_CANCEL, CM_OK};
-        use crate::core::state::SF_MODAL;
         use crate::views::button::Button;
         use crate::views::dialog::Dialog;
 
@@ -1215,7 +1213,7 @@ mod resize_tests {
 
         let mut dialog = Dialog::new(Rect::new(5, 5, 40, 12), "t");
         dialog.add(Button::new(Rect::new(2, 2, 12, 4), "OK", CM_OK, true));
-        dialog.set_state(dialog.state() | SF_MODAL);
+        dialog.set_state(dialog.state() | State::MODAL);
         app.put_event(Event::command(CM_OK));
         let result = app.execute_modal(&mut dialog, |_, _| ModalTick::Continue);
         assert_eq!(result, CM_OK);
@@ -1246,7 +1244,6 @@ mod resize_tests {
         app.run_with(&mut rec);
         assert_eq!(rec.seen, vec![1234]);
     }
-    use crate::core::state::{GF_GROW_HI_X, GF_GROW_HI_Y};
     use crate::test_util::TestBackend;
     use crate::views::group::GroupLike;
     use crate::views::view::ViewCore;
@@ -1367,18 +1364,18 @@ mod resize_tests {
 
         let set_bounds_calls = Rc::new(StdCell::new(0));
         let mut inner_group = crate::views::group::Group::new(Rect::new(0, 0, width, height - 2));
-        inner_group.set_grow_mode(GF_GROW_HI_X | GF_GROW_HI_Y);
+        inner_group.set_grow_mode(Grow::HI_X | Grow::HI_Y);
         inner_group.add(RecordingView {
             core: ViewCore {
                 bounds: Rect::new(0, 0, width, height - 2),
-                grow_mode: GF_GROW_HI_X | GF_GROW_HI_Y,
+                grow_mode: Grow::HI_X | Grow::HI_Y,
                 ..ViewCore::default()
             },
             set_bounds_calls: Rc::clone(&set_bounds_calls),
         });
 
         let mut group_view = GroupView(inner_group);
-        group_view.set_grow_mode(GF_GROW_HI_X | GF_GROW_HI_Y);
+        group_view.set_grow_mode(Grow::HI_X | Grow::HI_Y);
         app.desktop.add(group_view);
 
         (app, size, set_bounds_calls)
@@ -1517,7 +1514,7 @@ mod resize_tests {
         window.add(RecordingView {
             core: ViewCore {
                 bounds: Rect::new(0, 0, interior_w, interior_h),
-                grow_mode: GF_GROW_HI_X | GF_GROW_HI_Y,
+                grow_mode: Grow::HI_X | Grow::HI_Y,
                 ..ViewCore::default()
             },
             set_bounds_calls: Rc::clone(&set_bounds_calls),
@@ -1568,10 +1565,10 @@ mod resize_tests {
         let mut window = Window::new(Rect::new(0, 0, 20, 10), "W");
 
         // Deliberately not gfGrowAll — see the field doc on Window::grow_mode.
-        assert_eq!(window.grow_mode(), GF_GROW_HI_X | GF_GROW_HI_Y);
+        assert_eq!(window.grow_mode(), Grow::HI_X | Grow::HI_Y);
 
-        window.set_grow_mode(GF_GROW_HI_X);
-        assert_eq!(window.grow_mode(), GF_GROW_HI_X);
+        window.set_grow_mode(Grow::HI_X);
+        assert_eq!(window.grow_mode(), Grow::HI_X);
     }
 
     #[test]
@@ -1588,7 +1585,7 @@ mod resize_tests {
         );
 
         let mut window = Window::new(window_bounds, "Fixed Window");
-        window.set_grow_mode(0);
+        window.set_grow_mode(Grow::empty());
         app.desktop.add(window);
 
         size.0.store(120, Ordering::SeqCst);

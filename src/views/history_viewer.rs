@@ -17,6 +17,7 @@ use super::view::{View, ViewCore};
 use crate::core::event::Event;
 use crate::core::geometry::Rect;
 use crate::core::history::HistoryManager;
+use crate::core::state::State;
 use crate::terminal::Terminal;
 
 /// HistoryViewer - Displays history items for a specific history ID
@@ -40,7 +41,7 @@ impl HistoryViewer {
         Self {
             core: ViewCore {
                 bounds,
-                state: 0,
+                state: State::empty(),
                 palette_chain: None,
                 ..ViewCore::default()
             },

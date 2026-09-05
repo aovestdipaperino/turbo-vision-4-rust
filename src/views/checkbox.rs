@@ -24,6 +24,7 @@ use super::cluster::{Cluster, ClusterState};
 use super::view::{View, ViewCore};
 use crate::core::event::Event;
 use crate::core::geometry::Rect;
+use crate::core::state::State;
 use crate::terminal::Terminal;
 
 /// CheckBox - A boolean selection control with a label
@@ -43,7 +44,7 @@ impl CheckBox {
         CheckBox {
             core: ViewCore {
                 bounds,
-                state: 0,
+                state: State::empty(),
                 palette_chain: None,
                 ..ViewCore::default()
             },

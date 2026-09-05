@@ -14,11 +14,12 @@ use turbo_vision::core::geometry::Rect;
 use turbo_vision::core::menu_data::MenuItemBuilder;
 use turbo_vision::core::menu_data::{Menu, MenuItem};
 use turbo_vision::core::palette::{Attr, Palette, TvColor};
+use turbo_vision::core::state::State;
 use turbo_vision::core::status_data::StatusItemBuilder;
 use turbo_vision::terminal::Terminal;
 use turbo_vision::views::ViewCore;
 use turbo_vision::views::ansi_background::AnsiBackground;
-use turbo_vision::views::msgbox::{MF_ABOUT, MF_OK_BUTTON, message_box};
+use turbo_vision::views::msgbox::{MsgBox, message_box};
 use turbo_vision::views::view::write_line_to_terminal;
 use turbo_vision::views::{
     View,
@@ -44,7 +45,7 @@ impl CrabWidget {
         Self {
             core: ViewCore {
                 bounds: Rect::new(x, y, x + 10, y + 1),
-                state: 0,
+                state: State::empty(),
                 ..ViewCore::default()
             },
             position: 0,
@@ -144,7 +145,7 @@ impl LogoBackground {
         Self {
             core: ViewCore {
                 bounds,
-                state: 0,
+                state: State::empty(),
                 ..ViewCore::default()
             },
             logo_lines,
@@ -282,7 +283,7 @@ fn show_about_dialog(app: &mut Application) {
                    for colored ASCII art logos.\n\n\
                    Use File menu to load logos.";
 
-    message_box(app, message, MF_ABOUT | MF_OK_BUTTON);
+    message_box(app, message, MsgBox::ABOUT | MsgBox::OK_BUTTON);
 }
 
 /// Find the examples directory containing logo.txt
@@ -410,14 +411,14 @@ fn main() -> turbo_vision::core::error::Result<()> {
                                 message_box(
                                     &mut app,
                                     "ANSI logo loaded!\nlogo.txt found.",
-                                    MF_OK_BUTTON,
+                                    MsgBox::OK_BUTTON,
                                 );
                                 using_ansi = true;
                             } else {
                                 message_box(
                                     &mut app,
                                     "No ANSI file found.\nPlace logo.txt in examples/",
-                                    MF_OK_BUTTON,
+                                    MsgBox::OK_BUTTON,
                                 );
                             }
                             // Trigger a redraw
@@ -430,7 +431,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
                             message_box(
                                 &mut app,
                                 "ASCII art mode.\nRestart to apply.",
-                                MF_OK_BUTTON,
+                                MsgBox::OK_BUTTON,
                             );
                             using_ansi = false;
                         }

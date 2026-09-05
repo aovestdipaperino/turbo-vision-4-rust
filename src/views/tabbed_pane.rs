@@ -58,6 +58,7 @@ use crate::core::draw::DrawBuffer;
 use crate::core::event::{Event, EventType, KB_F6, KB_PGDN, KB_PGUP, MB_LEFT_BUTTON};
 use crate::core::geometry::{Point, Rect};
 use crate::core::palette::{Attr, LABEL_NORMAL, LABEL_SELECTED, LABEL_SHORTCUT};
+use crate::core::state::State;
 use crate::core::state::StateFlags;
 use crate::terminal::Terminal;
 
@@ -169,7 +170,7 @@ impl TabbedPane {
             },
             tabs: Vec::new(),
             active: 0,
-            view_state: 0,
+            view_state: State::empty(),
         }
     }
 
@@ -483,7 +484,7 @@ impl View for TabbedPane {
     /// Focus follows through to the active page's controls, so the pane never
     /// swallows the focus itself.
     fn set_focus(&mut self, focused: bool) {
-        self.set_state_flag(crate::core::state::SF_FOCUSED, focused);
+        self.set_state_flag(crate::core::state::State::FOCUSED, focused);
         if let Some(page) = self.active_page_mut() {
             if focused {
                 page.set_initial_focus();

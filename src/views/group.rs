@@ -7,6 +7,8 @@ use crate::core::draw::DrawBuffer;
 use crate::core::event::{Event, EventType, KB_SHIFT_TAB, KB_TAB};
 use crate::core::geometry::Rect;
 use crate::core::palette::Attr;
+use crate::core::state::Options;
+use crate::core::state::{Grow, State};
 use crate::terminal::Terminal;
 
 /// Group - a container for child views
@@ -26,7 +28,7 @@ impl Group {
             core: ViewCore {
                 bounds,
                 palette_chain: None,
-                grow_mode: 0,
+                grow_mode: Grow::empty(),
                 ..ViewCore::default()
             },
             children: Vec::new(),
@@ -42,7 +44,7 @@ impl Group {
             core: ViewCore {
                 bounds,
                 palette_chain: None,
-                grow_mode: 0,
+                grow_mode: Grow::empty(),
                 ..ViewCore::default()
             },
             children: Vec::new(),
@@ -354,12 +356,11 @@ impl Group {
     /// True if the child at `index` can take focus.
     ///
     /// Matches Borland TGroup::findNext: the view must be selectable and not
-    /// disabled. (SF_VISIBLE is not checked because this port never sets it;
+    /// disabled. (State::VISIBLE is not checked because this port never sets it;
     /// hidden views are simply not added to the group.)
     fn child_focusable(&self, index: usize) -> bool {
-        use crate::core::state::SF_DISABLED;
         let child = &self.children[index];
-        child.can_focus() && (child.state() & SF_DISABLED) == 0
+        child.can_focus() && !child.state().contains(State::DISABLED)
     }
 
     pub fn select_next(&mut self) {
@@ -451,15 +452,14 @@ pub trait GroupLike: View {
         // offset (children store absolute coordinates); each edge additionally
         // follows the size delta only if the matching grow bit is set.
         // Matches Borland: TView::calcBounds() driven by growMode.
-        use crate::core::state::{GF_GROW_HI_X, GF_GROW_HI_Y, GF_GROW_LO_X, GF_GROW_LO_Y};
         for child in &mut self.group_mut().children {
             let grow = child.grow_mode();
             let child_bounds = child.bounds();
             let new_bounds = Rect::new(
-                child_bounds.a.x + dx + if grow & GF_GROW_LO_X != 0 { dw } else { 0 },
-                child_bounds.a.y + dy + if grow & GF_GROW_LO_Y != 0 { dh } else { 0 },
-                child_bounds.b.x + dx + if grow & GF_GROW_HI_X != 0 { dw } else { 0 },
-                child_bounds.b.y + dy + if grow & GF_GROW_HI_Y != 0 { dh } else { 0 },
+                child_bounds.a.x + dx + if grow.contains(Grow::LO_X) { dw } else { 0 },
+                child_bounds.a.y + dy + if grow.contains(Grow::LO_Y) { dh } else { 0 },
+                child_bounds.b.x + dx + if grow.contains(Grow::HI_X) { dw } else { 0 },
+                child_bounds.b.y + dy + if grow.contains(Grow::HI_Y) { dh } else { 0 },
             );
             child.set_bounds(new_bounds);
         }
@@ -512,8 +512,6 @@ pub trait GroupLike: View {
     }
 
     fn group_handle_event(&mut self, event: &mut Event) {
-        use crate::core::state::{OF_POST_PROCESS, OF_PRE_PROCESS};
-
         // Mouse events: positional events (no three-phase processing)
         // Search in REVERSE order (top-most child first) - matches Borland's z-order
         // Matches Borland: TGroup::handleEvent() processes mouse events from front to back
@@ -532,10 +530,7 @@ pub trait GroupLike: View {
                 // Check if focused child is in dragging or resizing state
                 let g = self.group_mut();
                 let child_state = g.children[g.focused].state();
-                if (child_state
-                    & (crate::core::state::SF_DRAGGING | crate::core::state::SF_RESIZING))
-                    != 0
-                {
+                if child_state.intersects(State::DRAGGING | State::RESIZING) {
                     g.children[g.focused].handle_event(event);
                     return;
                 }
@@ -609,18 +604,18 @@ pub trait GroupLike: View {
         }
 
         // Keyboard and Command events: use three-phase processing (matches Borland)
-        // Phase 1: PreProcess - views with OF_PRE_PROCESS flag (e.g., buttons for Space/Enter)
+        // Phase 1: PreProcess - views with Options::PRE_PROCESS flag (e.g., buttons for Space/Enter)
         // Phase 2: Focused - currently focused view gets first chance
-        // Phase 3: PostProcess - views with OF_POST_PROCESS flag (e.g., status line for help keys)
+        // Phase 3: PostProcess - views with Options::POST_PROCESS flag (e.g., status line for help keys)
 
         if event.what == EventType::Keyboard || event.what == EventType::Command {
             // Phase 1: PreProcess
-            // Views with OF_PRE_PROCESS get first chance at the event
+            // Views with Options::PRE_PROCESS get first chance at the event
             for child in &mut self.group_mut().children {
                 if event.what == EventType::Nothing {
                     break; // Event was handled
                 }
-                if (child.options() & OF_PRE_PROCESS) != 0 {
+                if child.options().contains(Options::PRE_PROCESS) {
                     child.handle_event(event);
                 }
             }
@@ -637,13 +632,13 @@ pub trait GroupLike: View {
             }
 
             // Phase 3: PostProcess
-            // Views with OF_POST_PROCESS get last chance (e.g., status line, buttons)
+            // Views with Options::POST_PROCESS get last chance (e.g., status line, buttons)
             if event.what != EventType::Nothing {
                 for child in &mut self.group_mut().children {
                     if event.what == EventType::Nothing {
                         break; // Event was handled
                     }
-                    if (child.options() & OF_POST_PROCESS) != 0 {
+                    if child.options().contains(Options::POST_PROCESS) {
                         child.handle_event(event);
                     }
                 }
@@ -713,18 +708,17 @@ pub trait GroupLike: View {
 
     /// Validate group before performing command
     /// Matches Borland: TGroup::valid(ushort command)
-    /// - If command is CM_RELEASED_FOCUS, validate current focused child if it has OF_VALIDATE
+    /// - If command is CM_RELEASED_FOCUS, validate current focused child if it has Options::VALIDATE
     /// - Otherwise, validate all children (return false if any child is invalid)
     fn group_valid(&mut self, command: crate::core::command::CommandId) -> bool {
         use crate::core::command::CM_RELEASED_FOCUS;
-        use crate::core::state::OF_VALIDATE;
 
         if command == CM_RELEASED_FOCUS {
-            // Validate only the currently focused child if it has OF_VALIDATE flag
+            // Validate only the currently focused child if it has Options::VALIDATE flag
             if self.group().focused < self.group_mut().children.len() {
                 let g = self.group_mut();
                 let child = &mut g.children[g.focused];
-                if (child.options() & OF_VALIDATE) != 0 {
+                if child.options().contains(Options::VALIDATE) {
                     return child.valid(command);
                 }
             }
@@ -1105,8 +1099,8 @@ mod tests {
             Self {
                 core: ViewCore {
                     bounds,
-                    state: 0,
-                    grow_mode: 0,
+                    state: State::empty(),
+                    grow_mode: Grow::empty(),
                     ..ViewCore::default()
                 },
                 events: std::rc::Rc::new(std::cell::RefCell::new(Vec::new())),
@@ -1171,8 +1165,6 @@ mod tests {
 
     #[test]
     fn test_grow_modes_on_resize() {
-        use crate::core::state::{GF_GROW_ALL, GF_GROW_HI_X, GF_GROW_HI_Y};
-
         let mut group = Group::new(Rect::new(0, 0, 40, 20));
 
         // Fixed child (grow_mode = 0, Borland default)
@@ -1180,12 +1172,12 @@ mod tests {
 
         // Right/bottom-growing child (gfGrowHiX | gfGrowHiY)
         let mut growing = RecorderView::new(Rect::new(1, 5, 11, 7));
-        growing.set_grow_mode(GF_GROW_HI_X | GF_GROW_HI_Y);
+        growing.set_grow_mode(Grow::HI_X | Grow::HI_Y);
         group.add(growing);
 
         // Fully growing child (gfGrowAll — moves with the far edge)
         let mut all = RecorderView::new(Rect::new(30, 15, 39, 19));
-        all.set_grow_mode(GF_GROW_ALL);
+        all.set_grow_mode(Grow::ALL);
         group.add(all);
 
         // Resize the group: +10 wide, +5 tall (no move)
@@ -1207,8 +1199,6 @@ mod tests {
 
     #[test]
     fn test_focus_restored_after_removing_focused_child() {
-        use crate::core::state::SF_FOCUSED;
-
         let mut group = Group::new(Rect::new(0, 0, 80, 25));
         group.add(RecorderView::new(Rect::new(0, 0, 10, 2)));
         group.add(RecorderView::new(Rect::new(0, 3, 10, 5)));
@@ -1221,7 +1211,7 @@ mod tests {
         group.remove(1);
         assert_eq!(group.len(), 2);
         let focused_count = (0..group.len())
-            .filter(|&i| (group.child_at(i).state() & SF_FOCUSED) != 0)
+            .filter(|&i| group.child_at(i).state().contains(State::FOCUSED))
             .count();
         assert_eq!(focused_count, 1);
         assert!(group.focused_child().unwrap().is_focused());

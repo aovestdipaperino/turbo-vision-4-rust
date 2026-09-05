@@ -10,34 +10,45 @@ use super::static_text::StaticText;
 use crate::app::Application;
 use crate::core::command::{CM_CANCEL, CM_NO, CM_OK, CM_YES, CommandId};
 use crate::core::geometry::Rect;
+use crate::core::state::{deprecated_aliases, flags};
 use crate::views::group::GroupLike;
 use std::time::Duration;
 
-// Message box types
-pub const MF_WARNING: u16 = 0x0000;
-pub const MF_ERROR: u16 = 0x0001;
-pub const MF_INFORMATION: u16 = 0x0002;
-pub const MF_CONFIRMATION: u16 = 0x0003;
-pub const MF_ABOUT: u16 = 0x0004;
+flags! {
+    /// Message-box options (Borland: `mfXxxx`): a type in the low four bits,
+    /// button flags above, and behaviour flags.
+    pub struct MsgBox: u16 {
+        const WARNING = 0x0000;
+        const ERROR = 0x0001;
+        const INFORMATION = 0x0002;
+        const CONFIRMATION = 0x0003;
+        const ABOUT = 0x0004;
+        const YES_BUTTON = 0x0100;
+        const NO_BUTTON = 0x0200;
+        const OK_BUTTON = 0x0400;
+        const CANCEL_BUTTON = 0x0800;
+        /// Close the message box on its own after
+        /// [`MESSAGE_BOX_AUTO_DISMISS_TIMEOUT`] if the user has not dismissed
+        /// it. The result is the default button's command (OK when present,
+        /// otherwise the first button).
+        const AUTO_DISMISS = 0x1000;
+        const YES_NO_CANCEL = 0x0E00;
+        const OK_CANCEL = 0x0C00;
+    }
+}
 
-// Button flags
-pub const MF_YES_BUTTON: u16 = 0x0100;
-pub const MF_NO_BUTTON: u16 = 0x0200;
-pub const MF_OK_BUTTON: u16 = 0x0400;
-pub const MF_CANCEL_BUTTON: u16 = 0x0800;
+/// The type bits of a `MsgBox` (Borland: `mfWarning`..`mfAbout`).
+const MSGBOX_TYPE_MASK: MsgBox = MsgBox::from_bits(0x000F);
 
-// Behaviour flags
-/// Close the message box on its own after [`MESSAGE_BOX_AUTO_DISMISS_TIMEOUT`]
-/// if the user has not dismissed it. The result is the default button's
-/// command (OK when present, otherwise the first button).
-pub const MF_AUTO_DISMISS: u16 = 0x1000;
+deprecated_aliases! { MsgBox:
+    MF_WARNING => WARNING, MF_ERROR => ERROR, MF_INFORMATION => INFORMATION,
+    MF_CONFIRMATION => CONFIRMATION, MF_ABOUT => ABOUT, MF_YES_BUTTON => YES_BUTTON,
+    MF_NO_BUTTON => NO_BUTTON, MF_OK_BUTTON => OK_BUTTON, MF_CANCEL_BUTTON => CANCEL_BUTTON,
+    MF_AUTO_DISMISS => AUTO_DISMISS, MF_YES_NO_CANCEL => YES_NO_CANCEL, MF_OK_CANCEL => OK_CANCEL,
+}
 
-/// How long an `MF_AUTO_DISMISS` message box stays open before closing itself.
+/// How long an `MsgBox::AUTO_DISMISS` message box stays open before closing itself.
 pub const MESSAGE_BOX_AUTO_DISMISS_TIMEOUT: Duration = Duration::from_secs(3);
-
-// Combined flags
-pub const MF_YES_NO_CANCEL: u16 = MF_YES_BUTTON | MF_NO_BUTTON | MF_CANCEL_BUTTON;
-pub const MF_OK_CANCEL: u16 = MF_OK_BUTTON | MF_CANCEL_BUTTON;
 
 /// Display a message box with the given message and options.
 ///
@@ -46,7 +57,7 @@ pub const MF_OK_CANCEL: u16 = MF_OK_BUTTON | MF_CANCEL_BUTTON;
 /// tail of a long line would be clipped right at the frame. The
 /// dialog stays at a fixed 60-column max width; long messages grow
 /// the dialog vertically instead.
-pub fn message_box(app: &mut Application, message: &str, options: u16) -> CommandId {
+pub fn message_box(app: &mut Application, message: &str, options: MsgBox) -> CommandId {
     let (screen_w, screen_h) = app.terminal.size();
 
     // Fixed dialog width — keep modal dialogs neat and consistent.
@@ -164,15 +175,15 @@ pub fn message_box_rect(
     app: &mut Application,
     bounds: Rect,
     message: &str,
-    options: u16,
+    options: MsgBox,
 ) -> CommandId {
     // Determine title based on message type
-    let title = match options & 0x0F {
-        MF_WARNING => "\u{26A0} Warning",
-        MF_ERROR => "\u{274C} Error",
-        MF_INFORMATION => "\u{2139}\u{FE0F} Information",
-        MF_CONFIRMATION => "\u{2753} Confirm",
-        MF_ABOUT => "\u{2139}\u{FE0F} About",
+    let title = match options & MSGBOX_TYPE_MASK {
+        MsgBox::WARNING => "\u{26A0} Warning",
+        MsgBox::ERROR => "\u{274C} Error",
+        MsgBox::INFORMATION => "\u{2139}\u{FE0F} Information",
+        MsgBox::CONFIRMATION => "\u{2753} Confirm",
+        MsgBox::ABOUT => "\u{2139}\u{FE0F} About",
         _ => "Message",
     };
 
@@ -193,15 +204,15 @@ pub fn message_box_rect(
 
     // Determine which buttons to show
     let button_configs = [
-        (MF_YES_BUTTON, " ~Y~es", CM_YES),
-        (MF_NO_BUTTON, " ~N~o", CM_NO),
-        (MF_OK_BUTTON, " ~O~K", CM_OK),
-        (MF_CANCEL_BUTTON, " ~C~ancel", CM_CANCEL),
+        (MsgBox::YES_BUTTON, " ~Y~es", CM_YES),
+        (MsgBox::NO_BUTTON, " ~N~o", CM_NO),
+        (MsgBox::OK_BUTTON, " ~O~K", CM_OK),
+        (MsgBox::CANCEL_BUTTON, " ~C~ancel", CM_CANCEL),
     ];
 
     let mut buttons = Vec::new();
     for (flag, label, cmd) in &button_configs {
-        if options & flag != 0 {
+        if options.contains(*flag) {
             buttons.push((*label, *cmd));
         }
     }
@@ -212,7 +223,7 @@ pub fn message_box_rect(
     let mut x = (bounds.width_clamped() as usize - total_width) / 2;
 
     // Add buttons
-    let is_default = buttons.len() == 1 || (options & MF_OK_BUTTON != 0);
+    let is_default = buttons.len() == 1 || options.contains(MsgBox::OK_BUTTON);
     for (i, (label, cmd)) in buttons.iter().enumerate() {
         let button_width = label.len() as i16;
         let button_bounds = Rect::new(x as i16, button_y, x as i16 + button_width, button_y + 2);
@@ -221,7 +232,7 @@ pub fn message_box_rect(
         x += button_width as usize + 2;
     }
 
-    if options & MF_AUTO_DISMISS != 0 {
+    if options.contains(MsgBox::AUTO_DISMISS) {
         dialog.set_auto_dismiss(
             MESSAGE_BOX_AUTO_DISMISS_TIMEOUT,
             auto_dismiss_command(&buttons.iter().map(|(_, cmd)| *cmd).collect::<Vec<_>>()),
@@ -233,8 +244,8 @@ pub fn message_box_rect(
 }
 
 /// Whether `options` asks for at least one button.
-fn has_buttons(options: u16) -> bool {
-    options & (MF_YES_NO_CANCEL | MF_OK_BUTTON) != 0
+fn has_buttons(options: MsgBox) -> bool {
+    options.intersects(MsgBox::YES_NO_CANCEL | MsgBox::OK_BUTTON)
 }
 
 /// The command an auto-dismissed message box reports: OK when present,
@@ -258,7 +269,7 @@ fn auto_dismiss_command(commands: &[CommandId]) -> CommandId {
 /// message_box_ok(&mut app, "File saved successfully!");
 /// ```
 pub fn message_box_ok(app: &mut Application, message: &str) -> CommandId {
-    message_box(app, message, MF_INFORMATION | MF_OK_BUTTON)
+    message_box(app, message, MsgBox::INFORMATION | MsgBox::OK_BUTTON)
 }
 
 /// Display an error message box with OK button
@@ -272,14 +283,14 @@ pub fn message_box_ok(app: &mut Application, message: &str) -> CommandId {
 /// message_box_error(&mut app, "Failed to open file");
 /// ```
 pub fn message_box_error(app: &mut Application, message: &str) -> CommandId {
-    message_box(app, message, MF_ERROR | MF_OK_BUTTON)
+    message_box(app, message, MsgBox::ERROR | MsgBox::OK_BUTTON)
 }
 
 /// Display a warning message box with OK button
 ///
 /// Returns CM_OK when dismissed.
 pub fn message_box_warning(app: &mut Application, message: &str) -> CommandId {
-    message_box(app, message, MF_WARNING | MF_OK_BUTTON)
+    message_box(app, message, MsgBox::WARNING | MsgBox::OK_BUTTON)
 }
 
 /// Display a confirmation dialog with Yes/No/Cancel buttons
@@ -297,21 +308,25 @@ pub fn message_box_warning(app: &mut Application, message: &str) -> CommandId {
 /// }
 /// ```
 pub fn confirmation_box(app: &mut Application, message: &str) -> CommandId {
-    message_box(app, message, MF_CONFIRMATION | MF_YES_NO_CANCEL)
+    message_box(app, message, MsgBox::CONFIRMATION | MsgBox::YES_NO_CANCEL)
 }
 
 /// Display a confirmation dialog with Yes/No buttons
 ///
 /// Returns CM_YES or CM_NO based on user choice.
 pub fn confirmation_box_yes_no(app: &mut Application, message: &str) -> CommandId {
-    message_box(app, message, MF_CONFIRMATION | MF_YES_BUTTON | MF_NO_BUTTON)
+    message_box(
+        app,
+        message,
+        MsgBox::CONFIRMATION | MsgBox::YES_BUTTON | MsgBox::NO_BUTTON,
+    )
 }
 
 /// Display a confirmation dialog with OK/Cancel buttons
 ///
 /// Returns CM_OK or CM_CANCEL based on user choice.
 pub fn confirmation_box_ok_cancel(app: &mut Application, message: &str) -> CommandId {
-    message_box(app, message, MF_CONFIRMATION | MF_OK_CANCEL)
+    message_box(app, message, MsgBox::CONFIRMATION | MsgBox::OK_CANCEL)
 }
 
 /// Display an input box that prompts the user for a string
@@ -582,15 +597,15 @@ mod tests {
 
     #[test]
     fn has_buttons_reflects_button_flags_only() {
-        assert!(has_buttons(MF_INFORMATION | MF_OK_BUTTON));
-        assert!(has_buttons(MF_CONFIRMATION | MF_YES_NO_CANCEL));
-        assert!(!has_buttons(MF_INFORMATION | MF_AUTO_DISMISS));
+        assert!(has_buttons(MsgBox::INFORMATION | MsgBox::OK_BUTTON));
+        assert!(has_buttons(MsgBox::CONFIRMATION | MsgBox::YES_NO_CANCEL));
+        assert!(!has_buttons(MsgBox::INFORMATION | MsgBox::AUTO_DISMISS));
     }
 
     #[test]
     fn auto_dismiss_flag_does_not_overlap_type_or_button_bits() {
-        assert_eq!(MF_AUTO_DISMISS & 0x0F, 0);
-        assert_eq!(MF_AUTO_DISMISS & (MF_YES_NO_CANCEL | MF_OK_BUTTON), 0);
+        assert!((MsgBox::AUTO_DISMISS & MSGBOX_TYPE_MASK).is_empty());
+        assert!(!MsgBox::AUTO_DISMISS.intersects(MsgBox::YES_NO_CANCEL | MsgBox::OK_BUTTON));
     }
 
     #[test]

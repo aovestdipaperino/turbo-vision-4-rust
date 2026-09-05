@@ -12,11 +12,21 @@ use std::cell::RefCell;
 /// - Data transfer (converting between string and typed values)
 use std::rc::Rc;
 
-/// Validator options flags
-/// Matches Borland's validator option flags (validate.h:21-25)
-pub const VO_FILL: u16 = 0x0001; // Fill with default on empty
-pub const VO_TRANSFER: u16 = 0x0002; // Enable data transfer
-pub const VO_ON_APPEND: u16 = 0x0004; // Validate on each character append
+crate::core::state::flags! {
+    /// Validator options (Borland: `voXxxx`).
+    pub struct ValidatorOptions: u16 {
+        /// Fill with default on empty
+        const FILL = 0x0001;
+        /// Enable data transfer
+        const TRANSFER = 0x0002;
+        /// Validate on each character append
+        const ON_APPEND = 0x0004;
+    }
+}
+
+crate::core::state::deprecated_aliases! { ValidatorOptions:
+    VO_FILL => FILL, VO_TRANSFER => TRANSFER, VO_ON_APPEND => ON_APPEND,
+}
 
 /// Validator status constants
 /// Matches Borland's validator status (validate.h:17-20)
@@ -52,8 +62,8 @@ pub trait Validator {
     fn error(&self);
 
     /// Get validator options
-    fn options(&self) -> u16 {
-        0
+    fn options(&self) -> ValidatorOptions {
+        ValidatorOptions::empty()
     }
 
     /// Ask the validator for an auto-filled/transformed version of `text`.
@@ -93,18 +103,18 @@ pub trait Validator {
 /// ```
 pub struct FilterValidator {
     valid_chars: String,
-    options: u16,
+    options: ValidatorOptions,
 }
 
 impl FilterValidator {
     pub fn new(valid_chars: &str) -> Self {
         Self {
             valid_chars: valid_chars.to_string(),
-            options: 0,
+            options: ValidatorOptions::empty(),
         }
     }
 
-    pub fn with_options(valid_chars: &str, options: u16) -> Self {
+    pub fn with_options(valid_chars: &str, options: ValidatorOptions) -> Self {
         Self {
             valid_chars: valid_chars.to_string(),
             options,
@@ -129,7 +139,7 @@ impl Validator for FilterValidator {
         // Matches Borland's TFilterValidator::Error() (tfilterv.cc:59-62)
     }
 
-    fn options(&self) -> u16 {
+    fn options(&self) -> ValidatorOptions {
         self.options
     }
 }
@@ -149,7 +159,7 @@ pub struct RangeValidator {
     min: i64,
     max: i64,
     valid_chars: String,
-    options: u16,
+    options: ValidatorOptions,
 }
 
 impl RangeValidator {
@@ -173,11 +183,11 @@ impl RangeValidator {
             min,
             max,
             valid_chars,
-            options: 0,
+            options: ValidatorOptions::empty(),
         }
     }
 
-    pub fn with_options(min: i64, max: i64, options: u16) -> Self {
+    pub fn with_options(min: i64, max: i64, options: ValidatorOptions) -> Self {
         let mut validator = Self::new(min, max);
         validator.options = options;
         validator
@@ -268,7 +278,7 @@ impl Validator for RangeValidator {
         // The message would be: "Value not in the range {min} to {max}"
     }
 
-    fn options(&self) -> u16 {
+    fn options(&self) -> ValidatorOptions {
         self.options
     }
 }

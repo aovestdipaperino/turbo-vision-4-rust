@@ -26,6 +26,7 @@ use super::list_viewer::{ListViewer, ListViewerState};
 use super::view::{View, ViewCore};
 use crate::core::event::{Event, EventType, KB_ENTER};
 use crate::core::geometry::Rect;
+use crate::core::state::State;
 use crate::terminal::Terminal;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -88,7 +89,7 @@ impl DirListBox {
         let mut dlb = Self {
             core: ViewCore {
                 bounds,
-                state: 0,
+                state: State::empty(),
                 palette_chain: None,
                 ..ViewCore::default()
             },

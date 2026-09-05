@@ -6,6 +6,7 @@ use turbo_vision::core::draw::DrawBuffer;
 use turbo_vision::core::event::{Event, EventType, MB_LEFT_BUTTON};
 use turbo_vision::core::geometry::Rect;
 use turbo_vision::core::palette::{Attr, TvColor};
+use turbo_vision::core::state::State;
 use turbo_vision::terminal::Terminal;
 use turbo_vision::views::GroupLike;
 use turbo_vision::views::group::Group;
@@ -61,7 +62,7 @@ impl Notebook {
         Self {
             core: ViewCore {
                 bounds,
-                state: 0,
+                state: State::empty(),
                 ..ViewCore::default()
             },
             labels: Vec::new(),
@@ -234,7 +235,7 @@ impl View for Notebook {
     }
 
     fn set_focus(&mut self, focused: bool) {
-        self.set_state_flag(turbo_vision::core::state::SF_FOCUSED, focused);
+        self.set_state_flag(turbo_vision::core::state::State::FOCUSED, focused);
         if let Some(page) = self.pages.get_mut(self.active) {
             if focused {
                 page.set_initial_focus();

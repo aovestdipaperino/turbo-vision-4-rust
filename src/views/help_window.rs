@@ -326,6 +326,7 @@ crate::impl_view_for_window!(HelpWindow {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::state::Options;
     use crate::views::View;
     use std::io::Write;
     use tempfile::NamedTempFile;
@@ -381,28 +382,26 @@ mod tests {
 
     #[test]
     fn test_help_window_options_delegation() {
-        use crate::core::state::{OF_SELECTABLE, OF_TILEABLE, OF_TOP_SELECT};
-
         let (_file, help) = create_test_help_file();
         let bounds = Rect::new(10, 5, 70, 20);
         let window = HelpWindow::new(bounds, "Help", help);
 
         let options = window.options();
-        assert_ne!(
-            options, 0,
+        assert!(
+            !options.is_empty(),
             "HelpWindow should delegate options() to inner window"
         );
         assert!(
-            (options & OF_SELECTABLE) != 0,
-            "HelpWindow should have OF_SELECTABLE"
+            options.contains(Options::SELECTABLE),
+            "HelpWindow should have Options::SELECTABLE"
         );
         assert!(
-            (options & OF_TOP_SELECT) != 0,
-            "HelpWindow should have OF_TOP_SELECT for click-to-focus"
+            options.contains(Options::TOP_SELECT),
+            "HelpWindow should have Options::TOP_SELECT for click-to-focus"
         );
         assert!(
-            (options & OF_TILEABLE) != 0,
-            "HelpWindow should have OF_TILEABLE"
+            options.contains(Options::TILEABLE),
+            "HelpWindow should have Options::TILEABLE"
         );
     }
 }

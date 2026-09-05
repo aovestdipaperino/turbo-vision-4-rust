@@ -7,7 +7,8 @@ use crate::core::draw::DrawBuffer;
 use crate::core::event::{Event, EventType};
 use crate::core::geometry::Rect;
 use crate::core::palette::{LABEL_NORMAL, LABEL_SHORTCUT};
-use crate::core::state::OF_POST_PROCESS;
+use crate::core::state::Options;
+use crate::core::state::State;
 use crate::terminal::Terminal;
 
 pub struct Label {
@@ -22,8 +23,8 @@ impl Label {
             core: ViewCore {
                 bounds,
                 palette_chain: None,
-                state: 0,
-                options: OF_POST_PROCESS, // Labels need PostProcess to handle keyboard shortcuts
+                state: State::empty(),
+                options: Options::POST_PROCESS, // Labels need PostProcess to handle keyboard shortcuts
                 ..ViewCore::default()
             },
             text: text.to_string(),

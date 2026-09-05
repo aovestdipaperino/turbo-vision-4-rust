@@ -40,7 +40,7 @@ use crate::core::event::{
 };
 use crate::core::geometry::Rect;
 use crate::core::palette::{INPUT_ARROWS, INPUT_NORMAL, INPUT_SELECTED};
-use crate::core::state::StateFlags;
+use crate::core::state::{State, StateFlags};
 use crate::terminal::Terminal;
 
 /// Glyph for the increment stepper.
@@ -92,7 +92,7 @@ impl Spinner {
             wrap: false,
             on_change: 0,
             fresh: true,
-            view_state: 0,
+            view_state: State::empty(),
         }
     }
 
@@ -249,7 +249,7 @@ impl View for Spinner {
 
     /// Taking or losing focus starts a new typing session.
     fn set_focus(&mut self, focused: bool) {
-        self.set_state_flag(crate::core::state::SF_FOCUSED, focused);
+        self.set_state_flag(crate::core::state::State::FOCUSED, focused);
         self.fresh = true;
     }
 
@@ -479,11 +479,10 @@ impl Default for SpinnerBuilder {
 mod tests {
     use super::*;
     use crate::core::geometry::Point;
-    use crate::core::state::SF_FOCUSED;
 
     fn spin(min: i64, max: i64) -> Spinner {
         let mut s = Spinner::new(Rect::new(0, 0, 10, 1), min, max);
-        s.set_state(SF_FOCUSED);
+        s.set_state(State::FOCUSED);
         s
     }
 

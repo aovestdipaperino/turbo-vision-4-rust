@@ -21,6 +21,7 @@ use turbo_vision::views::button::ButtonBuilder;
 use turbo_vision::views::dialog::DialogBuilder;
 use turbo_vision::views::menu_bar::{MenuBar, SubMenu};
 use turbo_vision::views::menu_box::MenuBox;
+use turbo_vision::views::msgbox::MsgBox;
 use turbo_vision::views::static_text::StaticTextBuilder;
 use turbo_vision::views::status_line::StatusLine;
 
@@ -409,7 +410,7 @@ fn show_message(app: &mut Application, title: &str, message: &str) {
 
 /// Show the About dialog
 fn show_about(app: &mut Application) {
-    use turbo_vision::views::msgbox::{MF_ABOUT, MF_OK_BUTTON, message_box};
+    use turbo_vision::views::msgbox::message_box;
 
     let message = "Welcome To Turbo Vision for Rust!\n\
                    \n\
@@ -419,5 +420,5 @@ fn show_about(app: &mut Application) {
                    - Menu bar with nested submenus\n\
                    - Right-click popup/context menus";
 
-    message_box(app, message, MF_ABOUT | MF_OK_BUTTON);
+    message_box(app, message, MsgBox::ABOUT | MsgBox::OK_BUTTON);
 }

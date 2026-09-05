@@ -5,7 +5,8 @@
 use crate::core::draw::DrawBuffer;
 use crate::core::event::Event;
 use crate::core::geometry::Rect;
-use crate::core::state::{SF_FOCUSED, SF_SHADOW, SHADOW_ATTR, StateFlags, shadow_size};
+use crate::core::state::Options;
+use crate::core::state::{SHADOW_ATTR, State, StateFlags, shadow_size};
 use crate::terminal::Terminal;
 use std::io;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -40,7 +41,7 @@ impl ViewId {
 pub struct ViewCore {
     pub bounds: Rect,
     pub state: StateFlags,
-    pub options: u16,
+    pub options: Options,
     pub grow_mode: crate::core::state::GrowFlags,
     pub palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
 }
@@ -65,7 +66,7 @@ impl ViewCore {
         }
     }
 
-    pub fn with_options(bounds: Rect, options: u16) -> Self {
+    pub fn with_options(bounds: Rect, options: Options) -> Self {
         Self {
             bounds,
             options,
@@ -116,10 +117,10 @@ pub trait View {
         false
     }
 
-    /// Set focus state - default implementation uses SF_FOCUSED flag
+    /// Set focus state - default implementation uses State::FOCUSED flag
     /// Views should override only if they need custom focus behavior
     fn set_focus(&mut self, focused: bool) {
-        self.set_state_flag(SF_FOCUSED, focused);
+        self.set_state_flag(State::FOCUSED, focused);
     }
 
     /// Window number for Alt+1..9 selection (Borland: TWindow::number).
@@ -129,18 +130,18 @@ pub trait View {
         None
     }
 
-    /// Check if view is focused - reads SF_FOCUSED flag
+    /// Check if view is focused - reads State::FOCUSED flag
     fn is_focused(&self) -> bool {
-        self.get_state_flag(SF_FOCUSED)
+        self.get_state_flag(State::FOCUSED)
     }
 
-    /// Get view option flags (OF_SELECTABLE, OF_PRE_PROCESS, OF_POST_PROCESS, etc.)
-    fn options(&self) -> u16 {
+    /// Get view option flags (Options::SELECTABLE, Options::PRE_PROCESS, Options::POST_PROCESS, etc.)
+    fn options(&self) -> Options {
         self.core().options
     }
 
     /// Set view option flags
-    fn set_options(&mut self, options: u16) {
+    fn set_options(&mut self, options: Options) {
         self.core_mut().options = options;
     }
 
@@ -157,8 +158,8 @@ pub trait View {
     /// Get this view's grow mode flags (Borland: TView::growMode).
     ///
     /// Controls how the view's edges move when its parent Group is resized.
-    /// See `GF_GROW_LO_X`, `GF_GROW_LO_Y`, `GF_GROW_HI_X`, `GF_GROW_HI_Y`
-    /// and `GF_GROW_ALL` in `core::state`. The default is `0` (fixed size
+    /// See `Grow::LO_X`, `Grow::LO_Y`, `Grow::HI_X`, `Grow::HI_Y`
+    /// and `Grow::ALL` in `core::state`. The default is `0` (fixed size
     /// and position relative to the parent's origin), matching Borland's
     /// default `growMode = 0`.
     fn grow_mode(&self) -> crate::core::state::GrowFlags {
@@ -194,7 +195,7 @@ pub trait View {
 
     /// Check if view has shadow enabled
     fn has_shadow(&self) -> bool {
-        (self.state() & SF_SHADOW) != 0
+        self.state().contains(State::SHADOW)
     }
 
     /// Get bounds including shadow area
@@ -593,10 +594,10 @@ macro_rules! forward_view_through_box {
             fn window_number(&self) -> Option<u8> {
                 (**self).window_number()
             }
-            fn options(&self) -> u16 {
+            fn options(&self) -> Options {
                 (**self).options()
             }
-            fn set_options(&mut self, options: u16) {
+            fn set_options(&mut self, options: Options) {
                 (**self).set_options(options)
             }
             fn state(&self) -> StateFlags {
@@ -715,10 +716,10 @@ mod tests {
         }
         let mut p = Probe(ViewCore::new(Rect::new(1, 2, 3, 4)));
         assert_eq!(p.bounds(), Rect::new(1, 2, 3, 4));
-        p.set_state(SF_FOCUSED);
+        p.set_state(State::FOCUSED);
         assert!(p.is_focused());
-        p.set_options(0x0004);
-        assert_eq!(p.options(), 0x0004);
+        p.set_options(Options::from_bits(0x0004));
+        assert_eq!(p.options(), Options::from_bits(0x0004));
         p.set_bounds(Rect::new(0, 0, 8, 8));
         assert_eq!(p.core().bounds, Rect::new(0, 0, 8, 8));
     }

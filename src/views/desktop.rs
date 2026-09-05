@@ -7,6 +7,8 @@ use super::group::{Group, GroupLike};
 use super::view::{View, ViewCore, ViewId};
 use crate::core::event::Event;
 use crate::core::geometry::Rect;
+use crate::core::state::Options;
+use crate::core::state::State;
 use crate::terminal::Terminal;
 
 pub struct Desktop {
@@ -52,18 +54,17 @@ impl Desktop {
 
     /// Add a window (Borland: `TDeskTop::insert`). Takes any view.
     pub fn add<V: View + 'static>(&mut self, view: V) -> ViewId {
-        use crate::core::state::{OF_CENTER_X, OF_CENTER_Y, OF_CENTERED};
         let mut view: Box<dyn View> = Box::new(view);
 
         // Set parent bounds for safe drag limit resolution
         view.set_parent_bounds(self.bounds());
 
-        // Apply automatic centering if OF_CENTERED flags are set
+        // Apply automatic centering if Options::CENTERED flags are set
         // Matches Borland: TView with ofCentered is centered when inserted
         let options = view.options();
-        if (options & OF_CENTERED) != 0
-            || (options & OF_CENTER_X) != 0
-            || (options & OF_CENTER_Y) != 0
+        if options.contains(Options::CENTERED)
+            || options.contains(Options::CENTER_X)
+            || options.contains(Options::CENTER_Y)
         {
             self.center_view(&mut *view, options);
         }
@@ -104,16 +105,14 @@ impl Desktop {
 
     /// Center a view within the desktop bounds based on its option flags
     /// Matches Borland: Views with ofCentered are automatically centered
-    fn center_view(&self, view: &mut dyn View, options: u16) {
-        use crate::core::state::{OF_CENTER_X, OF_CENTER_Y};
-
+    fn center_view(&self, view: &mut dyn View, options: Options) {
         let view_bounds = view.bounds();
         let desktop_bounds = self.core.bounds;
 
         let mut new_bounds = view_bounds;
 
-        // Center horizontally if OF_CENTER_X is set
-        if (options & OF_CENTER_X) != 0 {
+        // Center horizontally if Options::CENTER_X is set
+        if options.contains(Options::CENTER_X) {
             let view_width = view_bounds.width();
             let desktop_width = desktop_bounds.width();
             let center_x = (desktop_width - view_width) / 2;
@@ -121,8 +120,8 @@ impl Desktop {
             new_bounds.b.x = center_x + view_width;
         }
 
-        // Center vertically if OF_CENTER_Y is set
-        if (options & OF_CENTER_Y) != 0 {
+        // Center vertically if Options::CENTER_Y is set
+        if options.contains(Options::CENTER_Y) {
             let view_height = view_bounds.height();
             let desktop_height = desktop_bounds.height();
             let center_y = (desktop_height - view_height) / 2;
@@ -279,12 +278,10 @@ impl Desktop {
     /// Used for enabling/disabling tile/cascade commands
     /// Matches Borland: deskTop->firstThat(isTileable, 0) != 0
     pub fn has_tileable_windows(&self) -> bool {
-        use crate::core::state::OF_TILEABLE;
-
         // Skip background (index 0)
         for i in 1..self.children.len() {
             let child = self.children.child_at(i);
-            if (child.options() & OF_TILEABLE) != 0 {
+            if child.options().contains(Options::TILEABLE) {
                 return true;
             }
         }
@@ -294,12 +291,10 @@ impl Desktop {
     /// Count tileable windows on desktop
     /// Used for tile/cascade algorithms
     pub fn count_tileable_windows(&self) -> usize {
-        use crate::core::state::OF_TILEABLE;
-
         let mut count = 0;
         for i in 1..self.children.len() {
             let child = self.children.child_at(i);
-            if (child.options() & OF_TILEABLE) != 0 {
+            if child.options().contains(Options::TILEABLE) {
                 count += 1;
             }
         }
@@ -315,14 +310,12 @@ impl Desktop {
     /// Cascade windows in a staircase pattern within specified rect
     /// Matches Borland: TDesktop::cascade(const TRect &r)
     pub fn cascade_with_rect(&mut self, rect: Rect) {
-        use crate::core::state::OF_TILEABLE;
-
         // Count tileable windows (skip background at index 0)
         let mut count = 0;
         for i in 1..self.children.len() {
             let child = self.children.child_at(i);
             let options = child.options();
-            if (options & OF_TILEABLE) != 0 {
+            if options.contains(Options::TILEABLE) {
                 count += 1;
             }
         }
@@ -341,7 +334,7 @@ impl Desktop {
         for i in 1..self.children.len() {
             let child = self.children.child_at(i);
             let options = child.options();
-            if (options & OF_TILEABLE) != 0 {
+            if options.contains(Options::TILEABLE) {
                 // Matches Borland doCascade: each window's origin steps down
                 // the staircase while every window extends to the rect's
                 // bottom-right corner
@@ -364,14 +357,12 @@ impl Desktop {
     /// Tile windows in a grid pattern within specified rect
     /// Matches Borland: TDesktop::tile(const TRect &r)
     pub fn tile_with_rect(&mut self, rect: Rect) {
-        use crate::core::state::OF_TILEABLE;
-
         // Count tileable windows (skip background at index 0)
         let mut count = 0;
         for i in 1..self.children.len() {
             let child = self.children.child_at(i);
             let options = child.options();
-            if (options & OF_TILEABLE) != 0 {
+            if options.contains(Options::TILEABLE) {
                 count += 1;
             }
         }
@@ -390,7 +381,7 @@ impl Desktop {
         for i in 1..self.children.len() {
             let child = self.children.child_at(i);
             let options = child.options();
-            if (options & OF_TILEABLE) != 0 {
+            if options.contains(Options::TILEABLE) {
                 let new_bounds =
                     Self::calc_tile_rect(tile_index, rect, num_cols, num_rows, left_over);
                 self.children.child_at_mut(i).set_bounds(new_bounds);
@@ -451,8 +442,6 @@ impl Desktop {
     /// Moves the current top window to the back, bringing the next window forward
     /// Matches Borland: cmNext command calls selectNext(False)
     pub fn select_next(&mut self) {
-        use crate::core::state::OF_TOP_SELECT;
-
         // Need at least 2 windows (plus background) to cycle
         if self.children.len() <= 2 {
             return;
@@ -461,10 +450,10 @@ impl Desktop {
         // Get the current top window (last in children list, excluding background)
         let top_window_idx = self.children.len() - 1;
 
-        // Check if top window has OF_TOP_SELECT flag
+        // Check if top window has Options::TOP_SELECT flag
         let has_top_select = {
             let options = self.children.child_at(top_window_idx).options();
-            (options & OF_TOP_SELECT) != 0
+            options.contains(Options::TOP_SELECT)
         };
 
         if has_top_select {
@@ -478,8 +467,6 @@ impl Desktop {
     /// Brings the bottom window to the top
     /// Matches Borland: cmPrev command calls current->putInFrontOf(background)
     pub fn select_prev(&mut self) {
-        use crate::core::state::OF_TOP_SELECT;
-
         // Need at least 2 windows (plus background) to cycle
         if self.children.len() <= 2 {
             return;
@@ -488,10 +475,10 @@ impl Desktop {
         // Get the bottom window (right after background)
         let bottom_window_idx = 1;
 
-        // Check if it has OF_TOP_SELECT flag
+        // Check if it has Options::TOP_SELECT flag
         let has_top_select = {
             let options = self.children.child_at(bottom_window_idx).options();
-            (options & OF_TOP_SELECT) != 0
+            options.contains(Options::TOP_SELECT)
         };
 
         if has_top_select {
@@ -564,16 +551,14 @@ impl Desktop {
         true
     }
 
-    /// Remove closed windows (those with SF_CLOSED flag)
+    /// Remove closed windows (those with State::CLOSED flag)
     /// In Borland, views call CLY_destroy() which removes them from the owner
-    /// In Rust, views set SF_CLOSED flag and the parent removes them
+    /// In Rust, views set State::CLOSED flag and the parent removes them
     /// This is called after event handling in the main loop
     /// Returns true if any windows were removed
     /// Returns the ids of the windows removed, so the caller can tell which
     /// ones went away (`AppHandler::window_closed`); empty when nothing closed.
     pub fn remove_closed_windows(&mut self) -> Vec<ViewId> {
-        use crate::core::state::SF_CLOSED;
-
         let mut removed = Vec::new();
 
         // Remove windows marked as closed (skip background at index 0)
@@ -582,7 +567,7 @@ impl Desktop {
         while i > 1 {
             // Don't remove background at index 0
             i -= 1;
-            if (self.children.child_at(i).state() & SF_CLOSED) != 0 {
+            if self.children.child_at(i).state().contains(State::CLOSED) {
                 if let Some(id) = self.children.view_id_at(i) {
                     removed.push(id);
                 }
@@ -616,7 +601,6 @@ impl View for Desktop {
 
     fn handle_event(&mut self, event: &mut Event) {
         use crate::core::event::EventType;
-        use crate::core::state::SF_MODAL;
 
         // cmZoom toggles the top window between zoomed and saved bounds
         // (Borland: TWindow::handleEvent cmZoom; here the desktop owns the
@@ -652,16 +636,18 @@ impl View for Desktop {
         // Matches Borland: TGroup::execView() creates modal scope
         let has_modal = if self.children.len() > 1 {
             let top_window_idx = self.children.len() - 1;
-            (self.children.child_at(top_window_idx).state() & SF_MODAL) != 0
+            self.children
+                .child_at(top_window_idx)
+                .state()
+                .contains(State::MODAL)
         } else {
             false
         };
 
         // Handle z-order changes on mouse down (only when no modal window is present)
-        // When a window is clicked, bring it to the front if it has OF_TOP_SELECT flag
+        // When a window is clicked, bring it to the front if it has Options::TOP_SELECT flag
         // Matches Borland: TView::handleEvent() calls focus() -> select() -> makeFirst() if ofTopSelect set
         if !has_modal && event.what == EventType::MouseDown {
-            use crate::core::state::OF_TOP_SELECT;
             let mouse_pos = event.mouse.pos;
 
             // Find which window was clicked (search in reverse z-order, skip background at 0)
@@ -675,12 +661,12 @@ impl View for Desktop {
             }
 
             // If a window was clicked and it's not already on top, bring it to front
-            // Only if the window has OF_TOP_SELECT flag set (matches Borland: ofTopSelect)
+            // Only if the window has Options::TOP_SELECT flag set (matches Borland: ofTopSelect)
             if let Some(window_idx) = clicked_window {
                 let last_idx = self.children.len() - 1;
                 if window_idx != last_idx {
                     let window_options = self.children.child_at(window_idx).options();
-                    if (window_options & OF_TOP_SELECT) != 0 {
+                    if window_options.contains(Options::TOP_SELECT) {
                         // Bring window to front (Borland: makeFirst())
                         self.children.bring_to_front(window_idx);
                         // Note: We don't return here - let the event propagate to the window
@@ -693,7 +679,6 @@ impl View for Desktop {
         // Matches Borland: TDesktop::handleEvent (tdesktop.cc:103-133)
         if event.what == EventType::Command {
             use crate::core::command::{CM_NEXT, CM_PREV};
-            use crate::core::state::SF_FOCUSED;
 
             match event.command {
                 CM_NEXT => {
@@ -703,7 +688,7 @@ impl View for Desktop {
                         // Clear focus from current top window
                         let old_top_idx = self.children.len() - 1;
                         let old_state = self.children.child_at(old_top_idx).state();
-                        if (old_state & SF_FOCUSED) != 0 {
+                        if old_state.contains(State::FOCUSED) {
                             self.children.child_at_mut(old_top_idx).set_focus(false);
                         }
 
@@ -724,7 +709,7 @@ impl View for Desktop {
                         // Clear focus from current top window
                         let old_top_idx = self.children.len() - 1;
                         let old_state = self.children.child_at(old_top_idx).state();
-                        if (old_state & SF_FOCUSED) != 0 {
+                        if old_state.contains(State::FOCUSED) {
                             self.children.child_at_mut(old_top_idx).set_focus(false);
                         }
 
@@ -905,13 +890,11 @@ mod tests {
 
     #[test]
     fn test_tile_fills_rect_exactly() {
-        use crate::core::state::OF_TILEABLE;
-
         let mut desktop = Desktop::new(Rect::new(0, 0, 80, 24));
         for i in 0..3 {
             let mut w = Window::new(Rect::new(i, i, i + 20, i + 10), "w");
             let opts = w.options();
-            w.set_options(opts | OF_TILEABLE);
+            w.set_options(opts | Options::TILEABLE);
             desktop.add(w);
         }
         desktop.tile();
@@ -928,13 +911,11 @@ mod tests {
 
     #[test]
     fn test_cascade_extends_to_corner() {
-        use crate::core::state::OF_TILEABLE;
-
         let mut desktop = Desktop::new(Rect::new(0, 0, 80, 24));
         for i in 0..3 {
             let mut w = Window::new(Rect::new(i, i, i + 20, i + 10), "w");
             let opts = w.options();
-            w.set_options(opts | OF_TILEABLE);
+            w.set_options(opts | Options::TILEABLE);
             desktop.add(w);
         }
         desktop.cascade();

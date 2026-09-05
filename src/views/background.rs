@@ -7,7 +7,7 @@ use crate::core::draw::DrawBuffer;
 use crate::core::event::Event;
 use crate::core::geometry::Rect;
 use crate::core::palette::Attr;
-use crate::core::state::{GF_GROW_HI_X, GF_GROW_HI_Y};
+use crate::core::state::Grow;
 use crate::terminal::Terminal;
 
 /// Background view - fills its bounds with a pattern character
@@ -23,7 +23,7 @@ impl Background {
         Self {
             core: ViewCore {
                 bounds,
-                grow_mode: GF_GROW_HI_X | GF_GROW_HI_Y,
+                grow_mode: Grow::HI_X | Grow::HI_Y,
                 palette_chain: None,
                 ..ViewCore::default()
             },

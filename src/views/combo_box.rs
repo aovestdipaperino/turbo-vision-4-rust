@@ -46,7 +46,7 @@ use crate::core::event::{
 };
 use crate::core::geometry::{Point, Rect};
 use crate::core::palette::{INPUT_ARROWS, INPUT_NORMAL, INPUT_SELECTED};
-use crate::core::state::StateFlags;
+use crate::core::state::{State, StateFlags};
 use crate::terminal::Terminal;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -137,7 +137,7 @@ impl ComboBox {
             id,
             state,
             on_change: 0,
-            view_state: 0,
+            view_state: State::empty(),
         }
     }
 
@@ -705,7 +705,6 @@ impl Default for ComboBoxBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::state::SF_FOCUSED;
 
     fn combo(id: u16) -> ComboBox {
         ComboBox::with_items(
@@ -755,7 +754,7 @@ mod tests {
     #[test]
     fn arrows_step_the_choice_and_clamp() {
         let mut c = combo(904);
-        c.set_state(SF_FOCUSED);
+        c.set_state(State::FOCUSED);
         let mut e = key(KB_DOWN);
         c.handle_event(&mut e);
         assert_eq!(c.selected(), Some(1));
@@ -772,7 +771,7 @@ mod tests {
     #[test]
     fn home_and_end_jump_to_the_ends() {
         let mut c = combo(905);
-        c.set_state(SF_FOCUSED);
+        c.set_state(State::FOCUSED);
         let mut e = key(KB_END);
         c.handle_event(&mut e);
         assert_eq!(c.selected(), Some(2));
@@ -784,7 +783,7 @@ mod tests {
     #[test]
     fn f4_asks_the_dialog_to_open_the_list() {
         let mut c = combo(906);
-        c.set_state(SF_FOCUSED);
+        c.set_state(State::FOCUSED);
         let mut e = key(KB_F4);
         c.handle_event(&mut e);
         assert_eq!(e.what, EventType::Command);
@@ -814,7 +813,7 @@ mod tests {
     #[test]
     fn on_change_command_is_broadcast_when_the_choice_moves() {
         let mut c = combo(909);
-        c.set_state(SF_FOCUSED);
+        c.set_state(State::FOCUSED);
         c.set_on_change(777);
         let mut e = key(KB_DOWN);
         c.handle_event(&mut e);

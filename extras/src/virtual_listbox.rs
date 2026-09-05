@@ -7,6 +7,7 @@ use turbo_vision::core::draw::DrawBuffer;
 use turbo_vision::core::event::Event;
 use turbo_vision::core::geometry::Rect;
 use turbo_vision::core::palette::{Attr, TvColor};
+use turbo_vision::core::state::State;
 use turbo_vision::terminal::Terminal;
 use turbo_vision::views::list_viewer::{ListViewer, ListViewerState};
 use turbo_vision::views::view::write_line_to_terminal;
@@ -86,7 +87,7 @@ impl VirtualListBox {
         Self {
             core: ViewCore {
                 bounds,
-                state: 0,
+                state: State::empty(),
                 ..ViewCore::default()
             },
             provider,

@@ -11,7 +11,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
     let result = message_box(
         &mut app,
         "Welcome to MessageBox Test!\n\nThis is a simple information message.",
-        MF_INFORMATION | MF_OK_BUTTON,
+        MsgBox::INFORMATION | MsgBox::OK_BUTTON,
     );
     println!("User pressed: {}", if result == CM_OK { "OK" } else { "?" });
 
@@ -20,7 +20,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
     let result = message_box(
         &mut app,
         "This is a warning message.\n\nDo you want to continue?",
-        MF_WARNING | MF_OK_CANCEL,
+        MsgBox::WARNING | MsgBox::OK_CANCEL,
     );
     println!(
         "User pressed: {}",
@@ -32,7 +32,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
     let result = message_box(
         &mut app,
         "An error has occurred!\n\nPlease check your input.",
-        MF_ERROR | MF_OK_BUTTON,
+        MsgBox::ERROR | MsgBox::OK_BUTTON,
     );
     println!("User pressed: {}", if result == CM_OK { "OK" } else { "?" });
 
@@ -41,7 +41,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
     let result = message_box(
         &mut app,
         "Do you want to save changes?",
-        MF_CONFIRMATION | MF_YES_NO_CANCEL,
+        MsgBox::CONFIRMATION | MsgBox::YES_NO_CANCEL,
     );
     println!(
         "User pressed: {}",
@@ -58,7 +58,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
     if let Some(name) = input_box(&mut app, "Enter Name", "~N~ame:", "John Doe", 50) {
         // Show confirmation with the entered name
         let msg = format!("You entered: {}", name);
-        message_box(&mut app, &msg, MF_INFORMATION | MF_OK_BUTTON);
+        message_box(&mut app, &msg, MsgBox::INFORMATION | MsgBox::OK_BUTTON);
         println!("User entered: {}", name);
     } else {
         println!("User cancelled input");
@@ -68,7 +68,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
     println!("\nTest 6: Email input");
     if let Some(email) = input_box(&mut app, "Contact Information", "~E~mail:", "", 100) {
         let msg = format!("Email saved: {}", email);
-        message_box(&mut app, &msg, MF_INFORMATION | MF_OK_BUTTON);
+        message_box(&mut app, &msg, MsgBox::INFORMATION | MsgBox::OK_BUTTON);
         println!("User entered email: {}", email);
     } else {
         println!("User cancelled email input");
