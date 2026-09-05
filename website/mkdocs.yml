@@ -132,6 +132,7 @@ nav:
       - compare/custom-application-rust.md
   - Reference:
       - reference/index.md
+      - reference/upgrading.md
       - reference/changelog.md
       - Architecture:
           - reference/design.md

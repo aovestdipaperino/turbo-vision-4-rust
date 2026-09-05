@@ -1,7 +1,8 @@
 # What's new
 
 The full history is in the [changelog](reference/changelog.md). This page tracks the recent work
-in prose, newest first.
+in prose, newest first. If you are moving a project onto 3.0.0, work through
+[the upgrade guide](reference/upgrading.md) instead: it is the same ground as an ordered checklist.
 
 ## 3.0.0 &mdash; September 2026
 

@@ -8,9 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [3.0.0] - 2026-09-05
 
 A major release: the `View` trait changes for every downstream crate, so the
-other API changes that needed a breaking release ride along. The analysis and
-plan are in `docs/MISSING-INHERITANCE.md`; the coordinate model is in
-`docs/OWNER-COORDINATES.md`.
+other API changes that needed a breaking release ride along. **Start with
+[UPGRADING-TO-3.0.md](UPGRADING-TO-3.0.md)**, which is this entry rearranged as
+an ordered checklist. The analysis and plan are in `docs/MISSING-INHERITANCE.md`;
+the coordinate model is in `docs/OWNER-COORDINATES.md`.
 
 ### Migrating to owner-relative coordinates
 

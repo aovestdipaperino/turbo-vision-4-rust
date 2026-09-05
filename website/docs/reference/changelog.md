@@ -8,9 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [3.0.0] - 2026-09-05
 
 A major release: the `View` trait changes for every downstream crate, so the
-other API changes that needed a breaking release ride along. The analysis and
-plan are in `docs/MISSING-INHERITANCE.md`; the coordinate model is in
-`docs/OWNER-COORDINATES.md`.
+other API changes that needed a breaking release ride along. **Start with
+[UPGRADING-TO-3.0.md](upgrading.md)**, which is this entry rearranged as
+an ordered checklist. The analysis and plan are in `docs/MISSING-INHERITANCE.md`;
+the coordinate model is in `docs/OWNER-COORDINATES.md`.
 
 ### Migrating to owner-relative coordinates
 
@@ -113,6 +114,21 @@ impl_view_for_window!(MyWindow {
   three methods for its windows.
 
 ### Fixed
+- **Frame children follow the window when it is resized** (#108). A view added
+  with `Window::add_frame_child`, a scroll bar on the border being the usual
+  case, kept its place through a resize, so it no longer hugged the edge it was
+  put on. It now moves and stretches by its grow bits, the same rule the
+  interior's children follow; one with no grow bits stays put, as Borland
+  leaves any view that declares no growth. `EditWindow` is unaffected: its
+  scroll bars carry no grow bits and it positions them itself.
+- **A child too big for its group painted over the frame around it** (#108).
+  `Group` clipped its children to its own extent grown by one cell in each
+  direction, an allowance meant for the shadow a window casts outside its
+  bounds. Any interior view larger than the window it sits in used that cell
+  to erase the window's right border and bottom edge: the showcase's ASCII
+  table did it as soon as the window was tiled below the table's width. The
+  overhang is now opt-in, `Group::set_child_overhang`, and only `Desktop`
+  asks for it, sized from `shadow_size()`. Every other group clips tight.
 - A window as large as its owner (a full-desktop editor with a shadow) was
   pushed to a negative origin, hiding its top row and left column. Drag limits
   now clamp the far edges first and the near edges last, as Borland's
@@ -215,6 +231,38 @@ impl_view_for_window!(MyWindow {
   `dynamic_cast<TGroup*>`).
 - **`Shared<T>`** replaces the per-type `SharedScrollBar`, `SharedEditor`,
   `SharedIndicator`, `SharedHelpViewer` and `SharedTerminalWidget` newtypes.
+
+## [2.4.2] - 2026-09-05
+
+### Fixed
+- **Clicking the zoom icon did nothing.** The frame turned the click into
+  `CM_ZOOM`, but the desktop only looked for that command before handing the
+  event to its windows, and a click arrives as a mouse event. The command came
+  back out of the window unhandled and leaked to the application. The desktop
+  now handles a `CM_ZOOM` its windows produce, so the icon and a double-click
+  on the title bar both zoom and restore. The menu item was unaffected since a
+  menu command already enters the desktop as a command.
+
+## [2.4.1] - 2026-09-05
+
+### Fixed
+- **The frame's zoom triangle went stale.** It was written only by the zoom
+  command, so anything else that resized a window left the wrong glyph on the
+  title bar until the next zoom toggle: after Tile or Cascade shrank a zoomed
+  window, it still read as `\u{25BC}`. The state is now derived at draw time from
+  the window's bounds against the extent a zoom would fill, so it cannot
+  disagree with what the window looks like, whatever moved it. `Desktop` also
+  pushes the new extent to its windows when the terminal is resized, which keeps
+  both the triangle and the drag limits right across a resize.
+
+### Added
+- `Window::is_zoomed` and `Frame::set_max_bounds`, the accessor and the hook the
+  derived state needs.
+
+### Deprecated
+- `Frame::set_zoomed`. The zoom state is derived from the bounds now; the setter
+  is still honoured for a bare `Frame` that was never told its maximum extent,
+  and ignored for any window inside a desktop.
 
 ## [2.4.0] - 2026-09-05
 

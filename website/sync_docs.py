@@ -18,6 +18,7 @@ SITE_DOCS = REPO / "website" / "docs"
 # Repository file -> page under website/docs
 COPIES: dict[str, str] = {
     "CHANGELOG.md": "reference/changelog.md",
+    "UPGRADING-TO-3.0.md": "reference/upgrading.md",
     "docs/TURBO-VISION-DESIGN.md": "reference/design.md",
     "docs/OWNER-COORDINATES.md": "reference/owner-coordinates.md",
     "docs/MISSING-INHERITANCE.md": "reference/inheritance.md",

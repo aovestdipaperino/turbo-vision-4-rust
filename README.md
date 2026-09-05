@@ -12,7 +12,8 @@
   <a href="https://tv.enzolombardi.net/guide/">User guide</a> &middot;
   <a href="https://tv.enzolombardi.net/tutorials/">Tutorials</a> &middot;
   <a href="https://tv.enzolombardi.net/compare/app-model/">vs. C++</a> &middot;
-  <a href="https://tv.enzolombardi.net/whats-new/">What's new</a>
+  <a href="https://tv.enzolombardi.net/whats-new/">What's new</a> &middot;
+  <a href="https://tv.enzolombardi.net/reference/upgrading/">Upgrading to 3.0</a>
 </p>
 
 

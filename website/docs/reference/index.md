@@ -5,6 +5,7 @@ on the crate as much as with it.
 
 ## Release history
 
+- **[Upgrading to 3.0.0](upgrading.md)** &mdash; the ordered list of what to change in a crate that implements views of its own, and what reaches ordinary application code.
 - **[Changelog](changelog.md)** &mdash; every release, in Keep a Changelog form. The 3.0.0 entry doubles as the migration guide.
 - **[What's new](../whats-new.md)** &mdash; the same recent work, in prose.
 

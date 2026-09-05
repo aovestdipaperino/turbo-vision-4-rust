@@ -108,6 +108,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
 | Understand the trait layering | [Views and groups](guide/chapter-08.md) and [the design document](reference/design.md) |
 | Port a C++ Turbo Vision program | [The application model, side by side](compare/app-model.md) |
 | See what changed in 3.0.0 | [What's new](whats-new.md) |
+| Move an existing project onto 3.0.0 | [The upgrade guide](reference/upgrading.md) |
 
 ## It looks like this
 
