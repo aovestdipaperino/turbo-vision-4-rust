@@ -4,6 +4,7 @@
 use turbo_vision::app::Application;
 use turbo_vision::core::command::CM_OK;
 use turbo_vision::core::geometry::Rect;
+use turbo_vision::views::GroupLike;
 use turbo_vision::views::button::ButtonBuilder;
 use turbo_vision::views::dialog::DialogBuilder;
 use turbo_vision::views::static_text::StaticTextBuilder;

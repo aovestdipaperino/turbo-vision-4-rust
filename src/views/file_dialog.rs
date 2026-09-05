@@ -111,6 +111,7 @@ use crate::core::command::{CM_CANCEL, CM_FILE_FOCUSED, CM_OK, CommandId};
 use crate::core::event::{Event, EventType};
 use crate::core::geometry::Rect;
 use crate::terminal::Terminal;
+use crate::views::group::GroupLike;
 use std::cell::RefCell;
 use std::fs;
 use std::path::PathBuf;

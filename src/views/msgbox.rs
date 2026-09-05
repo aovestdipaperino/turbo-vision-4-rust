@@ -10,6 +10,7 @@ use super::static_text::StaticText;
 use crate::app::Application;
 use crate::core::command::{CM_CANCEL, CM_NO, CM_OK, CM_YES, CommandId};
 use crate::core::geometry::Rect;
+use crate::views::group::GroupLike;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::time::Duration;

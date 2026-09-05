@@ -1219,7 +1219,7 @@ git commit -m "refactor(views): WindowLike trait and impl_view_for_window! macro
 - `Dialog::handle_event` body moves into `impl WindowLike for Dialog`, with `self.window.handle_event(event)` at the top replaced by `self.window_handle_event(event)`.
 - `Dialog::valid` and `Dialog::get_palette` move into `impl WindowLike for Dialog`. With `get_palette` now late-bound, `Window::new_for_dialog` may stop setting `WindowPaletteType::Dialog`; leave the variant in place for `WindowBuilder` users and note it as deprecated in the doc comment.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```rust
 // src/views/dialog.rs tests
@@ -1242,12 +1242,12 @@ fn dialog_palette_override_reaches_the_frame() {
 
 This passes on `main` only because the palette type is duplicated. After Step 3 it passes because the override is dispatched; Step 4 removes the duplication and the test must still pass.
 
-- [ ] **Step 2: Run it**
+- [x] **Step 2: Run it**
 
 Run: `cargo test --lib views::dialog::tests::dialog_palette_override_reaches_the_frame`
 Expected: PASS today (documents current behaviour). Keep it; it turns red if Step 4 breaks dispatch.
 
-- [ ] **Step 3: Convert `Dialog`**
+- [x] **Step 3: Convert `Dialog`**
 
 Replace `impl View for Dialog { ... }` with:
 
@@ -1312,16 +1312,16 @@ Rewrite `Dialog::execute` so the only dialog-specific parts remain:
 
 The loop cannot be replaced wholesale by `GroupLike::execute` yet because `Dialog::execute` also draws the desktop, menu bar, status line and overlay widgets each frame. Leave that for a follow-up outside this plan and note it in the file's doc comment.
 
-- [ ] **Step 4: Remove the duplicated palette choice**
+- [x] **Step 4: Remove the duplicated palette choice**
 
 In `Window::new_for_dialog` (find it with `grep -n new_for_dialog src/views/window.rs`), keep `WindowPaletteType::Dialog` for now but add a doc comment: `/// The palette is chosen by Dialog::get_palette; this variant only affects Frame drawing until the frame reads through the owner chain.` Then run the Step 1 test. If it still passes with the variant changed to `Gray` locally, the frame reads the chain and the variant can be dropped in Task 10; if it fails, revert to `Dialog` and leave the comment.
 
-- [ ] **Step 5: Run the suite**
+- [x] **Step 5: Run the suite**
 
 Run: `cargo test && cargo clippy --all-targets -- -D warnings && cargo run --example biorhythm -- --help >/dev/null 2>&1 || true`
 Expected: all `dialog::tests` pass, including `test_enter_on_non_button_fires_default_button` and `test_dialog_ok_records_history`.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/views/dialog.rs src/views/window.rs

@@ -86,6 +86,11 @@ impl Window {
 
     /// Create a window for TDialog with gray palette
     /// Matches Borland: TDialog overrides TWindow palette to use cpGrayDialog
+    ///
+    /// The palette a `Dialog` draws with is chosen by `Dialog::get_palette`,
+    /// which `window_draw` reaches through late binding; the
+    /// `WindowPaletteType::Dialog` set here only matters for a bare `Window`
+    /// built with this variant through `WindowBuilder`.
     pub(crate) fn new_for_dialog(bounds: Rect, title: &str) -> Self {
         Self::new_with_palette(
             bounds,

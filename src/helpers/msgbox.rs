@@ -9,6 +9,7 @@ use crate::core::geometry::Rect;
 use crate::views::View;
 use crate::views::button::Button;
 use crate::views::dialog::Dialog;
+use crate::views::group::GroupLike;
 use crate::views::input_line::InputLine;
 use crate::views::static_text::StaticText;
 use std::cell::RefCell;

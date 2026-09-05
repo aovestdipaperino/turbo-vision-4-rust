@@ -24,6 +24,7 @@ use turbo_vision::core::command::{
 use turbo_vision::core::command_set;
 use turbo_vision::core::event::EventType;
 use turbo_vision::core::geometry::Rect;
+use turbo_vision::views::GroupLike;
 use turbo_vision::views::{
     button::ButtonBuilder, dialog::DialogBuilder, static_text::StaticTextBuilder,
 };

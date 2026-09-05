@@ -11,6 +11,7 @@ use std::rc::Rc;
 use turbo_vision::app::Application;
 use turbo_vision::core::command::{CM_CANCEL, CM_OK};
 use turbo_vision::core::geometry::Rect;
+use turbo_vision::views::GroupLike;
 use turbo_vision::views::{
     button::ButtonBuilder,
     dialog::DialogBuilder,

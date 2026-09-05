@@ -14,6 +14,7 @@ use turbo_vision::core::menu_data::{Menu, MenuItem};
 use turbo_vision::core::palette::{Attr, TvColor, colors};
 use turbo_vision::core::state::SF_VISIBLE;
 use turbo_vision::terminal::Terminal;
+use turbo_vision::views::GroupLike;
 use turbo_vision::views::dialog::DialogBuilder;
 use turbo_vision::views::menu_bar::{MenuBar, SubMenu};
 use turbo_vision::views::status_line::{StatusItem, StatusLine};

@@ -16,6 +16,7 @@ use crate::core::event::Event;
 use crate::core::geometry::Rect;
 use crate::core::palette::Attr;
 use crate::terminal::Terminal;
+use crate::views::group::GroupLike;
 
 /// Color Dialog
 /// Matches Borland: TColorDialog (simplified implementation)

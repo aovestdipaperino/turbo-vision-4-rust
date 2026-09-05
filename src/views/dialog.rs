@@ -2,13 +2,14 @@
 
 //! Dialog view - modal window for user interaction with OK/Cancel buttons.
 
-use super::view::{View, ViewCore, ViewId};
-use super::window::Window;
+use super::group::Group;
+use super::group::GroupLike;
+use super::view::View;
+use super::window::{Window, WindowLike};
 use crate::core::command::{CM_CANCEL, CommandId};
 use crate::core::event::{Event, EventType, KB_ENTER, KB_ESC_ESC};
 use crate::core::geometry::Rect;
 use crate::terminal::Terminal;
-use crate::views::group::GroupLike;
 use std::time::{Duration, Instant};
 
 pub struct Dialog {
@@ -53,51 +54,10 @@ impl Dialog {
         Box::new(dialog)
     }
 
-    pub fn add(&mut self, view: Box<dyn View>) -> ViewId {
-        self.window.add(view)
-    }
-
-    pub fn set_initial_focus(&mut self) {
-        self.window.set_initial_focus();
-    }
-
     /// Set focus to a specific child by index
     /// Matches Borland: owner->setCurrent(this, normalSelect)
     pub fn set_focus_to_child(&mut self, index: usize) {
         self.window.set_focus_to_child(index);
-    }
-
-    /// Get the number of child views
-    pub fn child_count(&self) -> usize {
-        self.window.child_count()
-    }
-
-    /// Get a reference to a child view by index
-    pub fn child_at(&self, index: usize) -> &dyn View {
-        self.window.child_at(index)
-    }
-
-    /// Get a mutable reference to a child view by index
-    pub fn child_at_mut(&mut self, index: usize) -> &mut dyn View {
-        self.window.child_at_mut(index)
-    }
-
-    /// Get an immutable reference to a child by its ViewId
-    /// Returns None if the ViewId is not found
-    pub fn child_by_id(&self, view_id: ViewId) -> Option<&dyn View> {
-        self.window.child_by_id(view_id)
-    }
-
-    /// Get a mutable reference to a child by its ViewId
-    /// Returns None if the ViewId is not found
-    pub fn child_by_id_mut(&mut self, view_id: ViewId) -> Option<&mut (dyn View + '_)> {
-        self.window.child_by_id_mut(view_id)
-    }
-
-    /// Remove a child by its ViewId
-    /// Returns true if a child was found and removed, false otherwise
-    pub fn remove_by_id(&mut self, view_id: ViewId) -> bool {
-        self.window.remove_by_id(view_id)
     }
 
     /// Set the dialog title
@@ -110,13 +70,6 @@ impl Dialog {
     /// By default, dialogs are not resizable (matching Borland's TDialog).
     pub fn set_resizable(&mut self, resizable: bool) {
         self.window.set_resizable(resizable);
-    }
-
-    /// Get the current end_state (0 if dialog is still running, command ID if ended)
-    /// Used by custom execute() loops to check if dialog should close
-    /// Matches Borland: TGroup::endState field
-    pub fn get_end_state(&self) -> CommandId {
-        self.window.get_end_state()
     }
 
     /// Execute the dialog with its own event loop (self-contained pattern)
@@ -329,199 +282,167 @@ pub(crate) fn show_dropdown_popup(event: &mut Event, terminal: &mut Terminal) {
     event.clear();
 }
 
-impl View for Dialog {
-    fn core(&self) -> &ViewCore {
-        self.window.core()
+impl GroupLike for Dialog {
+    fn group(&self) -> &Group {
+        self.window.group()
     }
-
-    fn core_mut(&mut self) -> &mut ViewCore {
-        self.window.core_mut()
-    }
-
-    fn set_bounds(&mut self, bounds: Rect) {
-        // Forwarded explicitly: the inner view's `set_bounds` cascades to its
-        // children, which the `ViewCore` default would bypass.
-        self.window.set_bounds(bounds);
-    }
-
-    fn draw(&mut self, terminal: &mut Terminal) {
-        self.window.draw(terminal);
-    }
-
-    fn handle_event(&mut self, event: &mut Event) {
-        // First let the window (and its children) handle the event
-        // This is critical: if a focused Memo/EditorWindow handles Enter, it will clear the event
-        // Borland's TDialog calls TWindow::handleEvent() FIRST (tdialog.cc line 47)
-        self.window.handle_event(event);
-
-        // Now check if the event is still active after children processed it
-        // If a child (like Memo/EditorWindow) handled Enter, event.what will be EventType::None
-        // This matches Borland's TDialog architecture (tdialog.cc lines 48-86)
-
-        // Handle Keyboard events (if not already handled by children)
-        // IMPORTANT: Only handle dialog-specific keys when modal!
-        // Non-modal dialogs should let keyboard events pass to parent handlers
-        // Matches Borland: TDialog::handleEvent() (tdialog.cc:48-86)
-        if event.what == EventType::Keyboard {
-            use crate::core::state::SF_MODAL;
-
-            // Only intercept keyboard shortcuts if this dialog is modal
-            if self.state() & SF_MODAL != 0 {
-                // ESC ESC always closes modal dialogs with CM_CANCEL
-                // Matches Borland: cmCancel on Esc-Esc (tdialog.cc:71-73)
-                if event.key_code == KB_ESC_ESC {
-                    *event = Event::command(CM_CANCEL);
-                    // Re-process as command (will be handled below)
-                    self.handle_event(event);
-                    return;
-                }
-
-                // Enter key activates the *current* default button.
-                // Matches Borland: cmDefault broadcast (tdialog.cc:66-70) where a
-                // focused button has grabbed the default role (cmGrabDefault).
-                //
-                // If the focused child is a button it consumes Enter itself
-                // (converting it to its own command in the Group's focused
-                // phase), so this branch is only reached when the focused view
-                // did not handle Enter. Guard anyway: never fire the flagged
-                // default while a different button is focused.
-                if event.key_code == KB_ENTER {
-                    if !self.focused_child_is_button() {
-                        if let Some(default_command) = self.find_default_button_command() {
-                            *event = Event::command(default_command);
-                            // Re-process as command (will be handled below)
-                            self.handle_event(event);
-                        }
-                    }
-                    return;
-                }
-            }
-            // If not modal, let keyboard events pass through to default handling
-        }
-
-        // Handle command events
-        // Dialogs intercept cmCancel and cmOK/cmYes/cmNo to end the modal loop
-        // IMPORTANT: Custom commands from child views (like ListBox) should NOT close the dialog
-        // Only the standard dialog commands should close the modal loop
-        // IMPORTANT: Only intercept commands when dialog is actually modal!
-        // Non-modal dialogs (added to desktop) should let commands pass through
-        // Matches Borland: TDialog::handleEvent() checks for these commands
-        if event.what == EventType::Command {
-            use crate::core::command::{CM_CANCEL, CM_NO, CM_OK, CM_YES};
-            use crate::core::state::SF_MODAL;
-
-            // Only intercept commands if this dialog is modal
-            if self.state() & SF_MODAL != 0 {
-                match event.command {
-                    CM_CANCEL => {
-                        // Cancel button or Esc-Esc pressed
-                        // End the modal loop with CM_CANCEL
-                        // Matches Borland: endModal(cmCancel)
-                        self.window.end_modal(CM_CANCEL);
-                        event.clear();
-                    }
-                    CM_OK | CM_YES | CM_NO => {
-                        // OK/Yes/No button pressed
-                        // On accept (OK/Yes, not No/Cancel), broadcast CM_RECORD_HISTORY
-                        // so History views record their linked InputLine data.
-                        // Matches Borland: TButton::press() message(owner, evBroadcast,
-                        // cmRecordHistory, 0) before emitting the command.
-                        if event.command == CM_OK || event.command == CM_YES {
-                            let mut record =
-                                Event::broadcast(crate::core::command::CM_RECORD_HISTORY);
-                            self.window.handle_event(&mut record);
-                        }
-                        // End the modal loop with the command
-                        // Matches Borland: endModal(command)
-                        self.window.end_modal(event.command);
-                        event.clear();
-                    }
-                    crate::core::command::CM_SHOW_HISTORY
-                    | crate::core::command::CM_SHOW_DROPDOWN => {
-                        // A History button was clicked, or a ComboBox asked to
-                        // drop its list. Leave the event alone so the modal loop
-                        // in Dialog::execute() (which has terminal access) can
-                        // open the popup. Must not fall through to the
-                        // "< 1000 closes the dialog" rule below.
-                    }
-                    _ => {
-                        // Other commands - distinguish between button commands and internal commands
-                        // Button commands (< 1000): Custom button commands like 1, 2, 3
-                        //   These should end the modal loop and return to caller
-                        // Internal commands (>= 1000): Commands from child views like CMD_FILE_SELECTED (1000)
-                        //   These are used by specific dialog implementations (FileDialog, etc.)
-                        //   and should NOT close the dialog - let them pass through
-                        //
-                        // Convention: Commands >= 1000 are internal/custom view commands
-                        //            Commands < 1000 are dialog close commands
-                        if event.command < 1000 {
-                            // Custom button command - end modal and return to caller
-                            self.window.end_modal(event.command);
-                            event.clear();
-                        }
-                        // else: Internal command >= 1000 - pass through to caller without closing
-                    }
-                }
-            }
-            // If not modal, let commands pass through unchanged
-        }
-    }
-
-    fn can_focus(&self) -> bool {
-        // Dialogs can receive focus
-        true
-    }
-
-    fn set_focus(&mut self, focused: bool) {
-        self.window.set_focus(focused);
-    }
-
-    fn update_cursor(&self, terminal: &mut Terminal) {
-        self.window.update_cursor(terminal);
-    }
-
-    fn valid(&mut self, command: CommandId) -> bool {
-        // Dialogs validate on OK/Yes (but not Cancel/No)
-        // Matches Borland: TDialog::valid() (tdialog.cc:88-104)
-        if command == CM_CANCEL || command == 13
-        /* CM_NO */
-        {
-            // Cancel/No always succeeds without validation
-            return true;
-        } else {
-            // Validate through window (which will validate all children)
-            self.window.valid(command)
-        }
-    }
-
-    fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        use crate::core::palette::{Palette, palettes};
-        // Dialog uses gray dialog palette (Borland: TDialog::getPalette)
-        Some(Palette::from_slice(palettes::CP_GRAY_DIALOG))
-    }
-
-    fn init_after_add(&mut self) {
-        // Initialize Window's interior owner pointer now that Dialog is in final position
-        // This completes the palette chain: Button → interior → Window → Desktop
-        self.window.init_interior_owner();
-    }
-
-    fn constrain_to_parent_bounds(&mut self) {
-        self.window.constrain_to_limits();
-    }
-
-    fn get_end_state(&self) -> crate::core::command::CommandId {
-        self.window.get_end_state()
-    }
-
-    fn set_end_state(&mut self, command: crate::core::command::CommandId) {
-        self.window.set_end_state(command);
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-        self
+    fn group_mut(&mut self) -> &mut Group {
+        self.window.group_mut()
     }
 }
+
+impl WindowLike for Dialog {
+    fn window(&self) -> &Window {
+        &self.window
+    }
+    fn window_mut(&mut self) -> &mut Window {
+        &mut self.window
+    }
+}
+
+// TDialog overrides three TWindow methods: handleEvent, valid and getPalette
+// (tdialog.cc). Everything else is the inherited TWindow behaviour, which the
+// macro forwards to the window_* base implementations.
+crate::impl_view_for_window!(Dialog {
+        fn handle_event(&mut self, event: &mut Event) {
+            // First let the window (and its children) handle the event
+            // This is critical: if a focused Memo/EditorWindow handles Enter, it will clear the event
+            // Borland's TDialog calls TWindow::handleEvent() FIRST (tdialog.cc line 47)
+            self.window_handle_event(event);
+
+            // Now check if the event is still active after children processed it
+            // If a child (like Memo/EditorWindow) handled Enter, event.what will be EventType::None
+            // This matches Borland's TDialog architecture (tdialog.cc lines 48-86)
+
+            // Handle Keyboard events (if not already handled by children)
+            // IMPORTANT: Only handle dialog-specific keys when modal!
+            // Non-modal dialogs should let keyboard events pass to parent handlers
+            // Matches Borland: TDialog::handleEvent() (tdialog.cc:48-86)
+            if event.what == EventType::Keyboard {
+                use crate::core::state::SF_MODAL;
+
+                // Only intercept keyboard shortcuts if this dialog is modal
+                if self.state() & SF_MODAL != 0 {
+                    // ESC ESC always closes modal dialogs with CM_CANCEL
+                    // Matches Borland: cmCancel on Esc-Esc (tdialog.cc:71-73)
+                    if event.key_code == KB_ESC_ESC {
+                        *event = Event::command(CM_CANCEL);
+                        // Re-process as command (will be handled below)
+                        self.handle_event(event);
+                        return;
+                    }
+
+                    // Enter key activates the *current* default button.
+                    // Matches Borland: cmDefault broadcast (tdialog.cc:66-70) where a
+                    // focused button has grabbed the default role (cmGrabDefault).
+                    //
+                    // If the focused child is a button it consumes Enter itself
+                    // (converting it to its own command in the Group's focused
+                    // phase), so this branch is only reached when the focused view
+                    // did not handle Enter. Guard anyway: never fire the flagged
+                    // default while a different button is focused.
+                    if event.key_code == KB_ENTER {
+                        if !self.focused_child_is_button() {
+                            if let Some(default_command) = self.find_default_button_command() {
+                                *event = Event::command(default_command);
+                                // Re-process as command (will be handled below)
+                                self.handle_event(event);
+                            }
+                        }
+                        return;
+                    }
+                }
+                // If not modal, let keyboard events pass through to default handling
+            }
+
+            // Handle command events
+            // Dialogs intercept cmCancel and cmOK/cmYes/cmNo to end the modal loop
+            // IMPORTANT: Custom commands from child views (like ListBox) should NOT close the dialog
+            // Only the standard dialog commands should close the modal loop
+            // IMPORTANT: Only intercept commands when dialog is actually modal!
+            // Non-modal dialogs (added to desktop) should let commands pass through
+            // Matches Borland: TDialog::handleEvent() checks for these commands
+            if event.what == EventType::Command {
+                use crate::core::command::{CM_CANCEL, CM_NO, CM_OK, CM_YES};
+                use crate::core::state::SF_MODAL;
+
+                // Only intercept commands if this dialog is modal
+                if self.state() & SF_MODAL != 0 {
+                    match event.command {
+                        CM_CANCEL => {
+                            // Cancel button or Esc-Esc pressed
+                            // End the modal loop with CM_CANCEL
+                            // Matches Borland: endModal(cmCancel)
+                            self.end_modal(CM_CANCEL);
+                            event.clear();
+                        }
+                        CM_OK | CM_YES | CM_NO => {
+                            // OK/Yes/No button pressed
+                            // On accept (OK/Yes, not No/Cancel), broadcast CM_RECORD_HISTORY
+                            // so History views record their linked InputLine data.
+                            // Matches Borland: TButton::press() message(owner, evBroadcast,
+                            // cmRecordHistory, 0) before emitting the command.
+                            if event.command == CM_OK || event.command == CM_YES {
+                                let mut record =
+                                    Event::broadcast(crate::core::command::CM_RECORD_HISTORY);
+                                self.window_handle_event(&mut record);
+                            }
+                            // End the modal loop with the command
+                            // Matches Borland: endModal(command)
+                            self.end_modal(event.command);
+                            event.clear();
+                        }
+                        crate::core::command::CM_SHOW_HISTORY
+                        | crate::core::command::CM_SHOW_DROPDOWN => {
+                            // A History button was clicked, or a ComboBox asked to
+                            // drop its list. Leave the event alone so the modal loop
+                            // in Dialog::execute() (which has terminal access) can
+                            // open the popup. Must not fall through to the
+                            // "< 1000 closes the dialog" rule below.
+                        }
+                        _ => {
+                            // Other commands - distinguish between button commands and internal commands
+                            // Button commands (< 1000): Custom button commands like 1, 2, 3
+                            //   These should end the modal loop and return to caller
+                            // Internal commands (>= 1000): Commands from child views like CMD_FILE_SELECTED (1000)
+                            //   These are used by specific dialog implementations (FileDialog, etc.)
+                            //   and should NOT close the dialog - let them pass through
+                            //
+                            // Convention: Commands >= 1000 are internal/custom view commands
+                            //            Commands < 1000 are dialog close commands
+                            if event.command < 1000 {
+                                // Custom button command - end modal and return to caller
+                                self.end_modal(event.command);
+                                event.clear();
+                            }
+                            // else: Internal command >= 1000 - pass through to caller without closing
+                        }
+                    }
+                }
+                // If not modal, let commands pass through unchanged
+            }
+        }
+
+        fn valid(&mut self, command: CommandId) -> bool {
+            // Dialogs validate on OK/Yes (but not Cancel/No)
+            // Matches Borland: TDialog::valid() (tdialog.cc:88-104)
+            if command == CM_CANCEL || command == 13
+            /* CM_NO */
+            {
+                // Cancel/No always succeeds without validation
+                return true;
+            } else {
+                // Validate through window (which will validate all children)
+                self.window_valid(command)
+            }
+        }
+
+        fn get_palette(&self) -> Option<crate::core::palette::Palette> {
+            use crate::core::palette::{Palette, palettes};
+            // Dialog uses gray dialog palette (Borland: TDialog::getPalette)
+            Some(Palette::from_slice(palettes::CP_GRAY_DIALOG))
+        }
+});
 
 impl Dialog {
     /// Returns true if the currently focused child view is a button.
@@ -678,6 +599,25 @@ impl Default for DialogBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn dialog_palette_override_reaches_the_frame() {
+        use crate::core::palette::palettes;
+        let mut plain = Window::new(Rect::new(0, 0, 30, 8), "x"); // Blue palette
+        let mut dialog = Dialog::new(Rect::new(0, 0, 30, 8), "x");
+        plain.set_focus(true);
+        dialog.set_focus(true);
+        let mut terminal = crate::test_util::test_terminal(80, 25);
+        plain.draw(&mut terminal);
+        let blue = terminal.read_cell(1, 0).unwrap().attr;
+        dialog.draw(&mut terminal);
+        let gray = terminal.read_cell(1, 0).unwrap().attr;
+        assert_ne!(blue, gray);
+        assert_eq!(
+            dialog.get_palette().unwrap().get(1),
+            palettes::CP_GRAY_DIALOG[0]
+        );
+    }
     use crate::core::state::SF_MODAL;
 
     #[test]
