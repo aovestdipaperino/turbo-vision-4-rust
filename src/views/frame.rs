@@ -30,8 +30,14 @@ pub struct Frame {
     /// Whether the zoom icon is drawn at all (Borland: wfZoom). Defaults to
     /// `resizable`, since a fixed-size window has nothing to zoom to.
     zoomable: bool,
-    /// Whether the window is currently zoomed, which picks the icon's glyph.
-    zoomed: bool,
+    /// The extent a zoom would fill, normally the desktop. The triangle is
+    /// derived from this at draw time rather than remembered, so a window
+    /// resized by anything other than a zoom (Tile, Cascade, a drag of the
+    /// resize corner) still shows the right glyph.
+    max_bounds: Option<Rect>,
+    /// Fallback for a frame that was never told its maximum extent. Only
+    /// [`Frame::set_zoomed`] writes it.
+    zoomed_override: bool,
     /// The zoom icon's equivalent of `close_pressed`.
     zoom_pressed: bool,
 }
@@ -71,7 +77,8 @@ impl Frame {
             // Borland pairs wfGrow with wfZoom: a window that cannot be
             // resized has nothing to zoom to, and a dialog has neither.
             zoomable: resizable,
-            zoomed: false,
+            max_bounds: None,
+            zoomed_override: false,
             zoom_pressed: false,
         }
     }
@@ -79,9 +86,7 @@ impl Frame {
     /// True if the given position is over the close icon `[■]` on the top
     /// frame row (columns 2..=4 relative to the frame's left edge).
     fn is_on_close_icon(&self, pos: crate::core::geometry::Point) -> bool {
-        pos.y == 0
-            && pos.x >= 2
-            && pos.x <= 4
+        pos.y == 0 && pos.x >= 2 && pos.x <= 4
     }
 
     /// Leftmost column of the zoom icon `[\u{25B2}]`, three cells wide, sitting
@@ -116,15 +121,39 @@ impl Frame {
         self.zoomable = zoomable;
     }
 
-    /// Tell the frame whether its window is zoomed, which flips the triangle
-    /// between "grow" (up) and "restore" (down).
-    pub fn set_zoomed(&mut self, zoomed: bool) {
-        self.zoomed = zoomed;
+    /// Tell the frame the extent a zoom would fill, normally the desktop rect.
+    ///
+    /// The zoom triangle is derived from this every time the frame draws, so it
+    /// stays right through Tile, Cascade and a drag of the resize corner, none
+    /// of which go through the zoom command.
+    pub fn set_max_bounds(&mut self, max_bounds: Rect) {
+        self.max_bounds = Some(max_bounds);
     }
 
-    /// Whether the frame believes its window is zoomed.
+    /// Tell the frame whether its window is zoomed.
+    ///
+    /// Only consulted when the frame has not been given its maximum extent with
+    /// [`Frame::set_max_bounds`], which a window inside a desktop always is.
+    #[deprecated(
+        since = "2.4.1",
+        note = "the zoom state is derived from the bounds; use set_max_bounds"
+    )]
+    pub fn set_zoomed(&mut self, zoomed: bool) {
+        self.zoomed_override = zoomed;
+    }
+
+    /// Whether the window fills the extent a zoom would take it to, which is
+    /// what decides between the "grow" and "restore" triangles.
+    ///
+    /// Compares sizes rather than positions, matching `Window::zoom`, so the
+    /// glyph always agrees with what pressing it will do.
     pub fn is_zoomed(&self) -> bool {
-        self.zoomed
+        match self.max_bounds {
+            Some(max) => {
+                self.bounds().width() == max.width() && self.bounds().height() == max.height()
+            }
+            None => self.zoomed_override,
+        }
     }
 
     /// Set the frame title
@@ -222,8 +251,13 @@ impl View for Frame {
         // window can still grow, and down once it is zoomed and the click will
         // restore it. Matches Borland: zoomIcon at width - 5.
         if let Some(x) = self.zoom_icon_x() {
-            let at = (x) as usize;
-            let glyph = if self.zoomed { '\u{25BC}' } else { '\u{25B2}' };
+            // Owner-relative: the icon's x is already in the frame's space.
+            let at = x as usize;
+            let glyph = if self.is_zoomed() {
+                '\u{25BC}'
+            } else {
+                '\u{25B2}'
+            };
             buf.put_char(at, '[', frame_attr);
             buf.put_char(at + 1, glyph, close_icon_attr);
             buf.put_char(at + 2, ']', frame_attr);
@@ -264,12 +298,7 @@ impl View for Frame {
             side_buf.put_char(i, ' ', interior_color);
         }
         for y in 1..height - 1 {
-            write_line_to_terminal(
-                terminal,
-                0,
-                y as i16,
-                &side_buf,
-            );
+            write_line_to_terminal(terminal, 0, y as i16, &side_buf);
         }
 
         // Bottom border - using single-line for resizable, double-line for non-resizable
@@ -299,12 +328,7 @@ impl View for Frame {
             bottom_buf.put_char(width - 2, '◢', frame_attr);
         }
 
-        write_line_to_terminal(
-            terminal,
-            0,
-            height as i16 - 1,
-            &bottom_buf,
-        );
+        write_line_to_terminal(terminal, 0, height as i16 - 1, &bottom_buf);
     }
 
     fn handle_event(&mut self, event: &mut Event) {
@@ -349,9 +373,7 @@ impl View for Frame {
             // Check if click is on the top frame line (title bar)
             if mouse_pos.y == 0 {
                 // Check if click is on the close button [■] at position (2,3,4)
-                if mouse_pos.x >= 2
-                    && mouse_pos.x <= 4
-                {
+                if mouse_pos.x >= 2 && mouse_pos.x <= 4 {
                     // Close button area - arm press tracking, don't start
                     // drag, and consume the press so it doesn't leak to other
                     // views. Close fires only on the matching MouseUp.
@@ -708,5 +730,63 @@ mod tests {
         press_at(&mut frame, 36, 0);
         let up = release_at(&mut frame, 36, 0);
         assert_ne!(up.command, crate::core::command::CM_ZOOM);
+    }
+
+    #[test]
+    fn the_triangle_is_derived_from_the_bounds_not_remembered() {
+        let mut frame = zoomable_frame();
+        frame.set_max_bounds(Rect::new(0, 0, 80, 25));
+        assert!(!frame.is_zoomed(), "a 40x10 window in an 80x25 desktop");
+
+        frame.set_bounds(Rect::new(0, 0, 80, 25));
+        assert!(frame.is_zoomed(), "filling the desktop reads as zoomed");
+    }
+
+    #[test]
+    fn shrinking_a_zoomed_window_flips_the_triangle_back() {
+        // Regression: the flag used to be written only by the zoom command, so
+        // Tile or Cascade left a shrunken window still showing the restore
+        // triangle until the next zoom toggle.
+        let mut frame = zoomable_frame();
+        frame.set_max_bounds(Rect::new(0, 0, 80, 25));
+        frame.set_bounds(Rect::new(0, 0, 80, 25));
+        assert!(frame.is_zoomed());
+
+        // What Tile does: move and resize the window, nothing more.
+        frame.set_bounds(Rect::new(0, 0, 40, 25));
+        assert!(!frame.is_zoomed(), "half the desktop is not zoomed");
+    }
+
+    #[test]
+    fn a_moved_window_of_full_size_still_reads_as_zoomed() {
+        // Sizes decide it, not positions, matching Window::zoom; the glyph has
+        // to agree with what pressing it will do.
+        let mut frame = zoomable_frame();
+        frame.set_max_bounds(Rect::new(0, 0, 40, 10));
+        frame.set_bounds(Rect::new(5, 5, 45, 15));
+        assert!(frame.is_zoomed());
+    }
+
+    #[test]
+    fn a_growing_desktop_unzooms_a_window_that_no_longer_fills_it() {
+        let mut frame = zoomable_frame();
+        frame.set_max_bounds(Rect::new(0, 0, 40, 10));
+        assert!(frame.is_zoomed());
+        // The terminal was made bigger.
+        frame.set_max_bounds(Rect::new(0, 0, 100, 30));
+        assert!(!frame.is_zoomed());
+    }
+
+    #[test]
+    fn a_frame_with_no_desktop_falls_back_to_what_it_was_told() {
+        let mut frame = zoomable_frame();
+        assert!(!frame.is_zoomed());
+        #[allow(deprecated)]
+        frame.set_zoomed(true);
+        assert!(frame.is_zoomed(), "no max bounds, so the override stands");
+
+        // Once the extent is known it wins, override or not.
+        frame.set_max_bounds(Rect::new(0, 0, 80, 25));
+        assert!(!frame.is_zoomed());
     }
 }

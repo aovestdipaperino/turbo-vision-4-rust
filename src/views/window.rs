@@ -242,6 +242,14 @@ impl Window {
         self.frame.set_zoomable(zoomable);
     }
 
+    /// Whether the window fills the extent a zoom would take it to.
+    ///
+    /// Derived from the current bounds, so it is right however the window came
+    /// to its size: a zoom, a tile, a cascade, or a drag of the resize corner.
+    pub fn is_zoomed(&self) -> bool {
+        self.frame.is_zoomed()
+    }
+
     pub fn set_resizable(&mut self, resizable: bool) {
         self.frame.set_resizable(resizable);
     }
@@ -764,13 +772,11 @@ pub trait WindowLike: GroupLike {
             self.core_mut().bounds = self.window_mut().zoom_rect;
         }
 
-        // Update frame and interior
-        let bounds = self.bounds();
+        // Update frame and interior. The frame works its own zoom glyph out
+        // from its size against the extent below, so nothing has to remember
+        // whether this call zoomed or restored.
+        self.window_mut().frame.set_max_bounds(max_bounds);
         self.window_mut().layout_frame_and_interior();
-        // The frame draws a different zoom glyph once the window is zoomed:
-        // an up arrow while it can still grow, both ways once it can only be
-        // restored.
-        self.window_mut().frame.set_zoomed(bounds == max_bounds);
     }
 
     /// Validate window before closing with given command
@@ -804,6 +810,10 @@ pub trait WindowLike: GroupLike {
 
     fn window_set_owner_extent(&mut self, bounds: Rect) {
         self.window_mut().explicit_drag_limits = Some(bounds);
+        // The same rect is what a zoom fills, so the frame can derive its
+        // triangle from it however the window came to be its current size.
+        let extent = Rect::new(0, 0, bounds.width(), bounds.height());
+        self.window_mut().frame.set_max_bounds(extent);
     }
 }
 

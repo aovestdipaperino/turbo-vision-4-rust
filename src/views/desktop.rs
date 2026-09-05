@@ -588,6 +588,13 @@ impl View for Desktop {
     fn set_bounds(&mut self, bounds: Rect) {
         self.core.bounds = bounds;
         self.children.set_bounds(self.extent());
+        // A terminal resize changes what "zoomed" and "as far as you may drag"
+        // mean, so tell the windows about the new extent. `add` does this once;
+        // without it here they would keep the size the desktop had at startup.
+        let extent = self.extent();
+        for i in 0..self.children.len() {
+            self.children.child_at_mut(i).set_owner_extent(extent);
+        }
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
@@ -731,6 +738,15 @@ impl View for Desktop {
             super::view::dispatch_to_child(self.children.child_at_mut(modal_idx), event);
         } else {
             self.children.handle_event(event);
+        }
+
+        // A click on a frame's zoom icon (or a double-click on its title)
+        // comes back out of the window as cmZoom. It was a mouse event on the
+        // way in, so the check above never saw it; handle it here or the
+        // command leaks to the application and the click does nothing.
+        if event.what == EventType::Command && event.command == crate::core::command::CM_ZOOM {
+            self.zoom_top_window();
+            event.clear();
         }
     }
 
