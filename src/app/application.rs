@@ -391,11 +391,13 @@ impl Application {
             // Matches Borland: TGroup::execute() checks endState (tgroup.cc:192)
             // followed by the valid(endState) re-entry check
             if self.desktop.contains_id(view_id) {
+                // Borland reads TGroup::endState; here the view says whether it
+                // is a group at all (dynamic_cast<TGroup*>).
                 let end_state = self
                     .desktop
                     .child_by_id(view_id)
-                    .map(|child| child.get_end_state())
-                    .unwrap_or(0);
+                    .and_then(|child| child.as_group())
+                    .map_or(0, |group| group.end_state());
                 if end_state != 0 {
                     // A failing validator vetoes the close (Borland:
                     // do { ... } while( !valid(endState) ))
@@ -408,8 +410,12 @@ impl Application {
                         self.desktop.remove_child_by_id(view_id);
                         return end_state;
                     }
-                    if let Some(child) = self.desktop.child_by_id_mut(view_id) {
-                        child.set_end_state(0);
+                    if let Some(group) = self
+                        .desktop
+                        .child_by_id_mut(view_id)
+                        .and_then(|child| child.as_group_mut())
+                    {
+                        group.end_modal(0);
                     }
                 }
             } else {

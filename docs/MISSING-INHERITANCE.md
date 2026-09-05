@@ -1432,7 +1432,7 @@ Remove from `View`: `is_default_button`, `button_command`, `set_list_selection`,
 - Modify: `src/views/view.rs`, `src/views/button.rs`, `src/views/listbox.rs`, `src/views/dialog.rs:502-530`, `src/views/file_dialog.rs:447-450,537,666`, `src/views/shared.rs`, `src/views/group.rs`, `src/views/desktop.rs`, `src/app/application.rs` (any `get_end_state` callers the compiler lists)
 - Modify: `CHANGELOG.md`
 
-- [ ] **Step 1: Write the failing test for the default-button search via downcast**
+- [x] **Step 1: Write the failing test for the default-button search via downcast**
 
 ```rust
 // src/views/dialog.rs tests
@@ -1445,7 +1445,7 @@ fn default_button_is_found_by_downcast_not_by_view_hook() {
 }
 ```
 
-- [ ] **Step 2: Rewrite the two Dialog helpers**
+- [x] **Step 2: Rewrite the two Dialog helpers**
 
 ```rust
     fn focused_child_is_button(&mut self) -> bool {
@@ -1463,20 +1463,20 @@ fn default_button_is_found_by_downcast_not_by_view_hook() {
 
 Add `pub fn is_default(&self) -> bool` and `pub fn command(&self) -> CommandId` as inherent methods on `Button` if they do not exist, then delete `is_default_button` and `button_command` from `impl View for Button`. Note that `Shared<Button>` would not be found by this downcast; no code shares a button today, and the test in Step 1 pins the direct case.
 
-- [ ] **Step 3: Rewrite the three `FileDialog` list-selection sites**
+- [x] **Step 3: Rewrite the three `FileDialog` list-selection sites**
 
 Each already downcasts to `ListBox` or can: replace `listbox.set_list_selection(0)` with `listbox.set_selection(0)` and `listbox.get_list_selection()` with `listbox.get_selection().unwrap_or(0)`, using `as_any_mut().downcast_mut::<ListBox>()` where the site currently holds a `&mut dyn View`. Delete `set_list_selection` and `get_list_selection` from `impl View for ListBox` and from `Shared<T>`.
 
-- [ ] **Step 4: Move end state to `GroupLike`**
+- [x] **Step 4: Move end state to `GroupLike`**
 
 Delete `get_end_state` and `set_end_state` from `View`, from the macro, from `Shared<T>`, and from every leaf. Callers in `src/app/application.rs` and `src/views/desktop.rs` that call `view.get_end_state()` on a `&dyn View` must instead ask through a `dyn GroupLike`; where the desktop only holds `Box<dyn View>`, downcast to `Window` or `Dialog` as `application.rs:1285` already does, or keep a `SF_CLOSED` state check, which is what Borland's `TDeskTop` does. Let the compiler enumerate the sites; there are few.
 
-- [ ] **Step 5: Remove the six declarations from `View`, run the suite**
+- [x] **Step 5: Remove the six declarations from `View`, run the suite**
 
 Run: `cargo test && cargo build --examples && cargo clippy --all-targets -- -D warnings`
 Expected: green. `grep -c "fn " src/views/view.rs` should be at least eight lower than before Task 2.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add -A src CHANGELOG.md

@@ -103,24 +103,6 @@ impl<T: View + 'static> View for Shared<T> {
     fn valid(&mut self, command: CommandId) -> bool {
         self.inner.borrow_mut().valid(command)
     }
-    fn is_default_button(&self) -> bool {
-        self.inner.borrow().is_default_button()
-    }
-    fn button_command(&self) -> Option<u16> {
-        self.inner.borrow().button_command()
-    }
-    fn set_list_selection(&mut self, index: usize) {
-        self.inner.borrow_mut().set_list_selection(index);
-    }
-    fn get_list_selection(&self) -> usize {
-        self.inner.borrow().get_list_selection()
-    }
-    fn get_end_state(&self) -> CommandId {
-        self.inner.borrow().get_end_state()
-    }
-    fn set_end_state(&mut self, command: CommandId) {
-        self.inner.borrow_mut().set_end_state(command);
-    }
     fn label_link(&self) -> Option<ViewId> {
         self.inner.borrow().label_link()
     }

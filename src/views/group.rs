@@ -286,19 +286,6 @@ impl Group {
         self.end_state = command;
     }
 
-    /// Get the current end_state
-    /// Used by containers that implement their own execute() loop
-    /// to check if they should end the modal loop
-    pub fn get_end_state(&self) -> crate::core::command::CommandId {
-        self.end_state
-    }
-
-    /// Set the current end_state
-    /// Used by modal views to signal they want to close
-    pub fn set_end_state(&mut self, command: crate::core::command::CommandId) {
-        self.end_state = command;
-    }
-
     /// Broadcast an event to all children except the owner
     /// Matches Borland: TGroup::forEach with message() that takes receiver parameter
     ///
@@ -881,12 +868,12 @@ impl View for Group {
         self.group_valid(command)
     }
 
-    fn get_end_state(&self) -> crate::core::command::CommandId {
-        self.end_state()
+    fn as_group(&self) -> Option<&dyn GroupLike> {
+        Some(self)
     }
 
-    fn set_end_state(&mut self, command: crate::core::command::CommandId) {
-        self.end_modal(command)
+    fn as_group_mut(&mut self) -> Option<&mut dyn GroupLike> {
+        Some(self)
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {

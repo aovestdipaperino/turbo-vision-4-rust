@@ -21,6 +21,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `set_end_state`; import `GroupLike` (it is in the prelude) to keep calling
   them. Window-shaped types get their `View` impl from
   `impl_view_for_window!`, with overrides written inline.
+- **Six hooks removed from `View`:** `is_default_button`, `button_command`,
+  `set_list_selection`, `get_list_selection`, `get_end_state`,
+  `set_end_state`. Downcast to `Button` (`is_default()`, `command()`) or
+  `ListBox` (`set_selection`, `get_selection`) instead; the modal end state
+  lives on `GroupLike::end_state` / `end_modal`, reachable from a
+  `&dyn View` through the new `View::as_group()` (Borland's
+  `dynamic_cast<TGroup*>`).
 - **`Shared<T>`** replaces the per-type `SharedScrollBar`, `SharedEditor`,
   `SharedIndicator`, `SharedHelpViewer` and `SharedTerminalWidget` newtypes.
 

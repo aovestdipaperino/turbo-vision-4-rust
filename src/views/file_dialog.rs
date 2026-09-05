@@ -397,7 +397,7 @@ impl FileDialog {
                     // Check if dialog wants to close (e.g., close button clicked)
                     // Dialog::handle_event() calls end_modal() which sets the end_state
                     // Matches Borland: TDialog::execute() checks endState after handleEvent
-                    let end_state = self.dialog.get_end_state();
+                    let end_state = self.dialog.end_state();
 
                     // IMPORTANT: Only close dialog for CM_CANCEL and CM_CLOSE
                     // For CM_OK, we need to check if it's a wildcard pattern FIRST
@@ -449,7 +449,7 @@ impl FileDialog {
                                                 view.as_any_mut().downcast_mut::<ListBox>()
                                             {
                                                 listbox.set_items(self.files.clone());
-                                                listbox.set_list_selection(0);
+                                                listbox.set_selection(0);
                                             }
                                         }
 
@@ -461,7 +461,7 @@ impl FileDialog {
 
                                         // CRITICAL: Clear the end_state that was set by Dialog.handle_event()
                                         // Dialog called end_modal(CM_OK) but we're staying open for wildcard filter
-                                        self.dialog.set_end_state(0);
+                                        self.dialog.end_modal(0);
 
                                         // Force full redraw to ensure ListBox visual updates
                                         // The Terminal's double-buffering system needs this to guarantee
@@ -482,13 +482,13 @@ impl FileDialog {
                                     // Directory/folder selected - navigate into it (stay open)
                                     // CRITICAL: Clear the end_state so the loop continues
                                     // Dialog called end_modal(CM_OK) but we're navigating into folder
-                                    self.dialog.set_end_state(0);
+                                    self.dialog.end_modal(0);
                                     // Loop continues with new directory contents
                                 } else {
                                     // If input is empty, do nothing (don't close dialog)
                                     // This effectively disables the OK button when input is empty
                                     // Clear end_state so dialog stays open
-                                    self.dialog.set_end_state(0);
+                                    self.dialog.end_modal(0);
                                 }
                             }
                             CM_CANCEL | crate::core::command::CM_CLOSE => {
@@ -535,8 +535,13 @@ impl FileDialog {
             return;
         }
 
-        let listbox = self.dialog.child_at(CHILD_LISTBOX);
-        let new_selection = listbox.get_list_selection();
+        let new_selection = self
+            .dialog
+            .child_at(CHILD_LISTBOX)
+            .as_any()
+            .downcast_ref::<ListBox>()
+            .and_then(ListBox::get_selection)
+            .unwrap_or(0);
 
         // Only update if selection actually changed
         if new_selection != self.selected_file_index {
@@ -663,9 +668,14 @@ impl FileDialog {
         if CHILD_LISTBOX < self.dialog.child_count() {
             self.dialog.set_focus_to_child(CHILD_LISTBOX);
             // Also ensure listbox selection is at index 0
-            self.dialog
+            if let Some(listbox) = self
+                .dialog
                 .child_at_mut(CHILD_LISTBOX)
-                .set_list_selection(0);
+                .as_any_mut()
+                .downcast_mut::<ListBox>()
+            {
+                listbox.set_selection(0);
+            }
         }
 
         // Reset selection index
@@ -786,7 +796,7 @@ impl FileDialog {
 
     /// Get the end state (command that closed the dialog)
     pub fn get_end_state(&self) -> CommandId {
-        self.dialog.get_end_state()
+        self.dialog.end_state()
     }
 }
 
@@ -833,8 +843,8 @@ mod forwarding_tests {
         fd.set_state(fd.state() | SF_MODAL);
         assert_ne!(View::state(&fd) & SF_MODAL, 0);
         assert!(fd.can_focus());
-        fd.set_end_state(CM_OK);
-        assert_eq!(View::get_end_state(&fd), CM_OK);
+        fd.end_modal(CM_OK);
+        assert_eq!(fd.end_state(), CM_OK);
         assert!(fd.as_any().downcast_ref::<FileDialog>().is_some());
     }
 }

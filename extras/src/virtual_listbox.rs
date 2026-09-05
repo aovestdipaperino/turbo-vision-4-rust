@@ -184,14 +184,6 @@ impl View for VirtualListBox {
         true
     }
 
-    fn set_list_selection(&mut self, index: usize) {
-        self.set_selection(index);
-    }
-
-    fn get_list_selection(&self) -> usize {
-        self.list_state.focused.unwrap_or(0)
-    }
-
     fn get_palette(&self) -> Option<turbo_vision::core::palette::Palette> {
         None
     }

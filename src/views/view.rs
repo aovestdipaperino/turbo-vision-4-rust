@@ -2,7 +2,6 @@
 
 //! View trait - base interface for all UI components with event handling and drawing.
 
-use crate::core::command::CommandId;
 use crate::core::draw::DrawBuffer;
 use crate::core::event::Event;
 use crate::core::geometry::Rect;
@@ -243,6 +242,17 @@ pub trait View {
     /// Allows accessing specific view type methods from trait object
     fn as_any(&self) -> &dyn std::any::Any;
 
+    /// The container interface of this view, if it is one (Borland:
+    /// `dynamic_cast<TGroup*>`). Containers built on `Group` return `Some`;
+    /// leaf views keep the default `None`. `Application::exec_view` uses it
+    /// to read a modal view's end state without knowing its concrete type.
+    fn as_group(&self) -> Option<&dyn crate::views::group::GroupLike> {
+        None
+    }
+    fn as_group_mut(&mut self) -> Option<&mut dyn crate::views::group::GroupLike> {
+        None
+    }
+
     /// Downcast to concrete type (mutable)
     /// Allows accessing specific view type methods from trait object
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any;
@@ -259,31 +269,6 @@ pub trait View {
         )
     }
 
-    /// Check if this view is a default button (for Enter key handling at Dialog level)
-    /// Corresponds to Borland's TButton::amDefault flag (tbutton.cc line 239)
-    fn is_default_button(&self) -> bool {
-        false
-    }
-
-    /// Get the command ID for this button (if it's a button)
-    /// Returns None if not a button
-    /// Used by Dialog to activate default button on Enter key
-    fn button_command(&self) -> Option<u16> {
-        None
-    }
-
-    /// Set the selection index for listbox views
-    /// Only implemented by ListBox, other views ignore this
-    fn set_list_selection(&mut self, _index: usize) {
-        // Default: do nothing (not a listbox)
-    }
-
-    /// Get the selection index for listbox views
-    /// Only implemented by ListBox, other views return 0
-    fn get_list_selection(&self) -> usize {
-        0
-    }
-
     /// Get the union rect of previous and current bounds for redrawing
     /// Matches Borland: TView::locate() calculates union of old and new bounds
     /// Returns None if the view hasn't moved since last redraw
@@ -296,19 +281,6 @@ pub trait View {
     /// Matches Borland: Called after drawUnderRect completes
     fn clear_move_tracking(&mut self) {
         // Default: do nothing (no movement tracking)
-    }
-
-    /// Get the end state for modal views
-    /// Matches Borland: TGroup::endState field
-    /// Returns the command ID that ended modal execution (0 if still running)
-    fn get_end_state(&self) -> CommandId {
-        0 // Default: not ended
-    }
-
-    /// Set the end state for modal views
-    /// Called by end_modal() to signal the modal loop should exit
-    fn set_end_state(&mut self, _command: CommandId) {
-        // Default: do nothing (only modal views need this)
     }
 
     /// Convert local coordinates to global (screen) coordinates

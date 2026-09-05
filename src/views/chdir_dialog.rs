@@ -456,7 +456,7 @@ impl ChDirDialog {
 
     /// Get the end state (command that closed the dialog)
     pub fn get_end_state(&self) -> CommandId {
-        self.dialog.get_end_state()
+        self.dialog.end_state()
     }
 }
 

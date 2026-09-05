@@ -143,17 +143,6 @@ impl View for HistoryViewer {
         true
     }
 
-    fn set_list_selection(&mut self, index: usize) {
-        if index < self.items.len() {
-            let visible_rows = self.core.bounds.height_clamped() as usize;
-            self.list_state.focus_item(index, visible_rows);
-        }
-    }
-
-    fn get_list_selection(&self) -> usize {
-        self.list_state.focused.unwrap_or(0)
-    }
-
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
         use crate::core::palette::{Palette, palettes};
         Some(Palette::from_slice(palettes::CP_HISTORY_VIEWER))

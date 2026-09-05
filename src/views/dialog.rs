@@ -2,6 +2,7 @@
 
 //! Dialog view - modal window for user interaction with OK/Cancel buttons.
 
+use super::button::Button;
 use super::group::Group;
 use super::group::GroupLike;
 use super::view::View;
@@ -210,7 +211,7 @@ impl Dialog {
 
             // Check if dialog should close
             // Dialog::handle_event() calls window.end_modal() which sets the Group's end_state
-            let end_state = self.window.get_end_state();
+            let end_state = self.window.end_state();
             if end_state != 0 {
                 // Matches Borland: do { ... } while( !valid(endState) ) — a
                 // failing validator vetoes the close and re-enters the loop
@@ -219,7 +220,7 @@ impl Dialog {
                     self.result = end_state;
                     break;
                 }
-                self.window.set_end_state(0);
+                self.window.end_modal(0);
             }
 
             // Auto-dismiss: the user did not close the dialog in time, so
@@ -451,30 +452,27 @@ impl Dialog {
     /// default button while a different button owns the focus (Borland's
     /// cmGrabDefault semantics: the focused button *is* the current default).
     fn focused_child_is_button(&mut self) -> bool {
-        self.window
-            .interior_mut()
-            .focused_child()
-            .is_some_and(|child| child.is_focused() && child.button_command().is_some())
+        self.group().focused_child().is_some_and(|child| {
+            child.is_focused() && child.as_any().downcast_ref::<Button>().is_some()
+        })
     }
 
     /// Find the default button and return its command if it's enabled
     /// Returns None if no default button found or if it's disabled
     /// Matches Borland's TButton::handleEvent() cmDefault broadcast handling (tbutton.cc lines 238-244)
     fn find_default_button_command(&self) -> Option<CommandId> {
-        for i in 0..self.child_count() {
-            let child = self.child_at(i);
-            if child.is_default_button() {
-                // Check if the button can receive focus (i.e., not disabled)
-                // Borland checks: amDefault && !(state & sfDisabled)
-                if child.can_focus() {
-                    return child.button_command();
+        // Borland checks: amDefault && !(state & sfDisabled); a disabled
+        // default button yields None rather than falling through to another.
+        (0..self.child_count())
+            .filter_map(|i| self.child_at(i).as_any().downcast_ref::<Button>())
+            .find(|b| b.is_default())
+            .and_then(|b| {
+                if b.can_focus() {
+                    Some(b.command())
                 } else {
-                    // Default button is disabled
-                    return None;
+                    None
                 }
-            }
-        }
-        None
+            })
     }
 }
 
@@ -601,6 +599,21 @@ mod tests {
     use super::*;
 
     #[test]
+    fn default_button_is_found_by_downcast_not_by_view_hook() {
+        use crate::core::command::CM_OK;
+        use crate::views::static_text::StaticText;
+        let mut d = Dialog::new(Rect::new(0, 0, 40, 10), "t");
+        d.add(Box::new(StaticText::new(Rect::new(1, 1, 10, 2), "label")));
+        d.add(Box::new(Button::new(
+            Rect::new(1, 3, 12, 5),
+            "OK",
+            CM_OK,
+            true,
+        )));
+        assert_eq!(d.find_default_button_command(), Some(CM_OK));
+    }
+
+    #[test]
     fn dialog_palette_override_reaches_the_frame() {
         use crate::core::palette::palettes;
         let mut plain = Window::new(Rect::new(0, 0, 30, 8), "x"); // Blue palette
@@ -656,7 +669,7 @@ mod tests {
 
             // Dialog should NOT close (end_state should remain 0)
             assert_eq!(
-                dialog.get_end_state(),
+                dialog.end_state(),
                 0,
                 "Internal command (1000) should not close dialog"
             );
@@ -685,7 +698,7 @@ mod tests {
 
             // Dialog SHOULD close (end_state should be set to the command)
             assert_eq!(
-                dialog.get_end_state(),
+                dialog.end_state(),
                 100,
                 "Custom button command (100) should close dialog"
             );
@@ -708,7 +721,7 @@ mod tests {
             dialog.handle_event(&mut event);
 
             assert_eq!(
-                dialog.get_end_state(),
+                dialog.end_state(),
                 999,
                 "Command 999 should close dialog (< 1000)"
             );
@@ -728,7 +741,7 @@ mod tests {
             dialog.handle_event(&mut event);
 
             assert_eq!(
-                dialog.get_end_state(),
+                dialog.end_state(),
                 0,
                 "Command 1000 should not close dialog (>= 1000)"
             );
@@ -752,7 +765,7 @@ mod tests {
                 dialog.handle_event(&mut event);
 
                 assert_eq!(
-                    dialog.get_end_state(),
+                    dialog.end_state(),
                     cmd,
                     "Standard command {} should close dialog",
                     cmd
@@ -779,7 +792,7 @@ mod tests {
 
         // end_state should remain 0 because dialog is not modal
         assert_eq!(
-            dialog.get_end_state(),
+            dialog.end_state(),
             0,
             "Non-modal dialog should not set end_state"
         );
@@ -788,7 +801,7 @@ mod tests {
         let mut event = Event::command(1000);
         dialog.handle_event(&mut event);
         assert_eq!(
-            dialog.get_end_state(),
+            dialog.end_state(),
             0,
             "Non-modal dialog should not set end_state for internal commands"
         );
@@ -832,7 +845,7 @@ mod tests {
             HistoryManager::get_list(42),
             vec!["recorded entry".to_string()]
         );
-        assert_eq!(dialog.get_end_state(), CM_OK);
+        assert_eq!(dialog.end_state(), CM_OK);
     }
 
     /// CM_SHOW_HISTORY must not be swallowed by the "< 1000 closes the dialog"
@@ -849,7 +862,7 @@ mod tests {
         event.info = 42;
         dialog.handle_event(&mut event);
 
-        assert_eq!(dialog.get_end_state(), 0, "must not close the dialog");
+        assert_eq!(dialog.end_state(), 0, "must not close the dialog");
         assert_eq!(event.what, EventType::Command, "event left for modal loop");
         assert_eq!(event.command, CM_SHOW_HISTORY);
     }
@@ -888,7 +901,7 @@ mod tests {
         dialog.handle_event(&mut event);
 
         assert_eq!(
-            dialog.get_end_state(),
+            dialog.end_state(),
             CM_NO,
             "Enter must fire the focused button's command, not the flagged default"
         );
@@ -921,7 +934,7 @@ mod tests {
         dialog.handle_event(&mut event);
 
         assert_eq!(
-            dialog.get_end_state(),
+            dialog.end_state(),
             CM_OK,
             "Enter with a non-button focused must fire the default button"
         );

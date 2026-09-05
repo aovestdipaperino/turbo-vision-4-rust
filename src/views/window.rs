@@ -868,8 +868,8 @@ macro_rules! impl_view_for_window {
             $crate::impl_view_for_window!(@fwd can_focus; $($name)*);
             $crate::impl_view_for_window!(@fwd set_focus; $($name)*);
             $crate::impl_view_for_window!(@fwd window_number; $($name)*);
-            $crate::impl_view_for_window!(@fwd get_end_state; $($name)*);
-            $crate::impl_view_for_window!(@fwd set_end_state; $($name)*);
+            $crate::impl_view_for_window!(@fwd as_group; $($name)*);
+            $crate::impl_view_for_window!(@fwd as_group_mut; $($name)*);
             $crate::impl_view_for_window!(@fwd zoom; $($name)*);
             $crate::impl_view_for_window!(@fwd valid; $($name)*);
             $crate::impl_view_for_window!(@fwd set_parent_bounds; $($name)*);
@@ -891,8 +891,8 @@ macro_rules! impl_view_for_window {
     (@fwd can_focus; can_focus $($rest:ident)*) => {};
     (@fwd set_focus; set_focus $($rest:ident)*) => {};
     (@fwd window_number; window_number $($rest:ident)*) => {};
-    (@fwd get_end_state; get_end_state $($rest:ident)*) => {};
-    (@fwd set_end_state; set_end_state $($rest:ident)*) => {};
+    (@fwd as_group; as_group $($rest:ident)*) => {};
+    (@fwd as_group_mut; as_group_mut $($rest:ident)*) => {};
     (@fwd zoom; zoom $($rest:ident)*) => {};
     (@fwd valid; valid $($rest:ident)*) => {};
     (@fwd set_parent_bounds; set_parent_bounds $($rest:ident)*) => {};
@@ -952,14 +952,14 @@ macro_rules! impl_view_for_window {
             $crate::views::window::WindowLike::window(self).number()
         }
     };
-    (@fwd get_end_state;) => {
-        fn get_end_state(&self) -> $crate::core::command::CommandId {
-            $crate::views::group::GroupLike::end_state(self)
+    (@fwd as_group;) => {
+        fn as_group(&self) -> Option<&dyn $crate::views::group::GroupLike> {
+            Some(self)
         }
     };
-    (@fwd set_end_state;) => {
-        fn set_end_state(&mut self, command: $crate::core::command::CommandId) {
-            $crate::views::group::GroupLike::end_modal(self, command)
+    (@fwd as_group_mut;) => {
+        fn as_group_mut(&mut self) -> Option<&mut dyn $crate::views::group::GroupLike> {
+            Some(self)
         }
     };
     (@fwd zoom;) => {

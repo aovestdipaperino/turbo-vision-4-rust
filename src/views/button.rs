@@ -58,6 +58,17 @@ impl Button {
         }
     }
 
+    /// Whether this button was created as the dialog's default button
+    /// (Borland: `TButton::amDefault`).
+    pub fn is_default(&self) -> bool {
+        self.is_default
+    }
+
+    /// The command this button emits when pressed.
+    pub fn command(&self) -> CommandId {
+        self.command
+    }
+
     pub fn set_disabled(&mut self, disabled: bool) {
         self.set_state_flag(SF_DISABLED, disabled);
     }
@@ -352,14 +363,6 @@ impl View for Button {
         }
     }
 
-    fn is_default_button(&self) -> bool {
-        self.is_default
-    }
-
-    fn button_command(&self) -> Option<u16> {
-        Some(self.command)
-    }
-
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
         use crate::core::palette::{Palette, palettes};
         Some(Palette::from_slice(palettes::CP_BUTTON))
@@ -641,8 +644,8 @@ mod tests {
             .build();
 
         assert_eq!(button.bounds(), Rect::new(5, 10, 15, 12));
-        assert_eq!(button.is_default_button(), true);
-        assert_eq!(button.button_command(), Some(TEST_CMD));
+        assert!(button.is_default());
+        assert_eq!(button.command(), TEST_CMD);
     }
 
     #[test]
@@ -656,7 +659,7 @@ mod tests {
             .command(TEST_CMD)
             .build();
 
-        assert_eq!(button.is_default_button(), false);
+        assert!(!button.is_default());
     }
 
     #[test]
