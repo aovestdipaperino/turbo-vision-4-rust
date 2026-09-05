@@ -35,10 +35,10 @@ impl HelpToc {
         let mut dialog = Dialog::new(bounds, title);
 
         // Instructions
-        dialog.add(Box::new(StaticText::new(
+        dialog.add(StaticText::new(
             Rect::new(2, 2, bounds.width() - 4, 3),
             "Browse help topics:",
-        )));
+        ));
 
         // Create outline viewer with topic tree
         let mut outline = OutlineViewer::new(
@@ -60,10 +60,10 @@ impl HelpToc {
         }
         drop(help);
 
-        let outline_viewer_id = dialog.add(Box::new(outline));
+        let outline_viewer_id = dialog.add(outline);
 
         // Buttons
-        dialog.add(Box::new(Button::new(
+        dialog.add(Button::new(
             Rect::new(
                 bounds.width() - 24,
                 bounds.height() - 4,
@@ -73,9 +73,9 @@ impl HelpToc {
             "View",
             CM_OK,
             true,
-        )));
+        ));
 
-        dialog.add(Box::new(Button::new(
+        dialog.add(Button::new(
             Rect::new(
                 bounds.width() - 12,
                 bounds.height() - 4,
@@ -85,7 +85,7 @@ impl HelpToc {
             "Close",
             CM_CANCEL,
             false,
-        )));
+        ));
 
         Self {
             dialog,

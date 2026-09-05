@@ -539,7 +539,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
         .editor_mut()
         .set_highlighter(Box::new(PascalHighlighter::new()));
     edit_window.editor_mut().set_text(SAMPLE_PROGRAM);
-    app.desktop.add(Box::new(edit_window));
+    app.desktop.add(edit_window);
 
     // Splash-style about box: no buttons, closes itself after 3 seconds.
     // Esc dismisses it early.

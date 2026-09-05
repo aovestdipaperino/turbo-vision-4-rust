@@ -56,7 +56,7 @@ impl HelpWindow {
         ));
 
         // Insert viewer as a child of window (matches Borland's window->insert(viewer))
-        window.add(Box::new(Shared::new(Rc::clone(&viewer))));
+        window.add(Shared::new(Rc::clone(&viewer)));
 
         Self {
             window,

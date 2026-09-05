@@ -20,32 +20,32 @@ fn main() -> turbo_vision::core::error::Result<()> {
 
     let mut dialog = Dialog::new(Rect::new(10, 3, 70, 18), "Click button to change title");
 
-    dialog.add(Box::new(
+    dialog.add(
         StaticTextBuilder::new()
             .bounds(Rect::new(2, 2, 56, 6))
             .text("This demo shows dynamic dialog title updates.\n\nClick the button below to cycle through\ndifferent dialog titles.")
             .build(),
-    ));
+    );
 
-    dialog.add(Box::new(
+    dialog.add(
         ButtonBuilder::new()
             .bounds(Rect::new(15, 8, 40, 10))
             .title("Change Title")
             .command(CM_UPDATE_TITLE)
             .default(true)
             .build(),
-    ));
+    );
 
-    dialog.add(Box::new(
+    dialog.add(
         ButtonBuilder::new()
             .bounds(Rect::new(15, 11, 40, 13))
             .title("Quit")
             .command(CM_QUIT)
             .default(false)
             .build(),
-    ));
+    );
 
-    app.desktop.add(Box::new(dialog));
+    app.desktop.add(dialog);
     let dialog_index = app.desktop.child_count() - 1;
 
     let titles = [

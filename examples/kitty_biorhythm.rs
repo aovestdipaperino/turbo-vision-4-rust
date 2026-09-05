@@ -349,12 +349,12 @@ fn main() -> turbo_vision::core::error::Result<()> {
         .text(&format!("Days alive: {}", days_alive))
         .build();
 
-    window.add(Box::new(date_label));
-    window.add(Box::new(days_label));
+    window.add(date_label);
+    window.add(days_label);
 
     // Add biorhythm chart image
     let chart_view = KittyImage::from_bytes(Rect::new(2, 4, 56, 14), chart_png);
-    window.add(Box::new(chart_view));
+    window.add(chart_view);
 
     // Add legend
     let physical_label = LabelBuilder::new()
@@ -372,18 +372,18 @@ fn main() -> turbo_vision::core::error::Result<()> {
         .text(&format!("Intellectual: {:+.0}%", intellectual * 100.0))
         .build();
 
-    window.add(Box::new(physical_label));
-    window.add(Box::new(emotional_label));
-    window.add(Box::new(intellectual_label));
+    window.add(physical_label);
+    window.add(emotional_label);
+    window.add(intellectual_label);
 
     // Color legend
     let legend_label = LabelBuilder::new()
         .bounds(Rect::new(2, 16, 56, 16))
         .text("Red=Physical  Green=Emotional  Blue=Intellectual")
         .build();
-    window.add(Box::new(legend_label));
+    window.add(legend_label);
 
-    app.desktop.add(Box::new(window));
+    app.desktop.add(window);
 
     // Run the application
     app.running = true;

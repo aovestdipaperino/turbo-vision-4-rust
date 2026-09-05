@@ -64,7 +64,9 @@ impl Group {
         }
     }
 
-    pub fn add(&mut self, mut view: Box<dyn View>) -> ViewId {
+    /// Add an already boxed child. `GroupLike::add` takes any view and boxes
+    /// it; this is the primitive underneath.
+    pub fn add_boxed(&mut self, mut view: Box<dyn View>) -> ViewId {
         // Convert child's bounds from relative to absolute coordinates
         // Child bounds are specified relative to this Group's interior
         let child_bounds = view.bounds();
@@ -798,8 +800,18 @@ pub trait GroupLike: View {
 
     // ---- child access, forwarded to Group's inherent methods ----
 
-    fn add(&mut self, view: Box<dyn View>) -> ViewId {
-        self.group_mut().add(view)
+    /// Add a child (Borland: `TGroup::insert`). Takes any view; a
+    /// `Box<dyn View>` is accepted too, so older `add(Box::new(v))` calls
+    /// still compile.
+    fn add<V: View + 'static>(&mut self, view: V) -> ViewId
+    where
+        Self: Sized,
+    {
+        self.add_boxed(Box::new(view))
+    }
+    /// The object-safe primitive behind `add`.
+    fn add_boxed(&mut self, view: Box<dyn View>) -> ViewId {
+        self.group_mut().add_boxed(view)
     }
     fn child_count(&self) -> usize {
         self.group().len()
@@ -836,7 +848,7 @@ pub trait GroupLike: View {
     where
         Self: Sized,
     {
-        super::handle::Handle::from_id(self.add(Box::new(view)))
+        super::handle::Handle::from_id(self.add_boxed(Box::new(view)))
     }
     fn get<T: View + 'static>(&self, handle: super::handle::Handle<T>) -> Option<&T>
     where
@@ -964,6 +976,16 @@ impl Default for GroupBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn add_accepts_unboxed_and_boxed_views() {
+        use crate::views::static_text::StaticText;
+        let mut g = Group::new(Rect::new(0, 0, 40, 10));
+        g.add(StaticText::new(Rect::new(0, 0, 5, 1), "a"));
+        let boxed: Box<dyn View> = Box::new(StaticText::new(Rect::new(0, 1, 5, 2), "b"));
+        g.add(boxed);
+        assert_eq!(g.len(), 2);
+    }
 
     #[test]
     fn group_like_handle_event_dispatches_to_the_outer_override() {
@@ -1131,7 +1153,7 @@ mod tests {
         let mut group = Group::new(Rect::new(0, 0, 80, 25));
         let child = RecorderView::new(Rect::new(0, 0, 10, 5));
         let events = child.events.clone();
-        group.add(Box::new(child));
+        group.add(child);
         group.set_initial_focus();
 
         // MouseDown on empty group area (outside the child at 0,0-10,5)
@@ -1154,17 +1176,17 @@ mod tests {
         let mut group = Group::new(Rect::new(0, 0, 40, 20));
 
         // Fixed child (grow_mode = 0, Borland default)
-        group.add(Box::new(RecorderView::new(Rect::new(1, 1, 11, 3))));
+        group.add(RecorderView::new(Rect::new(1, 1, 11, 3)));
 
         // Right/bottom-growing child (gfGrowHiX | gfGrowHiY)
         let mut growing = RecorderView::new(Rect::new(1, 5, 11, 7));
         growing.set_grow_mode(GF_GROW_HI_X | GF_GROW_HI_Y);
-        group.add(Box::new(growing));
+        group.add(growing);
 
         // Fully growing child (gfGrowAll — moves with the far edge)
         let mut all = RecorderView::new(Rect::new(30, 15, 39, 19));
         all.set_grow_mode(GF_GROW_ALL);
-        group.add(Box::new(all));
+        group.add(all);
 
         // Resize the group: +10 wide, +5 tall (no move)
         group.set_bounds(Rect::new(0, 0, 50, 25));
@@ -1188,9 +1210,9 @@ mod tests {
         use crate::core::state::SF_FOCUSED;
 
         let mut group = Group::new(Rect::new(0, 0, 80, 25));
-        group.add(Box::new(RecorderView::new(Rect::new(0, 0, 10, 2))));
-        group.add(Box::new(RecorderView::new(Rect::new(0, 3, 10, 5))));
-        group.add(Box::new(RecorderView::new(Rect::new(0, 6, 10, 8))));
+        group.add(RecorderView::new(Rect::new(0, 0, 10, 2)));
+        group.add(RecorderView::new(Rect::new(0, 3, 10, 5)));
+        group.add(RecorderView::new(Rect::new(0, 6, 10, 8)));
 
         group.set_focus_to(1);
         assert!(group.child_at(1).is_focused());
@@ -1241,13 +1263,13 @@ mod tests {
 
         let mut group = Group::new(Rect::new(0, 0, 80, 25));
         // First child consumes broadcasts
-        group.add(Box::new(Consumer {
+        group.add(Consumer {
             core: ViewCore::new(Rect::new(0, 0, 5, 1)),
-        }));
+        });
         // Second child records what it receives
         let recorder = RecorderView::new(Rect::new(0, 2, 5, 3));
         let events = recorder.events.clone();
-        group.add(Box::new(recorder));
+        group.add(recorder);
 
         let mut event = Event::broadcast(9999);
         group.handle_event(&mut event);
@@ -1330,13 +1352,13 @@ mod tests {
         let mut group = Group::new(Rect::new(0, 0, 50, 50));
 
         // Child 1: Inside (10, 10, 20, 20) -> absolute (10, 10, 20, 20)
-        group.add(Box::new(DrawCountView::new(Rect::new(10, 10, 20, 20))));
+        group.add(DrawCountView::new(Rect::new(10, 10, 20, 20)));
 
         // Child 2: Completely outside (100, 100, 110, 110) -> absolute (100, 100, 110, 110)
-        group.add(Box::new(DrawCountView::new(Rect::new(100, 100, 110, 110))));
+        group.add(DrawCountView::new(Rect::new(100, 100, 110, 110)));
 
         // Child 3: Partially outside (40, 40, 60, 60) -> absolute (40, 40, 60, 60)
-        group.add(Box::new(DrawCountView::new(Rect::new(40, 40, 60, 60))));
+        group.add(DrawCountView::new(Rect::new(40, 40, 60, 60)));
 
         assert_eq!(group.children.len(), 3);
 
@@ -1434,30 +1456,30 @@ mod tests {
         use crate::core::geometry::Rect;
 
         let mut group = Group::new(Rect::new(0, 0, 80, 25));
-        let id1 = group.add(Box::new(crate::views::background::Background::new(
+        let id1 = group.add(crate::views::background::Background::new(
             Rect::new(0, 0, 10, 5),
             ' ',
             crate::core::palette::Attr::new(
                 crate::core::palette::TvColor::White,
                 crate::core::palette::TvColor::Blue,
             ),
-        )));
-        let id2 = group.add(Box::new(crate::views::background::Background::new(
+        ));
+        let id2 = group.add(crate::views::background::Background::new(
             Rect::new(0, 0, 10, 5),
             ' ',
             crate::core::palette::Attr::new(
                 crate::core::palette::TvColor::White,
                 crate::core::palette::TvColor::Blue,
             ),
-        )));
-        let id3 = group.add(Box::new(crate::views::background::Background::new(
+        ));
+        let id3 = group.add(crate::views::background::Background::new(
             Rect::new(0, 0, 10, 5),
             ' ',
             crate::core::palette::Attr::new(
                 crate::core::palette::TvColor::White,
                 crate::core::palette::TvColor::Blue,
             ),
-        )));
+        ));
 
         // Bring first child to front
         group.bring_to_front(0);
@@ -1483,30 +1505,30 @@ mod tests {
         use crate::core::geometry::Rect;
 
         let mut group = Group::new(Rect::new(0, 0, 80, 25));
-        let id1 = group.add(Box::new(crate::views::background::Background::new(
+        let id1 = group.add(crate::views::background::Background::new(
             Rect::new(0, 0, 10, 5),
             ' ',
             crate::core::palette::Attr::new(
                 crate::core::palette::TvColor::White,
                 crate::core::palette::TvColor::Blue,
             ),
-        )));
-        let id2 = group.add(Box::new(crate::views::background::Background::new(
+        ));
+        let id2 = group.add(crate::views::background::Background::new(
             Rect::new(0, 0, 10, 5),
             ' ',
             crate::core::palette::Attr::new(
                 crate::core::palette::TvColor::White,
                 crate::core::palette::TvColor::Blue,
             ),
-        )));
-        let id3 = group.add(Box::new(crate::views::background::Background::new(
+        ));
+        let id3 = group.add(crate::views::background::Background::new(
             Rect::new(0, 0, 10, 5),
             ' ',
             crate::core::palette::Attr::new(
                 crate::core::palette::TvColor::White,
                 crate::core::palette::TvColor::Blue,
             ),
-        )));
+        ));
 
         // Send last child to back (position 1, after index 0)
         group.send_to_back(2);

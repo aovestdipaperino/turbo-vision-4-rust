@@ -24,6 +24,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   three methods for its windows.
 
 ### Changed (breaking)
+- **`add` takes any view.** `GroupLike::add`, `Desktop::add`,
+  `Application::exec_view` and `add_overlay_widget` accept `impl View`
+  (`impl IdleView` for overlays); `Box<dyn View>` still works because a boxed
+  view is itself a `View`, so `add(Box::new(v))` keeps compiling. The boxed
+  primitive is `add_boxed`.
 - **`InputLine` owns its text.** `InputLine::new(bounds, max_length)` and
   `with_validator(bounds, max_length, validator)` drop the
   `Rc<RefCell<String>>` parameter; `InputLineBuilder::text(..)` replaces

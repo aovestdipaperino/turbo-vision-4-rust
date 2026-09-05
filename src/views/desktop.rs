@@ -3,7 +3,7 @@
 //! Desktop view - main workspace for managing application windows.
 
 use super::background::Background;
-use super::group::Group;
+use super::group::{Group, GroupLike};
 use super::view::{View, ViewCore, ViewId};
 use crate::core::event::Event;
 use crate::core::geometry::Rect;
@@ -50,8 +50,10 @@ impl Desktop {
         // NOTE: We don't set owner pointer to avoid unsafe casting
     }
 
-    pub fn add(&mut self, mut view: Box<dyn View>) -> ViewId {
+    /// Add a window (Borland: `TDeskTop::insert`). Takes any view.
+    pub fn add<V: View + 'static>(&mut self, view: V) -> ViewId {
         use crate::core::state::{OF_CENTER_X, OF_CENTER_Y, OF_CENTERED};
+        let mut view: Box<dyn View> = Box::new(view);
 
         // Set parent bounds for safe drag limit resolution
         view.set_parent_bounds(self.bounds());
@@ -66,7 +68,7 @@ impl Desktop {
             self.center_view(&mut *view, options);
         }
 
-        let view_id = self.children.add(view);
+        let view_id = self.children.add_boxed(view);
 
         // Constrain window to Desktop bounds AFTER Group::add() has converted
         // relative bounds to absolute. Constraining before the conversion would
@@ -173,7 +175,7 @@ impl Desktop {
 
     /// Add a window and get a typed handle to it back; see `GroupLike::add_typed`.
     pub fn add_typed<T: View + 'static>(&mut self, view: T) -> super::handle::Handle<T> {
-        super::handle::Handle::from_id(self.add(Box::new(view)))
+        super::handle::Handle::from_id(self.add(view))
     }
 
     /// The window behind a typed handle, if it is still on the desktop.
@@ -838,9 +840,9 @@ mod tests {
     fn test_bring_to_front_by_view_id() {
         let mut desktop = Desktop::new(Rect::new(0, 1, 80, 24));
 
-        let id1 = desktop.add(Box::new(Window::new(Rect::new(5, 5, 30, 15), "Win 1")));
-        let id2 = desktop.add(Box::new(Window::new(Rect::new(10, 6, 35, 16), "Win 2")));
-        let _id3 = desktop.add(Box::new(Window::new(Rect::new(15, 7, 40, 17), "Win 3")));
+        let id1 = desktop.add(Window::new(Rect::new(5, 5, 30, 15), "Win 1"));
+        let id2 = desktop.add(Window::new(Rect::new(10, 6, 35, 16), "Win 2"));
+        let _id3 = desktop.add(Window::new(Rect::new(15, 7, 40, 17), "Win 3"));
 
         // Win 3 is on top (last added). Bring Win 1 to front.
         assert!(desktop.bring_to_front(id1));
@@ -860,8 +862,8 @@ mod tests {
         // index, so removing a lower sibling made it remove the wrong window
         let mut desktop = Desktop::new(Rect::new(0, 1, 80, 24));
 
-        let id1 = desktop.add(Box::new(Window::new(Rect::new(5, 5, 30, 15), "Win 1")));
-        let modal_id = desktop.add(Box::new(Window::new(Rect::new(10, 6, 35, 16), "Modal")));
+        let id1 = desktop.add(Window::new(Rect::new(5, 5, 30, 15), "Win 1"));
+        let modal_id = desktop.add(Window::new(Rect::new(10, 6, 35, 16), "Modal"));
         assert_eq!(desktop.top_view_id(), Some(modal_id));
 
         // Removing a lower sibling must not disturb identity lookups
@@ -885,8 +887,8 @@ mod tests {
         w1.set_number(1);
         let mut w2 = Window::new(Rect::new(10, 6, 35, 16), "Two");
         w2.set_number(2);
-        let id1 = desktop.add(Box::new(w1));
-        let _id2 = desktop.add(Box::new(w2));
+        let id1 = desktop.add(w1);
+        let _id2 = desktop.add(w2);
 
         // Window 2 is on top; broadcast selects window 1
         let mut event = Event::broadcast_with_info(CM_SELECT_WINDOW_NUM, 1);
@@ -910,7 +912,7 @@ mod tests {
             let mut w = Window::new(Rect::new(i, i, i + 20, i + 10), "w");
             let opts = w.options();
             w.set_options(opts | OF_TILEABLE);
-            desktop.add(Box::new(w));
+            desktop.add(w);
         }
         desktop.tile();
 
@@ -933,7 +935,7 @@ mod tests {
             let mut w = Window::new(Rect::new(i, i, i + 20, i + 10), "w");
             let opts = w.options();
             w.set_options(opts | OF_TILEABLE);
-            desktop.add(Box::new(w));
+            desktop.add(w);
         }
         desktop.cascade();
 

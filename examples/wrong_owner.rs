@@ -36,9 +36,9 @@ fn main() -> turbo_vision::core::error::Result<()> {
         .title("~T~est Button")
         .command(CMD_TEST)
         .build();
-    window.add(Box::new(button));
+    window.add(button);
 
-    app.desktop.add(Box::new(window));
+    app.desktop.add(window);
     app.run();
 
     Ok(())

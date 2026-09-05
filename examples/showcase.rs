@@ -480,8 +480,8 @@ fn show_ascii_table(app: &mut Application) {
     // ASCII table fills the interior (coordinates relative to window interior, which starts at 0,0)
     let ascii_table = AsciiTable::new(Rect::new(0, 0, win_width - 2, win_height - 2));
 
-    window.add(Box::new(ascii_table));
-    app.desktop.add(Box::new(window));
+    window.add(ascii_table);
+    app.desktop.add(window);
 }
 
 // Calculator Implementation
@@ -762,7 +762,7 @@ fn show_calculator_placeholder(app: &mut Application) {
 
     // Add display at top - moved 1 row up and 1 to the left
     let display = CalcDisplay::new(Rect::new(2, 1, 2 + display_len, 2));
-    dialog.add(Box::new(display));
+    dialog.add(display);
 
     // Add buttons in 4x5 grid
     let button_labels = [
@@ -785,14 +785,14 @@ fn show_calculator_placeholder(app: &mut Application) {
         button.set_broadcast(true);
         button.set_selectable(false);
         writeln!(log, "Adding button {}: '{}'", i, button_labels[i as usize]).unwrap();
-        dialog.add(Box::new(button));
+        dialog.add(button);
     }
 
     dialog.set_initial_focus();
 
     // Add to desktop as non-modal window (like Borland does)
     writeln!(log, "Adding dialog to desktop...").unwrap();
-    app.desktop.add(Box::new(dialog));
+    app.desktop.add(dialog);
     writeln!(log, "=== show_calculator_placeholder DONE ===\n").unwrap();
 }
 
@@ -1104,9 +1104,9 @@ fn show_calendar_placeholder(app: &mut Application) {
         .build();
 
     let calendar_view = CalendarView::new(Rect::new(0, 0, 21, 9));
-    window.add(Box::new(calendar_view));
+    window.add(calendar_view);
 
-    app.desktop.add(Box::new(window));
+    app.desktop.add(window);
 }
 
 // Puzzle Game Implementation
@@ -1403,9 +1403,9 @@ fn show_puzzle_placeholder(app: &mut Application) {
     // Puzzle view fills interior (window 20x6 - frame 2x2 = interior 18x4)
     // Coordinates relative to window interior (starts at 0,0)
     let puzzle_view = PuzzleView::new(Rect::new(0, 0, 18, 4));
-    window.add(Box::new(puzzle_view));
+    window.add(puzzle_view);
 
-    app.desktop.add(Box::new(window));
+    app.desktop.add(window);
 }
 
 fn show_open_file_dialog(app: &mut Application, crab: &Rc<RefCell<CrabWidget>>) {
@@ -1546,7 +1546,7 @@ fn init_application()
         width - CrabWidget::WIDTH,
         height - 1,
     )));
-    app.add_overlay_widget(Box::new(Shared::new(crab_widget.clone())));
+    app.add_overlay_widget(Shared::new(crab_widget.clone()));
 
     Ok((app, clock, crab_widget))
 }

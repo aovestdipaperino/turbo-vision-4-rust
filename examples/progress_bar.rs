@@ -116,25 +116,20 @@ fn main() -> turbo_vision::core::error::Result<()> {
         .marquee()
         .build();
 
-    app.add_overlay_widget(Box::new(DemoRow::new(
+    app.add_overlay_widget(DemoRow::new(
         4,
         "Smooth, percentage on:",
         with_percent,
         true,
-    )));
-    app.add_overlay_widget(Box::new(DemoRow::new(
+    ));
+    app.add_overlay_widget(DemoRow::new(
         6,
         "Smooth, percentage off:",
         without_percent,
         true,
-    )));
-    app.add_overlay_widget(Box::new(DemoRow::new(
-        8,
-        "ASCII, fixed caption:",
-        captioned,
-        true,
-    )));
-    app.add_overlay_widget(Box::new(DemoRow::new(10, "Marquee:", marquee, false)));
+    ));
+    app.add_overlay_widget(DemoRow::new(8, "ASCII, fixed caption:", captioned, true));
+    app.add_overlay_widget(DemoRow::new(10, "Marquee:", marquee, false));
 
     let (w, h) = app.terminal.size();
     app.set_status_line(StatusLine::new(

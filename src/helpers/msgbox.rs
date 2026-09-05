@@ -118,7 +118,7 @@ pub fn message_box_rect(app: &mut Application, bounds: Rect, msg: &str, options:
         bounds.height() - 1
     };
     let text_bounds = Rect::new(1, 1, bounds.width() - 2, text_bottom);
-    dialog.add(Box::new(StaticText::new(text_bounds, msg)));
+    dialog.add(StaticText::new(text_bounds, msg));
 
     // Collect buttons to add
     let button_specs = [
@@ -151,7 +151,7 @@ pub fn message_box_rect(app: &mut Application, bounds: Rect, msg: &str, options:
         // Position button
         let button_bounds = Rect::new(x, y, x + 10, y + 2);
         button.set_bounds(button_bounds);
-        dialog.add(Box::new(button));
+        dialog.add(button);
         x += 12; // Button width (10) + spacing (2)
     }
 
@@ -217,7 +217,7 @@ pub fn input_box_rect(
     // Add label (if provided)
     if !label.is_empty() {
         let label_bounds = Rect::new(2, 2, 2 + label.len() as i16 + 1, 3);
-        dialog.add(Box::new(StaticText::new(label_bounds, label)));
+        dialog.add(StaticText::new(label_bounds, label));
     }
 
     // Add input line (positioned after label)
@@ -243,7 +243,7 @@ pub fn input_box_rect(
         CM_OK,
         true, // default button
     );
-    dialog.add(Box::new(ok_button));
+    dialog.add(ok_button);
 
     // Add Cancel button
     let cancel_button = Button::new(
@@ -257,7 +257,7 @@ pub fn input_box_rect(
         CM_CANCEL,
         false,
     );
-    dialog.add(Box::new(cancel_button));
+    dialog.add(cancel_button);
 
     dialog.set_initial_focus();
     let result = dialog.execute(app);

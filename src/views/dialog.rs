@@ -479,13 +479,8 @@ mod tests {
         use crate::core::command::CM_OK;
         use crate::views::static_text::StaticText;
         let mut d = Dialog::new(Rect::new(0, 0, 40, 10), "t");
-        d.add(Box::new(StaticText::new(Rect::new(1, 1, 10, 2), "label")));
-        d.add(Box::new(Button::new(
-            Rect::new(1, 3, 12, 5),
-            "OK",
-            CM_OK,
-            true,
-        )));
+        d.add(StaticText::new(Rect::new(1, 1, 10, 2), "label"));
+        d.add(Button::new(Rect::new(1, 3, 12, 5), "OK", CM_OK, true));
         assert_eq!(d.find_default_button_command(), Some(CM_OK));
     }
 
@@ -704,7 +699,7 @@ mod tests {
             let mut input = InputLine::new(Rect::new(2, 2, 28, 3), 32);
             input.set_text(text);
             let input = dialog.add_typed(input);
-            dialog.add(Box::new(History::new(Point::new(30, 2), 42, input)));
+            dialog.add(History::new(Point::new(30, 2), 42, input));
             dialog
         };
 
@@ -760,18 +755,13 @@ mod tests {
         let state = dialog.state();
         dialog.set_state(state | SF_MODAL);
 
-        dialog.add(Box::new(Button::new(
+        dialog.add(Button::new(
             Rect::new(2, 2, 12, 4),
             "OK",
             CM_OK,
             true, // flagged default
-        )));
-        dialog.add(Box::new(Button::new(
-            Rect::new(14, 2, 24, 4),
-            "No",
-            CM_NO,
-            false,
-        )));
+        ));
+        dialog.add(Button::new(Rect::new(14, 2, 24, 4), "No", CM_NO, false));
         dialog.set_focus_to_child(1); // focus the non-default button
 
         let mut event = Event::keyboard(KB_ENTER);
@@ -799,13 +789,8 @@ mod tests {
         let state = dialog.state();
         dialog.set_state(state | SF_MODAL);
 
-        dialog.add(Box::new(StaticText::new(Rect::new(2, 2, 20, 3), "Hello")));
-        dialog.add(Box::new(Button::new(
-            Rect::new(2, 4, 12, 6),
-            "OK",
-            CM_OK,
-            true,
-        )));
+        dialog.add(StaticText::new(Rect::new(2, 2, 20, 3), "Hello"));
+        dialog.add(Button::new(Rect::new(2, 4, 12, 6), "OK", CM_OK, true));
 
         let mut event = Event::keyboard(KB_ENTER);
         dialog.handle_event(&mut event);

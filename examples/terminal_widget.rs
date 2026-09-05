@@ -128,35 +128,35 @@ fn create_dialog() -> (Box<Dialog>, ViewId) {
         .build();
 
     // Add control buttons
-    dialog.add(Box::new(
+    dialog.add(
         ButtonBuilder::new()
             .bounds(Rect::new(54, 15, 66, 17))
             .title("~Q~uit")
             .command(CM_QUIT)
             .build(),
-    ));
-    dialog.add(Box::new(
+    );
+    dialog.add(
         ButtonBuilder::new()
             .bounds(Rect::new(2, 15, 14, 17))
             .title("~S~tart Log")
             .command(CM_START_LOG)
             .build(),
-    ));
-    dialog.add(Box::new(
+    );
+    dialog.add(
         ButtonBuilder::new()
             .bounds(Rect::new(16, 15, 28, 17))
             .title("S~t~op Log")
             .command(CM_STOP_LOG)
             .build(),
-    ));
+    );
     command_set::disable_command(CM_STOP_LOG);
-    dialog.add(Box::new(
+    dialog.add(
         ButtonBuilder::new()
             .bounds(Rect::new(30, 15, 42, 17))
             .title("~C~lear Log")
             .command(CM_CLEAR_LOG)
             .build(),
-    ));
+    );
     command_set::disable_command(CM_CLEAR_LOG);
 
     // Create terminal widget with welcome message
@@ -168,7 +168,7 @@ fn create_dialog() -> (Box<Dialog>, ViewId) {
     terminal.append_text("Use arrow keys or PgUp/PgDn to scroll.");
     terminal.append_text("");
 
-    let term_vid = dialog.add(Box::new(terminal));
+    let term_vid = dialog.add(terminal);
 
     (Box::new(dialog), term_vid)
 }

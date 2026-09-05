@@ -60,7 +60,7 @@
 //!
 //! let mut window = Window::new(Rect::new(10, 5, 50, 15), "My Window");
 //! let button = Button::new(Rect::new(15, 5, 25, 7), "OK", CM_OK, true);
-//! window.add(Box::new(button));
+//! window.add(button);
 //! ```
 
 pub mod ansi_background;

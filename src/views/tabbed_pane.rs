@@ -634,6 +634,7 @@ impl Default for TabbedPaneBuilder {
 mod tests {
     use super::*;
     use crate::core::event::{KB_DOWN, KB_TAB};
+    use crate::views::group::GroupLike;
     use crossterm::event::KeyModifiers;
 
     fn pane() -> TabbedPane {
@@ -858,10 +859,10 @@ mod tests {
         let mut p = pane();
         p.page_mut(0)
             .unwrap()
-            .add(Box::new(crate::views::static_text::StaticText::new(
+            .add(crate::views::static_text::StaticText::new(
                 Rect::new(1, 1, 10, 2),
                 "hello",
-            )));
+            ));
         p.set_active(2);
         p.set_active(0);
         assert_eq!(p.page_mut(0).unwrap().len(), 1);

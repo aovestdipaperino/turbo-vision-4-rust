@@ -335,7 +335,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
     // Create animated crab widget on the right side of the status bar
     // Add it as an overlay widget so it continues animating even during modal dialogs
     let crab_widget = CrabWidget::new(width - 11, height - 1);
-    app.add_overlay_widget(Box::new(crab_widget));
+    app.add_overlay_widget(crab_widget);
 
     // Track which background type we're using
     let mut using_ansi = find_logo_file().is_some();

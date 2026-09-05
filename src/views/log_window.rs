@@ -18,7 +18,7 @@
 //!     .title("Log")
 //!     .min_level(tracing::Level::DEBUG)
 //!     .build();
-//! app.desktop.add(Box::new(log_window));
+//! app.desktop.add(log_window);
 //!
 //! // Now tracing macros route here:
 //! tracing::info!("Application started");
@@ -281,7 +281,7 @@ impl LogWindowBuilder {
         widget.set_auto_scroll(true);
 
         let widget = Rc::new(RefCell::new(widget));
-        window.add(Box::new(Shared::new(Rc::clone(&widget))));
+        window.add(Shared::new(Rc::clone(&widget)));
 
         let (sender, receiver) = mpsc::channel();
 

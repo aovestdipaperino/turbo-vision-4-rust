@@ -41,45 +41,39 @@ impl ColorDialog {
         let mut dialog = Dialog::new(bounds, title);
 
         // Instructions
-        dialog.add(Box::new(StaticText::new(
+        dialog.add(StaticText::new(
             Rect::new(2, 2, bounds.width() - 4, 3),
             "Select foreground and background colors:",
-        )));
+        ));
 
         // Foreground color selector
-        dialog.add(Box::new(StaticText::new(
-            Rect::new(2, 4, 20, 5),
-            "Foreground:",
-        )));
+        dialog.add(StaticText::new(Rect::new(2, 4, 20, 5), "Foreground:"));
 
         let initial_byte = initial_attr.to_u8();
         let fg_color = std::rc::Rc::new(std::cell::RefCell::new(initial_byte & 0x0F));
         let bg_color = std::rc::Rc::new(std::cell::RefCell::new((initial_byte >> 4) & 0x0F));
 
         let fg_selector = ColorSelector::with_shared(Rect::new(2, 5, 26, 8), fg_color.clone());
-        let fg_selector_id = dialog.add(Box::new(fg_selector));
+        let fg_selector_id = dialog.add(fg_selector);
 
         // Background color selector
-        dialog.add(Box::new(StaticText::new(
-            Rect::new(2, 9, 20, 10),
-            "Background:",
-        )));
+        dialog.add(StaticText::new(Rect::new(2, 9, 20, 10), "Background:"));
 
         let bg_selector = ColorSelector::with_shared(Rect::new(2, 10, 26, 13), bg_color.clone());
-        let bg_selector_id = dialog.add(Box::new(bg_selector));
+        let bg_selector_id = dialog.add(bg_selector);
 
         // Preview area (would show the colors in action)
-        dialog.add(Box::new(StaticText::new(
+        dialog.add(StaticText::new(
             Rect::new(28, 5, bounds.width() - 4, 6),
             "Preview:",
-        )));
-        dialog.add(Box::new(StaticText::new(
+        ));
+        dialog.add(StaticText::new(
             Rect::new(28, 6, bounds.width() - 4, 8),
             "Sample text with\nselected colors",
-        )));
+        ));
 
         // Buttons
-        dialog.add(Box::new(Button::new(
+        dialog.add(Button::new(
             Rect::new(
                 bounds.width() - 24,
                 bounds.height() - 4,
@@ -89,9 +83,9 @@ impl ColorDialog {
             "OK",
             CM_OK,
             true,
-        )));
+        ));
 
-        dialog.add(Box::new(Button::new(
+        dialog.add(Button::new(
             Rect::new(
                 bounds.width() - 12,
                 bounds.height() - 4,
@@ -101,7 +95,7 @@ impl ColorDialog {
             "Cancel",
             CM_CANCEL,
             false,
-        )));
+        ));
 
         Self {
             dialog,

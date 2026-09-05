@@ -17,11 +17,11 @@ fn main() -> turbo_vision::core::error::Result<()> {
         turbo_vision::core::command::CM_OK,
         true,
     );
-    dialog.add(Box::new(button));
+    dialog.add(button);
 
     // Create the application and add the dialog to its desktop
     let mut app = Application::new()?;
-    app.desktop.add(Box::new(dialog));
+    app.desktop.add(dialog);
 
     // Event loop
     app.running = true;

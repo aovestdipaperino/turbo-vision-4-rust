@@ -80,7 +80,7 @@ impl EditWindow {
 
         // IMPORTANT: Insert editor into interior (relative to interior bounds)
         // But insert scrollbars/indicator as frame children (relative to window frame)
-        window.add(Box::new(Shared::new(Rc::clone(&editor))));
+        window.add(Shared::new(Rc::clone(&editor)));
         let h_scrollbar_idx =
             window.add_frame_child(Box::new(Shared::new(Rc::clone(&h_scrollbar))));
         let v_scrollbar_idx =

@@ -77,21 +77,21 @@ fn main() -> turbo_vision::core::error::Result<()> {
     pane.add_page("~P~rogress", progress.page);
     pane.add_page("~F~iles", build_table_page(&pane));
 
-    let pane_id = dialog.add(Box::new(pane));
+    let pane_id = dialog.add(pane);
 
-    dialog.add(Box::new(StaticText::new(
+    dialog.add(StaticText::new(
         Rect::new(2, 17, 64, 18),
         "F6 switches pages. F4 opens a list. Tab moves on.",
-    )));
-    dialog.add(Box::new(Button::new(
+    ));
+    dialog.add(Button::new(
         Rect::new(26, 18, 40, 20),
         "Close",
         CM_QUIT,
         true,
-    )));
+    ));
 
     dialog.set_initial_focus();
-    app.desktop.add(Box::new(dialog));
+    app.desktop.add(dialog);
 
     let handles = Handles {
         pane: pane_id,
@@ -116,51 +116,42 @@ fn main() -> turbo_vision::core::error::Result<()> {
 fn build_progress_page(pane: &TabbedPane) -> ProgressPage {
     let mut page = Group::new(pane.page_area());
 
-    page.add(Box::new(StaticText::new(
-        Rect::new(1, 0, 20, 1),
-        "Bar style:",
-    )));
+    page.add(StaticText::new(Rect::new(1, 0, 20, 1), "Bar style:"));
     let style_combo = ComboBox::with_items(
         Rect::new(18, 0, 38, 1),
         COMBO_STYLE,
         vec!["Smooth".into(), "Blocks".into(), "ASCII".into()],
     );
     let style = style_combo.state();
-    page.add(Box::new(style_combo));
+    page.add(style_combo);
 
-    page.add(Box::new(StaticText::new(Rect::new(1, 2, 20, 3), "Mode:")));
+    page.add(StaticText::new(Rect::new(1, 2, 20, 3), "Mode:"));
     let mode_combo = ComboBox::with_items(
         Rect::new(18, 2, 38, 3),
         COMBO_MODE,
         vec!["Determinate".into(), "Marquee".into()],
     );
     let mode = mode_combo.state();
-    page.add(Box::new(mode_combo));
+    page.add(mode_combo);
 
-    page.add(Box::new(StaticText::new(
-        Rect::new(1, 4, 20, 5),
-        "Percentage:",
-    )));
+    page.add(StaticText::new(Rect::new(1, 4, 20, 5), "Percentage:"));
     let percent_combo = ComboBox::with_items(
         Rect::new(18, 4, 38, 5),
         COMBO_PERCENT,
         vec!["Shown".into(), "Hidden".into()],
     );
     let percent = percent_combo.state();
-    page.add(Box::new(percent_combo));
+    page.add(percent_combo);
 
-    page.add(Box::new(StaticText::new(Rect::new(1, 6, 20, 7), "Target:")));
+    page.add(StaticText::new(Rect::new(1, 6, 20, 7), "Target:"));
     let mut spin = Spinner::new(Rect::new(18, 6, 30, 7), 0, 100);
     spin.set_value(35);
     spin.set_step(5);
     spin.set_suffix("%");
-    let spinner = page.add(Box::new(spin));
+    let spinner = page.add(spin);
 
-    page.add(Box::new(StaticText::new(
-        Rect::new(1, 8, 20, 9),
-        "Progress:",
-    )));
-    let bar = page.add(Box::new(ProgressBar::new(Rect::new(18, 8, 61, 9), 100)));
+    page.add(StaticText::new(Rect::new(1, 8, 20, 9), "Progress:"));
+    let bar = page.add(ProgressBar::new(Rect::new(18, 8, 61, 9), 100));
 
     page.set_initial_focus();
     ProgressPage {
@@ -177,10 +168,10 @@ fn build_progress_page(pane: &TabbedPane) -> ProgressPage {
 fn build_table_page(pane: &TabbedPane) -> Group {
     let mut page = Group::new(pane.page_area());
 
-    page.add(Box::new(StaticText::new(
+    page.add(StaticText::new(
         Rect::new(1, 0, 61, 1),
         "Arrows move the focused cell. Ctrl+Left and Ctrl+Right jump.",
-    )));
+    ));
 
     let mut table = Table::new(Rect::new(1, 2, 61, 11), 0);
     table.set_columns(vec![
@@ -217,7 +208,7 @@ fn build_table_page(pane: &TabbedPane) -> Group {
         })
         .collect(),
     );
-    page.add(Box::new(table));
+    page.add(table);
 
     page.set_initial_focus();
     page

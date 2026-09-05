@@ -53,12 +53,12 @@ fn main() -> turbo_vision::core::error::Result<()> {
         .text("macOS  : Esc-X works if Alt fails")
         .build();
 
-    window.add(Box::new(label1));
-    window.add(Box::new(label2));
-    window.add(Box::new(label3));
-    window.add(Box::new(label4));
+    window.add(label1);
+    window.add(label2);
+    window.add(label3);
+    window.add(label4);
 
-    app.desktop.add(Box::new(window));
+    app.desktop.add(window);
 
     // Run the application
     app.run();

@@ -32,43 +32,43 @@ fn main() -> turbo_vision::core::error::Result<()> {
 
     // A plain window behind the dialog, to show the frame icons.
     let window = Window::new(Rect::new(2, 2, 40, 10), "Zoom me");
-    app.desktop.add(Box::new(window));
+    app.desktop.add(window);
 
     let mut dialog = Dialog::new(Rect::new(18, 4, 80, 20), "Clusters and hints");
 
-    dialog.add(Box::new(StaticText::new(
+    dialog.add(StaticText::new(
         Rect::new(2, 1, 30, 2),
         "Style (check boxes):",
-    )));
+    ));
     let styles = CheckBoxes::new(
         Rect::new(2, 2, 24, 5),
         vec!["~B~old".into(), "~I~talic".into(), "~U~nderline".into()],
     );
     let styles_rect = Rect::new(2, 2, 24, 5);
-    dialog.add(Box::new(styles));
+    dialog.add(styles);
 
-    dialog.add(Box::new(StaticText::new(
+    dialog.add(StaticText::new(
         Rect::new(26, 1, 50, 2),
         "Align (radio buttons):",
-    )));
+    ));
     let align = RadioButtons::new(
         Rect::new(26, 2, 48, 5),
         vec!["~L~eft".into(), "~C~entre".into(), "~R~ight".into()],
     );
     let align_rect = Rect::new(26, 2, 48, 5);
-    dialog.add(Box::new(align));
+    dialog.add(align);
 
-    dialog.add(Box::new(StaticText::new(
+    dialog.add(StaticText::new(
         Rect::new(2, 7, 58, 8),
         "Rest the pointer on a cluster to raise its hint.",
-    )));
-    dialog.add(Box::new(StaticText::new(
+    ));
+    dialog.add(StaticText::new(
         Rect::new(2, 8, 58, 9),
         "The window behind has a zoom icon on its title bar.",
-    )));
+    ));
 
     let ok_rect = Rect::new(23, 11, 37, 13);
-    dialog.add(Box::new(Button::new(ok_rect, "Close", CM_QUIT, true)));
+    dialog.add(Button::new(ok_rect, "Close", CM_QUIT, true));
 
     // The tooltip is added last so it draws over everything else. Hint rects
     // are dialog-relative, the same coordinates the controls were given.
@@ -77,10 +77,10 @@ fn main() -> turbo_vision::core::error::Result<()> {
     tips.add_hint(styles_rect, "Any combination of these");
     tips.add_hint(align_rect, "Exactly one of these");
     tips.add_hint(ok_rect, "Leave the demo");
-    dialog.add(Box::new(tips));
+    dialog.add(tips);
 
     dialog.set_initial_focus();
-    app.desktop.add(Box::new(dialog));
+    app.desktop.add(dialog);
 
     let (w, h) = app.terminal.size();
     app.set_status_line(StatusLine::new(

@@ -20,12 +20,12 @@ fn main() -> turbo_vision::core::error::Result<()> {
         .build();
 
     // Add instructions
-    dialog.add(Box::new(
+    dialog.add(
         StaticTextBuilder::new()
             .bounds(Rect::new(2, 2, 64, 4))
             .text("Use arrows to navigate, Enter to toggle, → expand, ← collapse\nAlt+X to exit.")
             .build(),
-    ));
+    );
 
     // Create a sample file system tree
     let root = create_file_tree();
@@ -34,8 +34,8 @@ fn main() -> turbo_vision::core::error::Result<()> {
     let mut tree_view = OutlineViewer::new(Rect::new(2, 5, 64, 17), |name: &String| name.clone());
     tree_view.add_root(root);
 
-    dialog.add(Box::new(tree_view));
-    app.desktop.add(Box::new(dialog));
+    dialog.add(tree_view);
+    app.desktop.add(dialog);
 
     // Simple event loop
     loop {

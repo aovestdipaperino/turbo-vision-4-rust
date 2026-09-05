@@ -1036,7 +1036,7 @@ impl_view_for_window!(Window);
 ///     .title("OK")
 ///     .command(CM_OK)
 ///     .build();
-/// window.add(Box::new(ok_button));
+/// window.add(ok_button);
 /// ```
 pub struct WindowBuilder {
     bounds: Option<Rect>,
@@ -1266,9 +1266,9 @@ mod tests {
 
         // Window with a vetoing child: CM_CLOSE must NOT mark it closed
         let mut window = Window::new(Rect::new(0, 0, 40, 15), "Test");
-        window.add(Box::new(Vetoer {
+        window.add(Vetoer {
             core: ViewCore::new(Rect::new(0, 0, 5, 1)),
-        }));
+        });
         let mut event = Event::command(CM_CLOSE);
         window.handle_event(&mut event);
         assert_eq!(window.state() & SF_CLOSED, 0);

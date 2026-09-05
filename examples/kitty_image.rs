@@ -239,7 +239,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
         .bounds(Rect::new(2, 1, 56, 1))
         .text(info_text)
         .build();
-    window.add(Box::new(info_label));
+    window.add(info_label);
 
     // Add source label
     let source_text = match image_path {
@@ -250,7 +250,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
         .bounds(Rect::new(2, 2, 56, 2))
         .text(&source_text)
         .build();
-    window.add(Box::new(source_label));
+    window.add(source_label);
 
     // Load or generate image
     let png_data = match image_path {
@@ -266,16 +266,16 @@ fn main() -> turbo_vision::core::error::Result<()> {
     let image_view = KittyImage::from_bytes(Rect::new(2, 4, 56, 18), png_data)
         .background(Attr::new(TvColor::Black, TvColor::DarkGray));
 
-    window.add(Box::new(image_view));
+    window.add(image_view);
 
     // Add hint label at bottom
     let hint_label = LabelBuilder::new()
         .bounds(Rect::new(2, 19, 56, 19))
         .text("Press Alt-X or Esc to exit")
         .build();
-    window.add(Box::new(hint_label));
+    window.add(hint_label);
 
-    app.desktop.add(Box::new(window));
+    app.desktop.add(window);
 
     // Run the application
     app.running = true;

@@ -38,7 +38,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
 
     // Create and add the dialog
     let dialog = create_dialog();
-    app.desktop.add(Box::new(dialog)); // non modal dialog
+    app.desktop.add(dialog); // non modal dialog
     app.running = true; // set application running state
 
     while app.running {
@@ -104,7 +104,7 @@ Press ~E~ to enable edit commands - buttons turn green.
 Press ~D~ to disable edit commands - buttons turn gray.",
         )
         .build();
-    dialog.add(Box::new(instructions));
+    dialog.add(instructions);
 
     // Close button - add it FIRST so it gets initial focus
     let close_button = ButtonBuilder::new()
@@ -113,7 +113,7 @@ Press ~D~ to disable edit commands - buttons turn gray.",
         .command(CM_QUIT)
         .default(true)
         .build();
-    dialog.add(Box::new(close_button));
+    dialog.add(close_button);
 
     // Edit command buttons (will be initially be disabled due to command set)
     let cut_button = ButtonBuilder::new()
@@ -121,35 +121,35 @@ Press ~D~ to disable edit commands - buttons turn gray.",
         .title(" C~u~t ")
         .command(CM_CUT)
         .build();
-    dialog.add(Box::new(cut_button));
+    dialog.add(cut_button);
 
     let copy_button = ButtonBuilder::new()
         .bounds(Rect::new(15, 7, 27, 9))
         .title(" ~C~opy ")
         .command(CM_COPY)
         .build();
-    dialog.add(Box::new(copy_button));
+    dialog.add(copy_button);
 
     let paste_button = ButtonBuilder::new()
         .bounds(Rect::new(28, 7, 40, 9))
         .title(" ~P~aste ")
         .command(CM_PASTE)
         .build();
-    dialog.add(Box::new(paste_button));
+    dialog.add(paste_button);
 
     let undo_button = ButtonBuilder::new()
         .bounds(Rect::new(2, 10, 14, 12))
         .title(" ~U~ndo ")
         .command(CM_UNDO)
         .build();
-    dialog.add(Box::new(undo_button));
+    dialog.add(undo_button);
 
     let redo_button = ButtonBuilder::new()
         .bounds(Rect::new(15, 10, 27, 12))
         .title(" ~R~edo ")
         .command(CM_REDO)
         .build();
-    dialog.add(Box::new(redo_button));
+    dialog.add(redo_button);
 
     // Control buttons
     let enable_button = ButtonBuilder::new()
@@ -157,14 +157,14 @@ Press ~D~ to disable edit commands - buttons turn gray.",
         .title("~E~nable Edits")
         .command(CMD_ENABLE_EDITS)
         .build();
-    dialog.add(Box::new(enable_button));
+    dialog.add(enable_button);
 
     let disable_button = ButtonBuilder::new()
         .bounds(Rect::new(42, 10, 58, 12))
         .title("~D~isable Edits")
         .command(CMD_DISABLE_EDITS)
         .build();
-    dialog.add(Box::new(disable_button));
+    dialog.add(disable_button);
 
     // Set the UI in a known state
     command_set::disable_command(CM_COPY);

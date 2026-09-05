@@ -66,7 +66,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
         .bounds(Rect::new(2, 2, 46, 18))
         .title("Inventory (100,000 rows)")
         .build();
-    grid_window.add(Box::new(GridView::new(
+    grid_window.add(GridView::new(
         Rect::new(1, 1, 41, 14),
         vec![
             GridColumn::new("Id", 7),
@@ -76,20 +76,20 @@ fn main() -> turbo_vision::core::error::Result<()> {
         ],
         Box::new(Inventory),
         1001, // broadcast on Enter/double-click with the row in event.info
-    )));
-    app.desktop.add(Box::new(grid_window));
+    ));
+    app.desktop.add(grid_window);
 
     // Virtual list over a million items
     let mut list_window = WindowBuilder::new()
         .bounds(Rect::new(48, 4, 90, 20))
         .title("Log (1,000,000 lines)")
         .build();
-    list_window.add(Box::new(VirtualListBox::new(
+    list_window.add(VirtualListBox::new(
         Rect::new(1, 1, 39, 14),
         Box::new(Million),
         1002,
-    )));
-    app.desktop.add(Box::new(list_window));
+    ));
+    app.desktop.add(list_window);
 
     app.run();
     Ok(())

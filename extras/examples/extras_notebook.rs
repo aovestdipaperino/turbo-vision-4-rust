@@ -86,8 +86,8 @@ fn main() -> turbo_vision::core::error::Result<()> {
         )),
     );
 
-    nb_window.add(Box::new(notebook));
-    app.desktop.add(Box::new(nb_window));
+    nb_window.add(notebook);
+    app.desktop.add(nb_window);
 
     // ---- ScrollPane window ------------------------------------------------
     let mut sp_window = WindowBuilder::new()
@@ -107,8 +107,8 @@ fn main() -> turbo_vision::core::error::Result<()> {
             Rect::new(1, y, 30, y + 1),
         );
     }
-    sp_window.add(Box::new(pane));
-    app.desktop.add(Box::new(sp_window));
+    sp_window.add(pane);
+    app.desktop.add(sp_window);
 
     // ---- Event loop with a context menu ------------------------------------
     // The menu keeps state across openings so the check mark persists

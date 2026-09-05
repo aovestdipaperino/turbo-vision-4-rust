@@ -38,7 +38,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
         .title("Application Log")
         .min_level(tracing::Level::TRACE)
         .build();
-    app.desktop.add(Box::new(log_window));
+    app.desktop.add(log_window);
 
     // These go straight to the log window
     tracing::info!("Application started");

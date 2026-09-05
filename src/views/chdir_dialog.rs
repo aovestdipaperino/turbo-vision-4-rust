@@ -338,24 +338,24 @@ impl ChDirDialog {
         // Label "Directory name" - Borland: (2, 2)
         let label_bounds = Rect::new(2, 2, 20, 2);
         let dir_label = Label::new(label_bounds, "Directory ~n~ame");
-        dialog.add(Box::new(dir_label));
+        dialog.add(dir_label);
 
         // History button - adjusted: TRect( 48, 3, 51, 4 )
         // Shows a dropdown button (▼) that displays previous directories
         let history_button = History::new(Point::new(48, 3), history_id, dir_input);
-        dialog.add(Box::new(history_button));
+        dialog.add(history_button);
 
         // Vertical scrollbar - adjusted: TRect( 50, 6, 51, 16 )
         let v_scrollbar_bounds = Rect::new(50, 6, 51, 16);
         let v_scrollbar = ScrollBar::new_vertical(v_scrollbar_bounds);
         let v_scrollbar_rc = Rc::new(RefCell::new(v_scrollbar));
-        dialog.add(Box::new(Shared::new(Rc::clone(&v_scrollbar_rc))));
+        dialog.add(Shared::new(Rc::clone(&v_scrollbar_rc)));
 
         // Horizontal scrollbar - adjusted: TRect( 3, 16, 50, 17 )
         let h_scrollbar_bounds = Rect::new(3, 16, 50, 17);
         let h_scrollbar = ScrollBar::new_horizontal(h_scrollbar_bounds);
         let h_scrollbar_rc = Rc::new(RefCell::new(h_scrollbar));
-        dialog.add(Box::new(Shared::new(Rc::clone(&h_scrollbar_rc))));
+        dialog.add(Shared::new(Rc::clone(&h_scrollbar_rc)));
 
         // Directory listbox - widened: TRect( 3, 6, 50, 16 )
         let listbox_bounds = Rect::new(3, 6, 50, 16);
@@ -367,31 +367,31 @@ impl ChDirDialog {
             Rc::clone(&v_scrollbar_rc),
             Rc::clone(&h_scrollbar_rc),
         );
-        let dir_list_id = dialog.add(Box::new(shared_listbox));
+        let dir_list_id = dialog.add(shared_listbox);
 
         // Label "Directory tree" - Borland: (2, 5)
         let tree_label_bounds = Rect::new(2, 5, 20, 5);
         let tree_label = Label::new(tree_label_bounds, "Directory ~t~ree");
-        dialog.add(Box::new(tree_label));
+        dialog.add(tree_label);
 
         // OK button - adjusted: TRect( 53, 6, 63, 8 )
         let ok_bounds = Rect::new(53, 6, 63, 8);
         let ok_button = Button::new(ok_bounds, "~O~K", CM_OK, true);
-        let ok_button_id = dialog.add(Box::new(ok_button));
+        let ok_button_id = dialog.add(ok_button);
 
         // Chdir button - adjusted: TRect( 53, 9, 63, 11 )
         let chdir_bounds = Rect::new(53, 9, 63, 11);
         let mut chdir_button = Button::new(chdir_bounds, "~C~hdir", CM_CHANGE_DIR, false);
         chdir_button.set_broadcast(true); // Broadcast instead of ending dialog
         chdir_button.set_selectable(false); // Not part of focus cycle
-        let chdir_button_id = dialog.add(Box::new(chdir_button));
+        let chdir_button_id = dialog.add(chdir_button);
 
         // Revert button - adjusted: TRect( 53, 12, 63, 14 )
         let revert_bounds = Rect::new(53, 12, 63, 14);
         let mut revert_button = Button::new(revert_bounds, "~R~evert", CM_REVERT, false);
         revert_button.set_broadcast(true); // Broadcast instead of ending dialog
         revert_button.set_selectable(false); // Not part of focus cycle
-        dialog.add(Box::new(revert_button));
+        dialog.add(revert_button);
 
         // Help button is intentionally NOT implemented
         // Borland: TRect( 35, 15, 45, 17 ) - optional, requires help system

@@ -41,10 +41,10 @@
 //!         turbo_vision::core::command::CM_OK,
 //!         false
 //!     );
-//!     window.add(Box::new(button));
+//!     window.add(button);
 //!
 //!     // Add window to desktop
-//!     app.desktop.add(Box::new(window));
+//!     app.desktop.add(window);
 //!
 //!     // Run event loop
 //!     app.running = true;
@@ -137,7 +137,7 @@
 //!     Rect::new(2, 2, 38, 3),
 //!     "Are you sure you want to continue?"
 //! );
-//! dialog.add(Box::new(text));
+//! dialog.add(text);
 //!
 //! // Add OK button
 //! let ok_button = Button::new(
@@ -146,7 +146,7 @@
 //!     turbo_vision::core::command::CM_OK,
 //!     true  // default button
 //! );
-//! dialog.add(Box::new(ok_button));
+//! dialog.add(ok_button);
 //!
 //! // Add Cancel button
 //! let cancel_button = Button::new(
@@ -155,7 +155,7 @@
 //!     turbo_vision::core::command::CM_CANCEL,
 //!     false
 //! );
-//! dialog.add(Box::new(cancel_button));
+//! dialog.add(cancel_button);
 //!
 //! dialog
 //! # }

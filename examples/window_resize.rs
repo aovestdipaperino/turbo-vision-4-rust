@@ -229,8 +229,8 @@ fn create_text_window(app: &mut Application, bounds: Rect, title: &str, content:
         .with_indicator(false);
 
     text_viewer.set_text(content);
-    window.add(Box::new(text_viewer));
-    app.desktop.add(Box::new(window));
+    window.add(text_viewer);
+    app.desktop.add(window);
 }
 
 /// Create window 1 - Instructions
@@ -322,7 +322,7 @@ fn show_msg(app: &mut Application, text: &str, title: &str, dialog_width: i16, d
         .bounds(Rect::new(2, 1, dialog_width - 4, dialog_height - 6))
         .text(text)
         .build();
-    dialog.add(Box::new(text));
+    dialog.add(text);
 
     let button_width = 10;
     let button_x = (dialog_width - 2 - button_width) / 2;
@@ -337,7 +337,7 @@ fn show_msg(app: &mut Application, text: &str, title: &str, dialog_width: i16, d
         .command(CM_OK)
         .default(true)
         .build();
-    dialog.add(Box::new(button));
+    dialog.add(button);
     dialog.set_initial_focus();
 
     dialog.execute(app);

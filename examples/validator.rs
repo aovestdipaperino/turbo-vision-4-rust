@@ -65,7 +65,7 @@ fn demo_all_validators(app: &mut Application) {
         .bounds(Rect::new(2, 1, dialog_width - 4, 3))
         .text("Try typing in each field. Invalid characters are rejected.\nClick OK to validate final values.")
         .build();
-    dialog.add(Box::new(instructions));
+    dialog.add(instructions);
 
     let mut y = 4;
 
@@ -74,7 +74,7 @@ fn demo_all_validators(app: &mut Application) {
         .bounds(Rect::new(2, y, dialog_width - 4, y + 1))
         .text("=== Filter & Range Validators ===")
         .build();
-    dialog.add(Box::new(section1));
+    dialog.add(section1);
     y += 2;
 
     // Field 1: Digits only (FilterValidator)
@@ -82,7 +82,7 @@ fn demo_all_validators(app: &mut Application) {
         .bounds(Rect::new(2, y, dialog_width - 4, y + 1))
         .text("Digits only:")
         .build();
-    dialog.add(Box::new(label1));
+    dialog.add(label1);
     y += 1;
 
     let field1_validator = Rc::new(RefCell::new(FilterValidator::new("0123456789")));
@@ -100,7 +100,7 @@ fn demo_all_validators(app: &mut Application) {
         .bounds(Rect::new(2, y, dialog_width - 4, y + 1))
         .text("Number (0-100):")
         .build();
-    dialog.add(Box::new(label2));
+    dialog.add(label2);
     y += 1;
 
     let field2_validator = Rc::new(RefCell::new(RangeValidator::new(0, 100)));
@@ -118,7 +118,7 @@ fn demo_all_validators(app: &mut Application) {
         .bounds(Rect::new(2, y, dialog_width - 4, y + 1))
         .text("Number (-50 to 50):")
         .build();
-    dialog.add(Box::new(label3));
+    dialog.add(label3);
     y += 1;
 
     let field3_validator = Rc::new(RefCell::new(RangeValidator::new(-50, 50)));
@@ -136,7 +136,7 @@ fn demo_all_validators(app: &mut Application) {
         .bounds(Rect::new(2, y, dialog_width - 4, y + 1))
         .text("Hex (0x00-0xFF):")
         .build();
-    dialog.add(Box::new(label4));
+    dialog.add(label4);
     y += 1;
 
     let field4_validator = Rc::new(RefCell::new(RangeValidator::new(0, 255)));
@@ -154,7 +154,7 @@ fn demo_all_validators(app: &mut Application) {
         .bounds(Rect::new(2, y, dialog_width - 4, y + 1))
         .text("=== Picture Mask Validators ===")
         .build();
-    dialog.add(Box::new(section2));
+    dialog.add(section2);
     y += 2;
 
     // Phone number field with validator
@@ -162,7 +162,7 @@ fn demo_all_validators(app: &mut Application) {
         .bounds(Rect::new(2, y, 18, y + 1))
         .text("~P~hone Number:")
         .build();
-    dialog.add(Box::new(phone_label));
+    dialog.add(phone_label);
 
     let mut phone_input = InputLineBuilder::new()
         .bounds(Rect::new(18, y, 35, y + 1))
@@ -177,7 +177,7 @@ fn demo_all_validators(app: &mut Application) {
         .bounds(Rect::new(36, y, 51, y + 1))
         .text("(###) ###-####")
         .build();
-    dialog.add(Box::new(phone_hint));
+    dialog.add(phone_hint);
     y += 2;
 
     // Date field with validator
@@ -185,7 +185,7 @@ fn demo_all_validators(app: &mut Application) {
         .bounds(Rect::new(2, y, 18, y + 1))
         .text("~D~ate:")
         .build();
-    dialog.add(Box::new(date_label));
+    dialog.add(date_label);
 
     let mut date_input = InputLineBuilder::new()
         .bounds(Rect::new(18, y, 30, y + 1))
@@ -198,7 +198,7 @@ fn demo_all_validators(app: &mut Application) {
         .bounds(Rect::new(31, y, 51, y + 1))
         .text("##/##/####")
         .build();
-    dialog.add(Box::new(date_hint));
+    dialog.add(date_hint);
     y += 2;
 
     // Product code field
@@ -206,7 +206,7 @@ fn demo_all_validators(app: &mut Application) {
         .bounds(Rect::new(2, y, 18, y + 1))
         .text("Product ~C~ode:")
         .build();
-    dialog.add(Box::new(code_label));
+    dialog.add(code_label);
 
     let mut code_input = InputLineBuilder::new()
         .bounds(Rect::new(18, y, 31, y + 1))
@@ -219,7 +219,7 @@ fn demo_all_validators(app: &mut Application) {
         .bounds(Rect::new(32, y, 51, y + 1))
         .text("@@@@-####")
         .build();
-    dialog.add(Box::new(code_hint));
+    dialog.add(code_hint);
     y += 2;
 
     // Legend
@@ -227,7 +227,7 @@ fn demo_all_validators(app: &mut Application) {
         .bounds(Rect::new(2, y, dialog_width - 4, y + 2))
         .text("Legend: # = digit, @ = letter, ! = any\nLiterals (like /, -, ()) are inserted automatically")
         .build();
-    dialog.add(Box::new(legend));
+    dialog.add(legend);
     y += 3;
 
     // Buttons
@@ -237,14 +237,14 @@ fn demo_all_validators(app: &mut Application) {
         .command(CM_OK)
         .default(true)
         .build();
-    dialog.add(Box::new(ok_button));
+    dialog.add(ok_button);
 
     let cancel_button = ButtonBuilder::new()
         .bounds(Rect::new(35, y, 45, y + 2))
         .title("Cancel")
         .command(CM_CANCEL)
         .build();
-    dialog.add(Box::new(cancel_button));
+    dialog.add(cancel_button);
 
     dialog.set_initial_focus();
 

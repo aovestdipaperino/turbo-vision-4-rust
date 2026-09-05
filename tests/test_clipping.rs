@@ -19,29 +19,29 @@ fn main() -> turbo_vision::core::error::Result<()> {
         Rect::new(1, 1, 57, 2),
         "This dialog tests clipping. Text should not overflow past frame borders.",
     );
-    dialog.add(Box::new(text));
+    dialog.add(text);
 
     // Add an input field
     let mut input = InputLine::new(Rect::new(1, 4, 39, 5), 50);
     input.set_text("Sample Input Text");
-    dialog.add(Box::new(input));
+    dialog.add(input);
 
     // Add checkboxes
     let checkbox1 = CheckBox::new(Rect::new(1, 6, 29, 7), "Enable feature A");
-    dialog.add(Box::new(checkbox1));
+    dialog.add(checkbox1);
 
     let checkbox2 = CheckBox::new(
         Rect::new(1, 7, 29, 8),
         "Enable feature B that has a really long name that should clip",
     );
-    dialog.add(Box::new(checkbox2));
+    dialog.add(checkbox2);
 
     // Add buttons
     let ok_button = Button::new(Rect::new(14, 10, 24, 12), "  OK  ", CM_OK, true);
-    dialog.add(Box::new(ok_button));
+    dialog.add(ok_button);
 
     let cancel_button = Button::new(Rect::new(29, 10, 41, 12), " Cancel ", CM_CANCEL, false);
-    dialog.add(Box::new(cancel_button));
+    dialog.add(cancel_button);
 
     // Draw the dialog
     dialog.draw(&mut terminal);

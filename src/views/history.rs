@@ -266,7 +266,7 @@ mod tests {
         let mut input = InputLine::new(Rect::new(2, 5, 20, 6), 32);
         input.set_text(text);
         let input = group.add_typed(input);
-        group.add(Box::new(History::new(Point::new(20, 5), history_id, input)));
+        group.add(History::new(Point::new(20, 5), history_id, input));
         (group, input)
     }
 

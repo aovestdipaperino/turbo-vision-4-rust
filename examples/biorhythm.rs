@@ -399,7 +399,7 @@ fn create_biorhythm_dialog(
         (today.year(), today.month(), today.day())
     };
 
-    dialog.add(Box::new(
+    dialog.add(
         StaticTextBuilder::new()
             .bounds(Rect::new(2, 1, 46, 3))
             .text(&format!(
@@ -407,26 +407,26 @@ fn create_biorhythm_dialog(
                 today_day, today_month, today_year
             ))
             .build(),
-    ));
+    );
 
-    dialog.add(Box::new(
+    dialog.add(
         StaticTextBuilder::new()
             .bounds(Rect::new(2, 4, 12, 5))
             .text("Day:")
             .build(),
-    ));
-    dialog.add(Box::new(
+    );
+    dialog.add(
         StaticTextBuilder::new()
             .bounds(Rect::new(2, 5, 12, 6))
             .text("Month:")
             .build(),
-    ));
-    dialog.add(Box::new(
+    );
+    dialog.add(
         StaticTextBuilder::new()
             .bounds(Rect::new(2, 6, 12, 7))
             .text("Year:")
             .build(),
-    ));
+    );
 
     // Convert NaiveDate to String components to fill the input lines
     let (prev_day, prev_month, prev_year) = if let Some(date) = birth_date {
@@ -470,22 +470,22 @@ fn create_biorhythm_dialog(
     let year_field = dialog.add_typed(year_input);
 
     // Buttons
-    dialog.add(Box::new(
+    dialog.add(
         ButtonBuilder::new()
             .bounds(Rect::new(15, 8, 25, 10))
             .title("  OK  ")
             .command(CM_OK)
             .default(true)
             .build(),
-    ));
-    dialog.add(Box::new(
+    );
+    dialog.add(
         ButtonBuilder::new()
             .bounds(Rect::new(27, 8, 37, 10))
             .title("Cancel")
             .command(CM_CANCEL)
             .default(false)
             .build(),
-    ));
+    );
 
     dialog.set_initial_focus();
     (dialog, day_field, month_field, year_field)
@@ -748,8 +748,8 @@ fn add_chart(app: &mut Application, biorhythm_data: &Rc<RefCell<Option<Biorhythm
         Rect::new(1, 1, chart_width, chart_height),
         Rc::clone(&biorhythm_data),
     );
-    main_dialog.add(Box::new(chart));
-    app.desktop.add(Box::new(main_dialog));
+    main_dialog.add(chart);
+    app.desktop.add(main_dialog);
 }
 
 fn main() -> turbo_vision::core::error::Result<()> {

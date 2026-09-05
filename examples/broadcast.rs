@@ -17,6 +17,7 @@ use turbo_vision::core::event::{Event, EventType, KB_ALT_X, KB_CTRL_C, KB_ESC_ES
 use turbo_vision::core::geometry::Rect;
 use turbo_vision::core::palette::colors;
 use turbo_vision::terminal::Terminal;
+use turbo_vision::views::GroupLike;
 use turbo_vision::views::group::Group;
 use turbo_vision::views::{View, ViewCore};
 
@@ -177,7 +178,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
                 &format!("Button {}", button_id + 1),
                 CMD_BUTTON_BASE + button_id as u16,
             );
-            group.add(Box::new(button));
+            group.add(button);
         }
     }
 

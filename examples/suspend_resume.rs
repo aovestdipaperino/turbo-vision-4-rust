@@ -23,7 +23,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
         .title("Suspend/Resume Demo")
         .build();
 
-    dialog.add(Box::new(
+    dialog.add(
         StaticTextBuilder::new()
             .bounds(Rect::new(2, 2, 53, 8))
             .text(
@@ -33,25 +33,25 @@ fn main() -> turbo_vision::core::error::Result<()> {
                 shell prompt. Press 'Enter' to resume.",
             )
             .build(),
-    ));
+    );
 
-    dialog.add(Box::new(
+    dialog.add(
         ButtonBuilder::new()
             .bounds(Rect::new(33, 9, 44, 11))
             .title("Quit")
             .command(CM_QUIT)
             .default(true)
             .build(),
-    ));
-    dialog.add(Box::new(
+    );
+    dialog.add(
         ButtonBuilder::new()
             .bounds(Rect::new(11, 9, 22, 11))
             .title("Suspend")
             .command(CMD_SUSPEND)
             .build(),
-    ));
+    );
 
-    app.desktop.add(Box::new(dialog));
+    app.desktop.add(dialog);
 
     loop {
         app.desktop.draw(&mut app.terminal);

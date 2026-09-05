@@ -58,7 +58,7 @@ fn run_tui_inner(mut terminal: Terminal) {
         Rect::new(2, 2, dialog_width - 4, 4),
         "Welcome to the turbo-vision SSH TUI Demo!\n\nThis interface is served over SSH.",
     );
-    dialog.add(Box::new(text));
+    dialog.add(text);
 
     // Add quit button
     let button = Button::new(
@@ -72,7 +72,7 @@ fn run_tui_inner(mut terminal: Terminal) {
         CM_QUIT,
         true,
     );
-    dialog.add(Box::new(button));
+    dialog.add(button);
 
     // Set initial focus to the first focusable child (the button)
     // This is critical for keyboard events to work!

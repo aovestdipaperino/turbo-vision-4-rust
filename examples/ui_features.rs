@@ -23,51 +23,51 @@ fn main() -> turbo_vision::core::error::Result<()> {
         .bounds(Rect::new(10, 3, 70, 20))
         .title("UI Features Demo")
         .build();
-    dialog.add(Box::new(
+    dialog.add(
         StaticTextBuilder::new()
             .bounds(Rect::new(2, 2, 56, 4))
             .text("Demonstration of common UI features:")
             .build(),
-    ));
-    dialog.add(Box::new(
+    );
+    dialog.add(
         ButtonBuilder::new()
             .bounds(Rect::new(5, 5, 30, 7))
             .title("Beep Sound")
             .command(CMD_BEEP)
             .build(),
-    ));
-    dialog.add(Box::new(
+    );
+    dialog.add(
         ButtonBuilder::new()
             .bounds(Rect::new(5, 8, 30, 10))
             .title("Message Box")
             .command(CMD_MSGBOX)
             .build(),
-    ));
-    dialog.add(Box::new(
+    );
+    dialog.add(
         ButtonBuilder::new()
             .bounds(Rect::new(32, 5, 52, 7))
             .title("Input Box")
             .command(CMD_INPUT)
             .build(),
-    ));
-    dialog.add(Box::new(
+    );
+    dialog.add(
         ButtonBuilder::new()
             .bounds(Rect::new(32, 8, 52, 10))
             .title("Change Title")
             .command(CMD_TITLE)
             .build(),
-    ));
-    dialog.add(Box::new(
+    );
+    dialog.add(
         ButtonBuilder::new()
             .bounds(Rect::new(20, 12, 38, 14))
             .title("Quit")
             .command(CM_QUIT)
             .default(true)
             .build(),
-    ));
+    );
 
     let mut app = Application::new()?;
-    app.desktop.add(Box::new(dialog));
+    app.desktop.add(dialog);
 
     loop {
         app.desktop.draw(&mut app.terminal);

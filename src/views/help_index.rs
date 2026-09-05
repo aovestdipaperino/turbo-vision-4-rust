@@ -43,30 +43,30 @@ impl HelpIndex {
         let mut dialog = Dialog::new(bounds, title);
 
         // Instructions
-        dialog.add(Box::new(StaticText::new(
+        dialog.add(StaticText::new(
             Rect::new(2, 2, bounds.width() - 4, 3),
             "Search for a topic:",
-        )));
+        ));
 
         // Search input
         let search_label = Label::new(Rect::new(2, 4, 10, 5), "Search:");
-        dialog.add(Box::new(search_label));
+        dialog.add(search_label);
 
         let search_input = InputLine::new(Rect::new(10, 4, bounds.width() - 4, 5), 100);
-        let search_input_id = dialog.add(Box::new(search_input));
+        let search_input_id = dialog.add(search_input);
 
         // Topic list
         let list_label = Label::new(Rect::new(2, 6, 12, 7), "Topics:");
-        dialog.add(Box::new(list_label));
+        dialog.add(list_label);
 
         let topic_list = ListBox::new(
             Rect::new(2, 7, bounds.width() - 4, bounds.height() - 6),
             CMD_TOPIC_SELECTED,
         );
-        let topic_list_id = dialog.add(Box::new(topic_list));
+        let topic_list_id = dialog.add(topic_list);
 
         // Buttons
-        dialog.add(Box::new(Button::new(
+        dialog.add(Button::new(
             Rect::new(
                 bounds.width() - 24,
                 bounds.height() - 4,
@@ -76,9 +76,9 @@ impl HelpIndex {
             "View",
             CM_OK,
             true,
-        )));
+        ));
 
-        dialog.add(Box::new(Button::new(
+        dialog.add(Button::new(
             Rect::new(
                 bounds.width() - 12,
                 bounds.height() - 4,
@@ -88,7 +88,7 @@ impl HelpIndex {
             "Close",
             CM_CANCEL,
             false,
-        )));
+        ));
 
         // Get all topics from help file
         let help = help_file.borrow();

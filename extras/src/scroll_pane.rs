@@ -5,6 +5,7 @@
 use turbo_vision::core::event::{Event, EventType, MB_LEFT_BUTTON};
 use turbo_vision::core::geometry::Rect;
 use turbo_vision::terminal::Terminal;
+use turbo_vision::views::GroupLike;
 use turbo_vision::views::group::Group;
 use turbo_vision::views::view::ViewId;
 use turbo_vision::views::{View, ViewCore};

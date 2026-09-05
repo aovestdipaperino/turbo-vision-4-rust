@@ -586,6 +586,119 @@ pub fn draw_shadow_bounds(terminal: &mut Terminal, bounds: Rect) {
     write_line_to_terminal(terminal, bounds.a.x + ss.0, bounds.b.y, &bottom_buf);
 }
 
+/// A boxed view is itself a view, so `GroupLike::add` can take boxed and
+/// unboxed views alike and older `add(Box::new(v))` calls keep compiling.
+macro_rules! forward_view_through_box {
+    ($t:ty) => {
+        impl<T: View + ?Sized> View for $t {
+            fn core(&self) -> &ViewCore {
+                (**self).core()
+            }
+            fn core_mut(&mut self) -> &mut ViewCore {
+                (**self).core_mut()
+            }
+            fn bounds(&self) -> Rect {
+                (**self).bounds()
+            }
+            fn set_bounds(&mut self, bounds: Rect) {
+                (**self).set_bounds(bounds)
+            }
+            fn draw(&mut self, terminal: &mut Terminal) {
+                (**self).draw(terminal)
+            }
+            fn handle_event(&mut self, event: &mut Event) {
+                (**self).handle_event(event)
+            }
+            fn can_focus(&self) -> bool {
+                (**self).can_focus()
+            }
+            fn set_focus(&mut self, focused: bool) {
+                (**self).set_focus(focused)
+            }
+            fn window_number(&self) -> Option<u8> {
+                (**self).window_number()
+            }
+            fn options(&self) -> u16 {
+                (**self).options()
+            }
+            fn set_options(&mut self, options: u16) {
+                (**self).set_options(options)
+            }
+            fn state(&self) -> StateFlags {
+                (**self).state()
+            }
+            fn set_state(&mut self, state: StateFlags) {
+                (**self).set_state(state)
+            }
+            fn grow_mode(&self) -> crate::core::state::GrowFlags {
+                (**self).grow_mode()
+            }
+            fn set_grow_mode(&mut self, grow_mode: crate::core::state::GrowFlags) {
+                (**self).set_grow_mode(grow_mode)
+            }
+            fn update_cursor(&self, terminal: &mut Terminal) {
+                (**self).update_cursor(terminal)
+            }
+            fn zoom(&mut self, max_bounds: Rect) {
+                (**self).zoom(max_bounds)
+            }
+            fn valid(&mut self, command: crate::core::command::CommandId) -> bool {
+                (**self).valid(command)
+            }
+            fn as_any(&self) -> &dyn std::any::Any {
+                (**self).as_any()
+            }
+            fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+                (**self).as_any_mut()
+            }
+            fn as_group(&self) -> Option<&dyn crate::views::group::GroupLike> {
+                (**self).as_group()
+            }
+            fn as_group_mut(&mut self) -> Option<&mut dyn crate::views::group::GroupLike> {
+                (**self).as_group_mut()
+            }
+            fn get_redraw_union(&self) -> Option<Rect> {
+                (**self).get_redraw_union()
+            }
+            fn clear_move_tracking(&mut self) {
+                (**self).clear_move_tracking()
+            }
+            fn label_link(&self) -> Option<ViewId> {
+                (**self).label_link()
+            }
+            fn init_after_add(&mut self) {
+                (**self).init_after_add()
+            }
+            fn constrain_to_parent_bounds(&mut self) {
+                (**self).constrain_to_parent_bounds()
+            }
+            fn set_palette_chain(
+                &mut self,
+                node: Option<crate::core::palette_chain::PaletteChainNode>,
+            ) {
+                (**self).set_palette_chain(node)
+            }
+            fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
+                (**self).get_palette_chain()
+            }
+            fn set_parent_bounds(&mut self, bounds: Rect) {
+                (**self).set_parent_bounds(bounds)
+            }
+            fn get_palette(&self) -> Option<crate::core::palette::Palette> {
+                (**self).get_palette()
+            }
+        }
+    };
+}
+
+forward_view_through_box!(Box<T>);
+
+impl<T: IdleView + ?Sized> IdleView for Box<T> {
+    fn idle(&mut self) {
+        (**self).idle()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -593,11 +706,11 @@ mod tests {
     #[test]
     fn every_view_in_a_group_can_be_downcast_without_panicking() {
         use crate::views::button::Button;
-        use crate::views::group::Group;
+        use crate::views::group::{Group, GroupLike};
         use crate::views::static_text::StaticText;
         let mut g = Group::new(Rect::new(0, 0, 40, 10));
-        g.add(Box::new(Button::new(Rect::new(0, 0, 10, 2), "ok", 1, true)));
-        g.add(Box::new(StaticText::new(Rect::new(0, 3, 10, 4), "hi")));
+        g.add(Button::new(Rect::new(0, 0, 10, 2), "ok", 1, true));
+        g.add(StaticText::new(Rect::new(0, 3, 10, 4), "hi"));
         for i in 0..g.len() {
             let _ = g.child_at(i).as_any(); // would have panicked with the old default
         }

@@ -278,7 +278,7 @@ impl FileDialog {
 
         // Label for file name input
         let name_label = Label::new(Rect::new(2, 1, 12, 1), "~N~ame:");
-        self.dialog.add(Box::new(name_label));
+        self.dialog.add(name_label);
 
         // File name input line
         let file_input = InputLine::new(Rect::new(12, 1, content_width, 2), 255);
@@ -287,11 +287,11 @@ impl FileDialog {
         // Current path label
         let path_str = format!(" {}", self.current_path.display());
         let path_label = Label::new(Rect::new(2, 3, content_width, 3), &path_str);
-        self.dialog.add(Box::new(path_label));
+        self.dialog.add(path_label);
 
         // Label for files list
         let files_label = Label::new(Rect::new(2, 5, 12, 5), "~F~iles:");
-        self.dialog.add(Box::new(files_label));
+        self.dialog.add(files_label);
 
         // File list box - leave space on right for buttons
         let mut file_list = ListBox::new(
@@ -304,7 +304,7 @@ impl FileDialog {
 
         // Populate the list box with files
         file_list.set_items(self.files.clone());
-        self.dialog.add(Box::new(file_list));
+        self.dialog.add(file_list);
 
         // Mirror the initial listbox selection into the file-name input so it
         // field and OK button reflect a real selection on first frame, instead
@@ -332,7 +332,7 @@ impl FileDialog {
             CM_OK,
             true,
         );
-        self.dialog.add(Box::new(open_button));
+        self.dialog.add(open_button);
         button_y += 3;
 
         let cancel_button = Button::new(
@@ -341,7 +341,7 @@ impl FileDialog {
             CM_CANCEL,
             false,
         );
-        self.dialog.add(Box::new(cancel_button));
+        self.dialog.add(cancel_button);
 
         // Set focus to the listbox by default (better UX for file selection)
         self.dialog.set_initial_focus();

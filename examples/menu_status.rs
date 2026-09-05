@@ -130,7 +130,7 @@ fn setup_welcome_message(app: &mut Application, width: i16, height: i16) {
         .text("Extended Menu Example\n\nTry the menu bar with submenus\nor right-click for a popup menu!")
         .centered(true)
         .build();
-    app.desktop.add(Box::new(msg));
+    app.desktop.add(msg);
 }
 
 /// Redraw all UI components (desktop, menu bar, status line)
@@ -319,7 +319,7 @@ fn show_message(app: &mut Application, title: &str, message: &str) {
         .text(message)
         .centered(true)
         .build();
-    dialog.add(Box::new(text));
+    dialog.add(text);
 
     // Add centered OK button
     let button_width = 10;
@@ -330,7 +330,7 @@ fn show_message(app: &mut Application, title: &str, message: &str) {
         .command(CM_OK)
         .default(true)
         .build();
-    dialog.add(Box::new(button));
+    dialog.add(button);
     dialog.set_initial_focus();
 
     dialog.execute(app);

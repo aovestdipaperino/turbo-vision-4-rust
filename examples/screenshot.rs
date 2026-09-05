@@ -61,10 +61,10 @@ fn main() -> turbo_vision::core::error::Result<()> {
         .text("ABCDEFG abcdefg 0123456789\n!@#$%^&*()_+-=[]{};:'\",.<>/?\nBox drawing and shades below:")
         .build();
 
-    window.add(Box::new(intro));
-    window.add(Box::new(charset));
+    window.add(intro);
+    window.add(charset);
 
-    app.desktop.add(Box::new(window));
+    app.desktop.add(window);
 
     // A second, differently-colored window so the screenshot shows overlap,
     // frames, and the dithered desktop background.
@@ -80,9 +80,9 @@ fn main() -> turbo_vision::core::error::Result<()> {
         .bounds(Rect::new(2, 4, 36, 4))
         .text("screenshot-YYYYMMDD-HHMMSS.png")
         .build();
-    info.add(Box::new(note));
-    info.add(Box::new(note2));
-    app.desktop.add(Box::new(info));
+    info.add(note);
+    info.add(note2);
+    app.desktop.add(info);
 
     app.run();
 

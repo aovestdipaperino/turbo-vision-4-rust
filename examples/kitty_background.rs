@@ -188,7 +188,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
         KittyImage::from_bytes(Rect::new(0, 1, width, height - 1), gray_pattern).z_index(-1);
 
     // Add background to desktop first (will be behind windows)
-    app.desktop.add(Box::new(background));
+    app.desktop.add(background);
 
     // Create main info window (blue background contrasts with gray pattern)
     let window_width = 50;
@@ -223,12 +223,12 @@ fn main() -> turbo_vision::core::error::Result<()> {
         .text("Press Alt-X or Esc to exit.")
         .build();
 
-    window.add(Box::new(label1));
-    window.add(Box::new(label2));
-    window.add(Box::new(label3));
-    window.add(Box::new(label4));
+    window.add(label1);
+    window.add(label2);
+    window.add(label3);
+    window.add(label4);
 
-    app.desktop.add(Box::new(window));
+    app.desktop.add(window);
 
     // Create a small About window
     let about_width = 36;
@@ -263,12 +263,12 @@ fn main() -> turbo_vision::core::error::Result<()> {
         .text("Drag me around!")
         .build();
 
-    about_window.add(Box::new(about1));
-    about_window.add(Box::new(about2));
-    about_window.add(Box::new(about3));
-    about_window.add(Box::new(about4));
+    about_window.add(about1);
+    about_window.add(about2);
+    about_window.add(about3);
+    about_window.add(about4);
 
-    app.desktop.add(Box::new(about_window));
+    app.desktop.add(about_window);
 
     // Run the application
     app.running = true;

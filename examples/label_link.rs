@@ -23,12 +23,12 @@ fn main() -> turbo_vision::core::error::Result<()> {
         .build();
 
     // Instructions
-    dialog.add(Box::new(
+    dialog.add(
         LabelBuilder::new()
             .bounds(Rect::new(2, 2, 46, 2))
             .text("Click on the labels to focus the input fields")
             .build(),
-    ));
+    );
 
     // First Name field with linked label
     let mut first_name_label = LabelBuilder::new()
@@ -42,7 +42,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
             .build(),
     );
     first_name_label.set_link(first_name.id());
-    dialog.add(Box::new(first_name_label));
+    dialog.add(first_name_label);
 
     // Last Name field with linked label
     let mut last_name_label = LabelBuilder::new()
@@ -56,7 +56,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
             .build(),
     );
     last_name_label.set_link(last_name.id());
-    dialog.add(Box::new(last_name_label));
+    dialog.add(last_name_label);
 
     // Email field with linked label
     let mut email_label = LabelBuilder::new()
@@ -70,24 +70,24 @@ fn main() -> turbo_vision::core::error::Result<()> {
             .build(),
     );
     email_label.set_link(email.id());
-    dialog.add(Box::new(email_label));
+    dialog.add(email_label);
 
     // Buttons
-    dialog.add(Box::new(
+    dialog.add(
         ButtonBuilder::new()
             .bounds(Rect::new(15, 10, 25, 12))
             .title("  OK  ")
             .command(CM_OK)
             .default(true)
             .build(),
-    ));
-    dialog.add(Box::new(
+    );
+    dialog.add(
         ButtonBuilder::new()
             .bounds(Rect::new(27, 10, 37, 12))
             .title("Cancel")
             .command(CM_CANCEL)
             .build(),
-    ));
+    );
 
     dialog.set_initial_focus();
 

@@ -212,11 +212,11 @@ impl Application {
     ///
     /// let mut app = Application::new()?;
     /// let widget = AnimatedWidget(turbo_vision::views::ViewCore::default());
-    /// app.add_overlay_widget(Box::new(widget));
+    /// app.add_overlay_widget(widget);
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
-    pub fn add_overlay_widget(&mut self, widget: Box<dyn IdleView>) {
-        self.overlay_widgets.push(widget);
+    pub fn add_overlay_widget<V: IdleView + 'static>(&mut self, widget: V) {
+        self.overlay_widgets.push(Box::new(widget));
     }
 
     /// Update Desktop bounds to exclude menu bar and status line areas
@@ -384,8 +384,9 @@ impl Application {
     /// Otherwise, adds the view to the desktop and returns immediately.
     ///
     /// Returns the view's end_state (the command that closed the modal view)
-    pub fn exec_view(&mut self, view: Box<dyn View>) -> CommandId {
+    pub fn exec_view<V: View + 'static>(&mut self, view: V) -> CommandId {
         use crate::core::state::SF_MODAL;
+        let view: Box<dyn View> = Box::new(view);
 
         // Check if view is modal
         let is_modal = (view.state() & SF_MODAL) != 0;
@@ -934,7 +935,7 @@ impl Application {
             help_window.set_state(current_state | SF_MODAL);
 
             // Execute the help window as modal
-            self.exec_view(Box::new(help_window));
+            self.exec_view(help_window);
         }
     }
 
@@ -1200,12 +1201,7 @@ mod resize_tests {
 
         let (mut app, _size, _calls) = build_test_app(80, 25);
         let mut dialog = Dialog::new(Rect::new(5, 5, 40, 12), "t");
-        dialog.add(Box::new(Button::new(
-            Rect::new(2, 2, 12, 4),
-            "OK",
-            CM_OK,
-            true,
-        )));
+        dialog.add(Button::new(Rect::new(2, 2, 12, 4), "OK", CM_OK, true));
         let mut ticks = 0;
         let result = app.execute_modal(&mut dialog, |_app, _d| {
             ticks += 1;
@@ -1219,12 +1215,7 @@ mod resize_tests {
         assert_eq!(ticks, 3);
 
         let mut dialog = Dialog::new(Rect::new(5, 5, 40, 12), "t");
-        dialog.add(Box::new(Button::new(
-            Rect::new(2, 2, 12, 4),
-            "OK",
-            CM_OK,
-            true,
-        )));
+        dialog.add(Button::new(Rect::new(2, 2, 12, 4), "OK", CM_OK, true));
         dialog.set_state(dialog.state() | SF_MODAL);
         app.put_event(Event::command(CM_OK));
         let result = app.execute_modal(&mut dialog, |_, _| ModalTick::Continue);
@@ -1378,18 +1369,18 @@ mod resize_tests {
         let set_bounds_calls = Rc::new(StdCell::new(0));
         let mut inner_group = crate::views::group::Group::new(Rect::new(0, 0, width, height - 2));
         inner_group.set_grow_mode(GF_GROW_HI_X | GF_GROW_HI_Y);
-        inner_group.add(Box::new(RecordingView {
+        inner_group.add(RecordingView {
             core: ViewCore {
                 bounds: Rect::new(0, 0, width, height - 2),
                 grow_mode: GF_GROW_HI_X | GF_GROW_HI_Y,
                 ..ViewCore::default()
             },
             set_bounds_calls: Rc::clone(&set_bounds_calls),
-        }));
+        });
 
         let mut group_view = GroupView(inner_group);
         group_view.set_grow_mode(GF_GROW_HI_X | GF_GROW_HI_Y);
-        app.desktop.add(Box::new(group_view));
+        app.desktop.add(group_view);
 
         (app, size, set_bounds_calls)
     }
@@ -1524,15 +1515,15 @@ mod resize_tests {
 
         let mut window = Window::new(window_bounds, "Test Window");
         let set_bounds_calls = Rc::new(StdCell::new(0));
-        window.add(Box::new(RecordingView {
+        window.add(RecordingView {
             core: ViewCore {
                 bounds: Rect::new(0, 0, interior_w, interior_h),
                 grow_mode: GF_GROW_HI_X | GF_GROW_HI_Y,
                 ..ViewCore::default()
             },
             set_bounds_calls: Rc::clone(&set_bounds_calls),
-        }));
-        app.desktop.add(Box::new(window));
+        });
+        app.desktop.add(window);
 
         size.0.store(120, Ordering::SeqCst);
         size.1.store(50, Ordering::SeqCst);
@@ -1599,7 +1590,7 @@ mod resize_tests {
 
         let mut window = Window::new(window_bounds, "Fixed Window");
         window.set_grow_mode(0);
-        app.desktop.add(Box::new(window));
+        app.desktop.add(window);
 
         size.0.store(120, Ordering::SeqCst);
         size.1.store(50, Ordering::SeqCst);
