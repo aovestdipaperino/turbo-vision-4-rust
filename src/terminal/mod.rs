@@ -125,6 +125,10 @@ pub struct Terminal {
     width: u16,
     height: u16,
     clip_stack: Vec<Rect>,
+    /// Origins pushed by the owners of the view currently drawing; every
+    /// coordinate a view passes in is local and is shifted by their sum
+    /// (Borland: the owner chain walked by `TView::writeLine`).
+    origin_stack: Vec<Point>,
     pending_event: Option<Event>,
     /// Receiver for keyboard events injected by the remote-input listener.
     /// `None` unless [`enable_remote_input`](Self::enable_remote_input) was called.
@@ -212,6 +216,7 @@ impl Terminal {
             width,
             height,
             clip_stack: Vec::new(),
+            origin_stack: Vec::new(),
             pending_event: None,
             injected_rx: None,
         })
@@ -382,9 +387,31 @@ impl Terminal {
         }
     }
 
-    /// Push a clipping region onto the stack.
-    pub fn push_clip(&mut self, rect: Rect) {
+    /// Push a clipping region, given in the caller's local coordinates, onto
+    /// the stack. It is stored in screen coordinates.
+    pub fn push_clip(&mut self, mut rect: Rect) {
+        let o = self.origin();
+        rect.move_by(o.x, o.y);
         self.clip_stack.push(rect);
+    }
+
+    /// Push an owner origin: coordinates passed to the write, read and cursor
+    /// methods are shifted by the sum of the pushed origins until `pop_origin`.
+    /// A group pushes each child's `bounds().a` around the child's `draw`.
+    pub fn push_origin(&mut self, origin: Point) {
+        self.origin_stack.push(origin);
+    }
+
+    /// Pop the origin pushed by the matching `push_origin`.
+    pub fn pop_origin(&mut self) {
+        self.origin_stack.pop();
+    }
+
+    /// The accumulated origin: where the current local `(0, 0)` is on screen.
+    pub fn origin(&self) -> Point {
+        self.origin_stack
+            .iter()
+            .fold(Point::new(0, 0), |acc, p| Point::new(acc.x + p.x, acc.y + p.y))
     }
 
     /// Pop a clipping region from the stack.
@@ -414,42 +441,35 @@ impl Terminal {
         }
     }
 
-    /// Write a cell at the given position.
-    pub fn write_cell(&mut self, x: u16, y: u16, cell: Cell) {
-        let x_i16 = x as i16;
-        let y_i16 = y as i16;
-
-        // Check terminal bounds
-        if (x as usize) >= self.width as usize || (y as usize) >= self.height as usize {
+    /// Write a cell at a local position; it is shifted by the pushed origins
+    /// and dropped if it lands outside the screen or the clip region.
+    pub fn write_cell(&mut self, x: i16, y: i16, cell: Cell) {
+        let o = self.origin();
+        let (sx, sy) = (x + o.x, y + o.y);
+        if sx < 0 || sy < 0 || sx >= self.width as i16 || sy >= self.height as i16 {
             return;
         }
-
-        // Check clipping
-        if self.is_clipped(x_i16, y_i16) {
+        if self.is_clipped(sx, sy) {
             return;
         }
-
-        self.buffer[y as usize][x as usize] = cell;
+        self.buffer[sy as usize][sx as usize] = cell;
     }
 
-    /// Write a line from a draw buffer.
-    pub fn write_line(&mut self, x: u16, y: u16, cells: &[Cell]) {
-        let y_i16 = y as i16;
-
-        if (y as usize) >= self.height as usize {
+    /// Write a run of cells starting at a local position; each cell is
+    /// shifted by the pushed origins and clipped individually.
+    pub fn write_line(&mut self, x: i16, y: i16, cells: &[Cell]) {
+        let o = self.origin();
+        let sy = y + o.y;
+        if sy < 0 || sy >= self.height as i16 {
             return;
         }
-
-        let max_width = (self.width as usize).saturating_sub(x as usize);
-        let len = cells.len().min(max_width);
-
-        for (i, cell) in cells.iter().enumerate().take(len) {
-            let cell_x = (x as usize) + i;
-            let cell_x_i16 = cell_x as i16;
-
-            // Check clipping for each cell
-            if !self.is_clipped(cell_x_i16, y_i16) {
-                self.buffer[y as usize][cell_x] = *cell;
+        for (i, cell) in cells.iter().enumerate() {
+            let sx = x + o.x + i as i16;
+            if sx < 0 || sx >= self.width as i16 {
+                continue;
+            }
+            if !self.is_clipped(sx, sy) {
+                self.buffer[sy as usize][sx as usize] = *cell;
             }
         }
     }
@@ -458,6 +478,8 @@ impl Terminal {
     ///
     /// Returns `None` if coordinates are out of bounds.
     pub fn read_cell(&self, x: i16, y: i16) -> Option<Cell> {
+        let o = self.origin();
+        let (x, y) = (x + o.x, y + o.y);
         if x < 0 || y < 0 || x >= self.width as i16 || y >= self.height as i16 {
             return None;
         }
@@ -535,9 +557,15 @@ impl Terminal {
         Ok(())
     }
 
-    /// Show the cursor at the specified position.
-    pub fn show_cursor(&mut self, x: u16, y: u16) -> io::Result<()> {
-        self.backend.show_cursor(x, y)
+    /// Show the cursor at a local position, shifted by the pushed origins.
+    /// A cursor that lands off screen is hidden instead.
+    pub fn show_cursor(&mut self, x: i16, y: i16) -> io::Result<()> {
+        let o = self.origin();
+        let (sx, sy) = (x + o.x, y + o.y);
+        if sx < 0 || sy < 0 || sx >= self.width as i16 || sy >= self.height as i16 {
+            return self.backend.hide_cursor();
+        }
+        self.backend.show_cursor(sx as u16, sy as u16)
     }
 
     /// Hide the cursor.
@@ -854,5 +882,82 @@ mod tests {
             s.ends_with(";3;4m"),
             "style codes emitted in canonical order: {s:?}"
         );
+    }
+
+    // ---- origin stack: local coordinates are translated by the owners' origins ----
+
+    use crate::test_util::test_terminal;
+
+    fn cell(ch: char) -> Cell {
+        Cell::new(ch, Attr::from_u8(0x07))
+    }
+
+    #[test]
+    fn origin_stack_accumulates_and_pops() {
+        let mut t = test_terminal(20, 10);
+        t.push_origin(Point::new(2, 3));
+        t.push_origin(Point::new(4, 5));
+        t.write_cell(0, 0, cell('a'));
+        t.pop_origin();
+        t.write_cell(0, 0, cell('b'));
+        t.pop_origin();
+        t.write_cell(0, 0, cell('c'));
+        assert_eq!(t.read_cell(6, 8).unwrap().ch, 'a');
+        assert_eq!(t.read_cell(2, 3).unwrap().ch, 'b');
+        assert_eq!(t.read_cell(0, 0).unwrap().ch, 'c');
+    }
+
+    #[test]
+    fn write_line_is_translated_by_the_origin() {
+        let mut t = test_terminal(20, 10);
+        t.push_origin(Point::new(5, 1));
+        t.write_line(1, 2, &[cell('x'), cell('y')]);
+        t.pop_origin();
+        assert_eq!(t.read_cell(6, 3).unwrap().ch, 'x');
+        assert_eq!(t.read_cell(7, 3).unwrap().ch, 'y');
+    }
+
+    #[test]
+    fn negative_local_coordinates_that_land_off_screen_are_dropped() {
+        let mut t = test_terminal(20, 10);
+        t.push_origin(Point::new(2, 0));
+        t.write_cell(-3, 0, cell('a'));
+        t.write_line(-3, 0, &[cell('p'), cell('q')]);
+        t.pop_origin();
+        // 'a' and 'p' land at screen column -1 and are dropped; 'q' lands at 0.
+        assert_eq!(t.read_cell(0, 0).unwrap().ch, 'q');
+        assert_eq!(t.read_cell(1, 0).unwrap().ch, ' ');
+    }
+
+    #[test]
+    fn clip_pushed_under_an_origin_is_stored_translated() {
+        let mut t = test_terminal(20, 10);
+        t.push_origin(Point::new(10, 0));
+        t.push_clip(Rect::new(0, 0, 2, 1));
+        t.write_cell(1, 0, cell('a'));
+        t.write_cell(2, 0, cell('b'));
+        t.pop_clip();
+        t.pop_origin();
+        assert_eq!(t.read_cell(11, 0).unwrap().ch, 'a');
+        assert_eq!(t.read_cell(12, 0).unwrap().ch, ' ');
+    }
+
+    #[test]
+    fn read_cell_is_translated_by_the_origin() {
+        let mut t = test_terminal(20, 10);
+        t.write_cell(7, 4, cell('z'));
+        t.push_origin(Point::new(7, 4));
+        assert_eq!(t.read_cell(0, 0).unwrap().ch, 'z');
+        assert!(t.read_cell(-8, 0).is_none());
+    }
+
+    #[test]
+    fn show_cursor_is_translated_by_the_origin() {
+        let backend = crate::test_util::TestBackend::new(20, 10);
+        let cursor = backend.cursor_handle();
+        let mut t = Terminal::with_backend(Box::new(backend)).unwrap();
+        t.push_origin(Point::new(3, 2));
+        t.show_cursor(1, 1).unwrap();
+        assert_eq!(*cursor.lock().unwrap(), Some((4, 3)));
     }
 }

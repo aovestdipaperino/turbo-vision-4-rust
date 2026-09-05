@@ -1737,8 +1737,8 @@ impl View for EditorWindow {
 
                 let cursor_attr = cursor_color;
                 terminal.write_cell(
-                    cursor_screen_x as u16,
-                    cursor_screen_y as u16,
+                    cursor_screen_x as i16,
+                    cursor_screen_y as i16,
                     crate::core::draw::Cell::new(ch, cursor_attr),
                 );
             }
@@ -2063,7 +2063,7 @@ impl View for EditorWindow {
             let cursor_y = content_area.a.y + (self.cursor.y - self.delta.y);
 
             // Show cursor at the position
-            let _ = terminal.show_cursor(cursor_x as u16, cursor_y as u16);
+            let _ = terminal.show_cursor(cursor_x as i16, cursor_y as i16);
         }
     }
 

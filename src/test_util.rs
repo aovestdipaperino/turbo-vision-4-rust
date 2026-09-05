@@ -28,7 +28,7 @@ use crate::core::event::Event;
 use crate::core::geometry::{Point, Rect};
 use crate::core::palette::Attr;
 use crate::terminal::{Backend, Terminal};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicU16, Ordering};
 use std::time::Duration;
 
@@ -39,13 +39,21 @@ use std::time::Duration;
 /// draw views into and read cells back from.
 pub struct TestBackend {
     size: Arc<(AtomicU16, AtomicU16)>,
+    cursor: Arc<Mutex<Option<(u16, u16)>>>,
 }
 
 impl TestBackend {
     pub fn new(width: u16, height: u16) -> Self {
         Self {
             size: Arc::new((AtomicU16::new(width), AtomicU16::new(height))),
+            cursor: Arc::new(Mutex::new(None)),
         }
+    }
+
+    /// A handle that reads back the last cursor position the terminal asked
+    /// for (`None` after `hide_cursor`).
+    pub fn cursor_handle(&self) -> Arc<Mutex<Option<(u16, u16)>>> {
+        Arc::clone(&self.cursor)
     }
 
     /// A handle that changes the size this backend reports; store the new
@@ -80,10 +88,12 @@ impl Backend for TestBackend {
     fn flush(&mut self) -> std::io::Result<()> {
         Ok(())
     }
-    fn show_cursor(&mut self, _x: u16, _y: u16) -> std::io::Result<()> {
+    fn show_cursor(&mut self, x: u16, y: u16) -> std::io::Result<()> {
+        *self.cursor.lock().unwrap() = Some((x, y));
         Ok(())
     }
     fn hide_cursor(&mut self) -> std::io::Result<()> {
+        *self.cursor.lock().unwrap() = None;
         Ok(())
     }
 }

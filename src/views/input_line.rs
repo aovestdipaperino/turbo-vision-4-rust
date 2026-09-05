@@ -529,7 +529,7 @@ impl View for InputLine {
             let cursor_y = self.core.bounds.a.y;
 
             // Show cursor at the position
-            let _ = terminal.show_cursor(cursor_x as u16, cursor_y as u16);
+            let _ = terminal.show_cursor(cursor_x as i16, cursor_y as i16);
         } else {
             // Explicitly hide cursor when not focused to prevent it from lingering
             // after dialogs close. This ensures clean cursor state management.
