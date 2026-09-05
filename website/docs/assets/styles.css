@@ -68,3 +68,69 @@
     max-width: 20rem;
   }
 }
+
+/* Zoomable Mermaid diagrams (assets/zoom.js). */
+.md-typeset .tv-zoom {
+  position: relative;
+  margin: 1em 0;
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 0.2rem;
+  overflow: hidden;
+  background: var(--md-code-bg-color);
+}
+
+.md-typeset .tv-zoom__stage {
+  position: relative;
+  overflow: hidden;
+  min-height: 8rem;
+  touch-action: none;
+  user-select: none;
+}
+
+.md-typeset .tv-zoom__stage .mermaid {
+  margin: 0;
+  will-change: transform;
+}
+
+.md-typeset .tv-zoom__bar {
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.65rem;
+  color: var(--md-default-fg-color--light);
+  border-bottom: 1px solid var(--md-default-fg-color--lightest);
+  background: var(--md-default-bg-color);
+}
+
+.md-typeset .tv-zoom__hint {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.md-typeset .tv-zoom__pct {
+  min-width: 2.6em;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.md-typeset .tv-zoom__btn {
+  width: 1.5rem;
+  height: 1.3rem;
+  padding: 0;
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 0.15rem;
+  background: var(--md-default-bg-color);
+  color: var(--md-default-fg-color);
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.md-typeset .tv-zoom__btn:hover {
+  border-color: var(--md-accent-fg-color);
+  color: var(--md-accent-fg-color);
+}

@@ -52,6 +52,9 @@ theme:
 extra_css:
   - assets/styles.css
 
+extra_javascript:
+  - assets/zoom.js
+
 extra:
   social:
     - icon: fontawesome/brands/github
