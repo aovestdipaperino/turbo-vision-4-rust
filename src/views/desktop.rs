@@ -715,6 +715,15 @@ impl View for Desktop {
         } else {
             self.children.handle_event(event);
         }
+
+        // A click on a frame's zoom icon (or a double-click on its title)
+        // comes back out of the window as cmZoom. It was a mouse event on the
+        // way in, so the check above never saw it; handle it here or the
+        // command leaks to the application and the click does nothing.
+        if event.what == EventType::Command && event.command == crate::core::command::CM_ZOOM {
+            self.zoom_top_window();
+            event.clear();
+        }
     }
 
     fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {

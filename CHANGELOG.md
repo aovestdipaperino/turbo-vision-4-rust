@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.2] - 2026-09-05
+
+### Fixed
+- **Clicking the zoom icon did nothing.** The frame turned the click into
+  `CM_ZOOM`, but the desktop only looked for that command before handing the
+  event to its windows, and a click arrives as a mouse event. The command came
+  back out of the window unhandled and leaked to the application. The desktop
+  now handles a `CM_ZOOM` its windows produce, so the icon and a double-click
+  on the title bar both zoom and restore. The menu item was unaffected since a
+  menu command already enters the desktop as a command.
+
 ## [2.4.1] - 2026-09-05
 
 ### Fixed

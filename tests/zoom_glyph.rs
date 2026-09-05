@@ -113,3 +113,44 @@ fn restoring_a_zoomed_window_flips_the_triangle_back() {
     let window = child.as_any_mut().downcast_mut::<Window>().unwrap();
     assert!(!window.is_zoomed(), "back to its saved size");
 }
+
+/// Press and release the mouse on the top window's zoom icon, the way a real
+/// click reaches the desktop.
+fn click_zoom_icon(desktop: &mut Desktop) {
+    use turbo_vision::core::event::{EventType, MB_LEFT_BUTTON};
+    use turbo_vision::core::geometry::Point;
+
+    let top = desktop.child_count() - 1;
+    let bounds = desktop.child_at(top).bounds();
+    // The icon is `[▲]` at width - 5; aim at the triangle itself.
+    let icon = Point::new(bounds.a.x + bounds.width() - 4, bounds.a.y);
+
+    let mut down = Event::mouse(EventType::MouseDown, icon, MB_LEFT_BUTTON, false);
+    desktop.handle_event(&mut down);
+    let mut up = Event::mouse(EventType::MouseUp, icon, MB_LEFT_BUTTON, false);
+    desktop.handle_event(&mut up);
+    assert_eq!(
+        up.what,
+        EventType::Nothing,
+        "the zoom click must be consumed, not left for the application"
+    );
+}
+
+#[test]
+fn clicking_the_zoom_icon_zooms_the_window() {
+    let mut desktop = desktop_with_windows(1);
+    click_zoom_icon(&mut desktop);
+    assert_glyph_matches_bounds(&mut desktop);
+
+    let child = desktop.child_at_mut(0);
+    let window = child.as_any_mut().downcast_mut::<Window>().unwrap();
+    assert!(
+        window.is_zoomed(),
+        "a click on the icon must zoom the window"
+    );
+
+    click_zoom_icon(&mut desktop);
+    let child = desktop.child_at_mut(0);
+    let window = child.as_any_mut().downcast_mut::<Window>().unwrap();
+    assert!(!window.is_zoomed(), "a second click restores it");
+}
