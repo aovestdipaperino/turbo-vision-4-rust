@@ -112,6 +112,7 @@ pub mod progress_bar;
 pub mod radiobutton;
 pub mod scrollbar;
 pub mod scroller;
+pub mod shared;
 pub mod sorted_listbox;
 pub mod spinner;
 pub mod split_pane;

@@ -9,6 +9,7 @@
 
 use super::help_file::HelpFile;
 use super::help_viewer::HelpViewer;
+use super::shared::Shared;
 use super::view::View;
 use super::window::Window;
 use crate::core::command::{CM_CANCEL, CommandId};
@@ -20,43 +21,6 @@ use crate::core::state::StateFlags;
 use crate::terminal::Terminal;
 use std::cell::RefCell;
 use std::rc::Rc;
-
-/// Wrapper that allows HelpViewer to be shared between window and HelpWindow
-struct SharedHelpViewer(Rc<RefCell<HelpViewer>>);
-
-impl View for SharedHelpViewer {
-    fn bounds(&self) -> Rect {
-        self.0.borrow().bounds()
-    }
-
-    fn set_bounds(&mut self, bounds: Rect) {
-        self.0.borrow_mut().set_bounds(bounds);
-    }
-
-    fn draw(&mut self, terminal: &mut Terminal) {
-        self.0.borrow_mut().draw(terminal);
-    }
-
-    fn handle_event(&mut self, event: &mut Event) {
-        self.0.borrow_mut().handle_event(event);
-    }
-
-    fn can_focus(&self) -> bool {
-        self.0.borrow().can_focus()
-    }
-
-    fn state(&self) -> StateFlags {
-        self.0.borrow().state()
-    }
-
-    fn set_state(&mut self, state: StateFlags) {
-        self.0.borrow_mut().set_state(state);
-    }
-
-    fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        self.0.borrow().get_palette()
-    }
-}
 
 /// History entry storing topic ID with scroll state for restoration.
 struct HistoryEntry {
@@ -93,7 +57,7 @@ impl HelpWindow {
         ));
 
         // Insert viewer as a child of window (matches Borland's window->insert(viewer))
-        window.add(Box::new(SharedHelpViewer(Rc::clone(&viewer))));
+        window.add(Box::new(Shared::new(Rc::clone(&viewer))));
 
         Self {
             window,

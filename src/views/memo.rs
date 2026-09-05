@@ -652,8 +652,7 @@ impl View for Memo {
     fn handle_event(&mut self, event: &mut Event) {
         match event.what {
             EventType::Command
-                if event.command == crate::core::command::CM_SELECT_ALL
-                    && self.is_focused() =>
+                if event.command == crate::core::command::CM_SELECT_ALL && self.is_focused() =>
             {
                 // Select-all command (e.g. an Edit menu item). Ctrl+A is handled
                 // separately in the keyboard path.

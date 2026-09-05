@@ -25,6 +25,7 @@
 //! tracing::debug!("Loading config from {:?}", path);
 //! ```
 
+use super::shared::Shared;
 use super::terminal_widget::TerminalWidget;
 use super::view::View;
 use super::window::{Window, WindowPaletteType};
@@ -149,36 +150,6 @@ pub struct LogWindow {
     window: Window,
     widget: Rc<RefCell<TerminalWidget>>,
     receiver: mpsc::Receiver<LogEntry>,
-}
-
-/// Shared wrapper so TerminalWidget can be a View child of the Window.
-struct SharedTerminalWidget(Rc<RefCell<TerminalWidget>>);
-
-impl View for SharedTerminalWidget {
-    fn bounds(&self) -> Rect {
-        self.0.borrow().bounds()
-    }
-    fn set_bounds(&mut self, bounds: Rect) {
-        self.0.borrow_mut().set_bounds(bounds);
-    }
-    fn draw(&mut self, terminal: &mut Terminal) {
-        self.0.borrow_mut().draw(terminal);
-    }
-    fn handle_event(&mut self, event: &mut Event) {
-        self.0.borrow_mut().handle_event(event);
-    }
-    fn can_focus(&self) -> bool {
-        true
-    }
-    fn state(&self) -> StateFlags {
-        self.0.borrow().state()
-    }
-    fn set_state(&mut self, state: StateFlags) {
-        self.0.borrow_mut().set_state(state);
-    }
-    fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        self.0.borrow().get_palette()
-    }
 }
 
 impl LogWindow {
@@ -335,7 +306,7 @@ impl LogWindowBuilder {
         widget.set_auto_scroll(true);
 
         let widget = Rc::new(RefCell::new(widget));
-        window.add(Box::new(SharedTerminalWidget(Rc::clone(&widget))));
+        window.add(Box::new(Shared::new(Rc::clone(&widget))));
 
         let (sender, receiver) = mpsc::channel();
 

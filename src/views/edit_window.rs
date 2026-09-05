@@ -11,6 +11,7 @@
 use super::editor::EditorWindow;
 use super::indicator::Indicator;
 use super::scrollbar::ScrollBar;
+use super::shared::Shared;
 use super::view::View;
 use super::window::Window;
 use crate::core::event::{Event, EventType};
@@ -19,146 +20,6 @@ use crate::core::state::StateFlags;
 use crate::terminal::Terminal;
 use std::cell::RefCell;
 use std::rc::Rc;
-
-/// Wrapper that allows ScrollBar to be a child view
-struct SharedScrollBar(Rc<RefCell<ScrollBar>>);
-
-impl View for SharedScrollBar {
-    fn bounds(&self) -> Rect {
-        self.0.borrow().bounds()
-    }
-
-    fn set_bounds(&mut self, bounds: Rect) {
-        self.0.borrow_mut().set_bounds(bounds);
-    }
-
-    fn draw(&mut self, terminal: &mut Terminal) {
-        self.0.borrow_mut().draw(terminal);
-    }
-
-    fn handle_event(&mut self, event: &mut Event) {
-        self.0.borrow_mut().handle_event(event);
-    }
-
-    fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        self.0.borrow().get_palette()
-    }
-
-    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
-        self.0.borrow_mut().set_palette_chain(node);
-    }
-
-    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
-        // Cannot return a reference into RefCell; scrollbar palette chain is set before draw
-        None
-    }
-}
-
-/// Wrapper that allows Indicator to be a child view
-struct SharedIndicator(Rc<RefCell<Indicator>>);
-
-impl View for SharedIndicator {
-    fn bounds(&self) -> Rect {
-        self.0.borrow().bounds()
-    }
-
-    fn set_bounds(&mut self, bounds: Rect) {
-        self.0.borrow_mut().set_bounds(bounds);
-    }
-
-    fn draw(&mut self, terminal: &mut Terminal) {
-        self.0.borrow_mut().draw(terminal);
-    }
-
-    fn handle_event(&mut self, _event: &mut Event) {
-        // Indicator doesn't handle events
-    }
-
-    fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        self.0.borrow().get_palette()
-    }
-
-    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
-        self.0.borrow_mut().set_palette_chain(node);
-    }
-
-    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
-        None
-    }
-}
-
-/// Wrapper that allows EditorWindow to be shared between window and EditWindow
-struct SharedEditor(Rc<RefCell<EditorWindow>>);
-
-impl View for SharedEditor {
-    fn bounds(&self) -> Rect {
-        self.0.borrow().bounds()
-    }
-
-    fn set_bounds(&mut self, bounds: Rect) {
-        self.0.borrow_mut().set_bounds(bounds);
-    }
-
-    fn grow_mode(&self) -> crate::core::state::GrowFlags {
-        self.0.borrow().grow_mode()
-    }
-
-    fn set_grow_mode(&mut self, grow_mode: crate::core::state::GrowFlags) {
-        self.0.borrow_mut().set_grow_mode(grow_mode);
-    }
-
-    fn draw(&mut self, terminal: &mut Terminal) {
-        self.0.borrow_mut().draw(terminal);
-    }
-
-    fn handle_event(&mut self, event: &mut Event) {
-        self.0.borrow_mut().handle_event(event);
-    }
-
-    fn can_focus(&self) -> bool {
-        self.0.borrow().can_focus()
-    }
-
-    fn set_focus(&mut self, focused: bool) {
-        self.0.borrow_mut().set_focus(focused);
-    }
-
-    fn is_focused(&self) -> bool {
-        self.0.borrow().is_focused()
-    }
-
-    fn options(&self) -> u16 {
-        self.0.borrow().options()
-    }
-
-    fn set_options(&mut self, options: u16) {
-        self.0.borrow_mut().set_options(options);
-    }
-
-    fn state(&self) -> StateFlags {
-        self.0.borrow().state()
-    }
-
-    fn set_state(&mut self, state: StateFlags) {
-        self.0.borrow_mut().set_state(state);
-    }
-
-    fn update_cursor(&self, terminal: &mut Terminal) {
-        self.0.borrow().update_cursor(terminal);
-    }
-
-    fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        self.0.borrow().get_palette()
-    }
-
-    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
-        self.0.borrow_mut().set_palette_chain(node);
-    }
-
-    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
-        None
-    }
-}
 
 /// EditWindow - Window containing an EditorWindow
 ///
@@ -219,13 +80,12 @@ impl EditWindow {
 
         // IMPORTANT: Insert editor into interior (relative to interior bounds)
         // But insert scrollbars/indicator as frame children (relative to window frame)
-        window.add(Box::new(SharedEditor(Rc::clone(&editor))));
+        window.add(Box::new(Shared::new(Rc::clone(&editor))));
         let h_scrollbar_idx =
-            window.add_frame_child(Box::new(SharedScrollBar(Rc::clone(&h_scrollbar))));
+            window.add_frame_child(Box::new(Shared::new(Rc::clone(&h_scrollbar))));
         let v_scrollbar_idx =
-            window.add_frame_child(Box::new(SharedScrollBar(Rc::clone(&v_scrollbar))));
-        let indicator_idx =
-            window.add_frame_child(Box::new(SharedIndicator(Rc::clone(&indicator))));
+            window.add_frame_child(Box::new(Shared::new(Rc::clone(&v_scrollbar))));
+        let indicator_idx = window.add_frame_child(Box::new(Shared::new(Rc::clone(&indicator))));
 
         // Set initial indicator value to cursor position (1:1)
         // EditorWindow cursor starts at (0,0) internally, displayed as (1,1) for user

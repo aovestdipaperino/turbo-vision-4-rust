@@ -22,6 +22,7 @@ use super::label::Label;
 use super::list_viewer::ListViewer;
 use super::msgbox::message_box_error;
 use super::scrollbar::ScrollBar;
+use super::shared::Shared;
 use super::{View, ViewId};
 use crate::app::Application;
 use crate::core::command::{CM_OK, CommandId};
@@ -40,31 +41,6 @@ const CM_REVERT: CommandId = 201;
 // History ID for directory paths
 // Matches Borland: histId parameter in TChDirDialog constructor
 const DEFAULT_HISTORY_ID: u16 = 10;
-
-/// Wrapper that allows ScrollBar to be a child view
-struct SharedScrollBar(Rc<RefCell<ScrollBar>>);
-
-impl View for SharedScrollBar {
-    fn bounds(&self) -> Rect {
-        self.0.borrow().bounds()
-    }
-
-    fn set_bounds(&mut self, bounds: Rect) {
-        self.0.borrow_mut().set_bounds(bounds);
-    }
-
-    fn draw(&mut self, terminal: &mut Terminal) {
-        self.0.borrow_mut().draw(terminal);
-    }
-
-    fn handle_event(&mut self, event: &mut Event) {
-        self.0.borrow_mut().handle_event(event);
-    }
-
-    fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        self.0.borrow().get_palette()
-    }
-}
 
 /// Wrapper that allows DirListBox to be a child view with shared access
 /// Also broadcasts CM_FILE_FOCUSED when focused item changes (like FileList does)
@@ -343,13 +319,13 @@ impl ChDirDialog {
         let v_scrollbar_bounds = Rect::new(50, 6, 51, 16);
         let v_scrollbar = ScrollBar::new_vertical(v_scrollbar_bounds);
         let v_scrollbar_rc = Rc::new(RefCell::new(v_scrollbar));
-        dialog.add(Box::new(SharedScrollBar(Rc::clone(&v_scrollbar_rc))));
+        dialog.add(Box::new(Shared::new(Rc::clone(&v_scrollbar_rc))));
 
         // Horizontal scrollbar - adjusted: TRect( 3, 16, 50, 17 )
         let h_scrollbar_bounds = Rect::new(3, 16, 50, 17);
         let h_scrollbar = ScrollBar::new_horizontal(h_scrollbar_bounds);
         let h_scrollbar_rc = Rc::new(RefCell::new(h_scrollbar));
-        dialog.add(Box::new(SharedScrollBar(Rc::clone(&h_scrollbar_rc))));
+        dialog.add(Box::new(Shared::new(Rc::clone(&h_scrollbar_rc))));
 
         // Directory listbox - widened: TRect( 3, 6, 50, 16 )
         let listbox_bounds = Rect::new(3, 6, 50, 16);
