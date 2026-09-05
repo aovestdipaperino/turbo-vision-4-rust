@@ -5,6 +5,102 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.0] - 2026-09-05
+
+### Added
+- **`ProgressBar` view.** A determinate or marquee progress indicator, the
+  first item from the new `docs/MORE-CONTROLS.md` roadmap. Determinate bars
+  fill in proportion to `value / max`; marquee bars sweep a block for work of
+  unknown duration and animate themselves through `IdleView`, so adding one as
+  an overlay widget is enough. Three glyph styles: `Smooth` (default, partial
+  block glyphs give eighth-of-a-cell resolution), `Blocks`, and `Ascii` for
+  terminals without box-drawing characters. The centred overlay is the
+  truncated percentage by default and can be switched off with
+  `set_show_percent(false)` / `ProgressBarBuilder::show_percent(false)`, or
+  replaced with fixed text via `set_caption`. New `CP_PROGRESS_BAR` palette
+  reuses the scrollbar gauge colours, so a bar drops into an existing dialog
+  or window unchanged. See `examples/progress_bar.rs`.
+- **`ComboBox` view.** A read-only field showing one choice, with a drop-down
+  list. F4, Alt+Down or a click opens the list; Up and Down cycle the choice
+  without opening it. Opening is a two-step the way the history button already
+  works: the control emits `CM_SHOW_DROPDOWN`, and the `Dialog` modal loop or
+  `Application` runs the popup, since a control cannot reach the terminal from
+  `handle_event`. The popup draws its own thin frame, flips above the field when
+  there is no room below, scrolls past eight items and writes the choice back
+  into the shared `ComboState`.
+- **`Spinner` view.** A numeric field with up and down steppers, holding one
+  integer inside a range. Typed input is clamped rather than rejected, and the
+  first digit of a focus session replaces the value instead of extending it.
+  Arrows step, PgUp and PgDn step ten times as far, Home and End jump to the
+  range ends, Backspace drops a digit. Optional wrap-around and unit suffix.
+- **`Table` view.** A scrollable grid with a header row, per-column widths and
+  alignment. Focus is a cell rather than a row: Up and Down move rows, Left and
+  Right move columns, Ctrl+Left and Ctrl+Right jump to the end columns, and the
+  grid scrolls in both directions by whole columns so a column is never clipped
+  in half. Rows are read positionally, so a ragged row draws blank cells instead
+  of panicking. This is the control `ListViewer::num_cols` was never meant to be:
+  that field lays one list out in newspaper columns.
+- **`TabbedPane` view.** A tab strip over a stack of pages, each page a `Group`
+  that holds ordinary controls and runs its own focus traversal. Drawn as
+  enclosed tab boxes sitting on the page frame, with the active tab's floor open
+  so the two read as one shape. F6 and Shift+F6 switch pages; Ctrl+PgUp and
+  Ctrl+PgDn do too, where the terminal sends them, and a tilde-marked letter in a
+  title is its Alt hotkey. The pane is transparent, so a page's controls take the
+  owner's colours as if they sat in the dialog directly.
+- **`SplitPane` view.** Two panes divided by a draggable splitter, vertical or
+  horizontal, with a minimum size for each half. A bare divider cannot resize
+  siblings it does not own, so the control owns both halves, each a `Group`, the
+  way `TabbedPane` owns its pages. Dragging the divider moves it, clicking a half
+  focuses it, and F8 moves focus between them. Moving the divider from the
+  keyboard is left to the host through `grow_first` and `shrink_first`, rather
+  than stealing a key from the controls inside the panes.
+- **Multi-select in `ListBox`.** `set_multi_select` turns on marks that are
+  independent of the focus: Space marks the focused item, Shift+click marks a run
+  from the anchor, and `marked_items` / `marked_text` report them in list order.
+  Marked rows carry a check glyph in a two-cell column that keeps the text
+  aligned, and `is_selected` follows the marks in that mode. Off by default, so
+  existing single-selection lists behave exactly as before. Replacing the items
+  drops the marks, whose indices would otherwise refer to the old list.
+- **ScrollBar mouse auto-repeat**, the last omission recorded against the
+  scrollbar in `TO-DO.md`. `Application` tracks whether a mouse button is held
+  and, only then, broadcasts the new `CM_MOUSE_AUTO_REPEAT` from its idle pass.
+  A held arrow or track press repeats after 400 ms, then every 80 ms, and stops
+  on release or at the end of the range. Nothing is broadcast while no button is
+  down, so an idle app stays idle.
+- **`examples/new_controls.rs`.** One dialog running all five new controls: a
+  tabbed pane over two pages, the first wiring three combo boxes and a spinner to
+  a progress bar, the second a table.
+- **`CheckBoxes` and `RadioButtons`.** The Borland shape the port was missing:
+  each holds its items in one focusable control with a single bitmask value.
+  Arrows move within the cluster, Space toggles a box or selects a button, Tab
+  leaves it, and a tilde-marked letter is an item's Alt hotkey; items can be
+  disabled individually and draw dimmed. Radio clusters keep exactly one bit set,
+  so pressing Space on the selected button does not turn it off. The existing
+  one-label `CheckBox` and `RadioButton` are untouched and still supported.
+- **`Tooltip` view.** Hover hints for a whole dialog: register a rect and a line
+  of text per control, and the pointer resting on one raises the hint beside it,
+  flipping above the control when there is no room below. Add it last, since it
+  draws over its neighbours. Any click or keypress takes the hint down.
+- **Frame zoom triangle.** A resizable window's title bar now carries `[\u{25B2}]`
+  beside the close box, turning into `[\u{25BC}]` once zoomed. It tracks press and
+  release like the close box, so a press that slides off cancels rather than
+  zooming. Dialogs show none: Borland pairs wfZoom with wfGrow, and a dialog has
+  neither. Closes the last "visual polish only" note in `TO-DO.md`.
+- **`CM_IDLE_TICK`.** Broadcast from `Application::idle` whenever the event poll
+  times out, so views can run timers of their own. The tooltip's hover delay is
+  the first user; animation is the obvious second. Views must not consume it,
+  since a broadcast stops travelling once it is.
+- **`examples/cluster_tooltip.rs`.** The three above in one dialog.
+- **`docs/MORE-CONTROLS.md`.** Gap analysis of the widget set against Borland
+  Turbo Vision and modern text-UI expectations, with a checklist roadmap. Every
+  item on it is now done.
+
+### Changed
+- **Focus is visible on the new controls.** Borland's input palette gives
+  "normal" and "focused" the same colour because a `TInputLine` shows focus with
+  its cursor. `ComboBox` and `Spinner` draw no cursor, so they use the
+  selected-text colour when focused.
+
 ## [2.3.1] - 2026-09-05
 
 ### Added

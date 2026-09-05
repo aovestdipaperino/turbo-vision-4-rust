@@ -239,6 +239,13 @@ impl Dialog {
                     {
                         self.show_history_popup(&mut event, &mut app.terminal);
                     }
+
+                    // Same for a ComboBox asking to drop its list down.
+                    if event.what == EventType::Command
+                        && event.command == crate::core::command::CM_SHOW_DROPDOWN
+                    {
+                        show_dropdown_popup(&mut event, &mut app.terminal);
+                    }
                 }
                 None => {
                     // Timeout with no events - call idle() to update animations, etc.
@@ -299,6 +306,26 @@ impl Dialog {
         }
         event.clear();
     }
+}
+
+/// Open the drop-down list for a `CM_SHOW_DROPDOWN` command event.
+///
+/// The combo box registered its items under `event.info`; the popup writes the
+/// user's choice straight back into that shared state, so nothing needs to be
+/// broadcast afterwards. An unknown id is ignored, which is what happens when
+/// the control was dropped between the click and this call.
+///
+/// Free function rather than a method because `Application` runs the same step
+/// for combo boxes living on plain windows.
+pub(crate) fn show_dropdown_popup(event: &mut Event, terminal: &mut Terminal) {
+    use crate::views::combo_box::{DropdownWindow, lookup};
+
+    if let Some(state) = lookup(event.info) {
+        let (w, h) = terminal.size();
+        let screen = Rect::new(0, 0, w as i16, h as i16);
+        DropdownWindow::new(state, screen).execute(terminal);
+    }
+    event.clear();
 }
 
 impl View for Dialog {
@@ -402,10 +429,12 @@ impl View for Dialog {
                         self.window.end_modal(event.command);
                         event.clear();
                     }
-                    crate::core::command::CM_SHOW_HISTORY => {
-                        // A History button was clicked. Leave the event alone so the
-                        // modal loop in Dialog::execute() (which has terminal access)
-                        // can open the history popup. Must not fall through to the
+                    crate::core::command::CM_SHOW_HISTORY
+                    | crate::core::command::CM_SHOW_DROPDOWN => {
+                        // A History button was clicked, or a ComboBox asked to
+                        // drop its list. Leave the event alone so the modal loop
+                        // in Dialog::execute() (which has terminal access) can
+                        // open the popup. Must not fall through to the
                         // "< 1000 closes the dialog" rule below.
                     }
                     _ => {
