@@ -211,6 +211,8 @@ Not all view types are created equal in Turbo Vision. You can separate their fun
 - Group views
 - Engines
 
+For a picture of how the main structs and traits fit together, see the [class diagram](../reference/class-diagram.md).
+
 ### Primitive Types
 
 Turbo Vision provides simple types that exist primarily to be used by other views:

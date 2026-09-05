@@ -12,6 +12,7 @@ on the crate as much as with it.
 ## Architecture
 
 - **[Design document](design.md)** &mdash; the long one. How the Borland class tree became layered traits, and why each decision went the way it did.
+- **[Class diagram](class-diagram.md)** &mdash; the main traits and structs on one Mermaid diagram: the `View` trait, its extension traits, and the composition chain from `Application` down to `Frame`.
 - **[Owner-relative coordinates](owner-coordinates.md)** &mdash; the coordinate model: the origin stack, `extent`, and how a view draws and receives events in its own space.
 - **[Missing inheritance](inheritance.md)** &mdash; the analysis that produced the 3.0.0 shape, listing what C++ inheritance provided and what replaced each piece.
 - **[Implementation reference](implementation.md)** &mdash; events, commands, menus, status lines, message boxes and the enable/disable system, with code for each.

@@ -16,6 +16,12 @@ Check **[KEY_FILES_SUMMARY.txt](KEY_FILES_SUMMARY.txt)** - find where each featu
 ### For Overview
 See **[FINDINGS_SUMMARY.md](FINDINGS_SUMMARY.md)** - executive summary of all findings
 
+### For the Type Structure
+See **[CLASS-DIAGRAM.md](CLASS-DIAGRAM.md)** - Mermaid class diagram of the core traits and structs
+
+### For Publishing the Website
+See **[HOW-TO-BUILD-AND-DEPLOY-WEBSITE.md](HOW-TO-BUILD-AND-DEPLOY-WEBSITE.md)** - how the MkDocs site under `website/` is generated, built and deployed to Netlify
+
 ---
 
 ## Documentation Files

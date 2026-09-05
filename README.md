@@ -206,6 +206,7 @@ If you're familiar with Borland Turbo Vision:
 1. **[Architecture Overview](docs/user-guide/Chapter-07-Architecture-Overview.md)** - Understand Rust adaptations
 2. **[Rust Implementation Reference](docs/RUST-IMPLEMENTATION-REFERENCE.md)** - Technical details
 3. **[Turbo Vision Design](docs/TURBO-VISION-DESIGN.md)** - Complete design document
+4. **[Class Diagram](docs/CLASS-DIAGRAM.md)** - How the core types compose, as a Mermaid diagram
 
 **Key Differences**: The Rust port uses composition over inheritance, but maintains the same event loop patterns, drawing system, and API structure as Borland's original.
 
@@ -251,6 +252,8 @@ docs/
 ├── BORLAND-PALETTE-CHART.md            # Color reference
 ├── RUST-API-CATALOG.md                 # API reference
 ├── TURBO-VISION-DESIGN.md              # Complete design document
+├── CLASS-DIAGRAM.md                    # Mermaid class diagram of the core types
+├── HOW-TO-BUILD-AND-DEPLOY-WEBSITE.md  # Building and deploying the MkDocs site
 ├── SERIALIZATION-PERSISTENCE.md         # Saving/loading data
 └── user-guide/                         # 18-chapter comprehensive guide
     ├── Chapter-01-Stepping-into-Turbo-Vision.md
@@ -391,6 +394,199 @@ This implementation closely follows Borland Turbo Vision's architecture, adapted
   - Three-phase processing (PreProcess → Focused → PostProcess) matching Borland's `TGroup::handleEvent()`
   - Event re-queuing via `Terminal::put_event()` matching Borland's `TProgram::putEvent()`
   - Owner-aware broadcasts via `Group::broadcast()` matching Borland's `message(owner, ...)` pattern
+
+
+### Class Diagram
+
+A non-exhaustive map of the main types. Traits are marked `<<trait>>`; dashed hollow arrows are trait implementations, filled diamonds are ownership by value. The full page with notes lives in [docs/CLASS-DIAGRAM.md](docs/CLASS-DIAGRAM.md).
+
+```mermaid
+classDiagram
+    direction TB
+
+    class View {
+        <<trait>>
+        +bounds() Rect
+        +set_bounds(Rect)
+        +draw(Terminal)
+        +handle_event(Event)
+        +can_focus() bool
+        +set_focus(bool)
+        +state() StateFlags
+        +options() u16
+        +grow_mode() GrowFlags
+    }
+
+    class IdleView {
+        <<trait>>
+        +idle()
+    }
+    class Cluster {
+        <<trait>>
+        +cluster_state()
+    }
+    class ListViewer {
+        <<trait>>
+        +list_state()
+        +item_count() usize
+    }
+    class MenuViewer {
+        <<trait>>
+        +menu_state()
+    }
+    class Editor {
+        <<trait>>
+        +undo()
+        +redo()
+        +cut() bool
+        +copy() bool
+        +paste() bool
+    }
+    class FileEditor {
+        <<trait>>
+        +load(PathBuf)
+        +save()
+        +save_as(PathBuf)
+    }
+
+    View <|-- IdleView
+    View <|-- Cluster
+    View <|-- ListViewer
+    View <|-- MenuViewer
+    View <|-- Editor
+    Editor <|-- FileEditor
+
+    class Application {
+        +terminal: Terminal
+        +desktop: Desktop
+        +menu_bar: Option~MenuBar~
+        +status_line: Option~StatusLine~
+        +running: bool
+        +run()
+        +handle_event(Event)
+    }
+
+    class Desktop {
+        -children: Group
+        +add(Box~View~)
+        +cascade()
+        +tile()
+        +bring_to_front(ViewId)
+    }
+
+    class Group {
+        -children: Vec~Box~View~~
+        -focused: usize
+        -end_state: CommandId
+        +add(Box~View~) ViewId
+        +execute() CommandId
+        +end_modal(CommandId)
+        +broadcast(Event, owner)
+    }
+
+    class Window {
+        -frame: Frame
+        -interior: Group
+        -number: Option~u8~
+        -zoom_rect: Rect
+        +add(Box~View~) ViewId
+        +zoom(Rect)
+    }
+
+    class Frame {
+        -title: String
+        -resizable: bool
+        -zoomable: bool
+        +is_zoomed() bool
+    }
+
+    class Dialog {
+        -window: Window
+        -result: CommandId
+        +execute(Application) CommandId
+    }
+
+    class MenuBar {
+        -submenus: Vec~SubMenu~
+    }
+    class MenuBox
+    class StatusLine {
+        -items: Vec~StatusItem~
+    }
+
+    class Button {
+        -title: String
+        -command: CommandId
+        -is_default: bool
+    }
+    class InputLine
+    class StaticText
+    class Label
+    class CheckBox
+    class RadioButton
+    class ListBox
+    class ScrollBar
+    class Scroller
+    class TextViewer
+    class Memo
+    class EditorWindow
+    class FileEditorWindow
+
+    class Event {
+        +what: EventType
+        +key_code: u16
+        +mouse: MouseEvent
+        +command: CommandId
+        +clear()
+    }
+    class Terminal {
+        +put_event(Event)
+        +flush()
+    }
+    class Rect
+    class Palette
+
+    Application *-- Desktop
+    Application *-- Terminal
+    Application o-- MenuBar
+    Application o-- StatusLine
+    Desktop *-- Group
+    Window *-- Frame
+    Window *-- Group : interior
+    Dialog *-- Window
+    Group o-- "0..*" View : children
+    Scroller o-- ScrollBar
+    TextViewer o-- ScrollBar
+    MenuBar ..> MenuBox : opens
+
+    View <|.. Desktop
+    View <|.. Group
+    View <|.. Window
+    View <|.. Frame
+    View <|.. Dialog
+    View <|.. MenuBar
+    View <|.. StatusLine
+    View <|.. Button
+    View <|.. InputLine
+    View <|.. StaticText
+    View <|.. Label
+    View <|.. ScrollBar
+    View <|.. Scroller
+    View <|.. TextViewer
+    View <|.. Memo
+    Cluster <|.. CheckBox
+    Cluster <|.. RadioButton
+    ListViewer <|.. ListBox
+    MenuViewer <|.. MenuBar
+    MenuViewer <|.. MenuBox
+    Editor <|.. EditorWindow
+    FileEditor <|.. FileEditorWindow
+
+    View ..> Event : handles
+    View ..> Terminal : draws to
+    View ..> Rect : bounds
+    View ..> Palette : colours from
+```
 
 ## Project Statistics
 

@@ -136,6 +136,7 @@ nav:
       - reference/changelog.md
       - Architecture:
           - reference/design.md
+          - reference/class-diagram.md
           - reference/owner-coordinates.md
           - reference/inheritance.md
           - reference/implementation.md

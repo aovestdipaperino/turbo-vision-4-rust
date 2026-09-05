@@ -105,7 +105,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
 |---|---|
 | Build your first application | [Getting started](getting-started.md) then [Chapter 1](guide/chapter-01.md) |
 | Follow a complete worked project | [The biorhythm calculator tutorial](tutorials/biorhythm.md) |
-| Understand the trait layering | [Views and groups](guide/chapter-08.md) and [the design document](reference/design.md) |
+| Understand the trait layering | [Views and groups](guide/chapter-08.md), [the class diagram](reference/class-diagram.md) and [the design document](reference/design.md) |
 | Port a C++ Turbo Vision program | [The application model, side by side](compare/app-model.md) |
 | See what changed in 3.0.0 | [What's new](whats-new.md) |
 | Move an existing project onto 3.0.0 | [The upgrade guide](reference/upgrading.md) |

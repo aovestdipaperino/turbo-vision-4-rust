@@ -22,6 +22,7 @@ COPIES: dict[str, str] = {
     "docs/TURBO-VISION-DESIGN.md": "reference/design.md",
     "docs/OWNER-COORDINATES.md": "reference/owner-coordinates.md",
     "docs/MISSING-INHERITANCE.md": "reference/inheritance.md",
+    "docs/CLASS-DIAGRAM.md": "reference/class-diagram.md",
     "docs/RUST-API-CATALOG.md": "reference/api-catalog.md",
     "docs/RUST-API-CATALOGUE-INDEX.md": "reference/api-index.md",
     "docs/RUST-IMPLEMENTATION-REFERENCE.md": "reference/implementation.md",
@@ -43,6 +44,10 @@ IMAGE_DIRS: list[str] = []  # captures live in docs/assets/shots
 # Links that point at repository paths and must be rewritten for the site.
 LINK_REWRITES = [
     (r"\]\(\.\./CHANGELOG\.md", "](../reference/changelog.md"),
+    # Chapter 7 points at the class diagram, which lives under reference/ on the site.
+    (r"\]\(\.\./CLASS-DIAGRAM\.md", "](../reference/class-diagram.md"),
+    # The class diagram points back at chapter 7 from reference/.
+    (r"\]\(user-guide/Chapter-(\d\d)[^)]*\.md\)", r"](../guide/chapter-\1.md)"),
     (r"\]\(docs/user-guide/Chapter-(\d\d)[^)]*\.md\)", r"](guide/chapter-\1.md)"),
     (r"\]\(screenshots/", "](assets/screenshots/"),
     # Images referenced by the coding guidelines were never in the repository.
