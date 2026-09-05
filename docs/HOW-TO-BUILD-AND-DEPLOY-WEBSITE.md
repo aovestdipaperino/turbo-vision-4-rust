@@ -97,25 +97,40 @@ usually means a link the sync script did not rewrite.
 
 ## Deploying
 
-Netlify watches the `main` branch of the GitHub repository. The site's base
-directory is set to `website` in the Netlify UI, so `website/netlify.toml` is
-the build configuration that applies. Its build command installs the pinned
-requirements and runs `mkdocs build --site-dir site`, and Netlify publishes the
-resulting `site` directory.
+The site is the Netlify project `turbo-vision-rust`, and it is published from
+this machine with the Netlify CLI rather than by a Git-triggered build. Pushing
+to `main` does not deploy anything on its own. `website/netlify.toml` still
+matters: it sets the publish directory and the HTTP headers that Netlify
+applies, so keep it in place.
 
-Deploying is therefore a push:
+A deploy is a local build followed by an upload of the `site/` directory:
 
 ```sh
-python3 website/sync_docs.py
-git add docs website
-git commit -m "docs: ..."
-git push origin main
+cd website
+python3 sync_docs.py
+.venv/bin/mkdocs build --site-dir site
+npx -y netlify-cli deploy --prod --dir=site --no-build --message "what changed"
 ```
 
-Netlify picks the commit up within a minute or so and the new build goes live
-when it finishes. There is no separate publish step and nothing to run by hand.
-If a build fails, the previous deploy stays live and the failure is visible in
-the Netlify dashboard for the site.
+`--no-build` tells the CLI to upload what is already in `site/` instead of
+running the build command from `netlify.toml`. The CLI prints the production
+URL, a unique URL for that deploy, and a link to the deploy log when it
+finishes.
+
+The CLI needs two things. It must be logged in, which `npx netlify-cli login`
+does once through the browser and stores under the user's Netlify preferences.
+And the `website/` directory must be linked to the site, which is the ignored
+file `website/.netlify/state.json` holding the site ID. If it is missing, run
+`npx netlify-cli link` from `website/` and pick the `turbo-vision-rust` project,
+or recreate the file by hand:
+
+```json
+{"siteId": "c56713c9-ce51-4b25-bafa-adca506e1725"}
+```
+
+Commit and push the source changes as well, so the repository matches what is
+live. If a deploy goes wrong, the previous deploy stays live and any earlier
+deploy can be republished from the Netlify dashboard.
 
 `netlify.toml` also sets cache headers: screenshots and images are immutable,
 while stylesheets, scripts and pages must be revalidated so a redeploy reaches
@@ -131,3 +146,4 @@ Before pushing a change that touches anything under `docs/` or `website/`:
 - Open the page in `mkdocs serve` if it contains a diagram, a table or an
   admonition, since those render differently from a plain Markdown preview.
 - Commit the source document and the generated copy together.
+- Deploy with the Netlify CLI as described above. A push alone does not update the site.
