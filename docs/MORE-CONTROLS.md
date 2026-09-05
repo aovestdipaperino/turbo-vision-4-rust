@@ -52,8 +52,12 @@ Ordered by benefit-to-effort. Each one composes existing views wherever it can.
       widths and alignment, and a focused cell rather than a focused row: Up and
       Down move rows, Left and Right move columns, and the grid scrolls in both
       directions by whole columns. Ragged rows draw blank instead of panicking.
-- [ ] **Splitter** — draggable divider resizing two sibling views. The geometry
-      maths already exists in `Desktop`'s tiling code.
+- [x] **Splitter** — done as `SplitPane`, `src/views/split_pane.rs`. A bare
+      divider cannot resize siblings it does not own, so the control owns both
+      halves, each a `Group`, the way `TabbedPane` owns its pages. Vertical or
+      horizontal, draggable, with a minimum size per half; F8 moves focus between
+      them. Keyboard divider movement is left to the host through `grow_first`
+      and `shrink_first`, rather than stealing a key from the panes.
 - [ ] **Tooltip / hint popup** — transient hover text. Borland pushed this to the
       status line; a real popup suits mouse-driven use better.
 
@@ -64,11 +68,17 @@ Ordered by benefit-to-effort. Each one composes existing views wherever it can.
       `CheckBox` holds a single label and grouping is emulated with a
       `CM_RADIO_SELECTED` broadcast on a group id. Works, but diverges from the
       reference and is verbose for multi-item groups.
-- [ ] **Multi-select in `ListBox`** — `ListViewer::is_selected` exists but
-      `ListBox` exposes only a single `get_selection`. Wants Space to mark,
-      Shift-click to extend, and a marked-item accessor.
-- [ ] **ScrollBar mouse auto-repeat** — held arrow clicks should repeat. Already
-      recorded as an omission in `TO-DO.md`.
+- [x] **Multi-select in `ListBox`** — done. `set_multi_select` adds marks that
+      are independent of the focus: Space marks the focused item, Shift+click
+      marks a run from the anchor, and `marked_items` / `marked_text` report them
+      in list order. Marked rows carry a check glyph in a two-cell column, and
+      `is_selected` follows the marks in that mode. Off by default, so existing
+      single-selection lists are untouched.
+- [x] **ScrollBar mouse auto-repeat** — done. `Application` tracks whether a
+      button is held and, only then, broadcasts `CM_MOUSE_AUTO_REPEAT` from its
+      idle pass; the scrollbar repeats the press it is holding after a 400 ms
+      delay, every 80 ms, and stops at the end of the range. Nothing is sent
+      while no button is down, so an idle app stays idle.
 - [ ] **Frame zoom-icon rendering** — the zoom command dispatches but the icon is
       never drawn. Also recorded in `TO-DO.md`.
 

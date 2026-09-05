@@ -11,6 +11,7 @@ use crate::core::event::{
 use crate::core::geometry::{Point, Rect};
 use crate::core::palette::{SCROLLBAR_INDICATOR, SCROLLBAR_PAGE};
 use crate::terminal::Terminal;
+use std::time::{Duration, Instant};
 
 /// Scroll bar part codes (used by getPartCode() method)
 const SB_INDICATOR: i16 = 0;
@@ -37,6 +38,24 @@ pub const HSCROLL_CHARS: [char; 5] = [
     '░', // Page right area
 ];
 
+/// How long a button must be held before the press starts repeating.
+const REPEAT_DELAY: Duration = Duration::from_millis(400);
+/// Gap between repeats once they start.
+const REPEAT_INTERVAL: Duration = Duration::from_millis(80);
+
+/// What a held mouse button keeps doing.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum RepeatAction {
+    /// One arrow step, up or left.
+    StepBack,
+    /// One arrow step, down or right.
+    StepForward,
+    /// One page, towards the start.
+    PageBack,
+    /// One page, towards the end.
+    PageForward,
+}
+
 pub struct ScrollBar {
     bounds: Rect,
     value: i32,
@@ -49,6 +68,8 @@ pub struct ScrollBar {
     is_vertical: bool,
     palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
     dragging_thumb: bool,
+    /// What the held button is repeating, and when the next repeat is due.
+    repeat: Option<(RepeatAction, Instant)>,
 }
 
 impl ScrollBar {
@@ -65,6 +86,7 @@ impl ScrollBar {
             is_vertical: true,
             palette_chain: None,
             dragging_thumb: false,
+            repeat: None,
         }
     }
 
@@ -81,6 +103,7 @@ impl ScrollBar {
             is_vertical: false,
             palette_chain: None,
             dragging_thumb: false,
+            repeat: None,
         }
     }
 
@@ -302,6 +325,46 @@ impl ScrollBar {
             }
         }
     }
+    /// Apply one repeat step. Returns true when the value actually moved, so a
+    /// repeat that has run into the end of the range can stop.
+    fn apply(&mut self, action: RepeatAction) -> bool {
+        let before = self.value;
+        self.value = match action {
+            RepeatAction::StepBack => (self.value - self.ar_step).max(self.min_val),
+            RepeatAction::StepForward => (self.value + self.ar_step).min(self.max_val),
+            RepeatAction::PageBack => (self.value - self.pg_step).max(self.min_val),
+            RepeatAction::PageForward => (self.value + self.pg_step).min(self.max_val),
+        };
+        self.value != before
+    }
+
+    /// Arm auto-repeat for a press that has just been applied once.
+    fn arm_repeat(&mut self, action: RepeatAction) {
+        self.repeat = Some((action, Instant::now() + REPEAT_DELAY));
+    }
+
+    /// Fire any repeat that has come due. Called from the
+    /// `CM_MOUSE_AUTO_REPEAT` broadcast the application sends while a button is
+    /// held down.
+    ///
+    /// Returns true when the value changed.
+    fn tick_repeat(&mut self) -> bool {
+        let Some((action, due)) = self.repeat else {
+            return false;
+        };
+        if Instant::now() < due {
+            return false;
+        }
+        if !self.apply(action) {
+            // Ran into the end of the range: stop repeating rather than
+            // spinning for as long as the button is held.
+            self.repeat = None;
+            return false;
+        }
+        self.repeat = Some((action, Instant::now() + REPEAT_INTERVAL));
+        true
+    }
+
     fn left_click(&mut self, event: &mut Event) {
         let mouse_pos = event.mouse.pos;
 
@@ -315,10 +378,12 @@ impl ScrollBar {
                 let height = self.bounds.height();
 
                 if rel_y == 0 {
-                    self.value = (self.value - self.ar_step).max(self.min_val);
+                    self.apply(RepeatAction::StepBack);
+                    self.arm_repeat(RepeatAction::StepBack);
                     event.clear();
                 } else if rel_y == height - 1 {
-                    self.value = (self.value + self.ar_step).min(self.max_val);
+                    self.apply(RepeatAction::StepForward);
+                    self.arm_repeat(RepeatAction::StepForward);
                     event.clear();
                 } else {
                     let range = self.max_val - self.min_val;
@@ -328,9 +393,11 @@ impl ScrollBar {
                         let track_y = rel_y - 1;
 
                         if track_y < thumb_pos {
-                            self.value = (self.value - self.pg_step).max(self.min_val);
+                            self.apply(RepeatAction::PageBack);
+                            self.arm_repeat(RepeatAction::PageBack);
                         } else if track_y >= thumb_pos + thumb_sz {
-                            self.value = (self.value + self.pg_step).min(self.max_val);
+                            self.apply(RepeatAction::PageForward);
+                            self.arm_repeat(RepeatAction::PageForward);
                         } else {
                             self.dragging_thumb = true;
                         }
@@ -348,10 +415,12 @@ impl ScrollBar {
                 let width = self.bounds.width();
 
                 if rel_x == 0 {
-                    self.value = (self.value - self.ar_step).max(self.min_val);
+                    self.apply(RepeatAction::StepBack);
+                    self.arm_repeat(RepeatAction::StepBack);
                     event.clear();
                 } else if rel_x == width - 1 {
-                    self.value = (self.value + self.ar_step).min(self.max_val);
+                    self.apply(RepeatAction::StepForward);
+                    self.arm_repeat(RepeatAction::StepForward);
                     event.clear();
                 } else {
                     let range = self.max_val - self.min_val;
@@ -361,9 +430,11 @@ impl ScrollBar {
                         let track_x = rel_x - 1;
 
                         if track_x < thumb_pos {
-                            self.value = (self.value - self.pg_step).max(self.min_val);
+                            self.apply(RepeatAction::PageBack);
+                            self.arm_repeat(RepeatAction::PageBack);
                         } else if track_x >= thumb_pos + thumb_sz {
-                            self.value = (self.value + self.pg_step).min(self.max_val);
+                            self.apply(RepeatAction::PageForward);
+                            self.arm_repeat(RepeatAction::PageForward);
                         } else {
                             self.dragging_thumb = true;
                         }
@@ -463,9 +534,18 @@ impl View for ScrollBar {
                 }
             }
             EventType::MouseUp => {
+                // Releasing ends both a thumb drag and any auto-repeat.
+                self.repeat = None;
                 if self.dragging_thumb {
                     self.dragging_thumb = false;
                     event.clear();
+                }
+            }
+            EventType::Broadcast => {
+                if event.command == crate::core::command::CM_MOUSE_AUTO_REPEAT {
+                    self.tick_repeat();
+                    // The broadcast is left alone: other views may be repeating
+                    // too, and a broadcast reaches every child.
                 }
             }
             _ => {}
@@ -628,6 +708,7 @@ impl ScrollBarBuilder {
             is_vertical: self.is_vertical,
             palette_chain: None,
             dragging_thumb: false,
+            repeat: None,
         }
     }
 
@@ -658,5 +739,122 @@ mod tests {
         bar.set_params(0, 0, 50, 10, 1);
         bar.set_total(100);
         assert!(bar.get_thumb_size() >= 1);
+    }
+
+    // --- Mouse auto-repeat ----------------------------------------------
+
+    fn repeat_bar() -> ScrollBar {
+        let mut bar = ScrollBar::new_vertical(Rect::new(0, 0, 1, 10));
+        bar.set_params(50, 0, 100, 10, 1);
+        // Without a total there is no thumb at all, so a press anywhere on the
+        // track pages instead of dragging.
+        bar.set_total(8);
+        bar
+    }
+
+    fn press(bar: &mut ScrollBar, y: i16) {
+        let mut e = Event::nothing();
+        e.what = EventType::MouseDown;
+        e.mouse.buttons = MB_LEFT_BUTTON;
+        e.mouse.pos = Point::new(0, y);
+        bar.handle_event(&mut e);
+    }
+
+    fn release(bar: &mut ScrollBar) {
+        let mut e = Event::nothing();
+        e.what = EventType::MouseUp;
+        bar.handle_event(&mut e);
+    }
+
+    fn auto_repeat(bar: &mut ScrollBar) {
+        let mut e = Event::broadcast(crate::core::command::CM_MOUSE_AUTO_REPEAT);
+        bar.handle_event(&mut e);
+    }
+
+    /// Pretend the hold has lasted long enough for the next repeat.
+    fn make_repeat_due(bar: &mut ScrollBar) {
+        if let Some((action, _)) = bar.repeat {
+            bar.repeat = Some((action, Instant::now()));
+        }
+    }
+
+    #[test]
+    fn pressing_an_arrow_steps_once_and_arms_a_repeat() {
+        let mut bar = repeat_bar();
+        press(&mut bar, 0);
+        assert_eq!(bar.get_value(), 49);
+        assert!(bar.repeat.is_some());
+    }
+
+    #[test]
+    fn a_repeat_waits_for_the_initial_delay() {
+        let mut bar = repeat_bar();
+        press(&mut bar, 0);
+        auto_repeat(&mut bar);
+        assert_eq!(bar.get_value(), 49, "still inside the delay");
+    }
+
+    #[test]
+    fn a_held_arrow_keeps_stepping_once_the_delay_passes() {
+        let mut bar = repeat_bar();
+        press(&mut bar, 0);
+        for _ in 0..3 {
+            make_repeat_due(&mut bar);
+            auto_repeat(&mut bar);
+        }
+        assert_eq!(bar.get_value(), 46);
+    }
+
+    #[test]
+    fn releasing_stops_the_repeat() {
+        let mut bar = repeat_bar();
+        press(&mut bar, 0);
+        release(&mut bar);
+        assert!(bar.repeat.is_none());
+        auto_repeat(&mut bar);
+        assert_eq!(bar.get_value(), 49);
+    }
+
+    #[test]
+    fn a_repeat_stops_at_the_end_of_the_range() {
+        let mut bar = repeat_bar();
+        bar.set_value(1);
+        press(&mut bar, 0);
+        assert_eq!(bar.get_value(), 0);
+        make_repeat_due(&mut bar);
+        auto_repeat(&mut bar);
+        assert_eq!(bar.get_value(), 0);
+        assert!(bar.repeat.is_none(), "no point repeating into the end stop");
+    }
+
+    #[test]
+    fn pressing_the_track_repeats_by_the_page() {
+        let mut bar = repeat_bar();
+        // Row 1 is the top of the track, above a thumb sitting mid-bar.
+        press(&mut bar, 1);
+        let after_press = bar.get_value();
+        assert!(after_press < 50, "paged towards the start");
+        make_repeat_due(&mut bar);
+        auto_repeat(&mut bar);
+        assert!(bar.get_value() < after_press, "kept paging");
+    }
+
+    #[test]
+    fn dragging_the_thumb_arms_no_repeat() {
+        let mut bar = repeat_bar();
+        // The thumb sits around the middle for a value of 50.
+        let thumb_row = bar.get_pos() as i16 + 1;
+        press(&mut bar, thumb_row);
+        assert!(bar.dragging_thumb, "the press landed on the thumb");
+        assert!(bar.repeat.is_none(), "a drag is not a repeating press");
+    }
+
+    #[test]
+    fn the_repeat_broadcast_is_left_for_other_views() {
+        let mut bar = repeat_bar();
+        press(&mut bar, 0);
+        let mut e = Event::broadcast(crate::core::command::CM_MOUSE_AUTO_REPEAT);
+        bar.handle_event(&mut e);
+        assert_eq!(e.what, EventType::Broadcast);
     }
 }

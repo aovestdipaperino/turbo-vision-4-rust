@@ -57,6 +57,7 @@ pub const CM_RADIO_SELECTED: CommandId = 67; // Broadcast: radio button selected
 pub const CM_SHOW_HISTORY: CommandId = 69; // Command: open the history popup for a History button (history id in event.info)
 pub const CM_HISTORY_SELECTED: CommandId = 70; // Broadcast: a history item was selected (history id in event.info; item is at front of HistoryManager list)
 pub const CM_SHOW_DROPDOWN: CommandId = 71; // Command: open a ComboBox drop-down list (combo id in event.info)
+pub const CM_MOUSE_AUTO_REPEAT: CommandId = 72; // Broadcast while a mouse button is held, so views can auto-repeat
 
 // Custom commands (user defined)
 pub const CM_ABOUT: CommandId = 100;

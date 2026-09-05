@@ -1,6 +1,12 @@
 // (C) 2025 - Enzo Lombardi
 
-//! ListBox view - scrollable list with single selection support.
+//! ListBox view - scrollable list with single or multiple selection.
+//!
+//! By default one item is focused and that is the selection. Turning on
+//! [`ListBox::set_multi_select`] adds a second, independent notion: marked
+//! items. Space toggles the mark on the focused item, Shift+click marks a run,
+//! and [`ListBox::marked_items`] reports them in order. The focus keeps moving
+//! as it always did, so the two never fight.
 
 use super::list_viewer::{ListViewer, ListViewerState};
 use super::view::{View, write_line_to_terminal};
@@ -11,6 +17,16 @@ use crate::core::geometry::Rect;
 use crate::core::palette::{LISTBOX_FOCUSED, LISTBOX_NORMAL, LISTBOX_SELECTED};
 use crate::core::state::StateFlags;
 use crate::terminal::Terminal;
+use std::collections::BTreeSet;
+
+/// Key code for the space bar, which toggles a mark.
+const KB_SPACE: u16 = b' ' as u16;
+
+/// Drawn before a marked item when multi-select is on.
+const MARK_ON: &str = "\u{221A} ";
+/// Drawn before an unmarked item when multi-select is on, to keep the columns
+/// lined up.
+const MARK_OFF: &str = "  ";
 
 /// ListBox - A scrollable list of selectable items
 ///
@@ -22,6 +38,12 @@ pub struct ListBox {
     list_state: ListViewerState, // Embedded state from ListViewer
     state: StateFlags,
     on_select_command: CommandId,
+    /// Whether items can be marked independently of the focus.
+    multi_select: bool,
+    /// Marked item indices, kept ordered so callers read them in list order.
+    marked: BTreeSet<usize>,
+    /// Where the last Shift+click run started.
+    anchor: usize,
     palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
 }
 
@@ -34,14 +56,21 @@ impl ListBox {
             list_state: ListViewerState::new(),
             state: 0,
             on_select_command,
+            multi_select: false,
+            marked: BTreeSet::new(),
+            anchor: 0,
             palette_chain: None,
         }
     }
 
-    /// Set the items in the list
+    /// Set the items in the list.
+    ///
+    /// Marks are dropped, because their indices refer to the old list.
     pub fn set_items(&mut self, items: Vec<String>) {
         self.items = items;
         self.list_state.set_range(self.items.len());
+        self.marked.clear();
+        self.anchor = 0;
     }
 
     /// Add an item to the list
@@ -54,6 +83,90 @@ impl ListBox {
     pub fn clear(&mut self) {
         self.items.clear();
         self.list_state.set_range(0);
+        self.marked.clear();
+        self.anchor = 0;
+    }
+
+    /// Allow items to be marked independently of the focus.
+    ///
+    /// Turning it off drops the marks, since nothing can act on them any more.
+    pub fn set_multi_select(&mut self, multi: bool) {
+        self.multi_select = multi;
+        if !multi {
+            self.marked.clear();
+        }
+    }
+
+    /// Whether items can be marked.
+    pub fn is_multi_select(&self) -> bool {
+        self.multi_select
+    }
+
+    /// Whether one item is marked.
+    pub fn is_marked(&self, index: usize) -> bool {
+        self.marked.contains(&index)
+    }
+
+    /// The marked items, in list order.
+    pub fn marked_items(&self) -> Vec<usize> {
+        self.marked.iter().copied().collect()
+    }
+
+    /// The marked items' text, in list order.
+    pub fn marked_text(&self) -> Vec<&str> {
+        self.marked
+            .iter()
+            .filter_map(|&i| self.items.get(i).map(|s| &**s))
+            .collect()
+    }
+
+    /// How many items are marked.
+    pub fn marked_count(&self) -> usize {
+        self.marked.len()
+    }
+
+    /// Mark or unmark one item. Out-of-range indices are ignored.
+    ///
+    /// Works whether or not multi-select is on, so a caller can pre-mark a list
+    /// before showing it.
+    pub fn set_marked(&mut self, index: usize, marked: bool) {
+        if index >= self.items.len() {
+            return;
+        }
+        if marked {
+            self.marked.insert(index);
+        } else {
+            self.marked.remove(&index);
+        }
+    }
+
+    /// Flip one item's mark.
+    pub fn toggle_mark(&mut self, index: usize) {
+        let marked = self.is_marked(index);
+        self.set_marked(index, !marked);
+    }
+
+    /// Mark every item.
+    pub fn mark_all(&mut self) {
+        self.marked = (0..self.items.len()).collect();
+    }
+
+    /// Unmark everything.
+    pub fn clear_marks(&mut self) {
+        self.marked.clear();
+    }
+
+    /// Mark every item between the anchor and `index`, inclusive, leaving marks
+    /// outside that run alone.
+    fn mark_run_to(&mut self, index: usize) {
+        let (lo, hi) = if self.anchor <= index {
+            (self.anchor, index)
+        } else {
+            (index, self.anchor)
+        };
+        for i in lo..=hi.min(self.items.len().saturating_sub(1)) {
+            self.marked.insert(i);
+        }
     }
 
     /// Get the currently selected item index
@@ -149,20 +262,33 @@ impl View for ListBox {
             let item_idx = self.list_state.top_item + i;
 
             if item_idx < self.items.len() {
-                let is_selected = Some(item_idx) == self.list_state.focused;
-                let color = if is_selected {
+                let is_focused_row = Some(item_idx) == self.list_state.focused;
+                let color = if is_focused_row {
                     color_selected
                 } else {
                     color_normal
                 };
 
-                let text = &self.items[item_idx];
-                buf.move_str(0, text, color);
+                buf.move_char(0, ' ', color, width);
 
-                // Fill rest of line with spaces
-                let text_len = text.len();
-                if text_len < width {
-                    buf.move_char(text_len, ' ', color, width - text_len);
+                // With multi-select on, every row carries a two-cell mark
+                // column so the text stays aligned whether marked or not.
+                let text_at = if self.multi_select {
+                    let mark = if self.is_marked(item_idx) {
+                        MARK_ON
+                    } else {
+                        MARK_OFF
+                    };
+                    buf.move_str(0, mark, color);
+                    MARK_OFF.len()
+                } else {
+                    0
+                };
+
+                if text_at < width {
+                    let room = width - text_at;
+                    let text: String = self.items[item_idx].chars().take(room).collect();
+                    buf.move_str(text_at, &text, color);
                 }
             } else {
                 // Empty line
@@ -203,6 +329,28 @@ impl View for ListBox {
             }
         }
 
+        // Multi-select clicks: a plain click sets the anchor, a Shift+click
+        // marks the run from it. Handled before the shared list navigation so
+        // the modifier is not lost.
+        if self.multi_select
+            && event.what == EventType::MouseDown
+            && event.mouse.buttons & MB_LEFT_BUTTON != 0
+            && self.bounds.contains(event.mouse.pos)
+        {
+            let relative_y = (event.mouse.pos.y - self.bounds.a.y) as usize;
+            let clicked = self.list_state.top_item + relative_y;
+            if clicked < self.items.len() {
+                if event
+                    .key_modifiers
+                    .contains(crossterm::event::KeyModifiers::SHIFT)
+                {
+                    self.mark_run_to(clicked);
+                } else {
+                    self.anchor = clicked;
+                }
+            }
+        }
+
         // First try standard list navigation (from ListViewer trait)
         // This handles single-click, arrow keys, etc.
         if self.handle_list_event(event) {
@@ -215,6 +363,14 @@ impl View for ListBox {
                 if event.key_code == KB_ENTER {
                     // Enter on selected item generates command
                     *event = Event::command(self.on_select_command);
+                } else if self.multi_select && event.key_code == KB_SPACE {
+                    // Space marks the focused item and re-anchors, so a
+                    // following Shift+click extends from here.
+                    if let Some(focused) = self.list_state.focused {
+                        self.toggle_mark(focused);
+                        self.anchor = focused;
+                    }
+                    event.clear();
                 }
             }
             EventType::MouseDown => {
@@ -293,6 +449,16 @@ impl ListViewer for ListBox {
 
     fn get_text(&self, item: usize, _max_len: usize) -> String {
         self.items.get(item).cloned().unwrap_or_default()
+    }
+
+    /// With multi-select on, "selected" means marked; otherwise it keeps the
+    /// default meaning of "focused".
+    fn is_selected(&self, item: usize) -> bool {
+        if self.multi_select {
+            self.is_marked(item)
+        } else {
+            Some(item) == self.list_state.focused
+        }
     }
 }
 
@@ -428,5 +594,152 @@ mod tests {
         listbox.clear();
         assert_eq!(listbox.item_count(), 0);
         assert_eq!(listbox.get_selection(), None);
+    }
+
+    // --- Multi-select ---------------------------------------------------
+
+    fn multi_list() -> ListBox {
+        let mut lb = ListBox::new(Rect::new(0, 0, 20, 5), 1000);
+        lb.set_items((0..8).map(|i| format!("item{i}")).collect());
+        lb.set_multi_select(true);
+        lb.set_state(crate::core::state::SF_FOCUSED);
+        lb
+    }
+
+    fn space(lb: &mut ListBox) {
+        let mut e = Event::keyboard(KB_SPACE);
+        lb.handle_event(&mut e);
+    }
+
+    fn shift_click(lb: &mut ListBox, row: i16) {
+        let mut e = Event::nothing();
+        e.what = EventType::MouseDown;
+        e.mouse.buttons = MB_LEFT_BUTTON;
+        e.mouse.pos = crate::core::geometry::Point::new(1, row);
+        e.key_modifiers = crossterm::event::KeyModifiers::SHIFT;
+        lb.handle_event(&mut e);
+    }
+
+    #[test]
+    fn multi_select_is_off_by_default() {
+        let lb = ListBox::new(Rect::new(0, 0, 20, 5), 1000);
+        assert!(!lb.is_multi_select());
+    }
+
+    #[test]
+    fn space_toggles_the_focused_mark() {
+        let mut lb = multi_list();
+        lb.set_selection(2);
+        space(&mut lb);
+        assert!(lb.is_marked(2));
+        assert_eq!(lb.marked_items(), vec![2]);
+        space(&mut lb);
+        assert!(!lb.is_marked(2));
+        assert_eq!(lb.marked_count(), 0);
+    }
+
+    #[test]
+    fn space_does_nothing_in_single_select_mode() {
+        let mut lb = multi_list();
+        lb.set_multi_select(false);
+        lb.set_selection(2);
+        space(&mut lb);
+        assert_eq!(lb.marked_count(), 0);
+    }
+
+    #[test]
+    fn marks_come_back_in_list_order() {
+        let mut lb = multi_list();
+        for i in [5, 1, 3] {
+            lb.set_marked(i, true);
+        }
+        assert_eq!(lb.marked_items(), vec![1, 3, 5]);
+        assert_eq!(lb.marked_text(), vec!["item1", "item3", "item5"]);
+    }
+
+    #[test]
+    fn marking_out_of_range_is_ignored() {
+        let mut lb = multi_list();
+        lb.set_marked(99, true);
+        assert_eq!(lb.marked_count(), 0);
+    }
+
+    #[test]
+    fn shift_click_marks_the_run_from_the_anchor() {
+        let mut lb = multi_list();
+        lb.set_selection(1);
+        space(&mut lb); // marks 1 and anchors there
+        shift_click(&mut lb, 4); // row 4 is item 4, the list is not scrolled
+        assert_eq!(lb.marked_items(), vec![1, 2, 3, 4]);
+    }
+
+    #[test]
+    fn shift_click_backwards_marks_the_same_run() {
+        let mut lb = multi_list();
+        lb.set_selection(4);
+        space(&mut lb);
+        shift_click(&mut lb, 1);
+        assert_eq!(lb.marked_items(), vec![1, 2, 3, 4]);
+    }
+
+    #[test]
+    fn shift_click_leaves_marks_outside_the_run_alone() {
+        let mut lb = multi_list();
+        lb.set_marked(7, true);
+        lb.set_selection(1);
+        space(&mut lb);
+        shift_click(&mut lb, 3);
+        assert_eq!(lb.marked_items(), vec![1, 2, 3, 7]);
+    }
+
+    #[test]
+    fn mark_all_and_clear_marks() {
+        let mut lb = multi_list();
+        lb.mark_all();
+        assert_eq!(lb.marked_count(), 8);
+        lb.clear_marks();
+        assert_eq!(lb.marked_count(), 0);
+    }
+
+    #[test]
+    fn replacing_the_items_drops_stale_marks() {
+        let mut lb = multi_list();
+        lb.mark_all();
+        lb.set_items(vec!["one".into(), "two".into()]);
+        assert_eq!(
+            lb.marked_count(),
+            0,
+            "old indices mean nothing in the new list"
+        );
+    }
+
+    #[test]
+    fn turning_multi_select_off_drops_the_marks() {
+        let mut lb = multi_list();
+        lb.mark_all();
+        lb.set_multi_select(false);
+        assert_eq!(lb.marked_count(), 0);
+    }
+
+    #[test]
+    fn is_selected_follows_the_marks_only_in_multi_select() {
+        let mut lb = multi_list();
+        lb.set_selection(0);
+        lb.set_marked(3, true);
+        assert!(lb.is_selected(3), "marked");
+        assert!(!lb.is_selected(0), "focused but not marked");
+
+        lb.set_multi_select(false);
+        assert!(lb.is_selected(0), "back to meaning focused");
+    }
+
+    #[test]
+    fn the_focus_still_moves_independently_of_the_marks() {
+        let mut lb = multi_list();
+        lb.set_selection(2);
+        space(&mut lb);
+        lb.select_next();
+        assert_eq!(lb.get_selection(), Some(3));
+        assert_eq!(lb.marked_items(), vec![2], "the mark stayed put");
     }
 }

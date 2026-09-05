@@ -47,6 +47,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Ctrl+PgDn do too, where the terminal sends them, and a tilde-marked letter in a
   title is its Alt hotkey. The pane is transparent, so a page's controls take the
   owner's colours as if they sat in the dialog directly.
+- **`SplitPane` view.** Two panes divided by a draggable splitter, vertical or
+  horizontal, with a minimum size for each half. A bare divider cannot resize
+  siblings it does not own, so the control owns both halves, each a `Group`, the
+  way `TabbedPane` owns its pages. Dragging the divider moves it, clicking a half
+  focuses it, and F8 moves focus between them. Moving the divider from the
+  keyboard is left to the host through `grow_first` and `shrink_first`, rather
+  than stealing a key from the controls inside the panes.
+- **Multi-select in `ListBox`.** `set_multi_select` turns on marks that are
+  independent of the focus: Space marks the focused item, Shift+click marks a run
+  from the anchor, and `marked_items` / `marked_text` report them in list order.
+  Marked rows carry a check glyph in a two-cell column that keeps the text
+  aligned, and `is_selected` follows the marks in that mode. Off by default, so
+  existing single-selection lists behave exactly as before. Replacing the items
+  drops the marks, whose indices would otherwise refer to the old list.
+- **ScrollBar mouse auto-repeat**, the last omission recorded against the
+  scrollbar in `TO-DO.md`. `Application` tracks whether a mouse button is held
+  and, only then, broadcasts the new `CM_MOUSE_AUTO_REPEAT` from its idle pass.
+  A held arrow or track press repeats after 400 ms, then every 80 ms, and stops
+  on release or at the end of the range. Nothing is broadcast while no button is
+  down, so an idle app stays idle.
 - **`examples/new_controls.rs`.** One dialog running all five new controls: a
   tabbed pane over two pages, the first wiring three combo boxes and a spinner to
   a progress bar, the second a table.

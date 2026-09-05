@@ -45,6 +45,10 @@ pub struct Application {
     /// Current help context driving StatusDef switching (Borland: the
     /// focused view's helpCtx; set explicitly in this architecture)
     current_help_ctx: u16,
+    /// True between a mouse press and its release. While it is set, `idle`
+    /// broadcasts `CM_MOUSE_AUTO_REPEAT` so held-down controls, scrollbar
+    /// arrows above all, can keep repeating without any polling of their own.
+    mouse_held: bool,
 }
 
 impl Application {
@@ -98,6 +102,7 @@ impl Application {
             needs_redraw: true, // Initial draw needed
             pending_event: None,
             current_help_ctx: 0,
+            mouse_held: false,
             overlay_widgets: Vec::new(),
             help_file: None,
             help_context: HelpContext::new(),
@@ -549,6 +554,13 @@ impl Application {
             }
         }
 
+        // Track the button so idle knows whether to drive auto-repeat.
+        match event.what {
+            EventType::MouseDown => self.mouse_held = true,
+            EventType::MouseUp => self.mouse_held = false,
+            _ => {}
+        }
+
         // Menu bar gets first shot
         if let Some(ref mut menu_bar) = self.menu_bar {
             menu_bar.handle_event(event);
@@ -910,6 +922,13 @@ impl Application {
             widget.idle();
         }
 
+        // While a button is held, let views repeat their press action. Nothing
+        // is sent when no button is down, so an idle app stays idle.
+        if self.mouse_held {
+            let mut repeat = Event::broadcast(crate::core::command::CM_MOUSE_AUTO_REPEAT);
+            self.desktop.handle_event(&mut repeat);
+        }
+
         // Update tile/cascade command states based on desktop state
         // Matches Borland: TVDemo::idle() checks deskTop->firstThat(isTileable, 0)
         if self.desktop.has_tileable_windows() {
@@ -1113,6 +1132,7 @@ mod resize_tests {
             needs_redraw: true,
             pending_event: None,
             overlay_widgets: Vec::new(),
+            mouse_held: false,
             help_file: None,
             help_context: HelpContext::new(),
             current_help_ctx: 0,

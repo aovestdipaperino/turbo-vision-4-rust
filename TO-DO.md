@@ -56,7 +56,7 @@ From the 2026-07-02 review of `turbo-vision-4-rust` v1.3.1 vs the kloczek/tvisio
 - [x] Focus chain skips SF_DISABLED children and never drops focus when no other candidate exists (SF_VISIBLE unused in this port)
 - [x] Broadcasts delivered to all children; focus re-established after removing the focused child
 - [x] Tile uses Borland mostEqualDivisors/dividerLoc exact fill; cascade extends all windows to the corner (tileError min-size check still omitted)
-- [x] Scroller clamps to limit-minus-page (Borland setLimit); flat scrollbar when nothing to scroll; CM_SCROLLBAR_CHANGED constant added (mouse auto-repeat still absent)
+- [x] Scroller clamps to limit-minus-page (Borland setLimit); flat scrollbar when nothing to scroll; CM_SCROLLBAR_CHANGED constant added (mouse auto-repeat now driven by the CM_MOUSE_AUTO_REPEAT idle broadcast)
 - [x] enable/disable_range accept single-command ranges and clamp; init_command_set disables Borland's five window commands
 - [x] Quit during modal returns CM_QUIT
 - [x] Frame titles centered with Borland clamping

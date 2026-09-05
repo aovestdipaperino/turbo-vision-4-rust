@@ -33,6 +33,7 @@
 //! - [`ProgressBar`](progress_bar::ProgressBar) - Determinate or marquee progress indicator
 //! - [`Table`](table::Table) - Scrollable grid with a header row and sized columns
 //! - [`TabbedPane`](tabbed_pane::TabbedPane) - Tab strip over a stack of pages
+//! - [`SplitPane`](split_pane::SplitPane) - Two panes divided by a draggable splitter
 //!
 //! ## Menus and Status
 //! - [`MenuBar`](menu_bar::MenuBar) - Top menu bar with pull-down menus
@@ -109,6 +110,7 @@ pub mod scrollbar;
 pub mod scroller;
 pub mod sorted_listbox;
 pub mod spinner;
+pub mod split_pane;
 pub mod static_text;
 pub mod status_line;
 pub mod syntax;
@@ -136,6 +138,8 @@ pub use menu_viewer::{MenuViewer, MenuViewerState};
 pub use progress_bar::{ProgressBar, ProgressMode, ProgressStyle};
 #[doc(inline)]
 pub use spinner::Spinner;
+#[doc(inline)]
+pub use split_pane::{Orientation, SplitPane};
 #[doc(inline)]
 pub use tabbed_pane::TabbedPane;
 #[doc(inline)]
