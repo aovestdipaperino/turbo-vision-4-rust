@@ -7,6 +7,7 @@ use turbo_vision::app::Application;
 use turbo_vision::core::command::CM_QUIT;
 use turbo_vision::core::event::{KB_ALT_X, KB_ESC, KB_ESC_ESC};
 use turbo_vision::core::geometry::Rect;
+use turbo_vision::views::GroupLike;
 use turbo_vision::views::label::LabelBuilder;
 use turbo_vision::views::status_line::{StatusItem, StatusLine};
 use turbo_vision::views::window::WindowBuilder;

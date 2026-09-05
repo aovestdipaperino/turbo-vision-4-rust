@@ -53,6 +53,7 @@
 //!
 //! ```rust,no_run
 //! use turbo_vision::views::window::Window;
+//! use turbo_vision::views::GroupLike;
 //! use turbo_vision::views::button::Button;
 //! use turbo_vision::core::geometry::Rect;
 //! use turbo_vision::core::command::CM_OK;
@@ -157,3 +158,4 @@ pub use table::{Align, Column, Table};
 pub use tooltip::Tooltip;
 #[doc(inline)]
 pub use view::{IdleView, View, ViewCore, ViewId};
+pub use window::WindowLike;

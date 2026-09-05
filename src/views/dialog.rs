@@ -8,6 +8,7 @@ use crate::core::command::{CM_CANCEL, CommandId};
 use crate::core::event::{Event, EventType, KB_ENTER, KB_ESC_ESC};
 use crate::core::geometry::Rect;
 use crate::terminal::Terminal;
+use crate::views::group::GroupLike;
 use std::time::{Duration, Instant};
 
 pub struct Dialog {

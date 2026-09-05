@@ -1140,7 +1140,7 @@ macro_rules! impl_view_for_window {
 
 Every method name that exists on both `View` and `WindowLike` is called with the fully qualified trait path inside the macro, so there is no ambiguity. `impl View for Window` itself is produced by `impl_view_for_window!(Window);`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```rust
 // src/views/window.rs tests
@@ -1178,12 +1178,12 @@ fn window_like_override_of_get_palette_is_used_by_window_draw() {
 
 `test_terminal` does not exist yet. Add it to `src/test_util.rs` in this step by moving the test-only `ResizableBackend` from the `mod tests` block in `src/app/application.rs` (around line 1085) into `test_util.rs` as `pub struct TestBackend`, and adding `pub fn test_terminal(w: u16, h: u16) -> Terminal { Terminal::with_backend(Box::new(TestBackend::new(w, h))).unwrap() }`. Update the application tests to use the moved type. This is a pure move; run `cargo test --lib app` afterwards to confirm.
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Run: `cargo test --lib views::window::tests::window_like_override_of_get_palette_is_used_by_window_draw`
 Expected: compile error, `cannot find trait WindowLike`.
 
-- [ ] **Step 3: Introduce `WindowLike` and move the bodies**
+- [x] **Step 3: Introduce `WindowLike` and move the bodies**
 
 In `src/views/window.rs`:
 
@@ -1194,12 +1194,12 @@ In `src/views/window.rs`:
 5. Add the two `impl GroupLike for Window` and `impl WindowLike for Window` blocks.
 6. Delete the inherent `Window::add`, `child_count`, `child_at`, `child_at_mut`, `child_by_id`, `child_by_id_mut`, `remove_by_id`, `set_initial_focus`, `execute`, `end_modal`, `get_end_state`, `set_end_state` methods; `GroupLike` provides them. Keep `add_frame_child`, `update_frame_child`, `get_frame_child_mut`, `set_title`, `set_resizable`, `set_auto_close`, `set_min_size`, `set_drag_limits`, `constrain_to_limits`, `set_number`, `number`, `init_interior_owner`, `interior_mut`.
 
-- [ ] **Step 4: Run the tests**
+- [x] **Step 4: Run the tests**
 
 Run: `cargo test --lib views::window && cargo test`
 Expected: PASS. `keyboard_resize_mode_moves_resizes_and_restores` and `test_set_focus_propagates_sf_active_to_window_and_frame` are the regression guards for the moved bodies.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/views/window.rs src/views/mod.rs src/lib.rs

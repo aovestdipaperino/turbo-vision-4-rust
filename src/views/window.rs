@@ -4,7 +4,7 @@
 
 use super::frame::Frame;
 use super::group::{Group, GroupLike};
-use super::view::{View, ViewCore, ViewId};
+use super::view::{View, ViewCore};
 use crate::core::command::{CM_CANCEL, CM_CLOSE};
 use crate::core::event::{Event, EventType};
 use crate::core::geometry::{Point, Rect};
@@ -61,6 +61,16 @@ pub enum WindowPaletteType {
 }
 
 impl Window {
+    /// The window's own `ViewCore`; `impl_view_for_window!` routes
+    /// `View::core` here for every window-shaped type.
+    pub fn view_core(&self) -> &ViewCore {
+        &self.core
+    }
+
+    pub fn view_core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
+    }
+
     /// Create a new TWindow with blue palette (default Borland TWindow behavior)
     /// Matches Borland: TWindow constructor sets palette(wpBlueWindow)
     /// For TDialog (gray palette), use new_for_dialog() instead
@@ -181,11 +191,6 @@ impl Window {
         self.custom_palette = Some(palette);
     }
 
-    pub fn add(&mut self, view: Box<dyn View>) -> ViewId {
-        // Add to interior group (palette chain is set up during draw)
-        self.interior.add(view)
-    }
-
     /// Add a child positioned relative to the window frame (not interior)
     /// Used for scrollbars and other frame-edge elements
     /// Matches Borland: TWindow is a TGroup, all children use window-relative coords
@@ -225,10 +230,6 @@ impl Window {
     /// Get access to the interior (for subclasses to draw manually)
     pub(crate) fn interior_mut(&mut self) -> &mut Group {
         &mut self.interior
-    }
-
-    pub fn set_initial_focus(&mut self) {
-        self.interior.set_initial_focus();
     }
 
     /// Set the window title
@@ -359,39 +360,6 @@ impl Window {
         self.interior.set_focus_to(index);
     }
 
-    /// Get the number of child views in the interior
-    pub fn child_count(&self) -> usize {
-        self.interior.len()
-    }
-
-    /// Get a reference to a child view by index
-    pub fn child_at(&self, index: usize) -> &dyn View {
-        self.interior.child_at(index)
-    }
-
-    /// Get a mutable reference to a child view by index
-    pub fn child_at_mut(&mut self, index: usize) -> &mut dyn View {
-        self.interior.child_at_mut(index)
-    }
-
-    /// Get an immutable reference to a child by its ViewId
-    /// Returns None if the ViewId is not found
-    pub fn child_by_id(&self, view_id: ViewId) -> Option<&dyn View> {
-        self.interior.child_by_id(view_id)
-    }
-
-    /// Get a mutable reference to a child by its ViewId
-    /// Returns None if the ViewId is not found
-    pub fn child_by_id_mut(&mut self, view_id: ViewId) -> Option<&mut (dyn View + '_)> {
-        self.interior.child_by_id_mut(view_id)
-    }
-
-    /// Remove a child by its ViewId
-    /// Returns true if a child was found and removed, false otherwise
-    pub fn remove_by_id(&mut self, view_id: ViewId) -> bool {
-        self.interior.remove_by_id(view_id)
-    }
-
     /// Get the union rect of current and previous bounds (for redrawing)
     /// Matches Borland: TView::locate() calculates union rect
     /// Returns None if window hasn't moved yet
@@ -415,16 +383,6 @@ impl Window {
         self.prev_bounds = None;
     }
 
-    /// Execute a modal event loop
-    /// Delegates to the interior Group's execute() method
-    /// Matches Borland: Window and Dialog both inherit TGroup's execute()
-    pub fn execute(
-        &mut self,
-        app: &mut crate::app::Application,
-    ) -> crate::core::command::CommandId {
-        self.interior.execute(app)
-    }
-
     /// End the modal event loop
     /// Delegates to the interior Group's end_modal() method
     /// Set the window number shown in the frame and used by Alt+1..9
@@ -439,22 +397,6 @@ impl Window {
         self.number
     }
 
-    pub fn end_modal(&mut self, command: crate::core::command::CommandId) {
-        self.interior.end_modal(command);
-    }
-
-    /// Get the current end_state from the interior Group
-    /// Used by Dialog to check if the modal loop should end
-    pub fn get_end_state(&self) -> crate::core::command::CommandId {
-        self.interior.get_end_state()
-    }
-
-    /// Set the end_state in the interior Group
-    /// Used by modal dialogs to signal they want to close
-    pub fn set_end_state(&mut self, command: crate::core::command::CommandId) {
-        self.interior.set_end_state(command);
-    }
-
     /// Initialize the interior's owner pointer after Window is in its final memory location.
     /// Must be called after any operation that moves the Window (adding to parent, etc.)
     /// This ensures the interior Group has a valid pointer to this Window.
@@ -464,45 +406,57 @@ impl Window {
     }
 }
 
-impl View for Window {
-    fn core(&self) -> &ViewCore {
-        &self.core
-    }
+/// The behaviour of Borland's `TWindow`, expressed as default methods over a
+/// `Window` core. A window-shaped type (`Dialog`, `EditWindow`, a downstream
+/// custom window) implements the two accessors here plus `GroupLike`, and
+/// gets its `View` implementation from [`impl_view_for_window!`], which
+/// forwards every `View` method to the `window_*` body below unless the type
+/// supplies its own override inline.
+///
+/// The `window_*` names are the inherited implementations, callable as base
+/// calls from an override: `TDialog::handleEvent` starts with
+/// `TWindow::handleEvent(event)`, and a `Dialog` override starts with
+/// `self.window_handle_event(event)`. Inside these bodies, `self.get_palette()`,
+/// `self.valid(..)` and the other `View` hooks dispatch to the outer type, so
+/// an override is seen by the base drawing and event code.
+pub trait WindowLike: GroupLike {
+    fn window(&self) -> &Window;
+    fn window_mut(&mut self) -> &mut Window;
 
-    fn core_mut(&mut self) -> &mut ViewCore {
-        &mut self.core
-    }
-
-    fn set_bounds(&mut self, bounds: Rect) {
-        self.core.bounds = bounds;
-        self.frame.set_bounds(bounds);
+    fn window_set_bounds(&mut self, bounds: Rect) {
+        self.core_mut().bounds = bounds;
+        self.window_mut().frame.set_bounds(bounds);
 
         // Update interior bounds (absolute, inset by 1 for frame)
         let mut interior_bounds = bounds;
         interior_bounds.grow(-1, -1);
-        self.interior.set_bounds(interior_bounds);
+        self.window_mut().interior.set_bounds(interior_bounds);
 
         // NOTE: We do NOT automatically update frame_children here
         // Subclasses like EditWindow handle frame_children positioning manually
         // because scrollbars need to be repositioned based on new window SIZE, not just offset
     }
 
-    fn draw(&mut self, terminal: &mut Terminal) {
+    fn window_draw(&mut self, terminal: &mut Terminal) {
         // Build Window's palette chain node for safe palette traversal.
         // Window is a palette-bearing node (CP_BLUE_WINDOW, CP_GRAY_DIALOG, etc.)
         let my_chain_node = crate::core::palette_chain::PaletteChainNode::new(
             self.get_palette(),
-            self.core.palette_chain.clone(),
+            self.get_palette_chain().cloned(),
         );
 
-        self.frame.set_palette_chain(Some(my_chain_node.clone()));
-        self.frame.draw(terminal);
+        self.window_mut()
+            .frame
+            .set_palette_chain(Some(my_chain_node.clone()));
+        self.window_mut().frame.draw(terminal);
 
-        self.interior.set_palette_chain(Some(my_chain_node.clone()));
-        self.interior.draw(terminal);
+        self.window_mut()
+            .interior
+            .set_palette_chain(Some(my_chain_node.clone()));
+        self.window_mut().interior.draw(terminal);
 
         // Draw frame children (scrollbars, etc.) after interior so they appear on top
-        for child in &mut self.frame_children {
+        for child in &mut self.window_mut().frame_children {
             child.set_palette_chain(Some(my_chain_node.clone()));
             child.draw(terminal);
         }
@@ -513,24 +467,24 @@ impl View for Window {
         }
     }
 
-    fn update_cursor(&self, terminal: &mut Terminal) {
+    fn window_update_cursor(&self, terminal: &mut Terminal) {
         // Propagate cursor update to interior group
-        self.interior.update_cursor(terminal);
+        self.window().interior.update_cursor(terminal);
     }
 
-    fn handle_event(&mut self, event: &mut Event) {
+    fn window_handle_event(&mut self, event: &mut Event) {
         // Keyboard move/resize mode (Borland: cmResize enters dragView with
         // dmDragMove|dmDragGrow; arrows move, Shift+arrows resize, Enter
         // confirms, Esc restores the saved bounds)
         if event.what == EventType::Command
             && event.command == crate::core::command::CM_RESIZE
-            && (self.core.state & crate::core::state::SF_ACTIVE) != 0
+            && (self.state() & crate::core::state::SF_ACTIVE) != 0
         {
-            self.keyboard_resize_saved = Some(self.core.bounds);
+            self.window_mut().keyboard_resize_saved = Some(self.bounds());
             event.clear();
             return;
         }
-        if let Some(saved) = self.keyboard_resize_saved {
+        if let Some(saved) = self.window_mut().keyboard_resize_saved {
             if event.what == EventType::Keyboard {
                 use crate::core::event::{
                     KB_DOWN, KB_ENTER, KB_ESC, KB_ESC_ESC, KB_LEFT, KB_RIGHT, KB_UP,
@@ -545,23 +499,23 @@ impl View for Window {
                     KB_UP => dy = -1,
                     KB_DOWN => dy = 1,
                     KB_ENTER => {
-                        self.keyboard_resize_saved = None;
+                        self.window_mut().keyboard_resize_saved = None;
                         event.clear();
                         return;
                     }
                     KB_ESC | KB_ESC_ESC => {
                         self.set_bounds(saved);
-                        self.keyboard_resize_saved = None;
+                        self.window_mut().keyboard_resize_saved = None;
                         event.clear();
                         return;
                     }
                     _ => return, // swallow nothing else; stay in mode
                 }
-                let mut b = self.core.bounds;
+                let mut b = self.bounds();
                 if shift {
                     // Resize the bottom-right corner, respecting min size
-                    b.b.x = (b.b.x + dx).max(b.a.x + self.min_size.x);
-                    b.b.y = (b.b.y + dy).max(b.a.y + self.min_size.y);
+                    b.b.x = (b.b.x + dx).max(b.a.x + self.window_mut().min_size.x);
+                    b.b.y = (b.b.y + dy).max(b.a.y + self.window_mut().min_size.y);
                 } else {
                     b.a.x += dx;
                     b.a.y += dy;
@@ -575,47 +529,47 @@ impl View for Window {
         }
 
         // First, let the frame handle the event (for close button clicks, drag start, etc.)
-        self.frame.handle_event(event);
+        self.window_mut().frame.handle_event(event);
 
         // Check if frame started dragging or resizing
-        let frame_dragging = (self.frame.state() & SF_DRAGGING) != 0;
-        let frame_resizing = (self.frame.state() & SF_RESIZING) != 0;
+        let frame_dragging = (self.window_mut().frame.state() & SF_DRAGGING) != 0;
+        let frame_resizing = (self.window_mut().frame.state() & SF_RESIZING) != 0;
 
-        if frame_dragging && self.drag_offset.is_none() {
+        if frame_dragging && self.window_mut().drag_offset.is_none() {
             // Frame just started dragging - record offset
             if event.what == EventType::MouseDown || event.what == EventType::MouseMove {
                 let mouse_pos = event.mouse.pos;
-                self.drag_offset = Some(Point::new(
-                    mouse_pos.x - self.core.bounds.a.x,
-                    mouse_pos.y - self.core.bounds.a.y,
+                self.window_mut().drag_offset = Some(Point::new(
+                    mouse_pos.x - self.bounds().a.x,
+                    mouse_pos.y - self.bounds().a.y,
                 ));
-                self.core.state |= SF_DRAGGING;
+                self.set_state_flag(SF_DRAGGING, true);
                 event.clear(); // Mark event as handled
                 return;
             }
         }
 
-        if frame_resizing && self.resize_start_size.is_none() {
+        if frame_resizing && self.window_mut().resize_start_size.is_none() {
             // Frame just started resizing - record initial size
             if event.what == EventType::MouseDown || event.what == EventType::MouseMove {
                 let mouse_pos = event.mouse.pos;
                 // Calculate offset from bottom-right corner
                 // Borland: p = size - event.mouse.where (tview.cc:235)
-                self.resize_start_size = Some(Point::new(
-                    self.core.bounds.b.x - mouse_pos.x,
-                    self.core.bounds.b.y - mouse_pos.y,
+                self.window_mut().resize_start_size = Some(Point::new(
+                    self.bounds().b.x - mouse_pos.x,
+                    self.bounds().b.y - mouse_pos.y,
                 ));
-                self.core.state |= SF_RESIZING;
+                self.set_state_flag(SF_RESIZING, true);
                 event.clear(); // Mark event as handled
                 return;
             }
         }
 
         // Handle mouse move during drag
-        if frame_dragging && self.drag_offset.is_some() {
+        if frame_dragging && self.window_mut().drag_offset.is_some() {
             if event.what == EventType::MouseMove {
                 let mouse_pos = event.mouse.pos;
-                let offset = self.drag_offset.unwrap();
+                let offset = self.window_mut().drag_offset.unwrap();
 
                 // Calculate new position
                 let mut new_x = mouse_pos.x - offset.x;
@@ -623,12 +577,12 @@ impl View for Window {
 
                 // Get drag limits from owner (parent bounds)
                 // Matches Borland: TView::moveGrow() constrains position to limits
-                let limits = self.get_drag_limits();
-                let width = self.core.bounds.width();
-                let height = self.core.bounds.height();
+                let limits = self.window_mut().get_drag_limits();
+                let width = self.bounds().width();
+                let height = self.bounds().height();
 
                 // Account for shadow when constraining edges
-                let (shadow_x, shadow_y) = if (self.core.state & SF_SHADOW) != 0 {
+                let (shadow_x, shadow_y) = if (self.state() & SF_SHADOW) != 0 {
                     shadow_size()
                 } else {
                     (0, 0)
@@ -650,16 +604,17 @@ impl View for Window {
                 new_y = new_y.min(limits.b.y - height - shadow_y);
 
                 // Save previous bounds for union rect calculation (Borland's locate pattern)
-                self.prev_bounds = Some(self.core.bounds);
+                self.window_mut().prev_bounds = Some(self.bounds());
 
                 // Update bounds (maintaining size)
-                self.core.bounds = Rect::new(new_x, new_y, new_x + width, new_y + height);
+                self.core_mut().bounds = Rect::new(new_x, new_y, new_x + width, new_y + height);
 
                 // Update frame and interior bounds
-                self.frame.set_bounds(self.core.bounds);
-                let mut interior_bounds = self.core.bounds;
+                let bounds = self.bounds();
+                self.window_mut().frame.set_bounds(bounds);
+                let mut interior_bounds = self.bounds();
                 interior_bounds.grow(-1, -1);
-                self.interior.set_bounds(interior_bounds);
+                self.window_mut().interior.set_bounds(interior_bounds);
 
                 event.clear(); // Mark event as handled
                 return;
@@ -667,41 +622,42 @@ impl View for Window {
         }
 
         // Handle mouse move during resize
-        if frame_resizing && self.resize_start_size.is_some() {
+        if frame_resizing && self.window_mut().resize_start_size.is_some() {
             if event.what == EventType::MouseMove {
                 let mouse_pos = event.mouse.pos;
-                let offset = self.resize_start_size.unwrap();
+                let offset = self.window_mut().resize_start_size.unwrap();
 
                 // Calculate new size (Borland: event.mouse.where += p, then use as size)
                 // Ensure positive before casting to u16 to avoid wraparound
-                let new_width = (mouse_pos.x + offset.x - self.core.bounds.a.x).max(0) as u16;
-                let new_height = (mouse_pos.y + offset.y - self.core.bounds.a.y).max(0) as u16;
+                let new_width = (mouse_pos.x + offset.x - self.bounds().a.x).max(0) as u16;
+                let new_height = (mouse_pos.y + offset.y - self.bounds().a.y).max(0) as u16;
 
                 // Apply size constraints (Borland: sizeLimits)
-                let (min, max) = self.size_limits();
+                let (min, max) = self.window_mut().size_limits();
                 let mut final_width = new_width.max(min.x as u16).min(max.x as u16);
                 let mut final_height = new_height.max(min.y as u16).min(max.y as u16);
 
                 // Constrain size to not exceed parent bounds
                 // Borland: TView::moveGrow() constrains both position and size to limits
-                let limits = self.get_drag_limits();
-                let max_width = (limits.b.x - self.core.bounds.a.x).max(0) as u16;
-                let max_height = (limits.b.y - self.core.bounds.a.y).max(0) as u16;
+                let limits = self.window_mut().get_drag_limits();
+                let max_width = (limits.b.x - self.bounds().a.x).max(0) as u16;
+                let max_height = (limits.b.y - self.bounds().a.y).max(0) as u16;
                 final_width = final_width.min(max_width);
                 final_height = final_height.min(max_height);
 
                 // Save previous bounds for union rect calculation
-                self.prev_bounds = Some(self.core.bounds);
+                self.window_mut().prev_bounds = Some(self.bounds());
 
                 // Update bounds (maintaining position, changing size)
-                self.core.bounds.b.x = self.core.bounds.a.x + final_width as i16;
-                self.core.bounds.b.y = self.core.bounds.a.y + final_height as i16;
+                self.bounds().b.x = self.bounds().a.x + final_width as i16;
+                self.bounds().b.y = self.bounds().a.y + final_height as i16;
 
                 // Update frame and interior bounds
-                self.frame.set_bounds(self.core.bounds);
-                let mut interior_bounds = self.core.bounds;
+                let bounds = self.bounds();
+                self.window_mut().frame.set_bounds(bounds);
+                let mut interior_bounds = self.bounds();
                 interior_bounds.grow(-1, -1);
-                self.interior.set_bounds(interior_bounds);
+                self.window_mut().interior.set_bounds(interior_bounds);
 
                 event.clear(); // Mark event as handled
                 return;
@@ -709,15 +665,15 @@ impl View for Window {
         }
 
         // Check if frame ended dragging
-        if !frame_dragging && self.drag_offset.is_some() {
-            self.drag_offset = None;
-            self.core.state &= !SF_DRAGGING;
+        if !frame_dragging && self.window_mut().drag_offset.is_some() {
+            self.window_mut().drag_offset = None;
+            self.set_state_flag(SF_DRAGGING, false);
         }
 
         // Check if frame ended resizing
-        if !frame_resizing && self.resize_start_size.is_some() {
-            self.resize_start_size = None;
-            self.core.state &= !SF_RESIZING;
+        if !frame_resizing && self.window_mut().resize_start_size.is_some() {
+            self.window_mut().resize_start_size = None;
+            self.set_state_flag(SF_RESIZING, false);
         }
 
         // Handle ESC key for modal windows
@@ -726,7 +682,7 @@ impl View for Window {
             let is_esc = event.key_code == crate::core::event::KB_ESC;
             let is_esc_esc = event.key_code == crate::core::event::KB_ESC_ESC;
 
-            if (is_esc || is_esc_esc) && (self.core.state & SF_MODAL) != 0 {
+            if (is_esc || is_esc_esc) && (self.state() & SF_MODAL) != 0 {
                 // Modal window: ESC ends the modal loop with CM_CANCEL
                 self.end_modal(CM_CANCEL);
                 event.clear();
@@ -737,11 +693,11 @@ impl View for Window {
         // Handle CM_CLOSE command (Borland: twindow.cc TWindow::handleEvent ~118-132)
         // Frame generates CM_CLOSE on close-button MouseUp.
         if event.what == EventType::Command && event.command == CM_CLOSE {
-            if (self.core.state & SF_MODAL) != 0 {
+            if (self.state() & SF_MODAL) != 0 {
                 // Modal: end_modal with CM_CANCEL (Borland converts cmClose → cmCancel)
                 self.end_modal(CM_CANCEL);
                 event.clear();
-            } else if self.auto_close {
+            } else if self.window_mut().auto_close {
                 // Non-modal default: self-close. Mirrors Borland's
                 // TWindow::close(): `if (valid(cmClose)) destroy(this)` — the
                 // valid() hook gives children (editors, dialogs) a chance to
@@ -750,7 +706,7 @@ impl View for Window {
                 // SF_CLOSED is gated on validation.
                 use crate::core::state::SF_CLOSED;
                 if self.valid(CM_CLOSE) {
-                    self.core.state |= SF_CLOSED;
+                    self.set_state_flag(SF_CLOSED, true);
                 }
                 event.clear();
             } else {
@@ -763,93 +719,74 @@ impl View for Window {
         }
 
         // Then let the interior handle it (if not already handled)
-        self.interior.handle_event(event);
+        self.window_mut().interior.handle_event(event);
     }
 
-    fn can_focus(&self) -> bool {
-        true
-    }
-
-    fn set_focus(&mut self, focused: bool) {
+    fn window_set_focus(&mut self, focused: bool) {
         // Mirror Borland: TWindow::setState(sfSelected) forwards sfActive to
         // the window and its frame, so inactive windows draw with the
         // inactive frame palette (see Frame::get_frame_colors).
         use crate::core::state::SF_ACTIVE;
         self.set_state_flag(SF_ACTIVE, focused);
-        self.frame.set_state_flag(SF_ACTIVE, focused);
+        self.window_mut().frame.set_state_flag(SF_ACTIVE, focused);
 
         // Propagate focus to the interior group
         // When the window gets focus, set focus on its first focusable child
         if focused {
-            self.interior.set_initial_focus();
+            self.window_mut().interior.set_initial_focus();
         } else {
-            self.interior.clear_all_focus();
+            self.window_mut().interior.clear_all_focus();
         }
-    }
-
-    fn window_number(&self) -> Option<u8> {
-        self.number
-    }
-
-    fn get_end_state(&self) -> crate::core::command::CommandId {
-        self.interior.get_end_state()
-    }
-
-    fn set_end_state(&mut self, command: crate::core::command::CommandId) {
-        self.interior.set_end_state(command);
     }
 
     /// Zoom (maximize) or restore window
     /// Matches Borland: TWindow::zoom() toggles between current size and maximum size
     /// In Borland, this is called by owner in response to cmZoom command
-    fn zoom(&mut self, max_bounds: Rect) {
-        let (_min, _max_size) = self.size_limits();
-        let current_size = Point::new(self.core.bounds.width(), self.core.bounds.height());
+    fn window_zoom(&mut self, max_bounds: Rect) {
+        let (_min, _max_size) = self.window_mut().size_limits();
+        let current_size = Point::new(self.bounds().width(), self.bounds().height());
 
         // If not at max size, zoom to max
         if current_size.x != max_bounds.width() || current_size.y != max_bounds.height() {
             // Save current bounds for restore
-            self.zoom_rect = self.core.bounds;
+            self.window_mut().zoom_rect = self.bounds();
 
             // Save previous bounds for redraw union
-            self.prev_bounds = Some(self.core.bounds);
+            self.window_mut().prev_bounds = Some(self.bounds());
 
             // Zoom to max size (typically desktop bounds)
-            self.core.bounds = max_bounds;
+            self.core_mut().bounds = max_bounds;
         } else {
             // Restore to saved bounds
-            self.prev_bounds = Some(self.core.bounds);
-            self.core.bounds = self.zoom_rect;
+            self.window_mut().prev_bounds = Some(self.bounds());
+            self.core_mut().bounds = self.window_mut().zoom_rect;
         }
 
         // Update frame and interior
-        self.frame.set_bounds(self.core.bounds);
+        let bounds = self.bounds();
+        self.window_mut().frame.set_bounds(bounds);
         // The frame draws a different zoom glyph once the window is zoomed:
         // an up arrow while it can still grow, both ways once it can only be
         // restored.
-        self.frame.set_zoomed(self.core.bounds == max_bounds);
-        let mut interior_bounds = self.core.bounds;
+        self.window_mut().frame.set_zoomed(bounds == max_bounds);
+        let mut interior_bounds = self.bounds();
         interior_bounds.grow(-1, -1);
-        self.interior.set_bounds(interior_bounds);
+        self.window_mut().interior.set_bounds(interior_bounds);
     }
 
     /// Validate window before closing with given command
     /// Matches Borland: TWindow inherits TGroup::valid() which validates all children
     /// Delegates to interior group to validate all children
-    fn valid(&mut self, command: crate::core::command::CommandId) -> bool {
-        self.interior.valid(command)
+    fn window_valid(&mut self, command: crate::core::command::CommandId) -> bool {
+        self.window_mut().interior.valid(command)
     }
 
-    fn set_parent_bounds(&mut self, bounds: crate::core::geometry::Rect) {
-        self.explicit_drag_limits = Some(bounds);
-    }
-
-    fn get_palette(&self) -> Option<crate::core::palette::Palette> {
+    fn window_get_palette(&self) -> Option<crate::core::palette::Palette> {
         use crate::core::palette::{Palette, palettes};
-        if let Some(ref custom) = self.custom_palette {
+        if let Some(ref custom) = self.window().custom_palette {
             return Some(Palette::from_slice(custom));
         }
-        match self.palette_type {
+        match self.window().palette_type {
             WindowPaletteType::Blue => Some(Palette::from_slice(palettes::CP_BLUE_WINDOW)),
             WindowPaletteType::Cyan => Some(Palette::from_slice(palettes::CP_CYAN_WINDOW)),
             WindowPaletteType::Gray => Some(Palette::from_slice(palettes::CP_GRAY_WINDOW)),
@@ -857,23 +794,212 @@ impl View for Window {
         }
     }
 
-    fn init_after_add(&mut self) {
+    fn window_init_after_add(&mut self) {
         // Initialize interior owner pointer now that Window is in final position
-        self.init_interior_owner();
+        self.window_mut().init_interior_owner();
     }
 
-    fn constrain_to_parent_bounds(&mut self) {
-        self.constrain_to_limits();
+    fn window_constrain_to_parent_bounds(&mut self) {
+        self.window_mut().constrain_to_limits();
     }
 
-    fn as_any(&self) -> &dyn std::any::Any {
+    fn window_set_parent_bounds(&mut self, bounds: Rect) {
+        self.window_mut().explicit_drag_limits = Some(bounds);
+    }
+}
+
+impl GroupLike for Window {
+    fn group(&self) -> &Group {
+        &self.interior
+    }
+    fn group_mut(&mut self) -> &mut Group {
+        &mut self.interior
+    }
+}
+
+impl WindowLike for Window {
+    fn window(&self) -> &Window {
         self
     }
-
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+    fn window_mut(&mut self) -> &mut Window {
         self
     }
 }
+
+/// Generates the `impl View for $t` of a window-shaped type from its
+/// [`WindowLike`] implementation.
+///
+/// Every `View` method is forwarded to the matching `window_*` base body, so
+/// a wrapper can no longer forward selectively and fall back to a trait
+/// default by accident. Overrides are written inline and replace the forward
+/// for that method only; the base implementation stays reachable through its
+/// `window_*` name:
+///
+/// ```ignore
+/// impl_view_for_window!(Dialog {
+///     fn handle_event(&mut self, event: &mut Event) {
+///         self.window_handle_event(event); // TWindow::handleEvent(event)
+///         // dialog-specific handling follows
+///     }
+///     fn get_palette(&self) -> Option<Palette> {
+///         Some(Palette::from_slice(palettes::CP_GRAY_DIALOG))
+///     }
+/// });
+/// ```
+#[macro_export]
+macro_rules! impl_view_for_window {
+    ($t:ty) => {
+        $crate::impl_view_for_window!($t {});
+    };
+    ($t:ty { $( fn $name:ident ( $($args:tt)* ) $( -> $ret:ty )? $body:block )* }) => {
+        impl $crate::views::view::View for $t {
+            $( fn $name ( $($args)* ) $( -> $ret )? $body )*
+            $crate::impl_view_for_window!(@fwd core; $($name)*);
+            $crate::impl_view_for_window!(@fwd core_mut; $($name)*);
+            $crate::impl_view_for_window!(@fwd set_bounds; $($name)*);
+            $crate::impl_view_for_window!(@fwd draw; $($name)*);
+            $crate::impl_view_for_window!(@fwd handle_event; $($name)*);
+            $crate::impl_view_for_window!(@fwd update_cursor; $($name)*);
+            $crate::impl_view_for_window!(@fwd can_focus; $($name)*);
+            $crate::impl_view_for_window!(@fwd set_focus; $($name)*);
+            $crate::impl_view_for_window!(@fwd window_number; $($name)*);
+            $crate::impl_view_for_window!(@fwd get_end_state; $($name)*);
+            $crate::impl_view_for_window!(@fwd set_end_state; $($name)*);
+            $crate::impl_view_for_window!(@fwd zoom; $($name)*);
+            $crate::impl_view_for_window!(@fwd valid; $($name)*);
+            $crate::impl_view_for_window!(@fwd set_parent_bounds; $($name)*);
+            $crate::impl_view_for_window!(@fwd get_palette; $($name)*);
+            $crate::impl_view_for_window!(@fwd init_after_add; $($name)*);
+            $crate::impl_view_for_window!(@fwd constrain_to_parent_bounds; $($name)*);
+            $crate::impl_view_for_window!(@fwd as_any; $($name)*);
+            $crate::impl_view_for_window!(@fwd as_any_mut; $($name)*);
+        }
+    };
+
+    // ---- skip a forward when the type overrides the method ----
+    (@fwd core; core $($rest:ident)*) => {};
+    (@fwd core_mut; core_mut $($rest:ident)*) => {};
+    (@fwd set_bounds; set_bounds $($rest:ident)*) => {};
+    (@fwd draw; draw $($rest:ident)*) => {};
+    (@fwd handle_event; handle_event $($rest:ident)*) => {};
+    (@fwd update_cursor; update_cursor $($rest:ident)*) => {};
+    (@fwd can_focus; can_focus $($rest:ident)*) => {};
+    (@fwd set_focus; set_focus $($rest:ident)*) => {};
+    (@fwd window_number; window_number $($rest:ident)*) => {};
+    (@fwd get_end_state; get_end_state $($rest:ident)*) => {};
+    (@fwd set_end_state; set_end_state $($rest:ident)*) => {};
+    (@fwd zoom; zoom $($rest:ident)*) => {};
+    (@fwd valid; valid $($rest:ident)*) => {};
+    (@fwd set_parent_bounds; set_parent_bounds $($rest:ident)*) => {};
+    (@fwd get_palette; get_palette $($rest:ident)*) => {};
+    (@fwd init_after_add; init_after_add $($rest:ident)*) => {};
+    (@fwd constrain_to_parent_bounds; constrain_to_parent_bounds $($rest:ident)*) => {};
+    (@fwd as_any; as_any $($rest:ident)*) => {};
+    (@fwd as_any_mut; as_any_mut $($rest:ident)*) => {};
+    // not this one: keep looking
+    (@fwd $m:ident; $other:ident $($rest:ident)*) => {
+        $crate::impl_view_for_window!(@fwd $m; $($rest)*);
+    };
+
+    // ---- the forwards themselves ----
+    (@fwd core;) => {
+        fn core(&self) -> &$crate::views::view::ViewCore {
+            $crate::views::window::WindowLike::window(self).view_core()
+        }
+    };
+    (@fwd core_mut;) => {
+        fn core_mut(&mut self) -> &mut $crate::views::view::ViewCore {
+            $crate::views::window::WindowLike::window_mut(self).view_core_mut()
+        }
+    };
+    (@fwd set_bounds;) => {
+        fn set_bounds(&mut self, bounds: $crate::core::geometry::Rect) {
+            $crate::views::window::WindowLike::window_set_bounds(self, bounds)
+        }
+    };
+    (@fwd draw;) => {
+        fn draw(&mut self, terminal: &mut $crate::terminal::Terminal) {
+            $crate::views::window::WindowLike::window_draw(self, terminal)
+        }
+    };
+    (@fwd handle_event;) => {
+        fn handle_event(&mut self, event: &mut $crate::core::event::Event) {
+            $crate::views::window::WindowLike::window_handle_event(self, event)
+        }
+    };
+    (@fwd update_cursor;) => {
+        fn update_cursor(&self, terminal: &mut $crate::terminal::Terminal) {
+            $crate::views::window::WindowLike::window_update_cursor(self, terminal)
+        }
+    };
+    (@fwd can_focus;) => {
+        fn can_focus(&self) -> bool {
+            true
+        }
+    };
+    (@fwd set_focus;) => {
+        fn set_focus(&mut self, focused: bool) {
+            $crate::views::window::WindowLike::window_set_focus(self, focused)
+        }
+    };
+    (@fwd window_number;) => {
+        fn window_number(&self) -> Option<u8> {
+            $crate::views::window::WindowLike::window(self).number()
+        }
+    };
+    (@fwd get_end_state;) => {
+        fn get_end_state(&self) -> $crate::core::command::CommandId {
+            $crate::views::group::GroupLike::end_state(self)
+        }
+    };
+    (@fwd set_end_state;) => {
+        fn set_end_state(&mut self, command: $crate::core::command::CommandId) {
+            $crate::views::group::GroupLike::end_modal(self, command)
+        }
+    };
+    (@fwd zoom;) => {
+        fn zoom(&mut self, max_bounds: $crate::core::geometry::Rect) {
+            $crate::views::window::WindowLike::window_zoom(self, max_bounds)
+        }
+    };
+    (@fwd valid;) => {
+        fn valid(&mut self, command: $crate::core::command::CommandId) -> bool {
+            $crate::views::window::WindowLike::window_valid(self, command)
+        }
+    };
+    (@fwd set_parent_bounds;) => {
+        fn set_parent_bounds(&mut self, bounds: $crate::core::geometry::Rect) {
+            $crate::views::window::WindowLike::window_set_parent_bounds(self, bounds)
+        }
+    };
+    (@fwd get_palette;) => {
+        fn get_palette(&self) -> Option<$crate::core::palette::Palette> {
+            $crate::views::window::WindowLike::window_get_palette(self)
+        }
+    };
+    (@fwd init_after_add;) => {
+        fn init_after_add(&mut self) {
+            $crate::views::window::WindowLike::window_init_after_add(self)
+        }
+    };
+    (@fwd constrain_to_parent_bounds;) => {
+        fn constrain_to_parent_bounds(&mut self) {
+            $crate::views::window::WindowLike::window_constrain_to_parent_bounds(self)
+        }
+    };
+    (@fwd as_any;) => {
+        fn as_any(&self) -> &dyn ::std::any::Any {
+            self
+        }
+    };
+    (@fwd as_any_mut;) => {
+        fn as_any_mut(&mut self) -> &mut dyn ::std::any::Any {
+            self
+        }
+    };
+}
+
+impl_view_for_window!(Window);
 
 /// Builder for creating windows with a fluent API.
 ///
@@ -881,6 +1007,7 @@ impl View for Window {
 ///
 /// ```
 /// use turbo_vision::views::window::WindowBuilder;
+/// use turbo_vision::views::GroupLike;
 /// use turbo_vision::views::button::ButtonBuilder;
 /// use turbo_vision::core::geometry::Rect;
 /// use turbo_vision::core::command::CM_OK;
@@ -1007,6 +1134,50 @@ impl Default for WindowBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn window_like_override_of_get_palette_is_used_by_window_draw() {
+        use crate::core::palette::{Palette, palettes};
+
+        struct RedWindow(Window);
+        impl GroupLike for RedWindow {
+            fn group(&self) -> &Group {
+                &self.0.interior
+            }
+            fn group_mut(&mut self) -> &mut Group {
+                &mut self.0.interior
+            }
+        }
+        impl WindowLike for RedWindow {
+            fn window(&self) -> &Window {
+                &self.0
+            }
+            fn window_mut(&mut self) -> &mut Window {
+                &mut self.0
+            }
+        }
+        crate::impl_view_for_window!(RedWindow {
+            fn get_palette(&self) -> Option<Palette> {
+                Some(Palette::from_slice(palettes::CP_GRAY_DIALOG))
+            }
+        });
+
+        let mut terminal = crate::test_util::test_terminal(80, 25);
+        let mut plain = Window::new(Rect::new(0, 0, 20, 5), "a");
+        let mut red = RedWindow(Window::new(Rect::new(0, 0, 20, 5), "a"));
+        plain.set_focus(true);
+        red.set_focus(true);
+
+        plain.draw(&mut terminal);
+        let plain_cell = terminal.read_cell(0, 0).unwrap();
+        red.draw(&mut terminal);
+        let red_cell = terminal.read_cell(0, 0).unwrap();
+
+        assert_ne!(
+            plain_cell.attr, red_cell.attr,
+            "base window_draw must consult the overridden get_palette"
+        );
+    }
 
     #[test]
     fn test_new_with_type_gray() {

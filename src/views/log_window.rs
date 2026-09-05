@@ -33,6 +33,7 @@ use crate::core::event::Event;
 use crate::core::geometry::Rect;
 use crate::core::palette::{Attr, TvColor};
 use crate::terminal::Terminal;
+use crate::views::group::GroupLike;
 
 use std::cell::RefCell;
 use std::rc::Rc;

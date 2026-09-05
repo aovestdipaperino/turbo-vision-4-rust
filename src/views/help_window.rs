@@ -19,6 +19,7 @@ use crate::core::event::{
 use crate::core::geometry::{Point, Rect};
 use crate::core::state::StateFlags;
 use crate::terminal::Terminal;
+use crate::views::group::GroupLike;
 use std::cell::RefCell;
 use std::rc::Rc;
 

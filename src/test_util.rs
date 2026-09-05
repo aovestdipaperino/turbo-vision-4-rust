@@ -27,7 +27,73 @@ use crate::core::draw::Cell;
 use crate::core::event::Event;
 use crate::core::geometry::{Point, Rect};
 use crate::core::palette::Attr;
+use crate::terminal::{Backend, Terminal};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicU16, Ordering};
 use std::time::Duration;
+
+/// A headless [`Backend`] whose reported size can be changed mid-test,
+/// standing in for a real terminal being resized by the user.
+///
+/// Use [`test_terminal`] for the common case of a fixed-size terminal to
+/// draw views into and read cells back from.
+pub struct TestBackend {
+    size: Arc<(AtomicU16, AtomicU16)>,
+}
+
+impl TestBackend {
+    pub fn new(width: u16, height: u16) -> Self {
+        Self {
+            size: Arc::new((AtomicU16::new(width), AtomicU16::new(height))),
+        }
+    }
+
+    /// A handle that changes the size this backend reports; store the new
+    /// width and height and then trigger the application's resize path.
+    pub fn size_handle(&self) -> Arc<(AtomicU16, AtomicU16)> {
+        Arc::clone(&self.size)
+    }
+}
+
+impl Backend for TestBackend {
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+    fn init(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+    fn cleanup(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+    fn size(&self) -> std::io::Result<(u16, u16)> {
+        Ok((
+            self.size.0.load(Ordering::SeqCst),
+            self.size.1.load(Ordering::SeqCst),
+        ))
+    }
+    fn poll_event(&mut self, _timeout: Duration) -> std::io::Result<Option<Event>> {
+        Ok(None)
+    }
+    fn write_raw(&mut self, _data: &[u8]) -> std::io::Result<()> {
+        Ok(())
+    }
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+    fn show_cursor(&mut self, _x: u16, _y: u16) -> std::io::Result<()> {
+        Ok(())
+    }
+    fn hide_cursor(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+/// A real [`Terminal`] over a [`TestBackend`] of the given size, so views can
+/// be drawn and their cells inspected with `Terminal::read_cell`.
+pub fn test_terminal(width: u16, height: u16) -> Terminal {
+    Terminal::with_backend(Box::new(TestBackend::new(width, height)))
+        .expect("TestBackend never fails to initialise")
+}
 
 /// A mock terminal for testing UI components without a real terminal.
 ///
@@ -60,7 +126,7 @@ pub struct MockTerminal {
 impl MockTerminal {
     /// Creates a new mock terminal with the specified dimensions.
     pub fn new(width: u16, height: u16) -> Self {
-        use crate::core::palette::{Attr, TvColor};
+        use crate::core::palette::TvColor;
         let default_attr = Attr::new(TvColor::LightGray, TvColor::Black);
         let default_cell = Cell::new(' ', default_attr);
         let buffer = vec![vec![default_cell; width as usize]; height as usize];
@@ -202,7 +268,7 @@ impl MockTerminal {
 
     /// Clears the entire terminal (fills with spaces).
     pub fn clear(&mut self) {
-        use crate::core::palette::{Attr, TvColor};
+        use crate::core::palette::TvColor;
         let default_attr = Attr::new(TvColor::LightGray, TvColor::Black);
         let default_cell = Cell::new(' ', default_attr);
         for row in &mut self.buffer {

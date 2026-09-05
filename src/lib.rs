@@ -228,8 +228,9 @@ pub mod views;
 #[cfg(feature = "ssh")]
 pub mod ssh;
 
-// Test utilities (only available with test-util feature)
-#[cfg(feature = "test-util")]
+// Test utilities (available to the crate's own tests and, for downstream
+// crates, behind the `test-util` feature)
+#[cfg(any(test, feature = "test-util"))]
 pub mod test_util;
 
 // Re-export commonly used types
@@ -296,5 +297,5 @@ pub mod prelude {
     };
 
     pub use crate::app::Application;
-    pub use crate::views::{View, ViewCore};
+    pub use crate::views::{GroupLike, View, ViewCore, WindowLike};
 }

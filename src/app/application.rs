@@ -1009,50 +1009,12 @@ impl Drop for Application {
 mod resize_tests {
     use super::*;
     use crate::core::state::{GF_GROW_HI_X, GF_GROW_HI_Y};
-    use crate::terminal::Backend;
+    use crate::test_util::TestBackend;
+    use crate::views::group::GroupLike;
     use crate::views::view::ViewCore;
     use std::cell::Cell as StdCell;
     use std::sync::Arc;
     use std::sync::atomic::{AtomicU16, Ordering};
-
-    /// A backend whose reported size can be changed mid-test, standing in
-    /// for a real terminal being resized by the user (e.g. via SIGWINCH).
-    struct ResizableBackend {
-        size: Arc<(AtomicU16, AtomicU16)>,
-    }
-
-    impl Backend for ResizableBackend {
-        fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-            self
-        }
-        fn init(&mut self) -> std::io::Result<()> {
-            Ok(())
-        }
-        fn cleanup(&mut self) -> std::io::Result<()> {
-            Ok(())
-        }
-        fn size(&self) -> std::io::Result<(u16, u16)> {
-            Ok((
-                self.size.0.load(Ordering::SeqCst),
-                self.size.1.load(Ordering::SeqCst),
-            ))
-        }
-        fn poll_event(&mut self, _timeout: Duration) -> std::io::Result<Option<Event>> {
-            Ok(None)
-        }
-        fn write_raw(&mut self, _data: &[u8]) -> std::io::Result<()> {
-            Ok(())
-        }
-        fn flush(&mut self) -> std::io::Result<()> {
-            Ok(())
-        }
-        fn show_cursor(&mut self, _x: u16, _y: u16) -> std::io::Result<()> {
-            Ok(())
-        }
-        fn hide_cursor(&mut self) -> std::io::Result<()> {
-            Ok(())
-        }
-    }
 
     /// A child view that records every `set_bounds` call, standing in for a
     /// real consumer (e.g. the text scrollback re-wrap in `TextViewer`) that
@@ -1119,13 +1081,11 @@ mod resize_tests {
         width: i16,
         height: i16,
     ) -> (Application, Arc<(AtomicU16, AtomicU16)>, Rc<StdCell<u32>>) {
-        let size = Arc::new((
-            AtomicU16::new(u16::try_from(width).unwrap()),
-            AtomicU16::new(u16::try_from(height).unwrap()),
-        ));
-        let backend = ResizableBackend {
-            size: Arc::clone(&size),
-        };
+        let backend = TestBackend::new(
+            u16::try_from(width).unwrap(),
+            u16::try_from(height).unwrap(),
+        );
+        let size = backend.size_handle();
         let terminal = Terminal::with_backend(Box::new(backend)).unwrap();
 
         let desktop = Desktop::new(Rect::new(0, 0, width, height));

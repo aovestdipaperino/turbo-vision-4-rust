@@ -17,6 +17,7 @@ use turbo_vision::core::geometry::Rect;
 use turbo_vision::core::menu_data::{Menu, MenuItem};
 use turbo_vision::core::palette::{Attr, Palette, TvColor, colors};
 use turbo_vision::terminal::Terminal;
+use turbo_vision::views::GroupLike;
 use turbo_vision::views::ViewCore;
 use turbo_vision::views::shared::Shared;
 use turbo_vision::views::view::write_line_to_terminal;

@@ -18,6 +18,7 @@
 
 use turbo_vision::app::Application;
 use turbo_vision::core::geometry::Rect;
+use turbo_vision::views::GroupLike;
 use turbo_vision::views::{static_text::StaticTextBuilder, window::WindowBuilder};
 
 fn main() -> turbo_vision::core::error::Result<()> {

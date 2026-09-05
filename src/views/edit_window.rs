@@ -17,6 +17,7 @@ use super::window::Window;
 use crate::core::event::{Event, EventType};
 use crate::core::geometry::{Point, Rect};
 use crate::terminal::Terminal;
+use crate::views::group::GroupLike;
 use std::cell::RefCell;
 use std::rc::Rc;
 

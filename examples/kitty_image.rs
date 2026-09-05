@@ -21,6 +21,7 @@ use turbo_vision::core::command::{CM_QUIT, CommandId};
 use turbo_vision::core::event::{Event, EventType, KB_ALT_X, KB_ESC, KB_ESC_ESC};
 use turbo_vision::core::geometry::Rect;
 use turbo_vision::core::palette::{Attr, TvColor};
+use turbo_vision::views::GroupLike;
 use turbo_vision::views::View;
 use turbo_vision::views::kitty_image::KittyImage;
 use turbo_vision::views::label::LabelBuilder;

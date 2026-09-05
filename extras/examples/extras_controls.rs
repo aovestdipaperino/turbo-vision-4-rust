@@ -9,6 +9,7 @@
 
 use std::cell::RefCell;
 use std::rc::Rc;
+use turbo_vision::views::GroupLike;
 
 use turbo_vision::app::Application;
 use turbo_vision::core::command::CM_QUIT;
