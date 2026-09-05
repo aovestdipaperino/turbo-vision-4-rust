@@ -17,6 +17,7 @@ use crate::views::help_context::HelpContext;
 use crate::views::help_file::HelpFile;
 use crate::views::help_window::HelpWindow;
 use crate::views::view::ViewId;
+use crate::views::window::WindowLike;
 use crate::views::{IdleView, View, desktop::Desktop, menu_bar::MenuBar, status_line::StatusLine};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -84,6 +85,17 @@ pub trait AppHandler {
 }
 
 impl AppHandler for () {}
+
+/// What a modal loop's per-tick hook wants to happen next; see
+/// [`Application::execute_modal`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ModalTick {
+    /// Keep running.
+    Continue,
+    /// Close the modal view now with this command, bypassing `valid()` the
+    /// way an auto-dismiss timeout does.
+    End(CommandId),
+}
 
 impl Application {
     /// Creates a new application instance and initializes the terminal.
@@ -457,6 +469,117 @@ impl Application {
                 return CM_CANCEL;
             }
         }
+    }
+
+    /// Run `view` modally: the single modal loop behind `Dialog::execute`,
+    /// `FileDialog::execute` and `HelpWindow::execute` (Borland:
+    /// `TGroup::execute`, with `TProgram::getEvent` drawing the screen).
+    ///
+    /// Each iteration draws the desktop, menu bar, status line, `view` and
+    /// the overlay widgets, polls one event and dispatches it to `view` (twice
+    /// if the first pass turned it into a command, matching `putEvent`),
+    /// opens the history and drop-down popups a child asked for, then calls
+    /// `tick`. Returns the command the view ended with once `valid` accepts
+    /// it, or the command `tick` returned.
+    ///
+    /// Because the event goes to `view`'s own `handle_event`, an override on
+    /// the outer type (a `FileDialog` around a `Dialog`) is what runs, which is
+    /// how such a type reacts to its children without owning the loop.
+    pub fn execute_modal<V, F>(&mut self, view: &mut V, mut tick: F) -> CommandId
+    where
+        V: WindowLike + ?Sized,
+        F: FnMut(&mut Application, &mut V) -> ModalTick,
+    {
+        loop {
+            // Draw desktop first (clears the background), then the modal view
+            // on top: a view that is not on the desktop must draw itself here.
+            self.desktop.draw(&mut self.terminal);
+            if let Some(ref mut menu_bar) = self.menu_bar {
+                menu_bar.draw(&mut self.terminal);
+            }
+            if let Some(ref mut status_line) = self.status_line {
+                status_line.draw(&mut self.terminal);
+            }
+            view.draw(&mut self.terminal);
+            // Overlay widgets keep animating during modal loops
+            // (Borland: TProgram::idle() continues running during execView()).
+            for widget in &mut self.overlay_widgets {
+                widget.draw(&mut self.terminal);
+            }
+            view.update_cursor(&mut self.terminal);
+            let _ = self.terminal.flush();
+
+            // 20ms timeout matches magiblot's eventTimeoutMs; idle() only runs
+            // when there truly was no event.
+            match self.poll_event_or_quit() {
+                Some(mut event) => {
+                    if event.what == EventType::Broadcast && event.command == CM_REDRAW {
+                        self.handle_redraw();
+                        continue;
+                    }
+
+                    view.handle_event(&mut event);
+
+                    // A keyboard event turned into a command (Enter -> CM_OK)
+                    // is re-dispatched so the command handler runs (putEvent).
+                    if event.what == EventType::Command {
+                        view.handle_event(&mut event);
+                    }
+
+                    // A History button converted its click into CM_SHOW_HISTORY;
+                    // the popup needs the terminal, so it opens here.
+                    if event.what == EventType::Command
+                        && event.command == crate::core::command::CM_SHOW_HISTORY
+                    {
+                        self.show_history_popup_for(view, &mut event);
+                    }
+                    // Same for a ComboBox asking to drop its list down.
+                    if event.what == EventType::Command
+                        && event.command == crate::core::command::CM_SHOW_DROPDOWN
+                    {
+                        crate::views::dialog::show_dropdown_popup(&mut event, &mut self.terminal);
+                    }
+                }
+                None => self.idle(),
+            }
+
+            if let ModalTick::End(command) = tick(self, view) {
+                return command;
+            }
+
+            // Borland: do { ... } while( !valid(endState) ) — a failing
+            // validator vetoes the close and re-enters the loop.
+            let end_state = view.end_state();
+            if end_state != 0 {
+                if view.valid(end_state) {
+                    return end_state;
+                }
+                view.end_modal(0);
+            }
+        }
+    }
+
+    /// Open the history popup a `CM_SHOW_HISTORY` command asked for and hand
+    /// the selection back to `view`'s children as a `CM_HISTORY_SELECTED`
+    /// broadcast.
+    fn show_history_popup_for<V: WindowLike + ?Sized>(&mut self, view: &mut V, event: &mut Event) {
+        use crate::core::command::CM_HISTORY_SELECTED;
+        use crate::core::geometry::Point;
+        use crate::core::history::HistoryManager;
+        use crate::views::history_window::HistoryWindow;
+
+        let history_id = event.info;
+        // Just below the clicked button, shifted left so the dropdown covers
+        // the input line it belongs to.
+        let pos = Point::new((event.mouse.pos.x - 20).max(0), event.mouse.pos.y + 1);
+        let mut window = HistoryWindow::new(pos, history_id, 30);
+        if let Some(selected) = window.execute(&mut self.terminal) {
+            // Move the selection to the front so History views can find it.
+            HistoryManager::add(history_id, selected);
+            let mut sel = Event::broadcast_with_info(CM_HISTORY_SELECTED, history_id);
+            view.handle_event(&mut sel);
+        }
+        event.clear();
     }
 
     /// Run the event loop with no application hooks; see [`run_with`](Self::run_with).
@@ -1067,6 +1190,46 @@ impl Drop for Application {
 #[cfg(test)]
 mod resize_tests {
     use super::*;
+
+    #[test]
+    fn execute_modal_stops_when_the_tick_says_so_and_dispatches_events_to_the_view() {
+        use crate::core::command::{CM_CANCEL, CM_OK};
+        use crate::core::state::SF_MODAL;
+        use crate::views::button::Button;
+        use crate::views::dialog::Dialog;
+
+        let (mut app, _size, _calls) = build_test_app(80, 25);
+        let mut dialog = Dialog::new(Rect::new(5, 5, 40, 12), "t");
+        dialog.add(Box::new(Button::new(
+            Rect::new(2, 2, 12, 4),
+            "OK",
+            CM_OK,
+            true,
+        )));
+        let mut ticks = 0;
+        let result = app.execute_modal(&mut dialog, |_app, _d| {
+            ticks += 1;
+            if ticks == 3 {
+                ModalTick::End(CM_CANCEL)
+            } else {
+                ModalTick::Continue
+            }
+        });
+        assert_eq!(result, CM_CANCEL);
+        assert_eq!(ticks, 3);
+
+        let mut dialog = Dialog::new(Rect::new(5, 5, 40, 12), "t");
+        dialog.add(Box::new(Button::new(
+            Rect::new(2, 2, 12, 4),
+            "OK",
+            CM_OK,
+            true,
+        )));
+        dialog.set_state(dialog.state() | SF_MODAL);
+        app.put_event(Event::command(CM_OK));
+        let result = app.execute_modal(&mut dialog, |_, _| ModalTick::Continue);
+        assert_eq!(result, CM_OK);
+    }
 
     #[test]
     fn run_with_delivers_unhandled_commands_to_the_handler() {

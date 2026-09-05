@@ -109,10 +109,10 @@ use super::input_line::InputLine;
 use super::label::Label;
 use super::listbox::ListBox;
 use super::window::{Window, WindowLike};
+use crate::app::ModalTick;
 use crate::core::command::{CM_CANCEL, CM_FILE_FOCUSED, CM_OK, CommandId};
 use crate::core::event::{Event, EventType};
 use crate::core::geometry::Rect;
-use crate::terminal::Terminal;
 use std::cell::RefCell;
 use std::fs;
 use std::path::PathBuf;
@@ -218,6 +218,12 @@ pub struct FileDialog {
     selected_file_index: usize, // Track ListBox selection
     title: String,              // Store title for rebuilds
     button_label: String,       // "Open", "Save", etc.
+    /// The file the user picked; `execute` returns it once the modal loop
+    /// ends with `CM_OK`.
+    selected: Option<PathBuf>,
+    /// Set when the list contents changed under the double buffer; the
+    /// modal tick turns it into `Terminal::force_full_redraw`.
+    needs_full_redraw: bool,
 }
 
 impl FileDialog {
@@ -239,6 +245,8 @@ impl FileDialog {
             selected_file_index: 0,
             title: title.to_string(),
             button_label: "~O~pen".to_string(), // Default to "Open"
+            selected: None,
+            needs_full_redraw: false,
         }
     }
 
@@ -341,187 +349,155 @@ impl FileDialog {
         // Matches Borland: TFileDialog in modal state
         let old_state = self.dialog.state();
         self.dialog.set_state(old_state | SF_MODAL);
+        self.selected = None;
+        self.update_ok_button_state();
 
-        loop {
-            // Update OK button state based on input field
-            self.update_ok_button_state();
-
-            // Create a fresh palette token for this frame
-
-            // Draw desktop first (background), then dialog on top
-            // This matches Borland's pattern where getEvent() triggers full screen redraw
-            app.desktop.draw(&mut app.terminal);
-
-            // Draw menu bar and status line if present (so they appear on top)
-            if let Some(ref mut menu_bar) = app.menu_bar {
-                menu_bar.draw(&mut app.terminal);
+        // The loop is Application::execute_modal; events reach
+        // FileDialog::handle_event (below), which does the file-dialog work.
+        // The tick keeps the OK button in step with the input and applies a
+        // deferred full redraw after the list contents changed.
+        let end_state = app.execute_modal(self, |app, dialog| {
+            dialog.update_ok_button_state();
+            if dialog.needs_full_redraw {
+                dialog.needs_full_redraw = false;
+                app.terminal.force_full_redraw();
             }
-            if let Some(ref mut status_line) = app.status_line {
-                status_line.draw(&mut app.terminal);
-            }
+            ModalTick::Continue
+        });
 
-            // Draw the file dialog on top of desktop/menu/status
-            self.dialog.draw(&mut app.terminal);
+        if end_state == CM_OK {
+            self.selected.take()
+        } else {
+            None
+        }
+    }
 
-            // Draw overlay widgets on top of everything (animations, etc.)
-            // These continue to animate even during modal dialogs
-            // Matches Borland: TProgram::idle() continues running during execView()
-            for widget in &mut app.overlay_widgets {
-                widget.draw(&mut app.terminal);
-            }
+    /// The file-dialog reaction to an event the inner `Dialog` has already
+    /// processed: mirror the list selection into the input, apply wildcard
+    /// filters, navigate into directories, or record the chosen file.
+    /// (Borland: TFileDialog::handleEvent / valid(cmFileOpen).)
+    fn after_event(&mut self, event: &mut Event) {
+        // Check if dialog wants to close (e.g., close button clicked)
+        // Dialog::handle_event() calls end_modal() which sets the end_state
+        // Matches Borland: TDialog::execute() checks endState after handleEvent
+        let end_state = self.dialog.end_state();
 
-            self.dialog.update_cursor(&mut app.terminal);
-            let _ = app.terminal.flush();
+        // IMPORTANT: Only close dialog for CM_CANCEL and CM_CLOSE
+        // For CM_OK, we need to check if it's a wildcard pattern FIRST
+        // If it's a wildcard, we stay open and update the filter
+        // Only close if it's actually a file selection (after wildcard check)
+        if end_state == crate::core::command::CM_CANCEL
+            || end_state == crate::core::command::CM_CLOSE
+        {
+            // CLOSE CONDITION 3: User cancels via cancel button or close
+            // button; the modal loop sees the end state and returns.
+            return;
+        }
 
-            // Get event with 20ms timeout (matches magiblot's eventTimeoutMs)
-            match app
-                .terminal
-                .poll_event(std::time::Duration::from_millis(20))
-                .ok()
-                .flatten()
-            {
-                Some(mut event) => {
-                    // Event received - handle it immediately without calling idle()
-                    // Matches magiblot: idle() is NOT called when events are present
+        // After event is processed, check if ListBox selection changed
+        // Matches Borland: TFileList::focusItem() broadcasts cmFileFocused when selection changes
+        // We read the ListBox selection after it has processed navigation events
+        self.sync_inputline_with_listbox();
 
-                    // Handle double ESC to close (Cancel operation)
-                    if event.what == EventType::Keyboard
-                        && event.key_code == crate::core::event::KB_ESC_ESC
-                    {
-                        return None;
-                    }
+        // Effective command: Dialog::handle_event clears `event` for CM_OK/
+        // CM_CANCEL/CM_YES/CM_NO and stashes the command in end_state, so we
+        // pull it from there when the event field is no longer a Command.
+        // ListBox commands (>= 1000, e.g. CMD_FILE_SELECTED) survive in `event`.
+        let effective_command = if event.what == EventType::Command {
+            Some(event.command)
+        } else if end_state != 0 {
+            Some(end_state)
+        } else {
+            None
+        };
 
-                    // Let the dialog (and its children) handle the event first
-                    self.dialog.handle_event(&mut event);
+        if let Some(cmd) = effective_command {
+            match cmd {
+                CM_OK => {
+                    // User clicked OK button or pressed Enter (while not in listbox)
+                    // Matches Borland: TFileDialog::valid(cmFileOpen) (tfiledia.cc:251-302)
+                    let file_name = self.file_name_data.borrow().clone();
+                    if !file_name.is_empty() {
+                        // Check if input contains wildcards (*.txt, *.rs, etc)
+                        if self.contains_wildcards(&file_name) {
+                            // Borland pattern: Update wildcard and reload list, keep dialog open
+                            // Matches: strcpy(wildCard, name); fileList->readDirectory()
+                            self.wildcard = file_name.clone();
+                            self.read_directory();
 
-                    // Check if dialog wants to close (e.g., close button clicked)
-                    // Dialog::handle_event() calls end_modal() which sets the end_state
-                    // Matches Borland: TDialog::execute() checks endState after handleEvent
-                    let end_state = self.dialog.end_state();
-
-                    // IMPORTANT: Only close dialog for CM_CANCEL and CM_CLOSE
-                    // For CM_OK, we need to check if it's a wildcard pattern FIRST
-                    // If it's a wildcard, we stay open and update the filter
-                    // Only close if it's actually a file selection (after wildcard check)
-                    if end_state == crate::core::command::CM_CANCEL
-                        || end_state == crate::core::command::CM_CLOSE
-                    {
-                        // CLOSE CONDITION 3: User cancels via cancel button or close button
-                        return None;
-                    }
-
-                    // After event is processed, check if ListBox selection changed
-                    // Matches Borland: TFileList::focusItem() broadcasts cmFileFocused when selection changes
-                    // We read the ListBox selection after it has processed navigation events
-                    self.sync_inputline_with_listbox();
-
-                    // Effective command: Dialog::handle_event clears `event` for CM_OK/
-                    // CM_CANCEL/CM_YES/CM_NO and stashes the command in end_state, so we
-                    // pull it from there when the event field is no longer a Command.
-                    // ListBox commands (>= 1000, e.g. CMD_FILE_SELECTED) survive in `event`.
-                    let effective_command = if event.what == EventType::Command {
-                        Some(event.command)
-                    } else if end_state != 0 {
-                        Some(end_state)
-                    } else {
-                        None
-                    };
-
-                    if let Some(cmd) = effective_command {
-                        match cmd {
-                            CM_OK => {
-                                // User clicked OK button or pressed Enter (while not in listbox)
-                                // Matches Borland: TFileDialog::valid(cmFileOpen) (tfiledia.cc:251-302)
-                                let file_name = self.file_name_data.borrow().clone();
-                                if !file_name.is_empty() {
-                                    // Check if input contains wildcards (*.txt, *.rs, etc)
-                                    if self.contains_wildcards(&file_name) {
-                                        // Borland pattern: Update wildcard and reload list, keep dialog open
-                                        // Matches: strcpy(wildCard, name); fileList->readDirectory()
-                                        self.wildcard = file_name.clone();
-                                        self.read_directory();
-
-                                        // Update ListBox items directly (don't rebuild entire dialog)
-                                        // Downcast to ListBox to call set_items()
-                                        if CHILD_LISTBOX < self.dialog.child_count() {
-                                            let view = self.dialog.child_at_mut(CHILD_LISTBOX);
-                                            if let Some(listbox) =
-                                                view.as_any_mut().downcast_mut::<ListBox>()
-                                            {
-                                                listbox.set_items(self.files.clone());
-                                                listbox.set_selection(0);
-                                            }
-                                        }
-
-                                        // Update input field to show the wildcard pattern
-                                        *self.file_name_data.borrow_mut() = self.wildcard.clone();
-
-                                        // Reset selection tracking
-                                        self.selected_file_index = 0;
-
-                                        // CRITICAL: Clear the end_state that was set by Dialog.handle_event()
-                                        // Dialog called end_modal(CM_OK) but we're staying open for wildcard filter
-                                        self.dialog.end_modal(0);
-
-                                        // Force full redraw to ensure ListBox visual updates
-                                        // The Terminal's double-buffering system needs this to guarantee
-                                        // that all changed cells are resent to the actual terminal
-                                        app.terminal.force_full_redraw();
-
-                                        // Stay open - continue event loop
-                                        continue;
-                                    }
-
-                                    // Check if it's a directory navigation request or file selection
-                                    if let Some(path) =
-                                        self.handle_selection(&file_name, &mut app.terminal)
-                                    {
-                                        // CLOSE CONDITION 2: File selected and OK pressed
-                                        return Some(path);
-                                    }
-                                    // Directory/folder selected - navigate into it (stay open)
-                                    // CRITICAL: Clear the end_state so the loop continues
-                                    // Dialog called end_modal(CM_OK) but we're navigating into folder
-                                    self.dialog.end_modal(0);
-                                    // Loop continues with new directory contents
-                                } else {
-                                    // If input is empty, do nothing (don't close dialog)
-                                    // This effectively disables the OK button when input is empty
-                                    // Clear end_state so dialog stays open
-                                    self.dialog.end_modal(0);
+                            // Update ListBox items directly (don't rebuild entire dialog)
+                            // Downcast to ListBox to call set_items()
+                            if CHILD_LISTBOX < self.dialog.child_count() {
+                                let view = self.dialog.child_at_mut(CHILD_LISTBOX);
+                                if let Some(listbox) = view.as_any_mut().downcast_mut::<ListBox>() {
+                                    listbox.set_items(self.files.clone());
+                                    listbox.set_selection(0);
                                 }
                             }
-                            CM_CANCEL | crate::core::command::CM_CLOSE => {
-                                // CLOSE CONDITION 3: User cancels via Cancel button
-                                return None;
-                            }
-                            CMD_FILE_SELECTED => {
-                                // User double-clicked or pressed Enter on an item in the listbox
-                                // The input field has ALREADY been updated by sync_inputline_with_listbox()
-                                // So we just read what's already there and handle it
-                                let file_name = self.file_name_data.borrow().clone();
 
-                                if !file_name.is_empty() {
-                                    // Handle the selection (navigate into folder or return file)
-                                    if let Some(path) =
-                                        self.handle_selection(&file_name, &mut app.terminal)
-                                    {
-                                        // CLOSE CONDITION 1: File double-clicked or Enter pressed on file
-                                        return Some(path);
-                                    }
-                                    // Folder/directory selected - navigate into it (stay open)
-                                    // Loop continues with new directory contents
-                                }
-                            }
-                            _ => {}
+                            // Update input field to show the wildcard pattern
+                            *self.file_name_data.borrow_mut() = self.wildcard.clone();
+
+                            // Reset selection tracking
+                            self.selected_file_index = 0;
+
+                            // CRITICAL: Clear the end_state that was set by Dialog.handle_event()
+                            // Dialog called end_modal(CM_OK) but we're staying open for wildcard filter
+                            self.dialog.end_modal(0);
+
+                            // Force full redraw to ensure ListBox visual updates
+                            // The Terminal's double-buffering system needs this to guarantee
+                            // that all changed cells are resent to the actual terminal
+                            self.needs_full_redraw = true;
+
+                            // Stay open - the modal loop continues
+                            return;
                         }
+
+                        // Check if it's a directory navigation request or file selection
+                        if let Some(path) = self.handle_selection(&file_name) {
+                            // CLOSE CONDITION 2: File selected and OK pressed;
+                            // end_state is already CM_OK, so the loop returns it.
+                            self.selected = Some(path);
+                            return;
+                        }
+                        // Directory/folder selected - navigate into it (stay open)
+                        // CRITICAL: Clear the end_state so the loop continues
+                        // Dialog called end_modal(CM_OK) but we're navigating into folder
+                        self.dialog.end_modal(0);
+                        // Loop continues with new directory contents
+                    } else {
+                        // If input is empty, do nothing (don't close dialog)
+                        // This effectively disables the OK button when input is empty
+                        // Clear end_state so dialog stays open
+                        self.dialog.end_modal(0);
                     }
                 }
-                None => {
-                    // Timeout with no events - call idle() to update animations, etc.
-                    // Matches magiblot: idle() only called when truly idle
-                    app.idle();
+                CM_CANCEL | crate::core::command::CM_CLOSE => {
+                    // CLOSE CONDITION 3: User cancels via Cancel button;
+                    // the end state closes the modal loop.
                 }
+                CMD_FILE_SELECTED => {
+                    // User double-clicked or pressed Enter on an item in the listbox
+                    // The input field has ALREADY been updated by sync_inputline_with_listbox()
+                    // So we just read what's already there and handle it
+                    let file_name = self.file_name_data.borrow().clone();
+
+                    if !file_name.is_empty() {
+                        // Handle the selection (navigate into folder or return file)
+                        if let Some(path) = self.handle_selection(&file_name) {
+                            // CLOSE CONDITION 1: File double-clicked or Enter pressed on file
+                            self.selected = Some(path);
+                            self.dialog.end_modal(CM_OK);
+                        }
+                        // Folder/directory selected - navigate into it (stay open)
+                        // Loop continues with new directory contents
+                    }
+                    // Consumed here: the loop would otherwise re-dispatch a
+                    // command that survived the first pass.
+                    event.clear();
+                }
+                _ => {}
             }
         }
     }
@@ -578,7 +554,7 @@ impl FileDialog {
         }
     }
 
-    fn handle_selection(&mut self, file_name: &str, terminal: &mut Terminal) -> Option<PathBuf> {
+    fn handle_selection(&mut self, file_name: &str) -> Option<PathBuf> {
         // Determines whether a selection is:
         // - A folder to navigate into (returns None, dialog stays open)
         // - A file to return (returns Some(path), closes dialog)
@@ -593,13 +569,13 @@ impl FileDialog {
             SelectionAction::NavigateParent => {
                 if let Some(parent) = self.current_path.parent() {
                     self.current_path = parent.to_path_buf();
-                    self.rebuild_and_redraw(terminal);
+                    self.rebuild_and_redraw();
                 }
                 None
             }
             SelectionAction::Navigate(dir) => {
                 self.current_path = dir;
-                self.rebuild_and_redraw(terminal);
+                self.rebuild_and_redraw();
                 None
             }
             SelectionAction::Refilter { dir, wildcard } => {
@@ -607,7 +583,7 @@ impl FileDialog {
                     self.current_path = dir;
                 }
                 self.wildcard = wildcard;
-                self.rebuild_and_redraw(terminal);
+                self.rebuild_and_redraw();
                 None
             }
             SelectionAction::SelectFile(path) => {
@@ -646,7 +622,7 @@ impl FileDialog {
         }
     }
 
-    fn rebuild_and_redraw(&mut self, _terminal: &mut Terminal) {
+    fn rebuild_and_redraw(&mut self) {
         // Create a new dialog with updated file list
         let old_bounds = self.dialog.bounds();
         let old_title = self.title.clone();
@@ -821,6 +797,7 @@ impl WindowLike for FileDialog {
 crate::impl_view_for_window!(FileDialog {
     fn handle_event(&mut self, event: &mut Event) {
         self.dialog.handle_event(event);
+        self.after_event(event);
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
@@ -1081,45 +1058,9 @@ mod tests {
         std::fs::create_dir_all(&sub).unwrap();
         std::fs::write(sub.join("file.txt"), b"x").unwrap();
 
-        struct NullBackend;
-        impl crate::terminal::Backend for NullBackend {
-            fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-                self
-            }
-
-            fn init(&mut self) -> std::io::Result<()> {
-                Ok(())
-            }
-            fn cleanup(&mut self) -> std::io::Result<()> {
-                Ok(())
-            }
-            fn size(&self) -> std::io::Result<(u16, u16)> {
-                Ok((80, 25))
-            }
-            fn poll_event(
-                &mut self,
-                _timeout: std::time::Duration,
-            ) -> std::io::Result<Option<Event>> {
-                Ok(None)
-            }
-            fn write_raw(&mut self, _data: &[u8]) -> std::io::Result<()> {
-                Ok(())
-            }
-            fn flush(&mut self) -> std::io::Result<()> {
-                Ok(())
-            }
-            fn show_cursor(&mut self, _x: u16, _y: u16) -> std::io::Result<()> {
-                Ok(())
-            }
-            fn hide_cursor(&mut self) -> std::io::Result<()> {
-                Ok(())
-            }
-        }
-
         let mut dialog =
             FileDialog::new(Rect::new(0, 0, 60, 20), "t", "*", Some(tmp.clone())).build();
-        let mut terminal = Terminal::with_backend(Box::new(NullBackend)).unwrap();
-        let result = dialog.handle_selection("sub/file.txt", &mut terminal);
+        let result = dialog.handle_selection("sub/file.txt");
         assert_eq!(result, Some(sub.join("file.txt")));
         assert_eq!(dialog.get_current_directory(), sub);
         assert_eq!(*dialog.file_name_data.borrow(), "file.txt");

@@ -63,4 +63,4 @@
 
 pub mod application;
 
-pub use application::{AppHandler, Application};
+pub use application::{AppHandler, Application, ModalTick};

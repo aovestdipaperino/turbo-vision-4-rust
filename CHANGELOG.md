@@ -13,10 +13,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   hand-written copies of the event loop that programs wrote to handle their
   own commands (Borland: `TApplication::handleEvent` and `idle` overrides).
   `Application::run()` is now `run_with(&mut ())`.
+- **`Application::execute_modal` and `ModalTick`.** The one modal loop behind
+  `Dialog::execute`, `FileDialog::execute` and `HelpWindow::execute`; a
+  per-tick closure can poll a background job and end the dialog. Events go to
+  the outer type's `handle_event`, so a `FileDialog` no longer needs its own
+  copy of the loop to react to its children.
 
 ### Changed (breaking)
 - **`Desktop::remove_closed_windows` returns `Vec<ViewId>`** (the windows it
   removed) instead of `bool`.
+- `FileDialog::handle_selection` no longer takes a `&mut Terminal`.
 - **`View::core()` and `View::core_mut()` are required.** Every view owns a
   `ViewCore` holding `bounds`, `state`, `options`, `grow_mode` and
   `palette_chain`; the ten field accessors are now trait defaults that read

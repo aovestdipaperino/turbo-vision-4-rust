@@ -7,6 +7,7 @@ use super::group::Group;
 use super::group::GroupLike;
 use super::view::View;
 use super::window::{Window, WindowLike};
+use crate::app::ModalTick;
 use crate::core::command::{CM_CANCEL, CommandId};
 use crate::core::event::{Event, EventType, KB_ENTER, KB_ESC_ESC};
 use crate::core::geometry::Rect;
@@ -119,147 +120,18 @@ impl Dialog {
         // which selects the first visible, selectable child when views are added
         self.set_initial_focus();
 
+        // The loop itself is Application::execute_modal (Borland:
+        // TGroup::execute); the closure is the only dialog-specific part.
+        // Auto-dismiss: the user did not close the dialog in time, so close it
+        // on their behalf with the configured command.
         let started = Instant::now();
-
-        // Event loop matching Borland's TGroup::execute() (tgroup.cc:182-195)
-        // IMPORTANT: We can't just delegate to window.execute() because that would
-        // call Group::handle_event(), but we need Dialog::handle_event() to be called
-        // (to handle commands and call end_modal).
-        //
-        // In Borland, TDialog inherits from TGroup, so TGroup::execute() calls
-        // TDialog::handleEvent() via virtual function dispatch.
-        //
-        // In Rust with composition, we must implement the execute loop here
-        // and call self.handle_event() to get proper polymorphic behavior.
-        loop {
-            // Create a fresh palette token for this frame
-
-            // Draw desktop first (clears the background), then draw this dialog on top
-            // This is the key: dialogs that aren't on the desktop need to draw themselves
-            app.desktop.draw(&mut app.terminal);
-
-            // Draw menu bar and status line if present (so they appear on top)
-            if let Some(ref mut menu_bar) = app.menu_bar {
-                menu_bar.draw(&mut app.terminal);
-            }
-            if let Some(ref mut status_line) = app.status_line {
-                status_line.draw(&mut app.terminal);
-            }
-
-            // Draw the dialog on top of desktop/menu/status
-            self.draw(&mut app.terminal);
-
-            // Draw overlay widgets on top of everything (animations, etc.)
-            // These continue to animate even during modal dialogs
-            // Matches Borland: TProgram::idle() continues running during execView()
-            for widget in &mut app.overlay_widgets {
-                widget.draw(&mut app.terminal);
-            }
-
-            self.update_cursor(&mut app.terminal);
-            let _ = app.terminal.flush();
-
-            // Poll for event with 20ms timeout (matches magiblot's eventTimeoutMs)
-            // This blocks until an event arrives or timeout occurs
-            match app
-                .terminal
-                .poll_event(Duration::from_millis(20))
-                .ok()
-                .flatten()
-            {
-                Some(mut event) => {
-                    // Handle CM_REDRAW at the application level first
-                    if event.what == EventType::Broadcast
-                        && event.command == crate::core::command::CM_REDRAW
-                    {
-                        app.handle_redraw();
-                        continue;
-                    }
-
-                    // Event received - handle it immediately without calling idle()
-                    // Matches magiblot: idle() is NOT called when events are present
-                    self.handle_event(&mut event);
-
-                    // If the event was converted to a command (e.g., KB_ENTER -> CM_OK),
-                    // we need to process it again so the command handler runs
-                    // Matches Borland: putEvent() re-queues the converted event
-                    if event.what == EventType::Command {
-                        self.handle_event(&mut event);
-                    }
-
-                    // A History button converted its click into CM_SHOW_HISTORY;
-                    // open the popup here, where we have terminal access.
-                    if event.what == EventType::Command
-                        && event.command == crate::core::command::CM_SHOW_HISTORY
-                    {
-                        self.show_history_popup(&mut event, &mut app.terminal);
-                    }
-
-                    // Same for a ComboBox asking to drop its list down.
-                    if event.what == EventType::Command
-                        && event.command == crate::core::command::CM_SHOW_DROPDOWN
-                    {
-                        show_dropdown_popup(&mut event, &mut app.terminal);
-                    }
-                }
-                None => {
-                    // Timeout with no events - call idle() to update animations, etc.
-                    // Matches magiblot: idle() only called when truly idle
-                    app.idle();
-                }
-            }
-
-            // Check if dialog should close
-            // Dialog::handle_event() calls window.end_modal() which sets the Group's end_state
-            let end_state = self.window.end_state();
-            if end_state != 0 {
-                // Matches Borland: do { ... } while( !valid(endState) ) — a
-                // failing validator vetoes the close and re-enters the loop
-                // (Dialog::valid already exempts Cancel/No)
-                if self.valid(end_state) {
-                    self.result = end_state;
-                    break;
-                }
-                self.window.end_modal(0);
-            }
-
-            // Auto-dismiss: the user did not close the dialog in time, so
-            // close it on their behalf with the configured command.
-            if let Some((timeout, command)) = self.auto_dismiss {
-                if started.elapsed() >= timeout {
-                    self.result = command;
-                    break;
-                }
-            }
-        }
+        let auto = self.auto_dismiss;
+        self.result = app.execute_modal(self, |_, _| match auto {
+            Some((timeout, command)) if started.elapsed() >= timeout => ModalTick::End(command),
+            _ => ModalTick::Continue,
+        });
 
         self.result
-    }
-
-    /// Open the history popup for a `CM_SHOW_HISTORY` command event.
-    ///
-    /// Runs the `HistoryWindow` modally on the given terminal. If the user picks
-    /// an item, it is moved to the front of the history list and a
-    /// `CM_HISTORY_SELECTED` broadcast is dispatched to the dialog's children so
-    /// the linked `History` view copies it into its InputLine's shared data.
-    fn show_history_popup(&mut self, event: &mut Event, terminal: &mut Terminal) {
-        use crate::core::command::CM_HISTORY_SELECTED;
-        use crate::core::geometry::Point;
-        use crate::core::history::HistoryManager;
-        use crate::views::history_window::HistoryWindow;
-
-        let history_id = event.info;
-        // Place the popup just below the clicked button, shifted left so the
-        // dropdown covers the input line it belongs to.
-        let pos = Point::new((event.mouse.pos.x - 20).max(0), event.mouse.pos.y + 1);
-        let mut window = HistoryWindow::new(pos, history_id, 30);
-        if let Some(selected) = window.execute(terminal) {
-            // Move the selection to the front so History views can find it.
-            HistoryManager::add(history_id, selected);
-            let mut sel = Event::broadcast_with_info(CM_HISTORY_SELECTED, history_id);
-            self.window.handle_event(&mut sel);
-        }
-        event.clear();
     }
 }
 

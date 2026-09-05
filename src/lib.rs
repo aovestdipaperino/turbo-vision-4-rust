@@ -296,6 +296,6 @@ pub mod prelude {
         CommandId,
     };
 
-    pub use crate::app::{AppHandler, Application};
+    pub use crate::app::{AppHandler, Application, ModalTick};
     pub use crate::views::{GroupLike, View, ViewCore, WindowLike};
 }

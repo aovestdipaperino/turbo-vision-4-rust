@@ -2488,7 +2488,7 @@ impl Application {
 
 The double dispatch in today's `Dialog::execute`, `self.handle_event(&mut event)` followed by a second `self.handle_event` if the event is still a command, is preserved as-is inside `execute_modal` in this task so behaviour does not change; whether one dispatch through `WindowLike::handle_event` now suffices is checked by the existing `dialog::tests` and, if they pass with a single call, the second call is removed in Task 10's cleanup.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```rust
 #[test]
@@ -2512,12 +2512,12 @@ fn execute_modal_stops_when_the_tick_says_so_and_dispatches_events_to_the_view()
 }
 ```
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Run: `cargo test --lib app::tests::execute_modal_stops_when_the_tick_says_so_and_dispatches_events_to_the_view`
 Expected: `no method named execute_modal`.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Move the body of `Dialog::execute` from `let started = Instant::now();` to the end into
 `Application::execute_modal`, replacing `self` with `view`, `app` with `self`, and the
@@ -2559,14 +2559,14 @@ terminal, moves into `execute_modal` as a generic step: after dispatch, if the e
 still `CM_SHOW_HISTORY`, open the history popup exactly as `Application::handle_event`
 already does at `src/app/application.rs:603-620`, so the two copies become one.
 
-- [ ] **Step 4: Convert the other loops**
+- [x] **Step 4: Convert the other loops**
 
 `FileDialog::execute` calls `self.update_ok_button_state()` inside the closure and returns
 `ModalTick::Continue`. `HelpWindow::execute` and `exec_view` call `execute_modal` with the
 no-op closure. Run `cargo test`; `dialog::tests::auto_dismiss_is_off_by_default_and_settable`
 and `msgbox_test.rs` cover the auto-dismiss path.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/app/application.rs src/views/dialog.rs src/views/file_dialog.rs src/views/help_window.rs

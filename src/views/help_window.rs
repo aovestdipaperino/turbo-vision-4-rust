@@ -198,7 +198,7 @@ impl HelpWindow {
 
     /// Execute the help window modally
     pub fn execute(&mut self, app: &mut crate::app::Application) -> CommandId {
-        self.window.execute(app)
+        app.execute_modal(self, |_, _| crate::app::ModalTick::Continue)
     }
 
     /// End the modal event loop
