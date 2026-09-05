@@ -16,8 +16,9 @@ use turbo_vision::core::event::{Event, EventType, KB_ALT_F3, KB_ALT_X, KB_F3, KB
 use turbo_vision::core::geometry::Rect;
 use turbo_vision::core::menu_data::{Menu, MenuItem};
 use turbo_vision::core::palette::{Attr, Palette, TvColor, colors};
-use turbo_vision::core::state::StateFlags;
 use turbo_vision::terminal::Terminal;
+use turbo_vision::views::ViewCore;
+use turbo_vision::views::shared::Shared;
 use turbo_vision::views::view::write_line_to_terminal;
 use turbo_vision::views::{
     IdleView, View,
@@ -87,16 +88,18 @@ const CM_CALC_PLUS: u16 = 219;
 
 // ClockView - displays live time on menu bar
 struct ClockView {
-    bounds: Rect,
-    state: StateFlags,
+    core: ViewCore,
     palette_chain: Option<turbo_vision::core::palette_chain::PaletteChainNode>,
 }
 
 impl ClockView {
     fn new(bounds: Rect) -> Self {
         Self {
-            bounds,
-            state: 0,
+            core: ViewCore {
+                bounds,
+                state: 0,
+                ..ViewCore::default()
+            },
             palette_chain: None,
         }
     }
@@ -108,24 +111,16 @@ impl ClockView {
 }
 
 impl View for ClockView {
-    fn bounds(&self) -> Rect {
-        self.bounds
+    fn core(&self) -> &ViewCore {
+        &self.core
     }
 
-    fn set_bounds(&mut self, bounds: Rect) {
-        self.bounds = bounds;
-    }
-
-    fn state(&self) -> StateFlags {
-        self.state
-    }
-
-    fn set_state(&mut self, state: StateFlags) {
-        self.state = state;
+    fn core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        let width = self.bounds.width_clamped() as usize;
+        let width = self.core.bounds.width_clamped() as usize;
         let color = colors::MENU_NORMAL;
 
         let mut buf = DrawBuffer::new(width);
@@ -136,7 +131,7 @@ impl View for ClockView {
             buf.move_str(0, &time_str, color);
         }
 
-        write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y, &buf);
+        write_line_to_terminal(terminal, self.core.bounds.a.x, self.core.bounds.a.y, &buf);
     }
 
     fn handle_event(&mut self, _event: &mut Event) {}
@@ -160,8 +155,7 @@ impl View for ClockView {
 
 // Animated Crab Widget for Status Bar
 struct CrabWidget {
-    bounds: Rect,
-    state: StateFlags,
+    core: ViewCore,
     position: usize, // Current position (0-9)
     direction: i8,   // 1 for right, -1 for left
     last_update: Instant,
@@ -175,8 +169,11 @@ impl CrabWidget {
 
     fn new(x: i16, y: i16) -> Self {
         Self {
-            bounds: Rect::new(x, y, x + Self::WIDTH, y + 1),
-            state: 0,
+            core: ViewCore {
+                bounds: Rect::new(x, y, x + Self::WIDTH, y + 1),
+                state: 0,
+                ..ViewCore::default()
+            },
             position: 0,
             direction: 1,
             last_update: Instant::now(),
@@ -201,20 +198,12 @@ impl CrabWidget {
 }
 
 impl View for CrabWidget {
-    fn bounds(&self) -> Rect {
-        self.bounds
+    fn core(&self) -> &ViewCore {
+        &self.core
     }
 
-    fn set_bounds(&mut self, bounds: Rect) {
-        self.bounds = bounds;
-    }
-
-    fn state(&self) -> StateFlags {
-        self.state
-    }
-
-    fn set_state(&mut self, state: StateFlags) {
-        self.state = state;
+    fn core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
@@ -231,7 +220,7 @@ impl View for CrabWidget {
         // Place the crab at current position (emoji is 2 cells wide)
         buf.move_char(self.position, '🦀', color, 1);
 
-        write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y, &buf);
+        write_line_to_terminal(terminal, self.core.bounds.a.x, self.core.bounds.a.y, &buf);
     }
 
     fn handle_event(&mut self, _event: &mut Event) {}
@@ -267,57 +256,6 @@ impl IdleView for CrabWidget {
             }
             self.last_update = Instant::now();
         }
-    }
-}
-
-// Wrapper to allow shared ownership of CrabWidget
-struct CrabWidgetWrapper {
-    inner: Rc<RefCell<CrabWidget>>,
-}
-
-impl CrabWidgetWrapper {
-    fn new(inner: Rc<RefCell<CrabWidget>>) -> Self {
-        Self { inner }
-    }
-}
-
-impl View for CrabWidgetWrapper {
-    fn bounds(&self) -> Rect {
-        self.inner.borrow().bounds()
-    }
-
-    fn set_bounds(&mut self, bounds: Rect) {
-        self.inner.borrow_mut().set_bounds(bounds);
-    }
-
-    fn state(&self) -> StateFlags {
-        self.inner.borrow().state()
-    }
-
-    fn set_state(&mut self, state: StateFlags) {
-        self.inner.borrow_mut().set_state(state);
-    }
-
-    fn draw(&mut self, terminal: &mut Terminal) {
-        self.inner.borrow_mut().draw(terminal);
-    }
-
-    fn handle_event(&mut self, event: &mut Event) {
-        self.inner.borrow_mut().handle_event(event);
-    }
-
-    fn update_cursor(&self, terminal: &mut Terminal) {
-        self.inner.borrow().update_cursor(terminal);
-    }
-
-    fn get_palette(&self) -> Option<Palette> {
-        self.inner.borrow().get_palette()
-    }
-}
-
-impl IdleView for CrabWidgetWrapper {
-    fn idle(&mut self) {
-        self.inner.borrow_mut().idle();
     }
 }
 
@@ -406,41 +344,35 @@ fn show_about_dialog(app: &mut Application) {
 
 // ASCII Table Window
 struct AsciiTable {
-    bounds: Rect,
-    state: StateFlags,
+    core: ViewCore,
     palette_chain: Option<turbo_vision::core::palette_chain::PaletteChainNode>,
 }
 
 impl AsciiTable {
     fn new(bounds: Rect) -> Self {
         Self {
-            bounds,
-            state: 0,
+            core: ViewCore {
+                bounds,
+                state: 0,
+                ..ViewCore::default()
+            },
             palette_chain: None,
         }
     }
 }
 
 impl View for AsciiTable {
-    fn bounds(&self) -> Rect {
-        self.bounds
+    fn core(&self) -> &ViewCore {
+        &self.core
     }
 
-    fn set_bounds(&mut self, bounds: Rect) {
-        self.bounds = bounds;
-    }
-
-    fn state(&self) -> StateFlags {
-        self.state
-    }
-
-    fn set_state(&mut self, state: StateFlags) {
-        self.state = state;
+    fn core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        let width = self.bounds.width_clamped() as usize;
-        let height = self.bounds.height_clamped() as usize;
+        let width = self.core.bounds.width_clamped() as usize;
+        let height = self.core.bounds.height_clamped() as usize;
 
         // Draw ASCII table (characters 32-255)
         // Format: 4 columns, showing Char Dec Hex
@@ -474,8 +406,8 @@ impl View for AsciiTable {
 
             write_line_to_terminal(
                 terminal,
-                self.bounds.a.x,
-                self.bounds.a.y + row as i16,
+                self.core.bounds.a.x,
+                self.core.bounds.a.y + row as i16,
                 &buf,
             );
         }
@@ -536,9 +468,7 @@ enum CalcState {
 }
 
 struct CalcDisplay {
-    bounds: Rect,
-    state: StateFlags,
-    options: u16,
+    core: ViewCore,
     calc_state: CalcState,
     number: String,
     sign: char,
@@ -552,9 +482,12 @@ impl CalcDisplay {
         use turbo_vision::core::state::{OF_SELECTABLE, SF_VISIBLE};
 
         Self {
-            bounds,
-            state: SF_VISIBLE,
-            options: OF_SELECTABLE, // Must be selectable to receive keyboard events
+            core: ViewCore {
+                bounds,
+                state: SF_VISIBLE,
+                options: OF_SELECTABLE, // Must be selectable to receive keyboard events
+                ..ViewCore::default()
+            },
             calc_state: CalcState::First,
             number: "0".to_string(),
             sign: ' ',
@@ -696,32 +629,16 @@ impl CalcDisplay {
 }
 
 impl View for CalcDisplay {
-    fn bounds(&self) -> Rect {
-        self.bounds
+    fn core(&self) -> &ViewCore {
+        &self.core
     }
 
-    fn set_bounds(&mut self, bounds: Rect) {
-        self.bounds = bounds;
-    }
-
-    fn state(&self) -> StateFlags {
-        self.state
-    }
-
-    fn set_state(&mut self, state: StateFlags) {
-        self.state = state;
-    }
-
-    fn options(&self) -> u16 {
-        self.options
-    }
-
-    fn set_options(&mut self, options: u16) {
-        self.options = options;
+    fn core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        let width = self.bounds.width_clamped() as usize;
+        let width = self.core.bounds.width_clamped() as usize;
         // Use LightCyan background (closest to RGB(175, 212, 250))
         let color = Attr::new(TvColor::Black, TvColor::LightCyan);
 
@@ -733,7 +650,7 @@ impl View for CalcDisplay {
         let x_pos = width.saturating_sub(display_text.len() + 1);
         buf.move_str(x_pos, &display_text, color);
 
-        write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y, &buf);
+        write_line_to_terminal(terminal, self.core.bounds.a.x, self.core.bounds.a.y, &buf);
     }
 
     fn handle_event(&mut self, event: &mut Event) {
@@ -848,8 +765,7 @@ fn show_calculator_placeholder(app: &mut Application) {
 
 // Calendar Implementation
 struct CalendarView {
-    bounds: Rect,
-    state: StateFlags,
+    core: ViewCore,
     month: u32,
     year: u32,
     cur_day: u32,
@@ -873,8 +789,11 @@ impl CalendarView {
         let (year, month, day) = Self::epoch_to_date(days_since_epoch as i32);
 
         Self {
-            bounds,
-            state: 0,
+            core: ViewCore {
+                bounds,
+                state: 0,
+                ..ViewCore::default()
+            },
             month,
             year,
             cur_day: day,
@@ -1006,24 +925,16 @@ impl CalendarView {
 }
 
 impl View for CalendarView {
-    fn bounds(&self) -> Rect {
-        self.bounds
+    fn core(&self) -> &ViewCore {
+        &self.core
     }
 
-    fn set_bounds(&mut self, bounds: Rect) {
-        self.bounds = bounds;
-    }
-
-    fn state(&self) -> StateFlags {
-        self.state
-    }
-
-    fn set_state(&mut self, state: StateFlags) {
-        self.state = state;
+    fn core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        let width = self.bounds.width_clamped() as usize;
+        let width = self.core.bounds.width_clamped() as usize;
 
         let color = Attr::new(TvColor::Black, TvColor::Cyan);
         let bold_color = Attr::new(TvColor::Yellow, TvColor::Cyan);
@@ -1033,13 +944,18 @@ impl View for CalendarView {
         buf.move_char(0, ' ', color, width);
         let header = format!("↑{:>12} {:4} ↓", Self::month_name(self.month), self.year);
         buf.move_str(0, &header, color);
-        write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y, &buf);
+        write_line_to_terminal(terminal, self.core.bounds.a.x, self.core.bounds.a.y, &buf);
 
         // Line 1: Day headers
         let mut buf = DrawBuffer::new(width);
         buf.move_char(0, ' ', color, width);
         buf.move_str(0, "Su Mo Tu We Th Fr Sa", color);
-        write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y + 1, &buf);
+        write_line_to_terminal(
+            terminal,
+            self.core.bounds.a.x,
+            self.core.bounds.a.y + 1,
+            &buf,
+        );
 
         // Calculate starting day
         let first_day_of_week = Self::day_of_week(1, self.month, self.year);
@@ -1076,8 +992,8 @@ impl View for CalendarView {
 
             write_line_to_terminal(
                 terminal,
-                self.bounds.a.x,
-                self.bounds.a.y + 2 + week as i16,
+                self.core.bounds.a.x,
+                self.core.bounds.a.y + 2 + week as i16,
                 &buf,
             );
         }
@@ -1088,8 +1004,8 @@ impl View for CalendarView {
 
         match event.what {
             EventType::MouseDown => {
-                let local_x = event.mouse.pos.x - self.bounds.a.x;
-                let local_y = event.mouse.pos.y - self.bounds.a.y;
+                let local_x = event.mouse.pos.x - self.core.bounds.a.x;
+                let local_y = event.mouse.pos.y - self.core.bounds.a.y;
 
                 // Check if clicked on up arrow (position 0, character at x=0)
                 if local_y == 0 && local_x == 0 {
@@ -1154,8 +1070,7 @@ fn show_calendar_placeholder(app: &mut Application) {
 
 // Puzzle Game Implementation
 struct PuzzleView {
-    bounds: Rect,
-    state: StateFlags,
+    core: ViewCore,
     board: [[char; 6]; 6],
     moves: u16,
     solved: bool,
@@ -1165,8 +1080,11 @@ struct PuzzleView {
 impl PuzzleView {
     fn new(bounds: Rect) -> Self {
         let mut puzzle = Self {
-            bounds,
-            state: 0,
+            core: ViewCore {
+                bounds,
+                state: 0,
+                ..ViewCore::default()
+            },
             board: [[' '; 6]; 6],
             moves: 0,
             solved: false,
@@ -1281,8 +1199,8 @@ impl PuzzleView {
 
     fn move_tile(&mut self, p: turbo_vision::core::geometry::Point) {
         // Convert screen coordinates to local coordinates
-        let local_x = p.x - self.bounds.a.x;
-        let local_y = p.y - self.bounds.a.y;
+        let local_x = p.x - self.core.bounds.a.x;
+        let local_y = p.y - self.core.bounds.a.y;
 
         // Find the empty space
         let mut empty_idx = 0;
@@ -1324,24 +1242,16 @@ impl PuzzleView {
 }
 
 impl View for PuzzleView {
-    fn bounds(&self) -> Rect {
-        self.bounds
+    fn core(&self) -> &ViewCore {
+        &self.core
     }
 
-    fn set_bounds(&mut self, bounds: Rect) {
-        self.bounds = bounds;
-    }
-
-    fn state(&self) -> StateFlags {
-        self.state
-    }
-
-    fn set_state(&mut self, state: StateFlags) {
-        self.state = state;
+    fn core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        let width = self.bounds.width_clamped() as usize;
+        let width = self.core.bounds.width_clamped() as usize;
 
         // Color map for alternating tile colors
         let map = [0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1];
@@ -1382,7 +1292,12 @@ impl View for PuzzleView {
                 buf.move_str(j * 3, &tile_str, color);
             }
 
-            write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y + i as i16, &buf);
+            write_line_to_terminal(
+                terminal,
+                self.core.bounds.a.x,
+                self.core.bounds.a.y + i as i16,
+                &buf,
+            );
         }
     }
 
@@ -1582,7 +1497,7 @@ fn init_application()
         width - CrabWidget::WIDTH,
         height - 1,
     )));
-    app.add_overlay_widget(Box::new(CrabWidgetWrapper::new(crab_widget.clone())));
+    app.add_overlay_widget(Box::new(Shared::new(crab_widget.clone())));
 
     Ok((app, clock, crab_widget))
 }

@@ -23,11 +23,10 @@
 //   }
 
 use super::list_viewer::{ListViewer, ListViewerState};
-use super::view::View;
+use super::view::{View, ViewCore};
 use crate::core::command::CommandId;
 use crate::core::event::{Event, EventType, KB_BACKSPACE};
 use crate::core::geometry::Rect;
-use crate::core::state::StateFlags;
 use crate::terminal::Terminal;
 
 /// SortedListBox - A list that maintains items in sorted order
@@ -35,29 +34,30 @@ use crate::terminal::Terminal;
 /// Extends ListBox with automatic sorting and binary search.
 /// Matches Borland: TSortedListBox (extends TListBox)
 pub struct SortedListBox {
-    bounds: Rect,
+    core: ViewCore,
     items: Vec<String>,
     list_state: ListViewerState,
-    state: StateFlags,
     _on_select_command: CommandId,
     case_sensitive: bool,
     /// Incremental type-to-search buffer (Borland: TSortedListBox searchPos)
     search_string: String,
-    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
 }
 
 impl SortedListBox {
     /// Create a new sorted list box
     pub fn new(bounds: Rect, on_select_command: CommandId) -> Self {
         Self {
-            bounds,
+            core: ViewCore {
+                bounds,
+                state: 0,
+                palette_chain: None,
+                ..ViewCore::default()
+            },
             items: Vec::new(),
             list_state: ListViewerState::new(),
-            state: 0,
             _on_select_command: on_select_command,
             case_sensitive: false,
             search_string: String::new(),
-            palette_chain: None,
         }
     }
 
@@ -105,7 +105,7 @@ impl SortedListBox {
     /// Set the selected item by index
     pub fn set_selection(&mut self, index: usize) {
         if index < self.items.len() {
-            let visible_rows = self.bounds.height_clamped() as usize;
+            let visible_rows = self.core.bounds.height_clamped() as usize;
             self.list_state.focus_item(index, visible_rows);
         }
     }
@@ -256,20 +256,20 @@ impl SortedListBox {
 }
 
 impl View for SortedListBox {
-    fn bounds(&self) -> Rect {
-        self.bounds
+    fn core(&self) -> &ViewCore {
+        &self.core
     }
 
-    fn set_bounds(&mut self, bounds: Rect) {
-        self.bounds = bounds;
+    fn core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
         use super::view::write_line_to_terminal;
         use crate::core::draw::DrawBuffer;
 
-        let width = self.bounds.width_clamped() as usize;
-        let height = self.bounds.height_clamped() as usize;
+        let width = self.core.bounds.width_clamped() as usize;
+        let height = self.core.bounds.height_clamped() as usize;
 
         let color_normal = if self.is_focused() {
             crate::core::palette::colors::LISTBOX_FOCUSED
@@ -308,7 +308,12 @@ impl View for SortedListBox {
                 buf.move_char(0, ' ', color_normal, width);
             }
 
-            write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y + i as i16, &buf);
+            write_line_to_terminal(
+                terminal,
+                self.core.bounds.a.x,
+                self.core.bounds.a.y + i as i16,
+                &buf,
+            );
         }
     }
 
@@ -351,28 +356,12 @@ impl View for SortedListBox {
         true
     }
 
-    fn state(&self) -> StateFlags {
-        self.state
-    }
-
-    fn set_state(&mut self, state: StateFlags) {
-        self.state = state;
-    }
-
     fn set_list_selection(&mut self, index: usize) {
         self.set_selection(index);
     }
 
     fn get_list_selection(&self) -> usize {
         self.list_state.focused.unwrap_or(0)
-    }
-
-    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
-        self.palette_chain = node;
-    }
-
-    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
-        self.palette_chain.as_ref()
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {

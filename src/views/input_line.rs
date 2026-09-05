@@ -3,7 +3,7 @@
 //! InputLine view - single-line text input with editing and history support.
 
 use super::validator::ValidatorRef;
-use super::view::{View, write_line_to_terminal};
+use super::view::{View, ViewCore, write_line_to_terminal};
 use crate::core::clipboard;
 use crate::core::draw::DrawBuffer;
 use crate::core::event::{
@@ -11,7 +11,6 @@ use crate::core::event::{
 };
 use crate::core::geometry::Rect;
 use crate::core::palette::{INPUT_ARROWS, INPUT_FOCUSED, INPUT_NORMAL, INPUT_SELECTED};
-use crate::core::state::StateFlags;
 use crate::terminal::Terminal;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -35,7 +34,7 @@ fn char_len(text: &str) -> usize {
 }
 
 pub struct InputLine {
-    bounds: Rect,
+    core: ViewCore,
     data: Rc<RefCell<String>>,
     cursor_pos: usize,               // Cursor position in characters (not bytes)
     max_length: usize,               // Maximum length in characters
@@ -44,15 +43,18 @@ pub struct InputLine {
     first_pos: usize,                // First visible character position for horizontal scrolling
     validator: Option<ValidatorRef>, // Optional validator for input validation
     insert_mode: bool,               // Ins toggles; overwrite replaces at cursor
-    state: StateFlags,               // View state flags (including SF_FOCUSED)
-    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
 }
 
 impl InputLine {
     pub fn new(bounds: Rect, max_length: usize, data: Rc<RefCell<String>>) -> Self {
         let cursor_pos = char_len(&data.borrow());
         Self {
-            bounds,
+            core: ViewCore {
+                bounds,
+                state: 0,
+                palette_chain: None,
+                ..ViewCore::default()
+            },
             data,
             cursor_pos,
             max_length,
@@ -61,8 +63,6 @@ impl InputLine {
             first_pos: 0,
             validator: None,
             insert_mode: true,
-            state: 0,
-            palette_chain: None,
         }
     }
 
@@ -153,7 +153,7 @@ impl InputLine {
 
     /// Ensure cursor is visible by adjusting first_pos
     fn make_cursor_visible(&mut self) {
-        let width = self.bounds.width_clamped() as usize;
+        let width = self.core.bounds.width_clamped() as usize;
 
         // If cursor is before the visible area
         if self.cursor_pos < self.first_pos {
@@ -167,16 +167,16 @@ impl InputLine {
 }
 
 impl View for InputLine {
-    fn bounds(&self) -> Rect {
-        self.bounds
+    fn core(&self) -> &ViewCore {
+        &self.core
     }
 
-    fn set_bounds(&mut self, bounds: Rect) {
-        self.bounds = bounds;
+    fn core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        let width = self.bounds.width_clamped() as usize;
+        let width = self.core.bounds.width_clamped() as usize;
 
         // Don't render input lines that are too small
         // Minimum width: 1 (at least 1 char visible)
@@ -243,7 +243,7 @@ impl View for InputLine {
             }
         }
 
-        write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y, &buf);
+        write_line_to_terminal(terminal, self.core.bounds.a.x, self.core.bounds.a.y, &buf);
     }
 
     fn handle_event(&mut self, event: &mut Event) {
@@ -524,19 +524,11 @@ impl View for InputLine {
     // set_focus() now uses default implementation from View trait
     // which sets/clears SF_FOCUSED flag
 
-    fn state(&self) -> StateFlags {
-        self.state
-    }
-
-    fn set_state(&mut self, state: StateFlags) {
-        self.state = state;
-    }
-
     fn update_cursor(&self, terminal: &mut Terminal) {
         if self.is_focused() {
             // Calculate cursor position on screen
-            let cursor_x = self.bounds.a.x as usize + (self.cursor_pos - self.first_pos);
-            let cursor_y = self.bounds.a.y;
+            let cursor_x = self.core.bounds.a.x as usize + (self.cursor_pos - self.first_pos);
+            let cursor_y = self.core.bounds.a.y;
 
             // Show cursor at the position
             let _ = terminal.show_cursor(cursor_x as u16, cursor_y as u16);
@@ -545,14 +537,6 @@ impl View for InputLine {
             // after dialogs close. This ensures clean cursor state management.
             let _ = terminal.hide_cursor();
         }
-    }
-
-    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
-        self.palette_chain = node;
-    }
-
-    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
-        self.palette_chain.as_ref()
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {

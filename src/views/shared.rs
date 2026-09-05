@@ -7,7 +7,7 @@
 //! `SharedEditor`, `SharedIndicator`, `SharedHelpViewer` and
 //! `SharedTerminalWidget` newtypes.
 
-use super::view::{View, ViewId};
+use super::view::{IdleView, View, ViewCore, ViewId};
 use crate::core::command::CommandId;
 use crate::core::event::Event;
 use crate::core::geometry::Rect;
@@ -22,17 +22,18 @@ use std::rc::Rc;
 /// can be inserted into a group and still be reached by its creator.
 pub struct Shared<T: View> {
     inner: Rc<RefCell<T>>,
-    /// Mirror of the inner view's chain so `get_palette_chain` can hand out
-    /// a reference (a `RefCell` borrow cannot escape).
-    palette_chain: Option<PaletteChainNode>,
+    /// Mirror of the inner view's base fields so `core()` and
+    /// `get_palette_chain()` can hand out references (a `RefCell` borrow
+    /// cannot escape). Every `set_*` on the wrapper writes both copies; the
+    /// forwarding accessors below always read the inner view, which stays
+    /// authoritative.
+    core: ViewCore,
 }
 
 impl<T: View> Shared<T> {
     pub fn new(inner: Rc<RefCell<T>>) -> Self {
-        Self {
-            inner,
-            palette_chain: None,
-        }
+        let core = inner.borrow().core().clone();
+        Self { inner, core }
     }
 
     pub fn inner(&self) -> &Rc<RefCell<T>> {
@@ -41,10 +42,17 @@ impl<T: View> Shared<T> {
 }
 
 impl<T: View> View for Shared<T> {
+    fn core(&self) -> &ViewCore {
+        &self.core
+    }
+    fn core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
+    }
     fn bounds(&self) -> Rect {
         self.inner.borrow().bounds()
     }
     fn set_bounds(&mut self, bounds: Rect) {
+        self.core.bounds = bounds;
         self.inner.borrow_mut().set_bounds(bounds);
     }
     fn draw(&mut self, terminal: &mut Terminal) {
@@ -69,18 +77,21 @@ impl<T: View> View for Shared<T> {
         self.inner.borrow().options()
     }
     fn set_options(&mut self, options: u16) {
+        self.core.options = options;
         self.inner.borrow_mut().set_options(options);
     }
     fn state(&self) -> StateFlags {
         self.inner.borrow().state()
     }
     fn set_state(&mut self, state: StateFlags) {
+        self.core.state = state;
         self.inner.borrow_mut().set_state(state);
     }
     fn grow_mode(&self) -> GrowFlags {
         self.inner.borrow().grow_mode()
     }
     fn set_grow_mode(&mut self, grow_mode: GrowFlags) {
+        self.core.grow_mode = grow_mode;
         self.inner.borrow_mut().set_grow_mode(grow_mode);
     }
     fn update_cursor(&self, terminal: &mut Terminal) {
@@ -127,12 +138,18 @@ impl<T: View> View for Shared<T> {
     }
 
     fn set_palette_chain(&mut self, node: Option<PaletteChainNode>) {
-        self.palette_chain = node.clone();
+        self.core.palette_chain = node.clone();
         self.inner.borrow_mut().set_palette_chain(node);
     }
 
     fn get_palette_chain(&self) -> Option<&PaletteChainNode> {
-        self.palette_chain.as_ref()
+        self.core.palette_chain.as_ref()
+    }
+}
+
+impl<T: IdleView> IdleView for Shared<T> {
+    fn idle(&mut self) {
+        self.inner.borrow_mut().idle();
     }
 }
 
@@ -158,6 +175,21 @@ mod tests {
 
         inner.borrow_mut().set_bounds(Rect::new(5, 5, 6, 15));
         assert_eq!(shared.bounds(), Rect::new(5, 5, 6, 15));
+    }
+
+    #[test]
+    fn shared_core_mirrors_the_inner_state() {
+        let inner = Rc::new(RefCell::new(Button::new(
+            Rect::new(0, 0, 10, 2),
+            "ok",
+            1,
+            false,
+        )));
+        let mut shared = Shared::new(Rc::clone(&inner));
+        shared.set_state(SF_VISIBLE | SF_FOCUSED);
+        assert_eq!(shared.core().state, inner.borrow().state());
+        shared.set_bounds(Rect::new(1, 1, 4, 2));
+        assert_eq!(shared.core().bounds, inner.borrow().bounds());
     }
 
     #[test]

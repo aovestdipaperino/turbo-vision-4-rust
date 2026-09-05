@@ -12,11 +12,10 @@ use super::editor::EditorWindow;
 use super::indicator::Indicator;
 use super::scrollbar::ScrollBar;
 use super::shared::Shared;
-use super::view::View;
+use super::view::{View, ViewCore};
 use super::window::Window;
 use crate::core::event::{Event, EventType};
 use crate::core::geometry::{Point, Rect};
-use crate::core::state::StateFlags;
 use crate::terminal::Terminal;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -192,8 +191,12 @@ impl EditWindow {
 }
 
 impl View for EditWindow {
-    fn bounds(&self) -> Rect {
-        self.window.bounds()
+    fn core(&self) -> &ViewCore {
+        self.window.core()
+    }
+
+    fn core_mut(&mut self) -> &mut ViewCore {
+        self.window.core_mut()
     }
 
     fn set_bounds(&mut self, bounds: Rect) {
@@ -231,14 +234,6 @@ impl View for EditWindow {
         );
         self.window
             .update_frame_child(self.indicator_idx, ind_bounds);
-    }
-
-    fn grow_mode(&self) -> crate::core::state::GrowFlags {
-        self.window.grow_mode()
-    }
-
-    fn set_grow_mode(&mut self, grow_mode: crate::core::state::GrowFlags) {
-        self.window.set_grow_mode(grow_mode);
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
@@ -377,32 +372,8 @@ impl View for EditWindow {
         true
     }
 
-    fn options(&self) -> u16 {
-        self.window.options()
-    }
-
-    fn set_options(&mut self, options: u16) {
-        self.window.set_options(options);
-    }
-
-    fn state(&self) -> StateFlags {
-        self.window.state()
-    }
-
-    fn set_state(&mut self, state: StateFlags) {
-        self.window.set_state(state);
-    }
-
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
         self.window.get_palette()
-    }
-
-    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
-        self.window.set_palette_chain(node);
-    }
-
-    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
-        self.window.get_palette_chain()
     }
 
     fn get_end_state(&self) -> crate::core::command::CommandId {

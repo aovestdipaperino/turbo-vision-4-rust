@@ -151,10 +151,10 @@ impl Application {
     /// ```rust,no_run
     /// use turbo_vision::app::Application;
     /// # use turbo_vision::views::IdleView;
-    /// # struct AnimatedWidget;
+    /// # struct AnimatedWidget(turbo_vision::views::ViewCore);
     /// # impl turbo_vision::views::View for AnimatedWidget {
-    /// #     fn bounds(&self) -> turbo_vision::core::geometry::Rect { unimplemented!() }
-    /// #     fn set_bounds(&mut self, _: turbo_vision::core::geometry::Rect) {}
+    /// #     fn core(&self) -> &turbo_vision::views::ViewCore { &self.0 }
+    /// #     fn core_mut(&mut self) -> &mut turbo_vision::views::ViewCore { &mut self.0 }
     /// #     fn draw(&mut self, _: &mut turbo_vision::terminal::Terminal) {}
     /// #     fn handle_event(&mut self, _: &mut turbo_vision::core::event::Event) {}
     /// #     fn update_cursor(&self, _: &mut turbo_vision::terminal::Terminal) {}
@@ -163,7 +163,7 @@ impl Application {
     /// # impl IdleView for AnimatedWidget { fn idle(&mut self) {} }
     ///
     /// let mut app = Application::new()?;
-    /// let widget = AnimatedWidget { /* ... */ };
+    /// let widget = AnimatedWidget(turbo_vision::views::ViewCore::default());
     /// app.add_overlay_widget(Box::new(widget));
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
@@ -1010,6 +1010,7 @@ mod resize_tests {
     use super::*;
     use crate::core::state::{GF_GROW_HI_X, GF_GROW_HI_Y};
     use crate::terminal::Backend;
+    use crate::views::view::ViewCore;
     use std::cell::Cell as StdCell;
     use std::sync::Arc;
     use std::sync::atomic::{AtomicU16, Ordering};
@@ -1057,29 +1058,27 @@ mod resize_tests {
     /// real consumer (e.g. the text scrollback re-wrap in `TextViewer`) that
     /// depends on `set_bounds` actually being called on resize.
     struct RecordingView {
-        bounds: Rect,
-        grow_mode: crate::core::state::GrowFlags,
+        core: ViewCore,
         set_bounds_calls: Rc<StdCell<u32>>,
     }
 
     impl View for RecordingView {
-        fn bounds(&self) -> Rect {
-            self.bounds
+        fn core(&self) -> &ViewCore {
+            &self.core
         }
+
+        fn core_mut(&mut self) -> &mut ViewCore {
+            &mut self.core
+        }
+
         fn set_bounds(&mut self, bounds: Rect) {
-            self.bounds = bounds;
+            self.core.bounds = bounds;
             self.set_bounds_calls.set(self.set_bounds_calls.get() + 1);
         }
         fn draw(&mut self, _terminal: &mut Terminal) {}
         fn handle_event(&mut self, _event: &mut Event) {}
         fn get_palette(&self) -> Option<crate::core::palette::Palette> {
             None
-        }
-        fn grow_mode(&self) -> crate::core::state::GrowFlags {
-            self.grow_mode
-        }
-        fn set_grow_mode(&mut self, grow_mode: crate::core::state::GrowFlags) {
-            self.grow_mode = grow_mode;
         }
     }
 
@@ -1091,12 +1090,18 @@ mod resize_tests {
     struct GroupView(crate::views::group::Group);
 
     impl View for GroupView {
-        fn bounds(&self) -> Rect {
-            self.0.bounds()
+        fn core(&self) -> &ViewCore {
+            self.0.core()
         }
+
+        fn core_mut(&mut self) -> &mut ViewCore {
+            self.0.core_mut()
+        }
+
         fn set_bounds(&mut self, bounds: Rect) {
             View::set_bounds(&mut self.0, bounds);
         }
+
         fn draw(&mut self, terminal: &mut Terminal) {
             View::draw(&mut self.0, terminal);
         }
@@ -1105,12 +1110,6 @@ mod resize_tests {
         }
         fn get_palette(&self) -> Option<crate::core::palette::Palette> {
             None
-        }
-        fn grow_mode(&self) -> crate::core::state::GrowFlags {
-            View::grow_mode(&self.0)
-        }
-        fn set_grow_mode(&mut self, grow_mode: crate::core::state::GrowFlags) {
-            View::set_grow_mode(&mut self.0, grow_mode);
         }
     }
 
@@ -1156,8 +1155,11 @@ mod resize_tests {
         let mut inner_group = crate::views::group::Group::new(Rect::new(0, 0, width, height - 2));
         inner_group.set_grow_mode(GF_GROW_HI_X | GF_GROW_HI_Y);
         inner_group.add(Box::new(RecordingView {
-            bounds: Rect::new(0, 0, width, height - 2),
-            grow_mode: GF_GROW_HI_X | GF_GROW_HI_Y,
+            core: ViewCore {
+                bounds: Rect::new(0, 0, width, height - 2),
+                grow_mode: GF_GROW_HI_X | GF_GROW_HI_Y,
+                ..ViewCore::default()
+            },
             set_bounds_calls: Rc::clone(&set_bounds_calls),
         }));
 
@@ -1299,8 +1301,11 @@ mod resize_tests {
         let mut window = Window::new(window_bounds, "Test Window");
         let set_bounds_calls = Rc::new(StdCell::new(0));
         window.add(Box::new(RecordingView {
-            bounds: Rect::new(0, 0, interior_w, interior_h),
-            grow_mode: GF_GROW_HI_X | GF_GROW_HI_Y,
+            core: ViewCore {
+                bounds: Rect::new(0, 0, interior_w, interior_h),
+                grow_mode: GF_GROW_HI_X | GF_GROW_HI_Y,
+                ..ViewCore::default()
+            },
             set_bounds_calls: Rc::clone(&set_bounds_calls),
         }));
         app.desktop.add(Box::new(window));

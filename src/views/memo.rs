@@ -3,7 +3,7 @@
 //! Memo view - multi-line text input with scrolling and editing support.
 
 use super::scrollbar::ScrollBar;
-use super::view::{View, write_line_to_terminal};
+use super::view::{View, ViewCore, write_line_to_terminal};
 use crate::core::clipboard;
 use crate::core::draw::DrawBuffer;
 use crate::core::event::{
@@ -11,7 +11,6 @@ use crate::core::event::{
     KB_PGUP, KB_RIGHT, KB_UP,
 };
 use crate::core::geometry::{Point, Rect};
-use crate::core::state::StateFlags;
 use crate::terminal::Terminal;
 use std::cmp::min;
 
@@ -29,38 +28,39 @@ const KB_CTRL_Z: u16 = 0x001A; // Ctrl+Z - Undo
 /// Memo - Multi-line text editor control
 /// Supports basic text editing operations including insert, delete, navigation, and selection
 pub struct Memo {
-    bounds: Rect,
+    core: ViewCore,
     lines: Vec<String>,
     cursor: Point,                  // Current cursor position (x=col, y=line)
     delta: Point,                   // Scroll offset
     selection_start: Option<Point>, // Selection anchor point
-    state: StateFlags,
     v_scrollbar: Option<Box<ScrollBar>>,
     h_scrollbar: Option<Box<ScrollBar>>,
     max_length: Option<usize>, // Maximum length per line (None = unlimited)
     read_only: bool,
     modified: bool,
     tab_size: usize,
-    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
 }
 
 impl Memo {
     /// Create a new memo control
     pub fn new(bounds: Rect) -> Self {
         Self {
-            bounds,
+            core: ViewCore {
+                bounds,
+                state: 0,
+                palette_chain: None,
+                ..ViewCore::default()
+            },
             lines: vec![String::new()],
             cursor: Point::zero(),
             delta: Point::zero(),
             selection_start: None,
-            state: 0,
             v_scrollbar: None,
             h_scrollbar: None,
             max_length: None,
             read_only: false,
             modified: false,
             tab_size: 4,
-            palette_chain: None,
         }
     }
 
@@ -69,19 +69,19 @@ impl Memo {
         if add_scrollbars {
             // Vertical scrollbar on right edge
             let v_bounds = Rect::new(
-                self.bounds.b.x - 1,
-                self.bounds.a.y,
-                self.bounds.b.x,
-                self.bounds.b.y - 1,
+                self.core.bounds.b.x - 1,
+                self.core.bounds.a.y,
+                self.core.bounds.b.x,
+                self.core.bounds.b.y - 1,
             );
             self.v_scrollbar = Some(Box::new(ScrollBar::new_vertical(v_bounds)));
 
             // Horizontal scrollbar on bottom edge
             let h_bounds = Rect::new(
-                self.bounds.a.x,
-                self.bounds.b.y - 1,
-                self.bounds.b.x - 1,
-                self.bounds.b.y,
+                self.core.bounds.a.x,
+                self.core.bounds.b.y - 1,
+                self.core.bounds.b.x - 1,
+                self.core.bounds.b.y,
             );
             self.h_scrollbar = Some(Box::new(ScrollBar::new_horizontal(h_bounds)));
         }
@@ -138,7 +138,7 @@ impl Memo {
 
     /// Get the visible content area
     fn get_content_area(&self) -> Rect {
-        let mut area = self.bounds;
+        let mut area = self.core.bounds;
         if self.v_scrollbar.is_some() {
             area.b.x -= 1;
         }
@@ -546,12 +546,16 @@ impl Memo {
 }
 
 impl View for Memo {
-    fn bounds(&self) -> Rect {
-        self.bounds
+    fn core(&self) -> &ViewCore {
+        &self.core
+    }
+
+    fn core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
     }
 
     fn set_bounds(&mut self, bounds: Rect) {
-        self.bounds = bounds;
+        self.core.bounds = bounds;
 
         // Update scrollbar positions
         if self.v_scrollbar.is_some() {
@@ -808,31 +812,15 @@ impl View for Memo {
     // set_focus() now uses default implementation from View trait
     // which sets/clears SF_FOCUSED flag
 
-    fn state(&self) -> StateFlags {
-        self.state
-    }
-
-    fn set_state(&mut self, state: StateFlags) {
-        self.state = state;
-    }
-
     fn update_cursor(&self, terminal: &mut Terminal) {
         if self.is_focused() {
             // Calculate cursor position on screen
-            let cursor_x = self.bounds.a.x + (self.cursor.x - self.delta.x) as i16;
-            let cursor_y = self.bounds.a.y + (self.cursor.y - self.delta.y) as i16;
+            let cursor_x = self.core.bounds.a.x + (self.cursor.x - self.delta.x) as i16;
+            let cursor_y = self.core.bounds.a.y + (self.cursor.y - self.delta.y) as i16;
 
             // Show cursor at the position
             let _ = terminal.show_cursor(cursor_x as u16, cursor_y as u16);
         }
-    }
-
-    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
-        self.palette_chain = node;
-    }
-
-    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
-        self.palette_chain.as_ref()
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {

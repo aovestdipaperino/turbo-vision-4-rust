@@ -27,7 +27,7 @@
 //! assert_eq!(tips.hint_count(), 1);
 //! ```
 
-use super::view::{View, write_line_to_terminal};
+use super::view::{View, ViewCore, write_line_to_terminal};
 use crate::core::draw::DrawBuffer;
 use crate::core::event::{Event, EventType};
 use crate::core::geometry::{Point, Rect};
@@ -54,8 +54,7 @@ struct Hint {
 
 /// Hover hints for the controls of a dialog.
 pub struct Tooltip {
-    /// The area the popup may be drawn in, normally the dialog's interior.
-    bounds: Rect,
+    core: ViewCore,
     hints: Vec<Hint>,
     /// Which hint the pointer is over, and when it arrived.
     hover: Option<(usize, Instant)>,
@@ -63,20 +62,22 @@ pub struct Tooltip {
     shown: Option<usize>,
     delay: Duration,
     view_state: StateFlags,
-    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
 }
 
 impl Tooltip {
     /// Create an empty tooltip that may draw anywhere within `bounds`.
     pub fn new(bounds: Rect) -> Self {
         Self {
-            bounds,
+            core: ViewCore {
+                bounds,
+                palette_chain: None,
+                ..ViewCore::default()
+            },
             hints: Vec::new(),
             hover: None,
             shown: None,
             delay: DEFAULT_DELAY,
             view_state: 0,
-            palette_chain: None,
         }
     }
 
@@ -168,19 +169,19 @@ impl Tooltip {
     fn popup_area(&self, index: usize) -> Option<Rect> {
         let hint = self.hints.get(index)?;
         let width = hint.text.chars().count() + HINT_PADDING * 2;
-        let width = (width as i16).min(self.bounds.width()).max(1);
+        let width = (width as i16).min(self.core.bounds.width()).max(1);
 
         let mut x = hint.target.a.x;
-        if x + width > self.bounds.b.x {
-            x = (self.bounds.b.x - width).max(self.bounds.a.x);
+        if x + width > self.core.bounds.b.x {
+            x = (self.core.bounds.b.x - width).max(self.core.bounds.a.x);
         }
 
         let mut y = hint.target.b.y;
-        if y >= self.bounds.b.y {
+        if y >= self.core.bounds.b.y {
             // No room below: sit above the control instead.
             y = hint.target.a.y - 1;
         }
-        if y < self.bounds.a.y || y >= self.bounds.b.y {
+        if y < self.core.bounds.a.y || y >= self.core.bounds.b.y {
             return None;
         }
 
@@ -189,12 +190,12 @@ impl Tooltip {
 }
 
 impl View for Tooltip {
-    fn bounds(&self) -> Rect {
-        self.bounds
+    fn core(&self) -> &ViewCore {
+        &self.core
     }
 
-    fn set_bounds(&mut self, bounds: Rect) {
-        self.bounds = bounds;
+    fn core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
     }
 
     /// A tooltip is never focused; it only watches the pointer.
@@ -250,14 +251,6 @@ impl View for Tooltip {
             }
             _ => {}
         }
-    }
-
-    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
-        self.palette_chain = node;
-    }
-
-    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
-        self.palette_chain.as_ref()
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {

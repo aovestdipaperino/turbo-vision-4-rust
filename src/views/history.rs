@@ -14,13 +14,12 @@
 //   let history = History::new(Point::new(x, y), history_id, Rc::clone(&data));
 //   // Position it to the right of the InputLine
 
-use super::view::{View, write_line_to_terminal};
+use super::view::{View, ViewCore, write_line_to_terminal};
 use crate::core::command::{CM_HISTORY_SELECTED, CM_RECORD_HISTORY, CM_SHOW_HISTORY};
 use crate::core::draw::DrawBuffer;
 use crate::core::event::{Event, EventType, MB_LEFT_BUTTON};
 use crate::core::geometry::{Point, Rect};
 use crate::core::history::HistoryManager;
-use crate::core::state::StateFlags;
 use crate::terminal::Terminal;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -36,13 +35,11 @@ use std::rc::Rc;
 /// - On a `CM_HISTORY_SELECTED` broadcast for this history id, the most recent
 ///   history item is copied back into the linked input data.
 pub struct History {
-    bounds: Rect,
+    core: ViewCore,
     history_id: u16,
-    state: StateFlags,
     /// Shared data of the linked InputLine (same Rc passed to InputLine::new)
     link: Rc<RefCell<String>>,
     pub selected_item: Option<String>, // Public so InputLine can read it
-    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
 }
 
 impl History {
@@ -52,12 +49,15 @@ impl History {
     /// `link` must be the same `Rc<RefCell<String>>` passed to the InputLine.
     pub fn new(pos: Point, history_id: u16, link: Rc<RefCell<String>>) -> Self {
         Self {
-            bounds: Rect::new(pos.x, pos.y, pos.x + 2, pos.y + 1),
+            core: ViewCore {
+                bounds: Rect::new(pos.x, pos.y, pos.x + 2, pos.y + 1),
+                state: 0,
+                palette_chain: None,
+                ..ViewCore::default()
+            },
             history_id,
-            state: 0,
             link,
             selected_item: None,
-            palette_chain: None,
         }
     }
 
@@ -73,12 +73,12 @@ impl History {
 }
 
 impl View for History {
-    fn bounds(&self) -> Rect {
-        self.bounds
+    fn core(&self) -> &ViewCore {
+        &self.core
     }
 
-    fn set_bounds(&mut self, bounds: Rect) {
-        self.bounds = bounds;
+    fn core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
@@ -96,13 +96,13 @@ impl View for History {
 
         buf.move_str(0, arrow, color);
 
-        write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y, &buf);
+        write_line_to_terminal(terminal, self.core.bounds.a.x, self.core.bounds.a.y, &buf);
     }
 
     fn handle_event(&mut self, event: &mut Event) {
         match event.what {
             EventType::MouseDown => {
-                if self.bounds.contains(event.mouse.pos)
+                if self.core.bounds.contains(event.mouse.pos)
                     && event.mouse.buttons & MB_LEFT_BUTTON != 0
                 {
                     if self.has_items() {
@@ -143,22 +143,6 @@ impl View for History {
 
     fn can_focus(&self) -> bool {
         false // History button doesn't take focus
-    }
-
-    fn state(&self) -> StateFlags {
-        self.state
-    }
-
-    fn set_state(&mut self, state: StateFlags) {
-        self.state = state;
-    }
-
-    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
-        self.palette_chain = node;
-    }
-
-    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
-        self.palette_chain.as_ref()
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
@@ -235,7 +219,7 @@ mod tests {
 
         let button = History::new(Point::new(20, 5), 1, link(""));
         assert!(!button.has_items());
-        assert_eq!(button.bounds.width(), 2);
+        assert_eq!(button.bounds().width(), 2);
     }
 
     #[test]

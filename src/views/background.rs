@@ -2,28 +2,31 @@
 
 //! Background view - solid color background fill for containers.
 
-use super::view::{View, write_line_to_terminal};
+use super::view::{View, ViewCore, write_line_to_terminal};
 use crate::core::draw::DrawBuffer;
 use crate::core::event::Event;
 use crate::core::geometry::Rect;
 use crate::core::palette::Attr;
-use crate::core::state::{GF_GROW_HI_X, GF_GROW_HI_Y, GrowFlags};
+use crate::core::state::{GF_GROW_HI_X, GF_GROW_HI_Y};
 use crate::terminal::Terminal;
 
 /// Background view - fills its bounds with a pattern character
 /// Matches Borland's TBackground (tbackgro.cc)
 pub struct Background {
-    bounds: Rect,
+    core: ViewCore,
     pattern: char,
     attr: Attr,
-    grow_mode: GrowFlags,
-    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
 }
 
 impl Background {
     pub fn new(bounds: Rect, pattern: char, attr: Attr) -> Self {
         Self {
-            bounds,
+            core: ViewCore {
+                bounds,
+                grow_mode: GF_GROW_HI_X | GF_GROW_HI_Y,
+                palette_chain: None,
+                ..ViewCore::default()
+            },
             pattern,
             attr,
             // Matches Borland: TBackground's growMode is
@@ -33,50 +36,32 @@ impl Background {
             // owner gains after construction is left unpainted - the classic
             // black band down the right edge of the desktop after the
             // terminal is widened.
-            grow_mode: GF_GROW_HI_X | GF_GROW_HI_Y,
-            palette_chain: None,
         }
     }
 }
 
 impl View for Background {
-    fn bounds(&self) -> Rect {
-        self.bounds
+    fn core(&self) -> &ViewCore {
+        &self.core
     }
 
-    fn set_bounds(&mut self, bounds: Rect) {
-        self.bounds = bounds;
+    fn core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        let width = self.bounds.width_clamped() as usize;
+        let width = self.core.bounds.width_clamped() as usize;
         let mut buf = DrawBuffer::new(width);
         buf.move_char(0, self.pattern, self.attr, width);
 
         // Draw every row
-        for y in self.bounds.a.y..self.bounds.b.y {
-            write_line_to_terminal(terminal, self.bounds.a.x, y, &buf);
+        for y in self.core.bounds.a.y..self.core.bounds.b.y {
+            write_line_to_terminal(terminal, self.core.bounds.a.x, y, &buf);
         }
     }
 
     fn handle_event(&mut self, _event: &mut Event) {
         // Background doesn't handle events
-    }
-
-    fn grow_mode(&self) -> GrowFlags {
-        self.grow_mode
-    }
-
-    fn set_grow_mode(&mut self, grow_mode: GrowFlags) {
-        self.grow_mode = grow_mode;
-    }
-
-    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
-        self.palette_chain = node;
-    }
-
-    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
-        self.palette_chain.as_ref()
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {

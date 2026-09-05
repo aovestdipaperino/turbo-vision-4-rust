@@ -28,21 +28,19 @@
 //! );
 //! ```
 
-use super::view::{View, write_line_to_terminal};
+use super::view::{View, ViewCore, write_line_to_terminal};
 use crate::core::ansi::AnsiImage;
 use crate::core::draw::DrawBuffer;
 use crate::core::event::Event;
 use crate::core::geometry::Rect;
 use crate::core::palette::Attr;
-use crate::core::state::StateFlags;
 use crate::terminal::Terminal;
 use std::io;
 use std::path::Path;
 
 /// A background view that displays ANSI art.
 pub struct AnsiBackground {
-    bounds: Rect,
-    state: StateFlags,
+    core: ViewCore,
     /// The parsed ANSI image.
     image: AnsiImage,
     /// Default attribute for areas outside the image.
@@ -51,7 +49,6 @@ pub struct AnsiBackground {
     center_x: bool,
     /// Whether to center the image vertically.
     center_y: bool,
-    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
 }
 
 impl AnsiBackground {
@@ -63,13 +60,16 @@ impl AnsiBackground {
     /// * `default_attr` - Color attributes for areas outside the image
     pub fn new(bounds: Rect, image: AnsiImage, default_attr: Attr) -> Self {
         Self {
-            bounds,
-            state: 0,
+            core: ViewCore {
+                bounds,
+                state: 0,
+                palette_chain: None,
+                ..ViewCore::default()
+            },
             image,
             default_attr,
             center_x: true,
             center_y: true,
-            palette_chain: None,
         }
     }
 
@@ -147,25 +147,17 @@ impl AnsiBackground {
 }
 
 impl View for AnsiBackground {
-    fn bounds(&self) -> Rect {
-        self.bounds
+    fn core(&self) -> &ViewCore {
+        &self.core
     }
 
-    fn set_bounds(&mut self, bounds: Rect) {
-        self.bounds = bounds;
-    }
-
-    fn state(&self) -> StateFlags {
-        self.state
-    }
-
-    fn set_state(&mut self, state: StateFlags) {
-        self.state = state;
+    fn core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        let width = self.bounds.width_clamped() as usize;
-        let height = self.bounds.height() as usize;
+        let width = self.core.bounds.width_clamped() as usize;
+        let height = self.core.bounds.height() as usize;
 
         // Calculate offsets for centering
         let x_offset = if self.center_x && self.image.width < width {
@@ -204,8 +196,8 @@ impl View for AnsiBackground {
 
             write_line_to_terminal(
                 terminal,
-                self.bounds.a.x,
-                self.bounds.a.y + row as i16,
+                self.core.bounds.a.x,
+                self.core.bounds.a.y + row as i16,
                 &buf,
             );
         }
@@ -213,14 +205,6 @@ impl View for AnsiBackground {
 
     fn handle_event(&mut self, _event: &mut Event) {
         // Background doesn't handle events
-    }
-
-    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
-        self.palette_chain = node;
-    }
-
-    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
-        self.palette_chain.as_ref()
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {

@@ -23,10 +23,9 @@
 //   └─ Program Files
 
 use super::list_viewer::{ListViewer, ListViewerState};
-use super::view::View;
+use super::view::{View, ViewCore};
 use crate::core::event::{Event, EventType, KB_ENTER};
 use crate::core::geometry::Rect;
-use crate::core::state::StateFlags;
 use crate::terminal::Terminal;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -76,26 +75,27 @@ impl DirEntry {
 ///
 /// Matches Borland: TDirListBox
 pub struct DirListBox {
-    bounds: Rect,
-    state: StateFlags,
+    core: ViewCore,
     list_state: ListViewerState,
     entries: Vec<DirEntry>,
     current_path: PathBuf,
     root_path: PathBuf,
-    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
 }
 
 impl DirListBox {
     /// Create a new directory list box
     pub fn new(bounds: Rect, path: &Path) -> Self {
         let mut dlb = Self {
-            bounds,
-            state: 0,
+            core: ViewCore {
+                bounds,
+                state: 0,
+                palette_chain: None,
+                ..ViewCore::default()
+            },
             list_state: ListViewerState::new(),
             entries: Vec::new(),
             current_path: path.to_path_buf(),
             root_path: Self::find_root(path),
-            palette_chain: None,
         };
         dlb.rebuild_tree();
         dlb
@@ -293,17 +293,17 @@ impl ListViewer for DirListBox {
 }
 
 impl View for DirListBox {
-    fn bounds(&self) -> Rect {
-        self.bounds
+    fn core(&self) -> &ViewCore {
+        &self.core
     }
 
-    fn set_bounds(&mut self, bounds: Rect) {
-        self.bounds = bounds;
+    fn core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        let width = self.bounds.width_clamped() as usize;
-        let height = self.bounds.height_clamped() as usize;
+        let width = self.core.bounds.width_clamped() as usize;
+        let height = self.core.bounds.height_clamped() as usize;
 
         self.list_state.set_range(self.entries.len());
 
@@ -339,8 +339,8 @@ impl View for DirListBox {
 
             for (x, ch) in padded.chars().take(width).enumerate() {
                 terminal.write_cell(
-                    (self.bounds.a.x + x as i16) as u16,
-                    (self.bounds.a.y + y as i16) as u16,
+                    (self.core.bounds.a.x + x as i16) as u16,
+                    (self.core.bounds.a.y + y as i16) as u16,
                     crate::core::draw::Cell::new(ch, color),
                 );
             }
@@ -351,7 +351,9 @@ impl View for DirListBox {
         // Handle double-click BEFORE focus check (to allow clicking to focus AND navigate)
         if event.what == EventType::MouseDown {
             use crate::core::event::MB_LEFT_BUTTON;
-            if self.bounds.contains(event.mouse.pos) && event.mouse.buttons & MB_LEFT_BUTTON != 0 {
+            if self.core.bounds.contains(event.mouse.pos)
+                && event.mouse.buttons & MB_LEFT_BUTTON != 0
+            {
                 if event.mouse.double_click && self.is_focused() {
                     // Double-click navigates into directory (only when already focused)
                     let _ = self.enter_focused_dir();
@@ -377,22 +379,6 @@ impl View for DirListBox {
 
     fn can_focus(&self) -> bool {
         true
-    }
-
-    fn state(&self) -> StateFlags {
-        self.state
-    }
-
-    fn set_state(&mut self, state: StateFlags) {
-        self.state = state;
-    }
-
-    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
-        self.palette_chain = node;
-    }
-
-    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
-        self.palette_chain.as_ref()
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {

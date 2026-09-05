@@ -10,7 +10,7 @@
 use super::help_file::HelpFile;
 use super::help_viewer::HelpViewer;
 use super::shared::Shared;
-use super::view::View;
+use super::view::{View, ViewCore};
 use super::window::Window;
 use crate::core::command::{CM_CANCEL, CommandId};
 use crate::core::event::{
@@ -209,8 +209,12 @@ impl HelpWindow {
 }
 
 impl View for HelpWindow {
-    fn bounds(&self) -> Rect {
-        self.window.bounds()
+    fn core(&self) -> &ViewCore {
+        self.window.core()
+    }
+
+    fn core_mut(&mut self) -> &mut ViewCore {
+        self.window.core_mut()
     }
 
     fn set_bounds(&mut self, bounds: Rect) {
@@ -224,14 +228,6 @@ impl View for HelpWindow {
             bounds.b.y - 1,
         );
         self.viewer.borrow_mut().set_bounds(viewer_bounds);
-    }
-
-    fn grow_mode(&self) -> crate::core::state::GrowFlags {
-        self.window.grow_mode()
-    }
-
-    fn set_grow_mode(&mut self, grow_mode: crate::core::state::GrowFlags) {
-        self.window.set_grow_mode(grow_mode);
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
@@ -311,10 +307,6 @@ impl View for HelpWindow {
         true
     }
 
-    fn state(&self) -> StateFlags {
-        self.window.state()
-    }
-
     fn set_state(&mut self, state: StateFlags) {
         self.window.set_state(state);
         self.viewer.borrow_mut().set_state(state);
@@ -322,14 +314,6 @@ impl View for HelpWindow {
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
         self.window.get_palette()
-    }
-
-    fn options(&self) -> u16 {
-        self.window.options()
-    }
-
-    fn set_options(&mut self, options: u16) {
-        self.window.set_options(options);
     }
 
     fn get_end_state(&self) -> crate::core::command::CommandId {

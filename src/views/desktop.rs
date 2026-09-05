@@ -4,15 +4,14 @@
 
 use super::background::Background;
 use super::group::Group;
-use super::view::{View, ViewId};
+use super::view::{View, ViewCore, ViewId};
 use crate::core::event::Event;
 use crate::core::geometry::Rect;
 use crate::terminal::Terminal;
 
 pub struct Desktop {
-    bounds: Rect,
+    core: ViewCore,
     children: Group,
-    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
 }
 
 impl Desktop {
@@ -33,9 +32,12 @@ impl Desktop {
         children.add(background);
 
         Self {
-            bounds,
+            core: ViewCore {
+                bounds,
+                palette_chain: None,
+                ..ViewCore::default()
+            },
             children,
-            palette_chain: None,
         }
     }
 
@@ -104,7 +106,7 @@ impl Desktop {
         use crate::core::state::{OF_CENTER_X, OF_CENTER_Y};
 
         let view_bounds = view.bounds();
-        let desktop_bounds = self.bounds;
+        let desktop_bounds = self.core.bounds;
 
         let mut new_bounds = view_bounds;
 
@@ -239,7 +241,7 @@ impl Desktop {
     /// Get desktop bounds for window operations
     /// Used by windows to determine maximum zoom size
     pub fn get_bounds(&self) -> Rect {
-        self.bounds
+        self.core.bounds
     }
 
     /// Check if any child window is tileable
@@ -276,7 +278,7 @@ impl Desktop {
     /// Cascade windows in a staircase pattern (using full desktop bounds)
     /// Matches Borland: TDesktop::cascade(const TRect &r)
     pub fn cascade(&mut self) {
-        self.cascade_with_rect(self.bounds);
+        self.cascade_with_rect(self.core.bounds);
     }
 
     /// Cascade windows in a staircase pattern within specified rect
@@ -325,7 +327,7 @@ impl Desktop {
     /// Tile windows in a grid pattern (using full desktop bounds)
     /// Matches Borland: TDesktop::tile(const TRect &r)
     pub fn tile(&mut self) {
-        self.tile_with_rect(self.bounds);
+        self.tile_with_rect(self.core.bounds);
     }
 
     /// Tile windows in a grid pattern within specified rect
@@ -494,7 +496,7 @@ impl Desktop {
         // This matches Borland: owner handles cmZoom, calls window->zoom()
         // window->zoom() uses sizeLimits() which returns owner->size as max
         // We pass desktop bounds (equivalent to owner->size in Borland)
-        let desktop_bounds = self.bounds;
+        let desktop_bounds = self.core.bounds;
         self.children
             .child_at_mut(top_window_idx)
             .zoom(desktop_bounds);
@@ -558,12 +560,16 @@ impl Desktop {
 }
 
 impl View for Desktop {
-    fn bounds(&self) -> Rect {
-        self.bounds
+    fn core(&self) -> &ViewCore {
+        &self.core
+    }
+
+    fn core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
     }
 
     fn set_bounds(&mut self, bounds: Rect) {
-        self.bounds = bounds;
+        self.core.bounds = bounds;
         self.children.set_bounds(bounds);
     }
 
@@ -709,14 +715,6 @@ impl View for Desktop {
         } else {
             self.children.handle_event(event);
         }
-    }
-
-    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
-        self.palette_chain = node;
-    }
-
-    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
-        self.palette_chain.as_ref()
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {

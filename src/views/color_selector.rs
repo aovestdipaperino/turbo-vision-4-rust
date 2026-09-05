@@ -6,14 +6,13 @@
 //!
 //! Provides an interactive grid of colors for selection.
 
-use super::view::{View, write_line_to_terminal};
+use super::view::{View, ViewCore, write_line_to_terminal};
 use crate::core::draw::DrawBuffer;
 use crate::core::event::{
     Event, EventType, KB_DOWN, KB_ENTER, KB_LEFT, KB_RIGHT, KB_UP, MB_LEFT_BUTTON,
 };
 use crate::core::geometry::Rect;
 use crate::core::palette::Attr;
-use crate::core::state::StateFlags;
 use crate::terminal::Terminal;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -23,14 +22,12 @@ const COLORS_PER_ROW: usize = 8;
 /// Color Selector - interactive color picker
 /// Matches Borland: TColorSelector
 pub struct ColorSelector {
-    bounds: Rect,
-    state: StateFlags,
+    core: ViewCore,
     /// Currently selected color (0-15), shared so owners (e.g. ColorDialog)
     /// can read the selection back after the selector is boxed into a group
     selected_color: Rc<RefCell<u8>>,
     /// Whether selecting foreground (true) or background (false)
     _selecting_foreground: bool,
-    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
 }
 
 impl ColorSelector {
@@ -42,11 +39,14 @@ impl ColorSelector {
     /// Create a color selector whose selection is shared with the caller
     pub fn with_shared(bounds: Rect, selected: Rc<RefCell<u8>>) -> Self {
         Self {
-            bounds,
-            state: 0,
+            core: ViewCore {
+                bounds,
+                state: 0,
+                palette_chain: None,
+                ..ViewCore::default()
+            },
             selected_color: selected,
             _selecting_foreground: true,
-            palette_chain: None,
         }
     }
 
@@ -83,16 +83,16 @@ impl ColorSelector {
 }
 
 impl View for ColorSelector {
-    fn bounds(&self) -> Rect {
-        self.bounds
+    fn core(&self) -> &ViewCore {
+        &self.core
     }
 
-    fn set_bounds(&mut self, bounds: Rect) {
-        self.bounds = bounds;
+    fn core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        let width = self.bounds.width_clamped() as usize;
+        let width = self.core.bounds.width_clamped() as usize;
 
         // Draw color grid (16 colors in 2 rows of 8)
         for row in 0..2 {
@@ -119,14 +119,14 @@ impl View for ColorSelector {
 
             write_line_to_terminal(
                 terminal,
-                self.bounds.a.x,
-                self.bounds.a.y + row as i16,
+                self.core.bounds.a.x,
+                self.core.bounds.a.y + row as i16,
                 &buf,
             );
         }
 
         // Draw color labels row
-        if self.bounds.height() > 2 {
+        if self.core.bounds.height() > 2 {
             let mut label_buf = DrawBuffer::new(width);
             let label_attr = Attr::from_u8(0x07); // Normal text
             let text = format!(
@@ -135,7 +135,12 @@ impl View for ColorSelector {
                 self.get_selected_color()
             );
             label_buf.move_str(0, &text, label_attr);
-            write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y + 2, &label_buf);
+            write_line_to_terminal(
+                terminal,
+                self.core.bounds.a.x,
+                self.core.bounds.a.y + 2,
+                &label_buf,
+            );
         }
     }
 
@@ -167,9 +172,9 @@ impl View for ColorSelector {
             EventType::MouseDown => {
                 if event.mouse.buttons & MB_LEFT_BUTTON != 0 {
                     let mouse_pos = event.mouse.pos;
-                    if self.bounds.contains(mouse_pos) {
-                        let rel_x = mouse_pos.x - self.bounds.a.x;
-                        let rel_y = mouse_pos.y - self.bounds.a.y;
+                    if self.core.bounds.contains(mouse_pos) {
+                        let rel_x = mouse_pos.x - self.core.bounds.a.x;
+                        let rel_y = mouse_pos.y - self.core.bounds.a.y;
 
                         if let Some(color) = self.pos_to_color(rel_x, rel_y) {
                             self.set_selected_color(color);
@@ -186,26 +191,10 @@ impl View for ColorSelector {
         true
     }
 
-    fn state(&self) -> StateFlags {
-        self.state
-    }
-
-    fn set_state(&mut self, state: StateFlags) {
-        self.state = state;
-    }
-
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
         // TColorSelector has no palette (returns empty palette in Borland)
         // Returning None achieves the same effect - skip to parent's palette
         None
-    }
-
-    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
-        self.palette_chain = node;
-    }
-
-    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
-        self.palette_chain.as_ref()
     }
 }
 

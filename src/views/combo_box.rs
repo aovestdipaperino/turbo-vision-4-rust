@@ -38,7 +38,7 @@
 //! assert_eq!(combo.selected_text().as_deref(), Some("Blue"));
 //! ```
 
-use super::view::{View, write_line_to_terminal};
+use super::view::{View, ViewCore, write_line_to_terminal};
 use crate::core::command::{CM_SHOW_DROPDOWN, CommandId};
 use crate::core::draw::DrawBuffer;
 use crate::core::event::{
@@ -106,13 +106,12 @@ pub fn lookup(id: u16) -> Option<Rc<RefCell<ComboState>>> {
 
 /// A field showing one choice, with a drop-down list of the alternatives.
 pub struct ComboBox {
-    bounds: Rect,
+    core: ViewCore,
     id: u16,
     state: Rc<RefCell<ComboState>>,
     /// Command emitted when the choice changes. Zero means none.
     on_change: CommandId,
     view_state: StateFlags,
-    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
 }
 
 impl ComboBox {
@@ -130,12 +129,15 @@ impl ComboBox {
         }));
         REGISTRY.with(|r| r.borrow_mut().insert(id, Rc::clone(&state)));
         Self {
-            bounds,
+            core: ViewCore {
+                bounds,
+                palette_chain: None,
+                ..ViewCore::default()
+            },
             id,
             state,
             on_change: 0,
             view_state: 0,
-            palette_chain: None,
         }
     }
 
@@ -254,12 +256,16 @@ impl Drop for ComboBox {
 }
 
 impl View for ComboBox {
-    fn bounds(&self) -> Rect {
-        self.bounds
+    fn core(&self) -> &ViewCore {
+        &self.core
+    }
+
+    fn core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
     }
 
     fn set_bounds(&mut self, bounds: Rect) {
-        self.bounds = bounds;
+        self.core.bounds = bounds;
         self.state.borrow_mut().field = bounds;
     }
 
@@ -276,7 +282,7 @@ impl View for ComboBox {
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        let width = self.bounds.width_clamped().max(0) as usize;
+        let width = self.core.bounds.width_clamped().max(0) as usize;
         if width == 0 {
             return;
         }
@@ -304,13 +310,13 @@ impl View for ComboBox {
         }
         buf.put_char(width - 1, DROP_ARROW, arrow_attr);
 
-        write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y, &buf);
+        write_line_to_terminal(terminal, self.core.bounds.a.x, self.core.bounds.a.y, &buf);
     }
 
     fn handle_event(&mut self, event: &mut Event) {
         // A click anywhere on the field opens the list, focused or not, so the
         // control behaves the way a mouse user expects on first click.
-        if event.what == EventType::MouseDown && self.bounds.contains(event.mouse.pos) {
+        if event.what == EventType::MouseDown && self.core.bounds.contains(event.mouse.pos) {
             *event = self.open_request();
             return;
         }
@@ -364,14 +370,6 @@ impl View for ComboBox {
         }
     }
 
-    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
-        self.palette_chain = node;
-    }
-
-    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
-        self.palette_chain.as_ref()
-    }
-
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
         use crate::core::palette::{Palette, palettes};
         // The field is an input line in everything but editability.
@@ -399,8 +397,7 @@ const FRAME_CHARS: [char; 6] = [
 /// own thin frame rather than using `Window`, because a drop-down has no title,
 /// no close box and nothing to resize.
 pub struct DropdownWindow {
-    /// Outer rect, frame included, in screen coordinates.
-    bounds: Rect,
+    core: ViewCore,
     state: Rc<RefCell<ComboState>>,
     /// Index highlighted in the list.
     cursor: usize,
@@ -440,7 +437,10 @@ impl DropdownWindow {
         let list_rect = Rect::new(x + 1, y + 1, x + width - 1, y + 1 + rows);
 
         Self {
-            bounds: window_bounds,
+            core: ViewCore {
+                bounds: window_bounds,
+                ..ViewCore::default()
+            },
             state,
             cursor: selected.unwrap_or(0),
             top: 0,
@@ -488,7 +488,7 @@ impl DropdownWindow {
     /// Draw the frame and the visible items.
     fn draw_popup(&mut self, terminal: &mut Terminal) {
         let width = self.list_rect.width_clamped().max(0) as usize;
-        let outer = self.bounds.width_clamped().max(0) as usize;
+        let outer = self.core.bounds.width_clamped().max(0) as usize;
         if width == 0 || outer == 0 {
             return;
         }
@@ -502,13 +502,18 @@ impl DropdownWindow {
         top.move_char(0, horiz, normal, outer);
         top.put_char(0, tl, normal);
         top.put_char(outer - 1, tr, normal);
-        write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y, &top);
+        write_line_to_terminal(terminal, self.core.bounds.a.x, self.core.bounds.a.y, &top);
 
         let mut bottom = DrawBuffer::new(outer);
         bottom.move_char(0, horiz, normal, outer);
         bottom.put_char(0, bl, normal);
         bottom.put_char(outer - 1, br, normal);
-        write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.b.y - 1, &bottom);
+        write_line_to_terminal(
+            terminal,
+            self.core.bounds.a.x,
+            self.core.bounds.b.y - 1,
+            &bottom,
+        );
 
         let state = self.state.borrow();
         for row in 0..self.visible_rows() {
@@ -524,8 +529,8 @@ impl DropdownWindow {
             // Side frame, then the item text between the edges.
             let mut edge = DrawBuffer::new(1);
             edge.put_char(0, vert, normal);
-            write_line_to_terminal(terminal, self.bounds.a.x, y, &edge);
-            write_line_to_terminal(terminal, self.bounds.b.x - 1, y, &edge);
+            write_line_to_terminal(terminal, self.core.bounds.a.x, y, &edge);
+            write_line_to_terminal(terminal, self.core.bounds.b.x - 1, y, &edge);
             write_line_to_terminal(terminal, self.list_rect.a.x, y, &buf);
         }
     }
@@ -571,7 +576,7 @@ impl DropdownWindow {
                         }
                         // A click outside the popup dismisses it, the way every
                         // other drop-down behaves.
-                        None if !self.bounds.contains(event.mouse.pos) => return None,
+                        None if !self.core.bounds.contains(event.mouse.pos) => return None,
                         None => {}
                     }
                     event.clear();
@@ -596,12 +601,12 @@ impl DropdownWindow {
 }
 
 impl View for DropdownWindow {
-    fn bounds(&self) -> Rect {
-        self.bounds
+    fn core(&self) -> &ViewCore {
+        &self.core
     }
 
-    fn set_bounds(&mut self, bounds: Rect) {
-        self.bounds = bounds;
+    fn core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
     }
 
     /// The popup drives its own loop through [`DropdownWindow::execute`]; this
@@ -838,7 +843,7 @@ mod tests {
         let c = combo(912);
         let screen = Rect::new(0, 0, 80, 25);
         let popup = DropdownWindow::new(c.state(), screen);
-        assert_eq!(popup.bounds.a, Point::new(0, 1), "just below");
+        assert_eq!(popup.bounds().a, Point::new(0, 1), "just below");
         assert_eq!(popup.visible_rows(), 3, "one row per item");
     }
 
@@ -849,9 +854,9 @@ mod tests {
         let screen = Rect::new(0, 0, 80, 25);
         let popup = DropdownWindow::new(c.state(), screen);
         assert!(
-            popup.bounds.b.y <= 23,
+            popup.bounds().b.y <= 23,
             "popup must not run off the bottom: {:?}",
-            popup.bounds
+            popup.bounds()
         );
     }
 

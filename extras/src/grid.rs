@@ -10,10 +10,9 @@ use turbo_vision::core::event::{
 };
 use turbo_vision::core::geometry::Rect;
 use turbo_vision::core::palette::{Attr, TvColor};
-use turbo_vision::core::state::StateFlags;
 use turbo_vision::terminal::Terminal;
-use turbo_vision::views::View;
 use turbo_vision::views::view::write_line_to_terminal;
+use turbo_vision::views::{View, ViewCore};
 
 /// Column definition for [`GridView`].
 #[derive(Clone, Debug)]
@@ -89,21 +88,20 @@ impl RowProvider for VecRowProvider {
 /// assert_eq!(grid.focused_row(), 0);
 /// ```
 pub struct GridView {
-    bounds: Rect,
+    core: ViewCore,
     columns: Vec<GridColumn>,
     provider: Box<dyn RowProvider>,
     top_row: usize,
     focused_row: usize,
     focused_col: usize,
     on_select: CommandId,
-    state: StateFlags,
     palette_chain: Option<turbo_vision::core::palette_chain::PaletteChainNode>,
 }
 
 impl std::fmt::Debug for GridView {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("GridView")
-            .field("bounds", &self.bounds)
+            .field("bounds", &self.core.bounds)
             .field("columns", &self.columns.len())
             .field("rows", &self.provider.rows())
             .finish()
@@ -120,14 +118,17 @@ impl GridView {
         on_select: CommandId,
     ) -> Self {
         Self {
-            bounds,
+            core: ViewCore {
+                bounds,
+                state: 0,
+                ..ViewCore::default()
+            },
             columns,
             provider,
             top_row: 0,
             focused_row: 0,
             focused_col: 0,
             on_select,
-            state: 0,
             palette_chain: None,
         }
     }
@@ -152,7 +153,7 @@ impl GridView {
 
     /// Rows visible below the header.
     fn page_rows(&self) -> usize {
-        (self.bounds.height_clamped() as usize)
+        (self.core.bounds.height_clamped() as usize)
             .saturating_sub(1)
             .max(1)
     }
@@ -212,17 +213,17 @@ impl GridView {
 }
 
 impl View for GridView {
-    fn bounds(&self) -> Rect {
-        self.bounds
+    fn core(&self) -> &ViewCore {
+        &self.core
     }
 
-    fn set_bounds(&mut self, bounds: Rect) {
-        self.bounds = bounds;
+    fn core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        let width = self.bounds.width_clamped() as usize;
-        let height = self.bounds.height_clamped() as usize;
+        let width = self.core.bounds.width_clamped() as usize;
+        let height = self.core.bounds.height_clamped() as usize;
         if width == 0 || height == 0 {
             return;
         }
@@ -248,7 +249,7 @@ impl View for GridView {
                 .collect();
             buf.move_str(start, &text, header_attr);
         }
-        write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y, &buf);
+        write_line_to_terminal(terminal, self.core.bounds.a.x, self.core.bounds.a.y, &buf);
 
         // Rows
         let rows = self.provider.rows();
@@ -281,8 +282,8 @@ impl View for GridView {
             }
             write_line_to_terminal(
                 terminal,
-                self.bounds.a.x,
-                self.bounds.a.y + 1 + screen_row as i16,
+                self.core.bounds.a.x,
+                self.core.bounds.a.y + 1 + screen_row as i16,
                 &buf,
             );
         }
@@ -324,16 +325,16 @@ impl View for GridView {
             }
             EventType::MouseDown => {
                 let pos = event.mouse.pos;
-                if event.mouse.buttons & MB_LEFT_BUTTON == 0 || !self.bounds.contains(pos) {
+                if event.mouse.buttons & MB_LEFT_BUTTON == 0 || !self.core.bounds.contains(pos) {
                     return;
                 }
-                let rel_y = (pos.y - self.bounds.a.y) as usize;
+                let rel_y = (pos.y - self.core.bounds.a.y) as usize;
                 if rel_y >= 1 {
                     let row = self.top_row + rel_y - 1;
                     if row < self.provider.rows() {
                         let was_focused = row == self.focused_row;
                         self.focused_row = row;
-                        if let Some(col) = self.col_at((pos.x - self.bounds.a.x) as usize) {
+                        if let Some(col) = self.col_at((pos.x - self.core.bounds.a.x) as usize) {
                             self.focused_col = col;
                         }
                         self.clamp_and_scroll();
@@ -351,14 +352,6 @@ impl View for GridView {
 
     fn can_focus(&self) -> bool {
         true
-    }
-
-    fn state(&self) -> StateFlags {
-        self.state
-    }
-
-    fn set_state(&mut self, state: StateFlags) {
-        self.state = state;
     }
 
     fn get_palette(&self) -> Option<turbo_vision::core::palette::Palette> {

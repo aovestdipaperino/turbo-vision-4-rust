@@ -23,7 +23,7 @@ use super::list_viewer::ListViewer;
 use super::msgbox::message_box_error;
 use super::scrollbar::ScrollBar;
 use super::shared::Shared;
-use super::{View, ViewId};
+use super::{View, ViewCore, ViewId};
 use crate::app::Application;
 use crate::core::command::{CM_OK, CommandId};
 use crate::core::event::{Event, EventType};
@@ -47,6 +47,8 @@ const DEFAULT_HISTORY_ID: u16 = 10;
 /// Manages scrollbars connected to the listbox
 struct SharedDirListBox {
     inner: Rc<RefCell<DirListBox>>,
+    /// Mirror of the inner list box's base fields (see `Shared<T>`).
+    core: ViewCore,
     dir_input_data: Rc<RefCell<String>>,
     last_focused_path: Option<PathBuf>,
     v_scrollbar: Rc<RefCell<ScrollBar>>,
@@ -62,8 +64,10 @@ impl SharedDirListBox {
     ) -> Self {
         // Initialize with current focused entry
         let last_focused_path = inner.borrow().get_focused_entry().map(|e| e.path.clone());
+        let core = inner.borrow().core().clone();
         Self {
             inner,
+            core,
             dir_input_data,
             last_focused_path,
             v_scrollbar,
@@ -102,11 +106,20 @@ impl SharedDirListBox {
 }
 
 impl View for SharedDirListBox {
+    fn core(&self) -> &ViewCore {
+        &self.core
+    }
+
+    fn core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
+    }
+
     fn bounds(&self) -> Rect {
         self.inner.borrow().bounds()
     }
 
     fn set_bounds(&mut self, bounds: Rect) {
+        self.core.bounds = bounds;
         self.inner.borrow_mut().set_bounds(bounds);
     }
 
@@ -235,7 +248,13 @@ impl View for SharedDirListBox {
     }
 
     fn set_state(&mut self, state: crate::core::state::StateFlags) {
+        self.core.state = state;
         self.inner.borrow_mut().set_state(state);
+    }
+
+    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
+        self.core.palette_chain = node.clone();
+        self.inner.borrow_mut().set_palette_chain(node);
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
@@ -432,11 +451,17 @@ impl ChDirDialog {
 }
 
 impl View for ChDirDialog {
-    fn bounds(&self) -> Rect {
-        self.dialog.bounds()
+    fn core(&self) -> &ViewCore {
+        self.dialog.core()
+    }
+
+    fn core_mut(&mut self) -> &mut ViewCore {
+        self.dialog.core_mut()
     }
 
     fn set_bounds(&mut self, bounds: Rect) {
+        // Forwarded explicitly: the inner view's `set_bounds` cascades to its
+        // children, which the `ViewCore` default would bypass.
         self.dialog.set_bounds(bounds);
     }
 
@@ -450,14 +475,6 @@ impl View for ChDirDialog {
 
     fn can_focus(&self) -> bool {
         true
-    }
-
-    fn state(&self) -> crate::core::state::StateFlags {
-        self.dialog.state()
-    }
-
-    fn set_state(&mut self, state: crate::core::state::StateFlags) {
-        self.dialog.set_state(state);
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {

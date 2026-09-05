@@ -16,10 +16,9 @@
 // - Integrates with ListViewer trait for consistent navigation
 
 use super::list_viewer::{ListViewer, ListViewerState};
-use super::view::View;
+use super::view::{View, ViewCore};
 use crate::core::event::{Event, EventType};
 use crate::core::geometry::Rect;
-use crate::core::state::StateFlags;
 use crate::terminal::Terminal;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -83,28 +82,29 @@ impl FileEntry {
 ///
 /// Matches Borland: TFileList
 pub struct FileList {
-    bounds: Rect,
-    state: StateFlags,
+    core: ViewCore,
     list_state: ListViewerState,
     files: Vec<FileEntry>,
     current_path: PathBuf,
     wildcard: String,
     show_hidden: bool,
-    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
 }
 
 impl FileList {
     /// Create a new file list
     pub fn new(bounds: Rect, path: &Path) -> Self {
         Self {
-            bounds,
-            state: 0,
+            core: ViewCore {
+                bounds,
+                state: 0,
+                palette_chain: None,
+                ..ViewCore::default()
+            },
             list_state: ListViewerState::new(),
             files: Vec::new(),
             current_path: path.to_path_buf(),
             wildcard: "*".to_string(),
             show_hidden: false,
-            palette_chain: None,
         }
     }
 
@@ -261,17 +261,17 @@ impl ListViewer for FileList {
 }
 
 impl View for FileList {
-    fn bounds(&self) -> Rect {
-        self.bounds
+    fn core(&self) -> &ViewCore {
+        &self.core
     }
 
-    fn set_bounds(&mut self, bounds: Rect) {
-        self.bounds = bounds;
+    fn core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        let width = self.bounds.width_clamped() as usize;
-        let height = self.bounds.height_clamped() as usize;
+        let width = self.core.bounds.width_clamped() as usize;
+        let height = self.core.bounds.height_clamped() as usize;
 
         self.list_state.set_range(self.files.len());
 
@@ -295,8 +295,8 @@ impl View for FileList {
 
             for (x, ch) in padded.chars().take(width).enumerate() {
                 terminal.write_cell(
-                    (self.bounds.a.x + x as i16) as u16,
-                    (self.bounds.a.y + y as i16) as u16,
+                    (self.core.bounds.a.x + x as i16) as u16,
+                    (self.core.bounds.a.y + y as i16) as u16,
                     crate::core::draw::Cell::new(ch, color),
                 );
             }
@@ -320,22 +320,6 @@ impl View for FileList {
 
     fn can_focus(&self) -> bool {
         true
-    }
-
-    fn state(&self) -> StateFlags {
-        self.state
-    }
-
-    fn set_state(&mut self, state: StateFlags) {
-        self.state = state;
-    }
-
-    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
-        self.palette_chain = node;
-    }
-
-    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
-        self.palette_chain.as_ref()
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {

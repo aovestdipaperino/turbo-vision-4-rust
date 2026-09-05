@@ -4,7 +4,7 @@
 
 use super::indicator::Indicator;
 use super::scrollbar::ScrollBar;
-use super::view::{View, write_line_to_terminal};
+use super::view::{View, ViewCore, write_line_to_terminal};
 use crate::core::draw::DrawBuffer;
 use crate::core::event::{
     Event, EventType, KB_DOWN, KB_END, KB_HOME, KB_LEFT, KB_PGDN, KB_PGUP, KB_RIGHT, KB_UP,
@@ -16,7 +16,7 @@ use std::cmp::min;
 /// TextViewer displays text content with scrolling support.
 /// Useful for viewing files, logs, or any multi-line text.
 pub struct TextViewer {
-    bounds: Rect,
+    core: ViewCore,
     lines: Vec<String>,
     delta: Point,  // Current scroll offset
     cursor: Point, // Current cursor position (0-based)
@@ -24,13 +24,16 @@ pub struct TextViewer {
     v_scrollbar: Option<Box<ScrollBar>>,
     indicator: Option<Box<Indicator>>,
     show_line_numbers: bool,
-    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
 }
 
 impl TextViewer {
     pub fn new(bounds: Rect) -> Self {
         Self {
-            bounds,
+            core: ViewCore {
+                bounds,
+                palette_chain: None,
+                ..ViewCore::default()
+            },
             lines: Vec::new(),
             delta: Point::zero(),
             cursor: Point::zero(),
@@ -38,7 +41,6 @@ impl TextViewer {
             v_scrollbar: None,
             indicator: None,
             show_line_numbers: false,
-            palette_chain: None,
         }
     }
 
@@ -47,19 +49,19 @@ impl TextViewer {
         if add_scrollbars {
             // Vertical scrollbar on the right edge
             let v_bounds = Rect::new(
-                self.bounds.b.x - 1,
-                self.bounds.a.y + 1, // Below indicator
-                self.bounds.b.x,
-                self.bounds.b.y - 1, // Above horizontal scrollbar
+                self.core.bounds.b.x - 1,
+                self.core.bounds.a.y + 1, // Below indicator
+                self.core.bounds.b.x,
+                self.core.bounds.b.y - 1, // Above horizontal scrollbar
             );
             self.v_scrollbar = Some(Box::new(ScrollBar::new_vertical(v_bounds)));
 
             // Horizontal scrollbar on the bottom edge
             let h_bounds = Rect::new(
-                self.bounds.a.x,
-                self.bounds.b.y - 1,
-                self.bounds.b.x - 1, // Before vertical scrollbar
-                self.bounds.b.y,
+                self.core.bounds.a.x,
+                self.core.bounds.b.y - 1,
+                self.core.bounds.b.x - 1, // Before vertical scrollbar
+                self.core.bounds.b.y,
             );
             self.h_scrollbar = Some(Box::new(ScrollBar::new_horizontal(h_bounds)));
         }
@@ -70,10 +72,10 @@ impl TextViewer {
     pub fn with_indicator(mut self, add_indicator: bool) -> Self {
         if add_indicator {
             let indicator_bounds = Rect::new(
-                self.bounds.a.x,
-                self.bounds.a.y,
-                self.bounds.b.x,
-                self.bounds.a.y + 1,
+                self.core.bounds.a.x,
+                self.core.bounds.a.y,
+                self.core.bounds.b.x,
+                self.core.bounds.a.y + 1,
             );
             self.indicator = Some(Box::new(Indicator::new(indicator_bounds)));
         }
@@ -114,7 +116,7 @@ impl TextViewer {
 
     /// Get the visible area (excluding scrollbars and indicator)
     fn get_content_area(&self) -> Rect {
-        let mut area = self.bounds;
+        let mut area = self.core.bounds;
 
         // Account for indicator at top
         if self.indicator.is_some() {
@@ -183,12 +185,16 @@ impl TextViewer {
 }
 
 impl View for TextViewer {
-    fn bounds(&self) -> Rect {
-        self.bounds
+    fn core(&self) -> &ViewCore {
+        &self.core
+    }
+
+    fn core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
     }
 
     fn set_bounds(&mut self, bounds: Rect) {
-        self.bounds = bounds;
+        self.core.bounds = bounds;
 
         // Update scrollbar positions
         if let Some(ref mut v_bar) = self.v_scrollbar {
@@ -370,14 +376,6 @@ impl View for TextViewer {
         if old_delta != self.delta {
             event.clear();
         }
-    }
-
-    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
-        self.palette_chain = node;
-    }
-
-    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
-        self.palette_chain.as_ref()
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {

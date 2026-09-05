@@ -32,12 +32,11 @@
 //! );
 //! ```
 
-use super::view::{View, write_line_to_terminal};
+use super::view::{View, ViewCore, write_line_to_terminal};
 use crate::core::draw::DrawBuffer;
 use crate::core::event::Event;
 use crate::core::geometry::Rect;
 use crate::core::palette::Attr;
-use crate::core::state::StateFlags;
 use crate::terminal::Terminal;
 use std::io;
 use std::path::Path;
@@ -53,8 +52,7 @@ static IMAGE_ID_COUNTER: AtomicU32 = AtomicU32::new(1);
 /// The view clears its area with a background color when the terminal doesn't
 /// support Kitty graphics.
 pub struct KittyImage {
-    bounds: Rect,
-    state: StateFlags,
+    core: ViewCore,
     /// The PNG image data (raw bytes)
     png_data: Vec<u8>,
     /// Unique image ID for this image (used by Kitty protocol)
@@ -67,8 +65,6 @@ pub struct KittyImage {
     columns: u16,
     /// Number of rows the image should span (0 = auto based on bounds)
     rows: u16,
-    /// Owner pointer for palette chain
-    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
     /// Z-index for layering (higher = on top)
     z_index: i32,
     /// Last drawn bounds (for clearing old placements when moved/resized)
@@ -83,8 +79,12 @@ impl KittyImage {
     /// * `png_data` - Raw PNG image data
     pub fn from_bytes(bounds: Rect, png_data: Vec<u8>) -> Self {
         Self {
-            bounds,
-            state: 0,
+            core: ViewCore {
+                bounds,
+                state: 0,
+                palette_chain: None,
+                ..ViewCore::default()
+            },
             png_data,
             image_id: IMAGE_ID_COUNTER.fetch_add(1, Ordering::Relaxed),
             transmitted: false,
@@ -94,7 +94,6 @@ impl KittyImage {
             ),
             columns: 0,
             rows: 0,
-            palette_chain: None,
             z_index: 0,
             last_bounds: None,
         }
@@ -268,27 +267,23 @@ impl KittyImage {
 }
 
 impl View for KittyImage {
-    fn bounds(&self) -> Rect {
-        self.bounds
+    fn core(&self) -> &ViewCore {
+        &self.core
+    }
+
+    fn core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
     }
 
     fn set_bounds(&mut self, bounds: Rect) {
-        self.bounds = bounds;
+        self.core.bounds = bounds;
         // Image needs retransmission if bounds change
         self.transmitted = false;
     }
 
-    fn state(&self) -> StateFlags {
-        self.state
-    }
-
-    fn set_state(&mut self, state: StateFlags) {
-        self.state = state;
-    }
-
     fn draw(&mut self, terminal: &mut Terminal) {
-        let width = self.bounds.width_clamped() as usize;
-        let height = self.bounds.height() as usize;
+        let width = self.core.bounds.width_clamped() as usize;
+        let height = self.core.bounds.height() as usize;
 
         // Calculate columns and rows for the image
         let cols = if self.columns > 0 {
@@ -309,8 +304,8 @@ impl View for KittyImage {
             buf.move_char(0, ' ', self.background_attr, width);
             write_line_to_terminal(
                 terminal,
-                self.bounds.a.x,
-                self.bounds.a.y + row as i16,
+                self.core.bounds.a.x,
+                self.core.bounds.a.y + row as i16,
                 &buf,
             );
         }
@@ -320,7 +315,7 @@ impl View for KittyImage {
             return;
         }
 
-        let bounds_changed = self.last_bounds.is_none_or(|last| last != self.bounds);
+        let bounds_changed = self.last_bounds.is_none_or(|last| last != self.core.bounds);
 
         // Only update the image placement if something changed
         if bounds_changed || !self.transmitted {
@@ -343,28 +338,20 @@ impl View for KittyImage {
 
             // Display the image at the view position
             let display_seq = self.build_display_sequence(
-                self.bounds.a.x as u16,
-                self.bounds.a.y as u16,
+                self.core.bounds.a.x as u16,
+                self.core.bounds.a.y as u16,
                 cols,
                 rows,
             );
             let _ = terminal.write_kitty_graphics(&display_seq);
 
             // Remember bounds for next draw
-            self.last_bounds = Some(self.bounds);
+            self.last_bounds = Some(self.core.bounds);
         }
     }
 
     fn handle_event(&mut self, _event: &mut Event) {
         // Image view doesn't handle events
-    }
-
-    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
-        self.palette_chain = node;
-    }
-
-    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
-        self.palette_chain.as_ref()
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {

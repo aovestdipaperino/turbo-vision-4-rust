@@ -2,18 +2,18 @@
 
 //! Frame view - window border with title, close button and zoom triangle.
 
-use super::view::{View, write_line_to_terminal};
+use super::view::{View, ViewCore, write_line_to_terminal};
 use crate::core::command::CM_CLOSE;
 use crate::core::draw::DrawBuffer;
 use crate::core::event::{Event, EventType, MB_LEFT_BUTTON};
 use crate::core::geometry::Rect;
 use crate::core::palette::Attr;
-use crate::core::state::{SF_ACTIVE, SF_DRAGGING, SF_RESIZING, StateFlags};
+use crate::core::state::{SF_ACTIVE, SF_DRAGGING, SF_RESIZING};
 use crate::terminal::Terminal;
 use unicode_width::UnicodeWidthStr;
 
 pub struct Frame {
-    bounds: Rect,
+    core: ViewCore,
     title: String,
     /// Window number shown right of the title (Borland: TFrame draws
     /// TWindow::number for Alt+1..9 selection); None = not numbered
@@ -21,8 +21,6 @@ pub struct Frame {
     /// Palette type — retained for API compatibility.
     #[allow(dead_code)]
     palette_type: FramePaletteType,
-    /// State flags (active, dragging, etc.) - matches Borland's TView state
-    state: StateFlags,
     /// Whether the frame is resizable (matches Borland's wfGrow flag)
     resizable: bool,
     /// True while a MouseDown that started on the close icon is outstanding.
@@ -36,7 +34,6 @@ pub struct Frame {
     zoomed: bool,
     /// The zoom icon's equivalent of `close_pressed`.
     zoom_pressed: bool,
-    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
 }
 
 /// Frame palette types for different window types
@@ -60,11 +57,15 @@ impl Frame {
         resizable: bool,
     ) -> Self {
         Self {
-            bounds,
+            core: ViewCore {
+                bounds,
+                state: SF_ACTIVE,
+                palette_chain: None,
+                ..ViewCore::default()
+            },
             title: title.to_string(),
             number: None,
             palette_type,
-            state: SF_ACTIVE,
             resizable,
             close_pressed: false,
             // Borland pairs wfGrow with wfZoom: a window that cannot be
@@ -72,14 +73,15 @@ impl Frame {
             zoomable: resizable,
             zoomed: false,
             zoom_pressed: false,
-            palette_chain: None,
         }
     }
 
     /// True if the given position is over the close icon `[■]` on the top
     /// frame row (columns 2..=4 relative to the frame's left edge).
     fn is_on_close_icon(&self, pos: crate::core::geometry::Point) -> bool {
-        pos.y == self.bounds.a.y && pos.x >= self.bounds.a.x + 2 && pos.x <= self.bounds.a.x + 4
+        pos.y == self.core.bounds.a.y
+            && pos.x >= self.core.bounds.a.x + 2
+            && pos.x <= self.core.bounds.a.x + 4
     }
 
     /// Leftmost column of the zoom icon `[\u{25B2}]`, three cells wide, sitting
@@ -89,11 +91,11 @@ impl Frame {
     /// icons and a title. Matches Borland TFrame::draw, which places the zoom
     /// icon at `width - 5`.
     fn zoom_icon_x(&self) -> Option<i16> {
-        let width = self.bounds.width();
+        let width = self.core.bounds.width();
         if !self.zoomable || width <= 10 {
             return None;
         }
-        Some(self.bounds.a.x + width - 5)
+        Some(self.core.bounds.a.x + width - 5)
     }
 
     /// True if the given position is over the zoom icon on the top frame row.
@@ -101,7 +103,7 @@ impl Frame {
         let Some(x) = self.zoom_icon_x() else {
             return false;
         };
-        pos.y == self.bounds.a.y && pos.x >= x && pos.x <= x + 2
+        pos.y == self.core.bounds.a.y && pos.x >= x && pos.x <= x + 2
     }
 
     /// Set whether the frame is resizable (matches Borland's wfGrow flag).
@@ -147,8 +149,8 @@ impl Frame {
         // - Dragging: cFrame = 0x0505 (both bytes use palette[5])
         // - Active:   cFrame = 0x0503 (low=palette[3], high=palette[5])
 
-        let is_active = (self.state & SF_ACTIVE) != 0;
-        let is_dragging = (self.state & SF_DRAGGING) != 0;
+        let is_active = (self.core.state & SF_ACTIVE) != 0;
+        let is_dragging = (self.core.state & SF_DRAGGING) != 0;
 
         if !is_active {
             // Inactive: cFrame = 0x0101, cTitle = 0x0002
@@ -174,17 +176,17 @@ impl Frame {
 }
 
 impl View for Frame {
-    fn bounds(&self) -> Rect {
-        self.bounds
+    fn core(&self) -> &ViewCore {
+        &self.core
     }
 
-    fn set_bounds(&mut self, bounds: Rect) {
-        self.bounds = bounds;
+    fn core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        let width = self.bounds.width_clamped() as usize;
-        let height = self.bounds.height_clamped() as usize;
+        let width = self.core.bounds.width_clamped() as usize;
+        let height = self.core.bounds.height_clamped() as usize;
 
         // Don't render frames that are too small
         // Minimum: 2x2 (for top-left, top-right, bottom-left, bottom-right corners)
@@ -220,7 +222,7 @@ impl View for Frame {
         // window can still grow, and down once it is zoomed and the click will
         // restore it. Matches Borland: zoomIcon at width - 5.
         if let Some(x) = self.zoom_icon_x() {
-            let at = (x - self.bounds.a.x) as usize;
+            let at = (x - self.core.bounds.a.x) as usize;
             let glyph = if self.zoomed { '\u{25BC}' } else { '\u{25B2}' };
             buf.put_char(at, '[', frame_attr);
             buf.put_char(at + 1, glyph, close_icon_attr);
@@ -249,7 +251,7 @@ impl View for Frame {
                 }
             }
         }
-        write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y, &buf);
+        write_line_to_terminal(terminal, self.core.bounds.a.x, self.core.bounds.a.y, &buf);
 
         // Middle rows - using double vertical lines
         let mut side_buf = DrawBuffer::new(width);
@@ -264,8 +266,8 @@ impl View for Frame {
         for y in 1..height - 1 {
             write_line_to_terminal(
                 terminal,
-                self.bounds.a.x,
-                self.bounds.a.y + y as i16,
+                self.core.bounds.a.x,
+                self.core.bounds.a.y + y as i16,
                 &side_buf,
             );
         }
@@ -290,7 +292,7 @@ impl View for Frame {
         // Add resize handle for resizable windows when active
         // Matches Borland: dragIcon "~��~" at width-2 when (state & sfActive) && (flags & wfGrow)
         // See tframe.cc:142-144
-        let is_active = (self.state & SF_ACTIVE) != 0;
+        let is_active = (self.core.state & SF_ACTIVE) != 0;
         if self.resizable && is_active && width >= 4 {
             // Resize handle at bottom-right corner (width-2 position)
             // Using ◢ (U+25E2) as resize indicator
@@ -299,8 +301,8 @@ impl View for Frame {
 
         write_line_to_terminal(
             terminal,
-            self.bounds.a.x,
-            self.bounds.a.y + height as i16 - 1,
+            self.core.bounds.a.x,
+            self.core.bounds.a.y + height as i16 - 1,
             &bottom_buf,
         );
     }
@@ -315,7 +317,7 @@ impl View for Frame {
         if event.what == EventType::MouseDown
             && (event.mouse.buttons & MB_LEFT_BUTTON) != 0
             && event.mouse.double_click
-            && event.mouse.pos.y == self.bounds.a.y
+            && event.mouse.pos.y == self.core.bounds.a.y
             && !self.is_on_close_icon(event.mouse.pos)
             && !self.is_on_zoom_icon(event.mouse.pos)
         {
@@ -335,19 +337,21 @@ impl View for Frame {
             // Borland: mouse.x >= size.x - 2 && mouse.y >= size.y - 1
             // Only allow resize on resizable frames (matches Borland's wfGrow flag check)
             if self.resizable
-                && mouse_pos.x >= self.bounds.b.x - 2
-                && mouse_pos.y >= self.bounds.b.y - 1
+                && mouse_pos.x >= self.core.bounds.b.x - 2
+                && mouse_pos.y >= self.core.bounds.b.y - 1
             {
                 // Resize corner - set resizing state
-                self.state |= SF_RESIZING;
+                self.core.state |= SF_RESIZING;
                 // DON'T clear event - let Window handle it to initialize resize_start_size
                 return;
             }
 
             // Check if click is on the top frame line (title bar)
-            if mouse_pos.y == self.bounds.a.y {
+            if mouse_pos.y == self.core.bounds.a.y {
                 // Check if click is on the close button [■] at position (2,3,4)
-                if mouse_pos.x >= self.bounds.a.x + 2 && mouse_pos.x <= self.bounds.a.x + 4 {
+                if mouse_pos.x >= self.core.bounds.a.x + 2
+                    && mouse_pos.x <= self.core.bounds.a.x + 4
+                {
                     // Close button area - arm press tracking, don't start
                     // drag, and consume the press so it doesn't leak to other
                     // views. Close fires only on the matching MouseUp.
@@ -369,7 +373,7 @@ impl View for Frame {
                 // Set dragging state and let Window handle the MouseDown event
 
                 // Set dragging state
-                self.state |= SF_DRAGGING;
+                self.core.state |= SF_DRAGGING;
                 // DON'T clear event - let Window handle it to initialize drag_offset
                 return;
             }
@@ -390,7 +394,7 @@ impl View for Frame {
                     event.clear();
                 }
                 // Also clear drag/resize state if set
-                self.state &= !(SF_DRAGGING | SF_RESIZING);
+                self.core.state &= !(SF_DRAGGING | SF_RESIZING);
                 return;
             }
 
@@ -401,35 +405,19 @@ impl View for Frame {
                 } else {
                     event.clear();
                 }
-                self.state &= !(SF_DRAGGING | SF_RESIZING);
+                self.core.state &= !(SF_DRAGGING | SF_RESIZING);
                 return;
             }
 
             // End dragging or resizing
-            if (self.state & SF_DRAGGING) != 0 {
-                self.state &= !SF_DRAGGING;
+            if (self.core.state & SF_DRAGGING) != 0 {
+                self.core.state &= !SF_DRAGGING;
                 event.clear();
-            } else if (self.state & SF_RESIZING) != 0 {
-                self.state &= !SF_RESIZING;
+            } else if (self.core.state & SF_RESIZING) != 0 {
+                self.core.state &= !SF_RESIZING;
                 event.clear();
             }
         }
-    }
-
-    fn state(&self) -> StateFlags {
-        self.state
-    }
-
-    fn set_state(&mut self, state: StateFlags) {
-        self.state = state;
-    }
-
-    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
-        self.palette_chain = node;
-    }
-
-    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
-        self.palette_chain.as_ref()
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
@@ -676,7 +664,7 @@ mod tests {
         let mut frame = zoomable_frame();
         press_at(&mut frame, 36, 0);
         assert_eq!(
-            frame.state & SF_DRAGGING,
+            frame.state() & SF_DRAGGING,
             0,
             "the title bar drag must not begin on an icon"
         );

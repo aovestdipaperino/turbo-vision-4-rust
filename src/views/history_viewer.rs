@@ -13,11 +13,10 @@
 //   // Viewer will display items from HistoryManager
 
 use super::list_viewer::{ListViewer, ListViewerState};
-use super::view::View;
+use super::view::{View, ViewCore};
 use crate::core::event::Event;
 use crate::core::geometry::Rect;
 use crate::core::history::HistoryManager;
-use crate::core::state::StateFlags;
 use crate::terminal::Terminal;
 
 /// HistoryViewer - Displays history items for a specific history ID
@@ -25,12 +24,10 @@ use crate::terminal::Terminal;
 /// Extends ListViewer trait for standard list navigation.
 /// Matches Borland: THistoryViewer (extends TListViewer)
 pub struct HistoryViewer {
-    bounds: Rect,
+    core: ViewCore,
     history_id: u16,
     items: Vec<String>,
     list_state: ListViewerState,
-    state: StateFlags,
-    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
 }
 
 impl HistoryViewer {
@@ -41,12 +38,15 @@ impl HistoryViewer {
         list_state.set_range(items.len());
 
         Self {
-            bounds,
+            core: ViewCore {
+                bounds,
+                state: 0,
+                palette_chain: None,
+                ..ViewCore::default()
+            },
             history_id,
             items,
             list_state,
-            state: 0,
-            palette_chain: None,
         }
     }
 
@@ -70,20 +70,20 @@ impl HistoryViewer {
 }
 
 impl View for HistoryViewer {
-    fn bounds(&self) -> Rect {
-        self.bounds
+    fn core(&self) -> &ViewCore {
+        &self.core
     }
 
-    fn set_bounds(&mut self, bounds: Rect) {
-        self.bounds = bounds;
+    fn core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
         use super::view::write_line_to_terminal;
         use crate::core::draw::DrawBuffer;
 
-        let width = self.bounds.width_clamped() as usize;
-        let height = self.bounds.height_clamped() as usize;
+        let width = self.core.bounds.width_clamped() as usize;
+        let height = self.core.bounds.height_clamped() as usize;
 
         use crate::core::palette::colors::{
             LISTBOX_FOCUSED, LISTBOX_NORMAL, LISTBOX_SELECTED, LISTBOX_SELECTED_FOCUSED,
@@ -125,7 +125,12 @@ impl View for HistoryViewer {
                 buf.move_char(0, ' ', color_normal, width);
             }
 
-            write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y + i as i16, &buf);
+            write_line_to_terminal(
+                terminal,
+                self.core.bounds.a.x,
+                self.core.bounds.a.y + i as i16,
+                &buf,
+            );
         }
     }
 
@@ -138,31 +143,15 @@ impl View for HistoryViewer {
         true
     }
 
-    fn state(&self) -> StateFlags {
-        self.state
-    }
-
-    fn set_state(&mut self, state: StateFlags) {
-        self.state = state;
-    }
-
     fn set_list_selection(&mut self, index: usize) {
         if index < self.items.len() {
-            let visible_rows = self.bounds.height_clamped() as usize;
+            let visible_rows = self.core.bounds.height_clamped() as usize;
             self.list_state.focus_item(index, visible_rows);
         }
     }
 
     fn get_list_selection(&self) -> usize {
         self.list_state.focused.unwrap_or(0)
-    }
-
-    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
-        self.palette_chain = node;
-    }
-
-    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
-        self.palette_chain.as_ref()
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {

@@ -12,14 +12,14 @@ use turbo_vision::core::event::{Event, EventType, KB_ALT_C, KB_ALT_X, KB_F1, KB_
 use turbo_vision::core::geometry::Rect;
 use turbo_vision::core::menu_data::{Menu, MenuItem};
 use turbo_vision::core::palette::{Attr, TvColor, colors};
-use turbo_vision::core::state::{SF_VISIBLE, StateFlags};
+use turbo_vision::core::state::SF_VISIBLE;
 use turbo_vision::terminal::Terminal;
-use turbo_vision::views::View;
 use turbo_vision::views::dialog::DialogBuilder;
 use turbo_vision::views::menu_bar::{MenuBar, SubMenu};
 use turbo_vision::views::status_line::{StatusItem, StatusLine};
 use turbo_vision::views::validator::Validator;
 use turbo_vision::views::view::write_line_to_terminal;
+use turbo_vision::views::{View, ViewCore};
 
 // Custom commands
 const CM_BIORHYTHM: u16 = 100;
@@ -183,46 +183,40 @@ impl Biorhythm {
 }
 
 struct BiorhythmChart {
-    bounds: Rect,
+    core: ViewCore,
     biorhythm: Rc<RefCell<Option<Biorhythm>>>,
-    state: StateFlags,
 }
 
 impl BiorhythmChart {
     /// Create a new biorhythm chart view with the given bounds and shared data
     fn new(bounds: Rect, biorhythm: Rc<RefCell<Option<Biorhythm>>>) -> Self {
         Self {
-            bounds,
+            core: ViewCore {
+                bounds,
+                state: SF_VISIBLE,
+                ..ViewCore::default()
+            },
             biorhythm,
-            state: SF_VISIBLE,
         }
     }
 }
 
 impl View for BiorhythmChart {
-    fn bounds(&self) -> Rect {
-        self.bounds
+    fn core(&self) -> &ViewCore {
+        &self.core
     }
 
-    fn set_bounds(&mut self, bounds: Rect) {
-        self.bounds = bounds;
-    }
-
-    fn state(&self) -> StateFlags {
-        self.state
-    }
-
-    fn set_state(&mut self, state: StateFlags) {
-        self.state = state;
+    fn core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        if (self.state & SF_VISIBLE) == 0 {
+        if (self.core.state & SF_VISIBLE) == 0 {
             return;
         }
 
-        let width = self.bounds.width() as usize;
-        let height = self.bounds.height() as usize;
+        let width = self.core.bounds.width() as usize;
+        let height = self.core.bounds.height() as usize;
 
         if width < 10 || height < 10 {
             return;
@@ -237,7 +231,7 @@ impl View for BiorhythmChart {
             let title = format!("Biorhythm Chart - {} days since birth", bio.days_alive);
             let title_start = (width.saturating_sub(title.len())) / 2;
             buf.move_str(title_start, &title, colors::DIALOG_FRAME);
-            write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y, &buf);
+            write_line_to_terminal(terminal, self.core.bounds.a.x, self.core.bounds.a.y, &buf);
 
             // Chart dimensions
             let chart_top = 2;
@@ -332,8 +326,8 @@ impl View for BiorhythmChart {
 
                 write_line_to_terminal(
                     terminal,
-                    self.bounds.a.x,
-                    self.bounds.a.y + y as i16,
+                    self.core.bounds.a.x,
+                    self.core.bounds.a.y + y as i16,
                     &line,
                 );
             }
@@ -349,7 +343,12 @@ impl View for BiorhythmChart {
                     buf.move_str(msg_x, msg, colors::DIALOG_NORMAL);
                 }
 
-                write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y + y as i16, &buf);
+                write_line_to_terminal(
+                    terminal,
+                    self.core.bounds.a.x,
+                    self.core.bounds.a.y + y as i16,
+                    &buf,
+                );
             }
         }
     }

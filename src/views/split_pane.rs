@@ -39,7 +39,7 @@
 //! ```
 
 use super::group::Group;
-use super::view::{View, write_line_to_terminal};
+use super::view::{View, ViewCore, write_line_to_terminal};
 use crate::core::draw::DrawBuffer;
 use crate::core::event::{Event, EventType, KB_F8, MB_LEFT_BUTTON};
 use crate::core::geometry::{Point, Rect};
@@ -69,7 +69,7 @@ pub enum Orientation {
 
 /// Two panes divided by a draggable splitter.
 pub struct SplitPane {
-    bounds: Rect,
+    core: ViewCore,
     orientation: Orientation,
     /// Cells given to the first pane, measured from the pane's own edge.
     position: i16,
@@ -82,7 +82,6 @@ pub struct SplitPane {
     /// True while the second pane holds the focus.
     focus_second: bool,
     view_state: StateFlags,
-    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
 }
 
 impl SplitPane {
@@ -93,7 +92,11 @@ impl SplitPane {
     /// [`SplitPane::first_mut`] and [`SplitPane::second_mut`].
     pub fn new(bounds: Rect, orientation: Orientation, position: i16) -> Self {
         let mut split = Self {
-            bounds,
+            core: ViewCore {
+                bounds,
+                palette_chain: None,
+                ..ViewCore::default()
+            },
             orientation,
             position,
             min_first: 1,
@@ -102,7 +105,6 @@ impl SplitPane {
             second: Group::new(Rect::new(0, 0, 0, 0)),
             focus_second: false,
             view_state: 0,
-            palette_chain: None,
         };
         split.position = split.clamp_position(position);
         split.first.set_bounds(split.first_area());
@@ -202,8 +204,8 @@ impl SplitPane {
     /// horizontal one.
     fn span(&self) -> i16 {
         match self.orientation {
-            Orientation::Vertical => self.bounds.width(),
-            Orientation::Horizontal => self.bounds.height(),
+            Orientation::Vertical => self.core.bounds.width(),
+            Orientation::Horizontal => self.core.bounds.height(),
         }
     }
 
@@ -221,16 +223,16 @@ impl SplitPane {
     pub fn first_area(&self) -> Rect {
         match self.orientation {
             Orientation::Vertical => Rect::new(
-                self.bounds.a.x,
-                self.bounds.a.y,
-                self.bounds.a.x + self.position,
-                self.bounds.b.y,
+                self.core.bounds.a.x,
+                self.core.bounds.a.y,
+                self.core.bounds.a.x + self.position,
+                self.core.bounds.b.y,
             ),
             Orientation::Horizontal => Rect::new(
-                self.bounds.a.x,
-                self.bounds.a.y,
-                self.bounds.b.x,
-                self.bounds.a.y + self.position,
+                self.core.bounds.a.x,
+                self.core.bounds.a.y,
+                self.core.bounds.b.x,
+                self.core.bounds.a.y + self.position,
             ),
         }
     }
@@ -239,16 +241,16 @@ impl SplitPane {
     pub fn second_area(&self) -> Rect {
         match self.orientation {
             Orientation::Vertical => Rect::new(
-                self.bounds.a.x + self.position + DIVIDER_SIZE,
-                self.bounds.a.y,
-                self.bounds.b.x,
-                self.bounds.b.y,
+                self.core.bounds.a.x + self.position + DIVIDER_SIZE,
+                self.core.bounds.a.y,
+                self.core.bounds.b.x,
+                self.core.bounds.b.y,
             ),
             Orientation::Horizontal => Rect::new(
-                self.bounds.a.x,
-                self.bounds.a.y + self.position + DIVIDER_SIZE,
-                self.bounds.b.x,
-                self.bounds.b.y,
+                self.core.bounds.a.x,
+                self.core.bounds.a.y + self.position + DIVIDER_SIZE,
+                self.core.bounds.b.x,
+                self.core.bounds.b.y,
             ),
         }
     }
@@ -257,16 +259,16 @@ impl SplitPane {
     pub fn divider_area(&self) -> Rect {
         match self.orientation {
             Orientation::Vertical => Rect::new(
-                self.bounds.a.x + self.position,
-                self.bounds.a.y,
-                self.bounds.a.x + self.position + DIVIDER_SIZE,
-                self.bounds.b.y,
+                self.core.bounds.a.x + self.position,
+                self.core.bounds.a.y,
+                self.core.bounds.a.x + self.position + DIVIDER_SIZE,
+                self.core.bounds.b.y,
             ),
             Orientation::Horizontal => Rect::new(
-                self.bounds.a.x,
-                self.bounds.a.y + self.position,
-                self.bounds.b.x,
-                self.bounds.a.y + self.position + DIVIDER_SIZE,
+                self.core.bounds.a.x,
+                self.core.bounds.a.y + self.position,
+                self.core.bounds.b.x,
+                self.core.bounds.a.y + self.position + DIVIDER_SIZE,
             ),
         }
     }
@@ -282,8 +284,8 @@ impl SplitPane {
     /// Divider position implied by a mouse at `pos`.
     fn position_for(&self, pos: Point) -> i16 {
         match self.orientation {
-            Orientation::Vertical => pos.x - self.bounds.a.x,
-            Orientation::Horizontal => pos.y - self.bounds.a.y,
+            Orientation::Vertical => pos.x - self.core.bounds.a.x,
+            Orientation::Horizontal => pos.y - self.core.bounds.a.y,
         }
     }
 
@@ -297,12 +299,16 @@ impl SplitPane {
 }
 
 impl View for SplitPane {
-    fn bounds(&self) -> Rect {
-        self.bounds
+    fn core(&self) -> &ViewCore {
+        &self.core
+    }
+
+    fn core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
     }
 
     fn set_bounds(&mut self, bounds: Rect) {
-        self.bounds = bounds;
+        self.core.bounds = bounds;
         // Keep the divider inside the new size before moving the halves.
         let position = self.position;
         self.position = self.clamp_position(position);
@@ -336,7 +342,7 @@ impl View for SplitPane {
     fn draw(&mut self, terminal: &mut Terminal) {
         let chain = crate::core::palette_chain::PaletteChainNode::new(
             self.get_palette(),
-            self.palette_chain.clone(),
+            self.core.palette_chain.clone(),
         );
         self.first.set_palette_chain(Some(chain.clone()));
         self.first.draw(terminal);
@@ -345,7 +351,10 @@ impl View for SplitPane {
 
         // The divider is drawn last so neither half can paint over it.
         let painter = DividerPainter {
-            chain: self.palette_chain.clone(),
+            core: ViewCore {
+                palette_chain: self.core.palette_chain.clone(),
+                ..ViewCore::default()
+            },
         };
         let attr = painter.map_color(LABEL_DIMMED);
         let area = self.divider_area();
@@ -418,14 +427,6 @@ impl View for SplitPane {
         }
     }
 
-    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
-        self.palette_chain = node;
-    }
-
-    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
-        self.palette_chain.as_ref()
-    }
-
     /// Transparent, so each half's controls map their colours through whatever
     /// owns the split, exactly as if they sat in the dialog directly.
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
@@ -447,23 +448,21 @@ impl View for SplitPane {
 /// this borrows the chain to resolve the one dimmed entry the divider needs. It
 /// never joins the view hierarchy.
 struct DividerPainter {
-    chain: Option<crate::core::palette_chain::PaletteChainNode>,
+    core: ViewCore,
 }
 
 impl View for DividerPainter {
-    fn bounds(&self) -> Rect {
-        Rect::new(0, 0, 0, 0)
+    fn core(&self) -> &ViewCore {
+        &self.core
     }
 
-    fn set_bounds(&mut self, _bounds: Rect) {}
+    fn core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
+    }
 
     fn draw(&mut self, _terminal: &mut Terminal) {}
 
     fn handle_event(&mut self, _event: &mut Event) {}
-
-    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
-        self.chain.as_ref()
-    }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
         use crate::core::palette::{Palette, palettes};

@@ -2,7 +2,7 @@
 
 //! StatusLine view - bottom status bar with keyboard shortcuts and context help.
 
-use super::view::{View, write_line_to_terminal};
+use super::view::{View, ViewCore, write_line_to_terminal};
 use crate::core::command::CommandId;
 use crate::core::command_set;
 use crate::core::draw::DrawBuffer;
@@ -31,7 +31,7 @@ impl StatusItem {
 }
 
 pub struct StatusLine {
-    bounds: Rect,
+    core: ViewCore,
     items: Vec<StatusItem>,
     item_positions: Vec<(i16, i16)>, // (start_x, end_x) for each item
     selected_item: Option<usize>,    // Currently hovered/selected item
@@ -40,8 +40,6 @@ pub struct StatusLine {
     /// When set, update() swaps `items` based on the current help context.
     defs: Vec<crate::core::status_data::StatusDef>,
     current_help_ctx: u16,
-    options: u16,
-    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
     /// Optional right-aligned mode marker, re-queried on every draw
     right_indicator: Option<fn() -> Option<String>>,
 }
@@ -51,15 +49,18 @@ impl StatusLine {
         use crate::core::state::OF_PRE_PROCESS;
 
         Self {
-            bounds,
+            core: ViewCore {
+                bounds,
+                options: OF_PRE_PROCESS, // Status line processes in pre-process phase (matches Borland)
+                palette_chain: None,
+                ..ViewCore::default()
+            },
             items,
             item_positions: Vec::new(),
             selected_item: None,
             hint_text: None,
             defs: Vec::new(),
             current_help_ctx: 0,
-            options: OF_PRE_PROCESS, // Status line processes in pre-process phase (matches Borland)
-            palette_chain: None,
             right_indicator: None,
         }
     }
@@ -128,7 +129,7 @@ impl StatusLine {
 
     /// Draw the status line with optional selected item highlighting
     fn draw_select(&mut self, terminal: &mut Terminal, selected: Option<usize>) {
-        let width = self.bounds.width_clamped() as usize;
+        let width = self.core.bounds.width_clamped() as usize;
         let mut buf = DrawBuffer::new(width);
 
         // StatusLine palette indices:
@@ -248,15 +249,15 @@ impl StatusLine {
             }
         }
 
-        write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y, &buf);
+        write_line_to_terminal(terminal, self.core.bounds.a.x, self.core.bounds.a.y, &buf);
     }
 
     /// Find which item the mouse is currently over
     fn item_mouse_is_in(&self, mouse_x: i16) -> Option<usize> {
         for (i, &(start_x, end_x)) in self.item_positions.iter().enumerate() {
             if i < self.items.len() {
-                let absolute_start = self.bounds.a.x + start_x;
-                let absolute_end = self.bounds.a.x + end_x;
+                let absolute_start = self.core.bounds.a.x + start_x;
+                let absolute_end = self.core.bounds.a.x + end_x;
 
                 if mouse_x >= absolute_start && mouse_x < absolute_end {
                     return Some(i);
@@ -268,12 +269,12 @@ impl StatusLine {
 }
 
 impl View for StatusLine {
-    fn bounds(&self) -> Rect {
-        self.bounds
+    fn core(&self) -> &ViewCore {
+        &self.core
     }
 
-    fn set_bounds(&mut self, bounds: Rect) {
-        self.bounds = bounds;
+    fn core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
@@ -286,7 +287,7 @@ impl View for StatusLine {
         if event.what == EventType::MouseDown {
             let mouse_pos = event.mouse.pos;
 
-            if event.mouse.buttons & MB_LEFT_BUTTON != 0 && mouse_pos.y == self.bounds.a.y {
+            if event.mouse.buttons & MB_LEFT_BUTTON != 0 && mouse_pos.y == self.core.bounds.a.y {
                 // Track mouse movement while button is held down
                 // Initial selection
                 let selected_item = self.item_mouse_is_in(mouse_pos.x);
@@ -321,7 +322,7 @@ impl View for StatusLine {
         // Handle mouse move to show hover effect
         if event.what == EventType::MouseMove {
             let mouse_pos = event.mouse.pos;
-            if mouse_pos.y == self.bounds.a.y {
+            if mouse_pos.y == self.core.bounds.a.y {
                 let hovered_item = self.item_mouse_is_in(mouse_pos.x);
                 if hovered_item != self.selected_item {
                     self.selected_item = hovered_item;
@@ -347,22 +348,6 @@ impl View for StatusLine {
                 }
             }
         }
-    }
-
-    fn options(&self) -> u16 {
-        self.options
-    }
-
-    fn set_options(&mut self, options: u16) {
-        self.options = options;
-    }
-
-    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
-        self.palette_chain = node;
-    }
-
-    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
-        self.palette_chain.as_ref()
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {

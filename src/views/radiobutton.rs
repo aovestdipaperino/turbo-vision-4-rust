@@ -23,10 +23,9 @@
 //   );
 
 use super::cluster::{Cluster, ClusterState};
-use super::view::View;
+use super::view::{View, ViewCore};
 use crate::core::event::Event;
 use crate::core::geometry::Rect;
-use crate::core::state::StateFlags;
 use crate::terminal::Terminal;
 
 /// RadioButton - A mutually exclusive selection control with a label
@@ -35,11 +34,9 @@ use crate::terminal::Terminal;
 /// Matches Borland: TRadioButtons (extends TCluster)
 #[derive(Debug)]
 pub struct RadioButton {
-    bounds: Rect,
+    core: ViewCore,
     label: String,
     cluster_state: ClusterState,
-    state: StateFlags,
-    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
 }
 
 impl RadioButton {
@@ -48,11 +45,14 @@ impl RadioButton {
     /// Radio buttons with the same group_id are mutually exclusive.
     pub fn new(bounds: Rect, label: &str, group_id: u16) -> Self {
         RadioButton {
-            bounds,
+            core: ViewCore {
+                bounds,
+                state: 0,
+                palette_chain: None,
+                ..ViewCore::default()
+            },
             label: label.to_string(),
             cluster_state: ClusterState::with_group(group_id),
-            state: 0,
-            palette_chain: None,
         }
     }
 
@@ -78,12 +78,12 @@ impl RadioButton {
 }
 
 impl View for RadioButton {
-    fn bounds(&self) -> Rect {
-        self.bounds
+    fn core(&self) -> &ViewCore {
+        &self.core
     }
 
-    fn set_bounds(&mut self, bounds: Rect) {
-        self.bounds = bounds;
+    fn core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
     }
 
     fn handle_event(&mut self, event: &mut Event) {
@@ -112,22 +112,6 @@ impl View for RadioButton {
 
     fn can_focus(&self) -> bool {
         true
-    }
-
-    fn state(&self) -> StateFlags {
-        self.state
-    }
-
-    fn set_state(&mut self, state: StateFlags) {
-        self.state = state;
-    }
-
-    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
-        self.palette_chain = node;
-    }
-
-    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
-        self.palette_chain.as_ref()
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {

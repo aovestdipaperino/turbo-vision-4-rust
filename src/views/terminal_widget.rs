@@ -19,12 +19,11 @@
 //! - Read-only (unlike EditorWindow)
 
 use super::scrollbar::ScrollBar;
-use super::view::{View, write_line_to_terminal};
+use super::view::{View, ViewCore, write_line_to_terminal};
 use crate::core::draw::DrawBuffer;
 use crate::core::event::{Event, EventType, KB_DOWN, KB_END, KB_HOME, KB_PGDN, KB_PGUP, KB_UP};
 use crate::core::geometry::Rect;
 use crate::core::palette::Attr;
-use crate::core::state::StateFlags;
 use crate::terminal::Terminal;
 
 /// A line of output with optional color attributes
@@ -54,8 +53,7 @@ impl OutputLine {
 /// Terminal Widget - scrolling output viewer
 /// Matches Borland: TTerminal
 pub struct TerminalWidget {
-    bounds: Rect,
-    state: StateFlags,
+    core: ViewCore,
     /// Output lines buffer
     lines: Vec<OutputLine>,
     /// Maximum number of lines to keep (scrollback buffer)
@@ -66,31 +64,33 @@ pub struct TerminalWidget {
     auto_scroll: bool,
     /// Vertical scrollbar
     v_scrollbar: Option<Box<ScrollBar>>,
-    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
 }
 
 impl TerminalWidget {
     /// Create a new terminal widget
     pub fn new(bounds: Rect) -> Self {
         Self {
-            bounds,
-            state: 0,
+            core: ViewCore {
+                bounds,
+                state: 0,
+                palette_chain: None,
+                ..ViewCore::default()
+            },
             lines: Vec::new(),
             max_lines: 10000, // Default: 10k lines scrollback
             top_line: 0,
             auto_scroll: true,
             v_scrollbar: None,
-            palette_chain: None,
         }
     }
 
     /// Create with vertical scrollbar
     pub fn with_scrollbar(mut self) -> Self {
         let v_bounds = Rect::new(
-            self.bounds.b.x - 1,
-            self.bounds.a.y,
-            self.bounds.b.x,
-            self.bounds.b.y,
+            self.core.bounds.b.x - 1,
+            self.core.bounds.a.y,
+            self.core.bounds.b.x,
+            self.core.bounds.b.y,
         );
         self.v_scrollbar = Some(Box::new(ScrollBar::new_vertical(v_bounds)));
         self
@@ -203,7 +203,7 @@ impl TerminalWidget {
 
     /// Get the number of visible rows
     fn get_visible_rows(&self) -> usize {
-        let mut height = self.bounds.height_clamped() as usize;
+        let mut height = self.core.bounds.height_clamped() as usize;
         if self.v_scrollbar.is_some() {
             // Account for scrollbar taking up space
             height = height.saturating_sub(0); // scrollbar doesn't reduce height
@@ -213,7 +213,7 @@ impl TerminalWidget {
 
     /// Get the visible width
     fn get_visible_width(&self) -> usize {
-        let mut width = self.bounds.width_clamped() as usize;
+        let mut width = self.core.bounds.width_clamped() as usize;
         if self.v_scrollbar.is_some() {
             width = width.saturating_sub(1); // scrollbar takes 1 column
         }
@@ -295,12 +295,16 @@ impl TerminalWidget {
 }
 
 impl View for TerminalWidget {
-    fn bounds(&self) -> Rect {
-        self.bounds
+    fn core(&self) -> &ViewCore {
+        &self.core
+    }
+
+    fn core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
     }
 
     fn set_bounds(&mut self, bounds: Rect) {
-        self.bounds = bounds;
+        self.core.bounds = bounds;
 
         // Update scrollbar bounds
         if self.v_scrollbar.is_some() {
@@ -345,7 +349,12 @@ impl View for TerminalWidget {
                 buf.move_char(0, ' ', default_color, visible_width);
             }
 
-            write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y + i as i16, &buf);
+            write_line_to_terminal(
+                terminal,
+                self.core.bounds.a.x,
+                self.core.bounds.a.y + i as i16,
+                &buf,
+            );
         }
 
         // Draw scrollbar if present
@@ -388,27 +397,19 @@ impl View for TerminalWidget {
                 _ => {}
             },
             EventType::MouseWheelUp => {
-                if self.bounds.contains(event.mouse.pos) {
+                if self.core.bounds.contains(event.mouse.pos) {
                     self.scroll_up();
                     event.clear();
                 }
             }
             EventType::MouseWheelDown => {
-                if self.bounds.contains(event.mouse.pos) {
+                if self.core.bounds.contains(event.mouse.pos) {
                     self.scroll_down();
                     event.clear();
                 }
             }
             _ => {}
         }
-    }
-
-    fn state(&self) -> StateFlags {
-        self.state
-    }
-
-    fn set_state(&mut self, state: StateFlags) {
-        self.state = state;
     }
 
     fn can_focus(&self) -> bool {
@@ -426,14 +427,6 @@ impl View for TerminalWidget {
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
         use crate::core::palette::{Palette, palettes};
         Some(Palette::from_slice(palettes::CP_SCROLLER))
-    }
-
-    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
-        self.palette_chain = node;
-    }
-
-    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
-        self.palette_chain.as_ref()
     }
 }
 

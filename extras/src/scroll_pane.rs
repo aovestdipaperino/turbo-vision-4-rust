@@ -4,11 +4,10 @@
 
 use turbo_vision::core::event::{Event, EventType, MB_LEFT_BUTTON};
 use turbo_vision::core::geometry::Rect;
-use turbo_vision::core::state::StateFlags;
 use turbo_vision::terminal::Terminal;
-use turbo_vision::views::View;
 use turbo_vision::views::group::Group;
 use turbo_vision::views::view::ViewId;
+use turbo_vision::views::{View, ViewCore};
 
 /// Ctrl+Up / Ctrl+Down scroll the pane a row at a time.
 const KB_CTRL_UP: u16 = 0x8D00;
@@ -34,7 +33,7 @@ const KB_CTRL_DOWN: u16 = 0x9100;
 /// assert_eq!(pane.scroll_offset(), 0);
 /// ```
 pub struct ScrollPane {
-    bounds: Rect,
+    core: ViewCore,
     /// Virtual height in rows (>= visible height).
     virtual_height: i16,
     /// Current vertical scroll offset in rows.
@@ -42,14 +41,13 @@ pub struct ScrollPane {
     group: Group,
     /// Virtual (unscrolled) bounds per child, parallel to the group.
     virtual_bounds: Vec<Rect>,
-    state: StateFlags,
     palette_chain: Option<turbo_vision::core::palette_chain::PaletteChainNode>,
 }
 
 impl std::fmt::Debug for ScrollPane {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ScrollPane")
-            .field("bounds", &self.bounds)
+            .field("bounds", &self.core.bounds)
             .field("virtual_height", &self.virtual_height)
             .field("offset", &self.offset)
             .field("children", &self.group.len())
@@ -61,12 +59,15 @@ impl ScrollPane {
     /// Create a pane whose virtual area is `virtual_height` rows tall.
     pub fn new(bounds: Rect, virtual_height: i16) -> Self {
         Self {
-            bounds,
+            core: ViewCore {
+                bounds,
+                state: 0,
+                ..ViewCore::default()
+            },
             virtual_height: virtual_height.max(bounds.height()),
             offset: 0,
             group: Group::new(bounds),
             virtual_bounds: Vec::new(),
-            state: 0,
             palette_chain: None,
         }
     }
@@ -93,7 +94,7 @@ impl ScrollPane {
 
     /// Maximum scroll offset.
     fn max_offset(&self) -> i16 {
-        (self.virtual_height - self.bounds.height()).max(0)
+        (self.virtual_height - self.core.bounds.height()).max(0)
     }
 
     /// Scroll to an absolute offset, repositioning every child.
@@ -126,10 +127,10 @@ impl ScrollPane {
             return;
         };
         let b = focused.bounds();
-        if b.a.y < self.bounds.a.y {
-            self.scroll_by(b.a.y - self.bounds.a.y);
-        } else if b.b.y > self.bounds.b.y {
-            self.scroll_by(b.b.y - self.bounds.b.y);
+        if b.a.y < self.core.bounds.a.y {
+            self.scroll_by(b.a.y - self.core.bounds.a.y);
+        } else if b.b.y > self.core.bounds.b.y {
+            self.scroll_by(b.b.y - self.core.bounds.b.y);
         }
     }
 
@@ -145,18 +146,22 @@ impl ScrollPane {
 }
 
 impl View for ScrollPane {
-    fn bounds(&self) -> Rect {
-        self.bounds
+    fn core(&self) -> &ViewCore {
+        &self.core
+    }
+
+    fn core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
     }
 
     fn set_bounds(&mut self, bounds: Rect) {
-        self.bounds = bounds;
+        self.core.bounds = bounds;
         self.group.set_bounds(bounds);
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
         // Clip so partially scrolled-out children don't paint outside
-        terminal.push_clip(self.bounds);
+        terminal.push_clip(self.core.bounds);
         self.group.draw(terminal);
         terminal.pop_clip();
     }
@@ -189,7 +194,7 @@ impl View for ScrollPane {
             EventType::MouseDown => {
                 // Clicks outside the visible pane never reach hidden children
                 if event.mouse.buttons & MB_LEFT_BUTTON != 0
-                    && !self.bounds.contains(event.mouse.pos)
+                    && !self.core.bounds.contains(event.mouse.pos)
                 {
                     return;
                 }
@@ -219,19 +224,11 @@ impl View for ScrollPane {
         }
     }
 
-    fn state(&self) -> StateFlags {
-        self.state
-    }
-
-    fn set_state(&mut self, state: StateFlags) {
-        self.state = state;
-    }
-
     fn update_cursor(&self, terminal: &mut Terminal) {
         if let Some(focused) = self.group.focused_child() {
             // Only show the cursor for controls scrolled into view
             let b = focused.bounds();
-            if b.a.y >= self.bounds.a.y && b.b.y <= self.bounds.b.y {
+            if b.a.y >= self.core.bounds.a.y && b.b.y <= self.core.bounds.b.y {
                 focused.update_cursor(terminal);
             }
         }

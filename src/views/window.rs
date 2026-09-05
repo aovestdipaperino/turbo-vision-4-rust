@@ -4,22 +4,20 @@
 
 use super::frame::Frame;
 use super::group::Group;
-use super::view::{View, ViewId};
+use super::view::{View, ViewCore, ViewId};
 use crate::core::command::{CM_CANCEL, CM_CLOSE};
 use crate::core::event::{Event, EventType};
 use crate::core::geometry::{Point, Rect};
-use crate::core::state::{SF_DRAGGING, SF_MODAL, SF_RESIZING, SF_SHADOW, StateFlags, shadow_size};
+use crate::core::state::{SF_DRAGGING, SF_MODAL, SF_RESIZING, SF_SHADOW, shadow_size};
 use crate::terminal::Terminal;
 
 pub struct Window {
-    bounds: Rect,
+    core: ViewCore,
     frame: Frame,
     interior: Group,
     /// Direct children of window (positioned relative to window frame, not interior)
     /// Used for scrollbars and other frame-relative elements
     frame_children: Vec<Box<dyn View>>,
-    state: StateFlags,
-    options: u16,
     /// Drag start position (relative to mouse when drag started)
     drag_offset: Option<Point>,
     /// Resize start size (size when resize drag started)
@@ -37,8 +35,6 @@ pub struct Window {
     /// Previous bounds (for calculating union rect for redrawing)
     /// Matches Borland: TView::locate() calculates union of old and new bounds
     prev_bounds: Option<Rect>,
-    /// Owner (parent) view - Borland: TView::owner
-    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
     /// Palette type (Dialog vs EditorWindow window)
     palette_type: WindowPaletteType,
     /// Custom palette override — applied to both Window and Frame.
@@ -54,25 +50,6 @@ pub struct Window {
     /// bubbles up uncleared and the owner is responsible for both the
     /// validation and the eventual `set_state(SF_CLOSED)`.
     auto_close: bool,
-    /// Grow mode flags (Borland: `TWindow::growMode`), controlling how this
-    /// window's bounds move when its owner (the Desktop) is resized.
-    ///
-    /// Borland's `TWindow` constructor sets `growMode = gfGrowAll`, but this
-    /// crate's resize cascade (`Group::set_bounds`) gives `gfGrowAll`
-    /// (all four `GF_GROW_*` bits) a literal "translate by the full size
-    /// delta, keep the same size" meaning — see the `gfGrowAll` case in
-    /// `Group`'s own `test_grow_modes_on_resize` — which is right for a
-    /// widget pinned to the far corner (e.g. a resize handle) but does
-    /// nothing to fix a full-size window being clipped at the new screen
-    /// edge; it would just slide the window away from the corner it was
-    /// already filling. The default here is deliberately
-    /// `GF_GROW_HI_X | GF_GROW_HI_Y` instead: the window's top-left corner
-    /// stays put and its bottom-right edge follows the desktop's growth,
-    /// i.e. the window actually stretches to fill the new space, which is
-    /// the resizing behaviour the bug report asked for. Use
-    /// `set_grow_mode()` to opt out (e.g. `0` for a fixed window, or
-    /// `GF_GROW_ALL` for corner-tracking).
-    grow_mode: crate::core::state::GrowFlags,
 }
 
 #[derive(Clone, Copy)]
@@ -152,12 +129,34 @@ impl Window {
         let interior = Group::new(interior_bounds);
 
         let window = Self {
-            bounds,
+            core: ViewCore {
+                bounds,
+                state: SF_SHADOW, // Windows have shadows by default
+                options: OF_SELECTABLE | OF_TOP_SELECT | OF_TILEABLE, // Matches Borland: TWindow/TEditWindow flags
+                palette_chain: None,
+                // Grow mode flags (Borland: `TWindow::growMode`), controlling how this
+                // window's bounds move when its owner (the Desktop) is resized.
+                //
+                // Borland's `TWindow` constructor sets `growMode = gfGrowAll`, but this
+                // crate's resize cascade (`Group::set_bounds`) gives `gfGrowAll`
+                // (all four `GF_GROW_*` bits) a literal "translate by the full size
+                // delta, keep the same size" meaning — see the `gfGrowAll` case in
+                // `Group`'s own `test_grow_modes_on_resize` — which is right for a
+                // widget pinned to the far corner (e.g. a resize handle) but does
+                // nothing to fix a full-size window being clipped at the new screen
+                // edge; it would just slide the window away from the corner it was
+                // already filling. The default here is deliberately
+                // `GF_GROW_HI_X | GF_GROW_HI_Y` instead: the window's top-left corner
+                // stays put and its bottom-right edge follows the desktop's growth,
+                // i.e. the window actually stretches to fill the new space, which is
+                // the resizing behaviour the bug report asked for. Use
+                // `set_grow_mode()` to opt out (e.g. `0` for a fixed window, or
+                // `GF_GROW_ALL` for corner-tracking).
+                grow_mode: crate::core::state::GF_GROW_HI_X | crate::core::state::GF_GROW_HI_Y,
+            },
             frame,
             interior,
             frame_children: Vec::new(),
-            state: SF_SHADOW, // Windows have shadows by default
-            options: OF_SELECTABLE | OF_TOP_SELECT | OF_TILEABLE, // Matches Borland: TWindow/TEditWindow flags
             drag_offset: None,
             resize_start_size: None,
             min_size: Point::new(16, 6),
@@ -165,12 +164,10 @@ impl Window {
             keyboard_resize_saved: None, // Minimum size: 16 wide, 6 tall (matches Borland's minWinSize)
             zoom_rect: bounds,           // Initialize to current bounds
             prev_bounds: None,
-            palette_chain: None,
             palette_type: window_palette,
             custom_palette: None,
             explicit_drag_limits: None,
             auto_close: true,
-            grow_mode: crate::core::state::GF_GROW_HI_X | crate::core::state::GF_GROW_HI_Y,
         };
 
         window
@@ -197,10 +194,10 @@ impl Window {
         // Palette chain is set up during draw
         let child_bounds = view.bounds();
         let absolute_bounds = Rect::new(
-            self.bounds.a.x + child_bounds.a.x,
-            self.bounds.a.y + child_bounds.a.y,
-            self.bounds.a.x + child_bounds.b.x,
-            self.bounds.a.y + child_bounds.b.y,
+            self.core.bounds.a.x + child_bounds.a.x,
+            self.core.bounds.a.y + child_bounds.a.y,
+            self.core.bounds.a.x + child_bounds.b.x,
+            self.core.bounds.a.y + child_bounds.b.y,
         );
         view.set_bounds(absolute_bounds);
 
@@ -308,18 +305,18 @@ impl Window {
     /// Matches Borland: TView position is constrained during locate()
     pub fn constrain_to_limits(&mut self) {
         let limits = self.get_drag_limits();
-        let width = self.bounds.width();
-        let height = self.bounds.height();
+        let width = self.core.bounds.width();
+        let height = self.core.bounds.height();
 
         // Account for shadow when constraining edges
-        let (shadow_x, shadow_y) = if (self.state & SF_SHADOW) != 0 {
+        let (shadow_x, shadow_y) = if (self.core.state & SF_SHADOW) != 0 {
             shadow_size()
         } else {
             (0, 0)
         };
 
-        let mut new_x = self.bounds.a.x;
-        let mut new_y = self.bounds.a.y;
+        let mut new_x = self.core.bounds.a.x;
+        let mut new_y = self.core.bounds.a.y;
 
         // Apply all drag mode constraints
         // dmLimitLoX: keep left edge within bounds
@@ -335,12 +332,12 @@ impl Window {
         new_y = new_y.min(limits.b.y - height - shadow_y);
 
         // Update bounds if position changed
-        if new_x != self.bounds.a.x || new_y != self.bounds.a.y {
-            self.bounds = Rect::new(new_x, new_y, new_x + width, new_y + height);
+        if new_x != self.core.bounds.a.x || new_y != self.core.bounds.a.y {
+            self.core.bounds = Rect::new(new_x, new_y, new_x + width, new_y + height);
 
             // Update frame and interior bounds
-            self.frame.set_bounds(self.bounds);
-            let mut interior_bounds = self.bounds;
+            self.frame.set_bounds(self.core.bounds);
+            let mut interior_bounds = self.core.bounds;
             interior_bounds.grow(-1, -1);
             self.interior.set_bounds(interior_bounds);
         }
@@ -401,7 +398,7 @@ impl Window {
     pub fn get_redraw_union(&self) -> Option<Rect> {
         self.prev_bounds.map(|prev| {
             // Union of old and new bounds, including shadows
-            let mut union = prev.union(&self.bounds);
+            let mut union = prev.union(&self.core.bounds);
 
             // Expand by shadow_size on right and bottom for shadow
             // Matches Borland: TView::shadowSize
@@ -468,12 +465,16 @@ impl Window {
 }
 
 impl View for Window {
-    fn bounds(&self) -> Rect {
-        self.bounds
+    fn core(&self) -> &ViewCore {
+        &self.core
+    }
+
+    fn core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
     }
 
     fn set_bounds(&mut self, bounds: Rect) {
-        self.bounds = bounds;
+        self.core.bounds = bounds;
         self.frame.set_bounds(bounds);
 
         // Update interior bounds (absolute, inset by 1 for frame)
@@ -486,20 +487,12 @@ impl View for Window {
         // because scrollbars need to be repositioned based on new window SIZE, not just offset
     }
 
-    fn grow_mode(&self) -> crate::core::state::GrowFlags {
-        self.grow_mode
-    }
-
-    fn set_grow_mode(&mut self, grow_mode: crate::core::state::GrowFlags) {
-        self.grow_mode = grow_mode;
-    }
-
     fn draw(&mut self, terminal: &mut Terminal) {
         // Build Window's palette chain node for safe palette traversal.
         // Window is a palette-bearing node (CP_BLUE_WINDOW, CP_GRAY_DIALOG, etc.)
         let my_chain_node = crate::core::palette_chain::PaletteChainNode::new(
             self.get_palette(),
-            self.palette_chain.clone(),
+            self.core.palette_chain.clone(),
         );
 
         self.frame.set_palette_chain(Some(my_chain_node.clone()));
@@ -531,9 +524,9 @@ impl View for Window {
         // confirms, Esc restores the saved bounds)
         if event.what == EventType::Command
             && event.command == crate::core::command::CM_RESIZE
-            && (self.state & crate::core::state::SF_ACTIVE) != 0
+            && (self.core.state & crate::core::state::SF_ACTIVE) != 0
         {
-            self.keyboard_resize_saved = Some(self.bounds);
+            self.keyboard_resize_saved = Some(self.core.bounds);
             event.clear();
             return;
         }
@@ -564,7 +557,7 @@ impl View for Window {
                     }
                     _ => return, // swallow nothing else; stay in mode
                 }
-                let mut b = self.bounds;
+                let mut b = self.core.bounds;
                 if shift {
                     // Resize the bottom-right corner, respecting min size
                     b.b.x = (b.b.x + dx).max(b.a.x + self.min_size.x);
@@ -593,10 +586,10 @@ impl View for Window {
             if event.what == EventType::MouseDown || event.what == EventType::MouseMove {
                 let mouse_pos = event.mouse.pos;
                 self.drag_offset = Some(Point::new(
-                    mouse_pos.x - self.bounds.a.x,
-                    mouse_pos.y - self.bounds.a.y,
+                    mouse_pos.x - self.core.bounds.a.x,
+                    mouse_pos.y - self.core.bounds.a.y,
                 ));
-                self.state |= SF_DRAGGING;
+                self.core.state |= SF_DRAGGING;
                 event.clear(); // Mark event as handled
                 return;
             }
@@ -609,10 +602,10 @@ impl View for Window {
                 // Calculate offset from bottom-right corner
                 // Borland: p = size - event.mouse.where (tview.cc:235)
                 self.resize_start_size = Some(Point::new(
-                    self.bounds.b.x - mouse_pos.x,
-                    self.bounds.b.y - mouse_pos.y,
+                    self.core.bounds.b.x - mouse_pos.x,
+                    self.core.bounds.b.y - mouse_pos.y,
                 ));
-                self.state |= SF_RESIZING;
+                self.core.state |= SF_RESIZING;
                 event.clear(); // Mark event as handled
                 return;
             }
@@ -631,11 +624,11 @@ impl View for Window {
                 // Get drag limits from owner (parent bounds)
                 // Matches Borland: TView::moveGrow() constrains position to limits
                 let limits = self.get_drag_limits();
-                let width = self.bounds.width();
-                let height = self.bounds.height();
+                let width = self.core.bounds.width();
+                let height = self.core.bounds.height();
 
                 // Account for shadow when constraining edges
-                let (shadow_x, shadow_y) = if (self.state & SF_SHADOW) != 0 {
+                let (shadow_x, shadow_y) = if (self.core.state & SF_SHADOW) != 0 {
                     shadow_size()
                 } else {
                     (0, 0)
@@ -657,14 +650,14 @@ impl View for Window {
                 new_y = new_y.min(limits.b.y - height - shadow_y);
 
                 // Save previous bounds for union rect calculation (Borland's locate pattern)
-                self.prev_bounds = Some(self.bounds);
+                self.prev_bounds = Some(self.core.bounds);
 
                 // Update bounds (maintaining size)
-                self.bounds = Rect::new(new_x, new_y, new_x + width, new_y + height);
+                self.core.bounds = Rect::new(new_x, new_y, new_x + width, new_y + height);
 
                 // Update frame and interior bounds
-                self.frame.set_bounds(self.bounds);
-                let mut interior_bounds = self.bounds;
+                self.frame.set_bounds(self.core.bounds);
+                let mut interior_bounds = self.core.bounds;
                 interior_bounds.grow(-1, -1);
                 self.interior.set_bounds(interior_bounds);
 
@@ -681,8 +674,8 @@ impl View for Window {
 
                 // Calculate new size (Borland: event.mouse.where += p, then use as size)
                 // Ensure positive before casting to u16 to avoid wraparound
-                let new_width = (mouse_pos.x + offset.x - self.bounds.a.x).max(0) as u16;
-                let new_height = (mouse_pos.y + offset.y - self.bounds.a.y).max(0) as u16;
+                let new_width = (mouse_pos.x + offset.x - self.core.bounds.a.x).max(0) as u16;
+                let new_height = (mouse_pos.y + offset.y - self.core.bounds.a.y).max(0) as u16;
 
                 // Apply size constraints (Borland: sizeLimits)
                 let (min, max) = self.size_limits();
@@ -692,21 +685,21 @@ impl View for Window {
                 // Constrain size to not exceed parent bounds
                 // Borland: TView::moveGrow() constrains both position and size to limits
                 let limits = self.get_drag_limits();
-                let max_width = (limits.b.x - self.bounds.a.x).max(0) as u16;
-                let max_height = (limits.b.y - self.bounds.a.y).max(0) as u16;
+                let max_width = (limits.b.x - self.core.bounds.a.x).max(0) as u16;
+                let max_height = (limits.b.y - self.core.bounds.a.y).max(0) as u16;
                 final_width = final_width.min(max_width);
                 final_height = final_height.min(max_height);
 
                 // Save previous bounds for union rect calculation
-                self.prev_bounds = Some(self.bounds);
+                self.prev_bounds = Some(self.core.bounds);
 
                 // Update bounds (maintaining position, changing size)
-                self.bounds.b.x = self.bounds.a.x + final_width as i16;
-                self.bounds.b.y = self.bounds.a.y + final_height as i16;
+                self.core.bounds.b.x = self.core.bounds.a.x + final_width as i16;
+                self.core.bounds.b.y = self.core.bounds.a.y + final_height as i16;
 
                 // Update frame and interior bounds
-                self.frame.set_bounds(self.bounds);
-                let mut interior_bounds = self.bounds;
+                self.frame.set_bounds(self.core.bounds);
+                let mut interior_bounds = self.core.bounds;
                 interior_bounds.grow(-1, -1);
                 self.interior.set_bounds(interior_bounds);
 
@@ -718,13 +711,13 @@ impl View for Window {
         // Check if frame ended dragging
         if !frame_dragging && self.drag_offset.is_some() {
             self.drag_offset = None;
-            self.state &= !SF_DRAGGING;
+            self.core.state &= !SF_DRAGGING;
         }
 
         // Check if frame ended resizing
         if !frame_resizing && self.resize_start_size.is_some() {
             self.resize_start_size = None;
-            self.state &= !SF_RESIZING;
+            self.core.state &= !SF_RESIZING;
         }
 
         // Handle ESC key for modal windows
@@ -733,7 +726,7 @@ impl View for Window {
             let is_esc = event.key_code == crate::core::event::KB_ESC;
             let is_esc_esc = event.key_code == crate::core::event::KB_ESC_ESC;
 
-            if (is_esc || is_esc_esc) && (self.state & SF_MODAL) != 0 {
+            if (is_esc || is_esc_esc) && (self.core.state & SF_MODAL) != 0 {
                 // Modal window: ESC ends the modal loop with CM_CANCEL
                 self.end_modal(CM_CANCEL);
                 event.clear();
@@ -744,7 +737,7 @@ impl View for Window {
         // Handle CM_CLOSE command (Borland: twindow.cc TWindow::handleEvent ~118-132)
         // Frame generates CM_CLOSE on close-button MouseUp.
         if event.what == EventType::Command && event.command == CM_CLOSE {
-            if (self.state & SF_MODAL) != 0 {
+            if (self.core.state & SF_MODAL) != 0 {
                 // Modal: end_modal with CM_CANCEL (Borland converts cmClose → cmCancel)
                 self.end_modal(CM_CANCEL);
                 event.clear();
@@ -757,7 +750,7 @@ impl View for Window {
                 // SF_CLOSED is gated on validation.
                 use crate::core::state::SF_CLOSED;
                 if self.valid(CM_CLOSE) {
-                    self.state |= SF_CLOSED;
+                    self.core.state |= SF_CLOSED;
                 }
                 event.clear();
             } else {
@@ -794,22 +787,6 @@ impl View for Window {
         }
     }
 
-    fn state(&self) -> StateFlags {
-        self.state
-    }
-
-    fn set_state(&mut self, state: StateFlags) {
-        self.state = state;
-    }
-
-    fn options(&self) -> u16 {
-        self.options
-    }
-
-    fn set_options(&mut self, options: u16) {
-        self.options = options;
-    }
-
     fn window_number(&self) -> Option<u8> {
         self.number
     }
@@ -827,31 +804,31 @@ impl View for Window {
     /// In Borland, this is called by owner in response to cmZoom command
     fn zoom(&mut self, max_bounds: Rect) {
         let (_min, _max_size) = self.size_limits();
-        let current_size = Point::new(self.bounds.width(), self.bounds.height());
+        let current_size = Point::new(self.core.bounds.width(), self.core.bounds.height());
 
         // If not at max size, zoom to max
         if current_size.x != max_bounds.width() || current_size.y != max_bounds.height() {
             // Save current bounds for restore
-            self.zoom_rect = self.bounds;
+            self.zoom_rect = self.core.bounds;
 
             // Save previous bounds for redraw union
-            self.prev_bounds = Some(self.bounds);
+            self.prev_bounds = Some(self.core.bounds);
 
             // Zoom to max size (typically desktop bounds)
-            self.bounds = max_bounds;
+            self.core.bounds = max_bounds;
         } else {
             // Restore to saved bounds
-            self.prev_bounds = Some(self.bounds);
-            self.bounds = self.zoom_rect;
+            self.prev_bounds = Some(self.core.bounds);
+            self.core.bounds = self.zoom_rect;
         }
 
         // Update frame and interior
-        self.frame.set_bounds(self.bounds);
+        self.frame.set_bounds(self.core.bounds);
         // The frame draws a different zoom glyph once the window is zoomed:
         // an up arrow while it can still grow, both ways once it can only be
         // restored.
-        self.frame.set_zoomed(self.bounds == max_bounds);
-        let mut interior_bounds = self.bounds;
+        self.frame.set_zoomed(self.core.bounds == max_bounds);
+        let mut interior_bounds = self.core.bounds;
         interior_bounds.grow(-1, -1);
         self.interior.set_bounds(interior_bounds);
     }
@@ -865,14 +842,6 @@ impl View for Window {
 
     fn set_parent_bounds(&mut self, bounds: crate::core::geometry::Rect) {
         self.explicit_drag_limits = Some(bounds);
-    }
-
-    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
-        self.palette_chain = node;
-    }
-
-    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
-        self.palette_chain.as_ref()
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
@@ -953,7 +922,7 @@ impl WindowBuilder {
             title: None,
             resizable: true, // Default to resizable (matches Borland TWindow with wfGrow)
             palette_type: WindowPaletteType::Blue,
-            // Deliberately not gfGrowAll — see the field doc on Window::grow_mode.
+            // Deliberately not gfGrowAll — see the comment in Window::new_with_palette.
             grow_mode: crate::core::state::GF_GROW_HI_X | crate::core::state::GF_GROW_HI_Y,
         }
     }
@@ -992,7 +961,7 @@ impl WindowBuilder {
     /// `GF_GROW_HI_X | GF_GROW_HI_Y`, so the window stretches to fill new
     /// desktop space rather than translating like Borland's literal
     /// `gfGrowAll`). Controls how the window's bounds move when its owner
-    /// (the Desktop) is resized; see `Window::grow_mode`'s field doc and
+    /// (the Desktop) is resized; see the comment in `Window::new_with_palette` and
     /// `View::grow_mode`.
     #[must_use]
     pub fn grow_mode(mut self, grow_mode: crate::core::state::GrowFlags) -> Self {
@@ -1090,15 +1059,17 @@ mod tests {
 
         // A child view whose valid() vetoes the close
         struct Vetoer {
-            bounds: Rect,
+            core: ViewCore,
         }
         impl View for Vetoer {
-            fn bounds(&self) -> Rect {
-                self.bounds
+            fn core(&self) -> &ViewCore {
+                &self.core
             }
-            fn set_bounds(&mut self, bounds: Rect) {
-                self.bounds = bounds;
+
+            fn core_mut(&mut self) -> &mut ViewCore {
+                &mut self.core
             }
+
             fn draw(&mut self, _terminal: &mut crate::terminal::Terminal) {}
             fn handle_event(&mut self, _event: &mut Event) {}
             fn valid(&mut self, _command: crate::core::command::CommandId) -> bool {
@@ -1112,7 +1083,7 @@ mod tests {
         // Window with a vetoing child: CM_CLOSE must NOT mark it closed
         let mut window = Window::new(Rect::new(0, 0, 40, 15), "Test");
         window.add(Box::new(Vetoer {
-            bounds: Rect::new(0, 0, 5, 1),
+            core: ViewCore::new(Rect::new(0, 0, 5, 1)),
         }));
         let mut event = Event::command(CM_CLOSE);
         window.handle_event(&mut event);

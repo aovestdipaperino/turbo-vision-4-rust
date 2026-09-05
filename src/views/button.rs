@@ -2,7 +2,7 @@
 
 //! Button view - clickable button with keyboard shortcuts and command dispatch.
 
-use super::view::{View, write_line_to_terminal};
+use super::view::{View, ViewCore, write_line_to_terminal};
 use crate::core::command::CommandId;
 use crate::core::draw::DrawBuffer;
 use crate::core::event::{Event, EventType, KB_ENTER, MB_LEFT_BUTTON};
@@ -10,11 +10,11 @@ use crate::core::geometry::Rect;
 use crate::core::palette::{
     BUTTON_DEFAULT, BUTTON_DISABLED, BUTTON_NORMAL, BUTTON_SELECTED, BUTTON_SHADOW, BUTTON_SHORTCUT,
 };
-use crate::core::state::{SF_DISABLED, SHADOW_BOTTOM, SHADOW_SOLID, SHADOW_TOP, StateFlags};
+use crate::core::state::{SF_DISABLED, SHADOW_BOTTOM, SHADOW_SOLID, SHADOW_TOP};
 use crate::terminal::Terminal;
 
 pub struct Button {
-    bounds: Rect,
+    core: ViewCore,
     title: String,
     command: CommandId,
     is_default: bool,
@@ -27,9 +27,6 @@ pub struct Button {
     /// Whether a MouseDown was armed inside this button (fires on MouseUp).
     pressed: bool,
     is_broadcast: bool,
-    state: StateFlags,
-    options: u16,
-    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
 }
 
 impl Button {
@@ -45,16 +42,19 @@ impl Button {
         }
 
         Self {
-            bounds,
+            core: ViewCore {
+                bounds,
+                state,
+                options: OF_POST_PROCESS, // Buttons process in post-process phase
+                palette_chain: None,
+                ..ViewCore::default()
+            },
             title: title.to_string(),
             command,
             is_default,
             am_default: is_default,
             pressed: false,
             is_broadcast: false,
-            state,
-            options: OF_POST_PROCESS, // Buttons process in post-process phase
-            palette_chain: None,
         }
     }
 
@@ -77,9 +77,9 @@ impl Button {
     pub fn set_selectable(&mut self, selectable: bool) {
         use crate::core::state::OF_SELECTABLE;
         if selectable {
-            self.options |= OF_SELECTABLE;
+            self.core.options |= OF_SELECTABLE;
         } else {
-            self.options &= !OF_SELECTABLE;
+            self.core.options &= !OF_SELECTABLE;
         }
     }
 
@@ -102,25 +102,25 @@ impl Button {
     ///
     /// Excludes the shadow row/column at the bottom/right of the bounds.
     fn mouse_in_button(&self, pos: crate::core::geometry::Point) -> bool {
-        pos.x >= self.bounds.a.x
-            && pos.x < self.bounds.b.x
-            && pos.y >= self.bounds.a.y
-            && pos.y < self.bounds.b.y - 1
+        pos.x >= self.core.bounds.a.x
+            && pos.x < self.core.bounds.b.x
+            && pos.y >= self.core.bounds.a.y
+            && pos.y < self.core.bounds.b.y - 1
     }
 }
 
 impl View for Button {
-    fn bounds(&self) -> Rect {
-        self.bounds
+    fn core(&self) -> &ViewCore {
+        &self.core
     }
 
-    fn set_bounds(&mut self, bounds: Rect) {
-        self.bounds = bounds;
+    fn core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        let width = self.bounds.width_clamped() as usize;
-        let height = self.bounds.height_clamped() as usize;
+        let width = self.core.bounds.width_clamped() as usize;
+        let height = self.core.bounds.height_clamped() as usize;
 
         // Don't render buttons that are too small
         // Minimum width: 4 (at least 2 chars for content + 1 for right shadow + 1 for spacing)
@@ -191,7 +191,12 @@ impl View for Button {
                 buf.move_str_with_shortcut(start, &self.title, button_attr, shortcut_attr);
             }
 
-            write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y + y as i16, &buf);
+            write_line_to_terminal(
+                terminal,
+                self.core.bounds.a.x,
+                self.core.bounds.a.y + y as i16,
+                &buf,
+            );
         }
 
         // Draw bottom shadow line (1 char shorter, offset 1 to the right)
@@ -200,8 +205,8 @@ impl View for Button {
         bottom_buf.move_char(0, SHADOW_BOTTOM, shadow_attr, width - 1);
         write_line_to_terminal(
             terminal,
-            self.bounds.a.x + 1,
-            self.bounds.a.y + (height - 1) as i16,
+            self.core.bounds.a.x + 1,
+            self.core.bounds.a.y + (height - 1) as i16,
             &bottom_buf,
         );
     }
@@ -347,36 +352,12 @@ impl View for Button {
         }
     }
 
-    fn state(&self) -> StateFlags {
-        self.state
-    }
-
-    fn set_state(&mut self, state: StateFlags) {
-        self.state = state;
-    }
-
-    fn options(&self) -> u16 {
-        self.options
-    }
-
-    fn set_options(&mut self, options: u16) {
-        self.options = options;
-    }
-
     fn is_default_button(&self) -> bool {
         self.is_default
     }
 
     fn button_command(&self) -> Option<u16> {
         Some(self.command)
-    }
-
-    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
-        self.palette_chain = node;
-    }
-
-    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
-        self.palette_chain.as_ref()
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {

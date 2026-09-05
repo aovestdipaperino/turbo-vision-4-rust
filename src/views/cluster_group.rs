@@ -38,7 +38,7 @@
 //! assert_eq!(boxes.value(), 0b101);
 //! ```
 
-use super::view::{View, write_line_to_terminal};
+use super::view::{View, ViewCore, write_line_to_terminal};
 use crate::core::command::CommandId;
 use crate::core::draw::DrawBuffer;
 use crate::core::event::{Event, EventType, KB_DOWN, KB_END, KB_HOME, KB_UP, MB_LEFT_BUTTON};
@@ -116,7 +116,7 @@ enum Kind {
 
 /// The machinery shared by [`CheckBoxes`] and [`RadioButtons`].
 struct ClusterGroup {
-    bounds: Rect,
+    core: ViewCore,
     kind: Kind,
     items: Vec<Item>,
     /// One bit per item. A radio cluster keeps exactly one bit set.
@@ -126,20 +126,22 @@ struct ClusterGroup {
     /// Command broadcast when the value changes. Zero means none.
     on_change: CommandId,
     view_state: StateFlags,
-    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
 }
 
 impl ClusterGroup {
     fn new(bounds: Rect, kind: Kind, labels: Vec<String>) -> Self {
         let mut group = Self {
-            bounds,
+            core: ViewCore {
+                bounds,
+                palette_chain: None,
+                ..ViewCore::default()
+            },
             kind,
             items: Vec::new(),
             value: 0,
             focused_item: 0,
             on_change: 0,
             view_state: 0,
-            palette_chain: None,
         };
         group.set_labels(labels);
         if kind == Kind::Radio && !group.items.is_empty() {
@@ -229,10 +231,10 @@ impl ClusterGroup {
 
     /// Item under a screen point, if the point is on one.
     fn item_at(&self, pos: Point) -> Option<usize> {
-        if !self.bounds.contains(pos) {
+        if !self.core.bounds.contains(pos) {
             return None;
         }
-        let row = (pos.y - self.bounds.a.y) as usize;
+        let row = (pos.y - self.core.bounds.a.y) as usize;
         (row < self.items.len()).then_some(row)
     }
 
@@ -251,8 +253,8 @@ impl ClusterGroup {
     }
 
     fn draw_group(&mut self, terminal: &mut Terminal) {
-        let width = self.bounds.width_clamped().max(0) as usize;
-        let height = self.bounds.height_clamped().max(0) as usize;
+        let width = self.core.bounds.width_clamped().max(0) as usize;
+        let height = self.core.bounds.height_clamped().max(0) as usize;
         if width == 0 || height == 0 {
             return;
         }
@@ -297,8 +299,8 @@ impl ClusterGroup {
 
             write_line_to_terminal(
                 terminal,
-                self.bounds.a.x,
-                self.bounds.a.y + row as i16,
+                self.core.bounds.a.x,
+                self.core.bounds.a.y + row as i16,
                 &buf,
             );
         }
@@ -365,12 +367,12 @@ impl ClusterGroup {
 }
 
 impl View for ClusterGroup {
-    fn bounds(&self) -> Rect {
-        self.bounds
+    fn core(&self) -> &ViewCore {
+        &self.core
     }
 
-    fn set_bounds(&mut self, bounds: Rect) {
-        self.bounds = bounds;
+    fn core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
     }
 
     fn can_focus(&self) -> bool {
@@ -391,14 +393,6 @@ impl View for ClusterGroup {
 
     fn handle_event(&mut self, event: &mut Event) {
         self.handle(event);
-    }
-
-    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
-        self.palette_chain = node;
-    }
-
-    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
-        self.palette_chain.as_ref()
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
@@ -482,16 +476,12 @@ macro_rules! cluster_control {
         }
 
         impl View for $name {
-            fn bounds(&self) -> Rect {
-                self.inner.bounds()
+            fn core(&self) -> &ViewCore {
+                self.inner.core()
             }
 
-            fn set_bounds(&mut self, bounds: Rect) {
-                self.inner.set_bounds(bounds);
-            }
-
-            fn can_focus(&self) -> bool {
-                true
+            fn core_mut(&mut self) -> &mut ViewCore {
+                self.inner.core_mut()
             }
 
             fn state(&self) -> StateFlags {
@@ -499,7 +489,12 @@ macro_rules! cluster_control {
             }
 
             fn set_state(&mut self, state: StateFlags) {
+                // `ClusterGroup::set_state` has focus bookkeeping the default skips.
                 self.inner.set_state(state);
+            }
+
+            fn can_focus(&self) -> bool {
+                true
             }
 
             fn draw(&mut self, terminal: &mut Terminal) {
@@ -515,10 +510,6 @@ macro_rules! cluster_control {
                 node: Option<crate::core::palette_chain::PaletteChainNode>,
             ) {
                 self.inner.set_palette_chain(node);
-            }
-
-            fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
-                self.inner.get_palette_chain()
             }
 
             fn get_palette(&self) -> Option<crate::core::palette::Palette> {

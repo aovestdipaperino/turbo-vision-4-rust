@@ -91,12 +91,24 @@ fn attr_to_sgr(attr: Attr) -> String {
         "\x1b[0;38;2;{};{};{};48;2;{};{};{}",
         fg_r, fg_g, fg_b, bg_r, bg_g, bg_b
     );
-    if attr.style.contains(Style::BOLD) { s.push_str(";1"); }
-    if attr.style.contains(Style::DIM) { s.push_str(";2"); }
-    if attr.style.contains(Style::ITALIC) { s.push_str(";3"); }
-    if attr.style.contains(Style::UNDERLINE) { s.push_str(";4"); }
-    if attr.style.contains(Style::REVERSE) { s.push_str(";7"); }
-    if attr.style.contains(Style::STRIKETHROUGH) { s.push_str(";9"); }
+    if attr.style.contains(Style::BOLD) {
+        s.push_str(";1");
+    }
+    if attr.style.contains(Style::DIM) {
+        s.push_str(";2");
+    }
+    if attr.style.contains(Style::ITALIC) {
+        s.push_str(";3");
+    }
+    if attr.style.contains(Style::UNDERLINE) {
+        s.push_str(";4");
+    }
+    if attr.style.contains(Style::REVERSE) {
+        s.push_str(";7");
+    }
+    if attr.style.contains(Style::STRIKETHROUGH) {
+        s.push_str(";9");
+    }
     s.push('m');
     s
 }
@@ -816,7 +828,10 @@ mod tests {
         let plain = Attr::new(TvColor::White, TvColor::Black);
 
         let s = attr_to_sgr(bold);
-        assert!(s.starts_with("\x1b[0;38;2;"), "leading reset + truecolor fg");
+        assert!(
+            s.starts_with("\x1b[0;38;2;"),
+            "leading reset + truecolor fg"
+        );
         assert!(s.contains(";48;2;"), "truecolor bg present");
         assert!(s.ends_with(";1m"), "bold code appended: {s:?}");
 
@@ -830,11 +845,14 @@ mod tests {
 
     #[test]
     fn test_attr_to_sgr_multiple_styles_ordered() {
-        use crate::core::palette::{Attr, TvColor, Style};
-        let a = Attr::new(TvColor::White, TvColor::Blue)
-            .with_style(Style::ITALIC | Style::UNDERLINE);
+        use crate::core::palette::{Attr, Style, TvColor};
+        let a =
+            Attr::new(TvColor::White, TvColor::Blue).with_style(Style::ITALIC | Style::UNDERLINE);
         let s = attr_to_sgr(a);
         // italic(3) before underline(4), and no other style codes present.
-        assert!(s.ends_with(";3;4m"), "style codes emitted in canonical order: {s:?}");
+        assert!(
+            s.ends_with(";3;4m"),
+            "style codes emitted in canonical order: {s:?}"
+        );
     }
 }

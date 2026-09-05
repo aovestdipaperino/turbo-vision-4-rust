@@ -2,7 +2,7 @@
 
 //! ParamText view - parametrized text display with dynamic string substitution.
 
-use super::view::{View, write_line_to_terminal};
+use super::view::{View, ViewCore, write_line_to_terminal};
 use crate::core::draw::DrawBuffer;
 use crate::core::event::Event;
 use crate::core::geometry::Rect;
@@ -12,10 +12,9 @@ use crate::terminal::Terminal;
 /// ParamText - Static text with parameter substitution
 /// Displays text with placeholders like "File: %s" or "Total: %d items"
 pub struct ParamText {
-    bounds: Rect,
+    core: ViewCore,
     template: String,
     text: String,
-    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
 }
 
 impl ParamText {
@@ -26,10 +25,13 @@ impl ParamText {
     /// - %% for a literal %
     pub fn new(bounds: Rect, template: &str) -> Self {
         Self {
-            bounds,
+            core: ViewCore {
+                bounds,
+                palette_chain: None,
+                ..ViewCore::default()
+            },
             template: template.to_string(),
             text: template.to_string(),
-            palette_chain: None,
         }
     }
 
@@ -94,17 +96,17 @@ impl ParamText {
 }
 
 impl View for ParamText {
-    fn bounds(&self) -> Rect {
-        self.bounds
+    fn core(&self) -> &ViewCore {
+        &self.core
     }
 
-    fn set_bounds(&mut self, bounds: Rect) {
-        self.bounds = bounds;
+    fn core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        let width = self.bounds.width_clamped() as usize;
-        let height = self.bounds.height_clamped() as usize;
+        let width = self.core.bounds.width_clamped() as usize;
+        let height = self.core.bounds.height_clamped() as usize;
 
         // ParamText palette indices:
         // 1: Normal text
@@ -125,27 +127,29 @@ impl View for ParamText {
             let display_text: String = line.chars().take(width).collect();
 
             buf.move_str(0, &display_text, normal_attr);
-            write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y + i as i16, &buf);
+            write_line_to_terminal(
+                terminal,
+                self.core.bounds.a.x,
+                self.core.bounds.a.y + i as i16,
+                &buf,
+            );
         }
 
         // Fill remaining lines with spaces
         for i in lines.len()..height {
             let mut buf = DrawBuffer::new(width);
             buf.move_char(0, ' ', normal_attr, width);
-            write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y + i as i16, &buf);
+            write_line_to_terminal(
+                terminal,
+                self.core.bounds.a.x,
+                self.core.bounds.a.y + i as i16,
+                &buf,
+            );
         }
     }
 
     fn handle_event(&mut self, _event: &mut Event) {
         // ParamText doesn't handle events
-    }
-
-    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
-        self.palette_chain = node;
-    }
-
-    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
-        self.palette_chain.as_ref()
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {

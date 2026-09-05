@@ -155,4 +155,4 @@ pub use table::{Align, Column, Table};
 #[doc(inline)]
 pub use tooltip::Tooltip;
 #[doc(inline)]
-pub use view::{IdleView, View, ViewId};
+pub use view::{IdleView, View, ViewCore, ViewId};

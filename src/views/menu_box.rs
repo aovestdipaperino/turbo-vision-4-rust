@@ -12,14 +12,14 @@
 // Rust composition: View + MenuViewer → MenuBox
 
 use super::menu_viewer::{MenuViewer, MenuViewerState};
-use super::view::{View, write_line_to_terminal};
+use super::view::{View, ViewCore, write_line_to_terminal};
 use crate::core::command::CommandId;
 use crate::core::command_set;
 use crate::core::draw::DrawBuffer;
 use crate::core::event::{Event, EventType, KB_ENTER, KB_ESC, KB_ESC_ESC, MB_LEFT_BUTTON};
 use crate::core::geometry::{Point, Rect};
 use crate::core::menu_data::{Menu, MenuItem};
-use crate::core::state::{SF_SHADOW, StateFlags};
+use crate::core::state::SF_SHADOW;
 use crate::terminal::Terminal;
 
 // MenuBox palette indices (same as MenuBar - matches Borland TMenuView)
@@ -33,10 +33,8 @@ const MENU_SHORTCUT: u8 = 4; // Shortcut/accelerator text
 /// Displays a vertical menu with borders, shadows, and selection highlighting.
 /// Matches Borland: TMenuBox
 pub struct MenuBox {
-    bounds: Rect,
+    core: ViewCore,
     menu_state: MenuViewerState,
-    state: StateFlags,
-    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
     mouse_down_in_menu: bool, // Track if MouseDown occurred in this menu
 }
 
@@ -51,10 +49,13 @@ impl MenuBox {
         let bounds = Self::calculate_bounds(position, &menu);
 
         Self {
-            bounds,
+            core: ViewCore {
+                bounds,
+                state: SF_SHADOW, // MenuBox has shadow by default
+                palette_chain: None,
+                ..ViewCore::default()
+            },
             menu_state: MenuViewerState::with_menu(menu),
-            state: SF_SHADOW, // MenuBox has shadow by default
-            palette_chain: None,
             mouse_down_in_menu: false,
         }
     }
@@ -134,17 +135,17 @@ impl MenuBox {
 }
 
 impl View for MenuBox {
-    fn bounds(&self) -> Rect {
-        self.bounds
+    fn core(&self) -> &ViewCore {
+        &self.core
     }
 
-    fn set_bounds(&mut self, bounds: Rect) {
-        self.bounds = bounds;
+    fn core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        let width = self.bounds.width_clamped() as usize;
-        let height = self.bounds.height_clamped() as usize;
+        let width = self.core.bounds.width_clamped() as usize;
+        let height = self.core.bounds.height_clamped() as usize;
 
         if height < 2 || width < 4 {
             return; // Too small to draw
@@ -167,7 +168,7 @@ impl View for MenuBox {
             buf.put_char(i, '─', normal_attr);
         }
         buf.put_char(width - 1, '┐', normal_attr);
-        write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y, &buf);
+        write_line_to_terminal(terminal, self.core.bounds.a.x, self.core.bounds.a.y, &buf);
 
         // Draw menu items
         let mut y = 1;
@@ -304,7 +305,12 @@ impl View for MenuBox {
                 }
             }
 
-            write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y + y as i16, &buf);
+            write_line_to_terminal(
+                terminal,
+                self.core.bounds.a.x,
+                self.core.bounds.a.y + y as i16,
+                &buf,
+            );
             y += 1;
         }
 
@@ -315,10 +321,15 @@ impl View for MenuBox {
             buf.put_char(i, '─', normal_attr);
         }
         buf.put_char(width - 1, '┘', normal_attr);
-        write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y + y as i16, &buf);
+        write_line_to_terminal(
+            terminal,
+            self.core.bounds.a.x,
+            self.core.bounds.a.y + y as i16,
+            &buf,
+        );
 
         // Draw shadow
-        if self.state & SF_SHADOW != 0 {
+        if self.core.state & SF_SHADOW != 0 {
             self.draw_shadow(terminal);
         }
     }
@@ -364,7 +375,7 @@ impl View for MenuBox {
 
                 if event.mouse.buttons & MB_LEFT_BUTTON != 0 {
                     // Check if clicked outside menu - cancel
-                    if !self.bounds.contains(mouse_pos) {
+                    if !self.core.bounds.contains(mouse_pos) {
                         *event = Event::command(0); // Cancel
                         return;
                     }
@@ -391,7 +402,7 @@ impl View for MenuBox {
 
                 if event.mouse.buttons & MB_LEFT_BUTTON != 0 {
                     // Check if clicked outside menu - cancel
-                    if !self.bounds.contains(mouse_pos) {
+                    if !self.core.bounds.contains(mouse_pos) {
                         *event = Event::command(0); // Cancel
                         return;
                     }
@@ -422,22 +433,6 @@ impl View for MenuBox {
         }
     }
 
-    fn state(&self) -> StateFlags {
-        self.state
-    }
-
-    fn set_state(&mut self, state: StateFlags) {
-        self.state = state;
-    }
-
-    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
-        self.palette_chain = node;
-    }
-
-    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
-        self.palette_chain.as_ref()
-    }
-
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
         use crate::core::palette::{Palette, palettes};
         Some(Palette::from_slice(palettes::CP_MENU_BAR))
@@ -457,10 +452,10 @@ impl MenuViewer for MenuBox {
         // Items start at y=1 (after top border)
         // Each item is 1 row tall
         Rect::new(
-            self.bounds.a.x,
-            self.bounds.a.y + 1 + item_index as i16,
-            self.bounds.b.x,
-            self.bounds.a.y + 2 + item_index as i16,
+            self.core.bounds.a.x,
+            self.core.bounds.a.y + 1 + item_index as i16,
+            self.core.bounds.b.x,
+            self.core.bounds.a.y + 2 + item_index as i16,
         )
     }
 }
@@ -479,10 +474,10 @@ mod tests {
 
         let menubox = MenuBox::new(Point::new(10, 5), menu);
 
-        assert_eq!(menubox.bounds.a.x, 10);
-        assert_eq!(menubox.bounds.a.y, 5);
-        assert!(menubox.bounds.width() >= 10); // At least minimum width
-        assert_eq!(menubox.bounds.height(), 4); // 2 items + 2 borders
+        assert_eq!(menubox.bounds().a.x, 10);
+        assert_eq!(menubox.bounds().a.y, 5);
+        assert!(menubox.bounds().width() >= 10); // At least minimum width
+        assert_eq!(menubox.bounds().height(), 4); // 2 items + 2 borders
     }
 
     #[test]
@@ -495,7 +490,7 @@ mod tests {
 
         let menubox = MenuBox::new(Point::new(0, 0), menu);
 
-        assert_eq!(menubox.bounds.height(), 5); // 2 items + 1 separator + 2 borders
+        assert_eq!(menubox.bounds().height(), 5); // 2 items + 1 separator + 2 borders
     }
 
     #[test]

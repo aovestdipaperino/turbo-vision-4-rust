@@ -55,6 +55,11 @@
 //! performance, but could alternatively use direct child access if needed for more
 //! complex scenarios.
 
+use super::button::Button;
+use super::dialog::Dialog;
+use super::input_line::InputLine;
+use super::label::Label;
+use super::listbox::ListBox;
 /// FileDialog - A file selection dialog for opening/saving files
 ///
 /// ## Usage
@@ -101,12 +106,7 @@
 /// - Any other text: `"~C~ustom"`
 ///
 /// The `~` character indicates the hotkey underline in the button text.
-use super::View;
-use super::button::Button;
-use super::dialog::Dialog;
-use super::input_line::InputLine;
-use super::label::Label;
-use super::listbox::ListBox;
+use super::{View, ViewCore};
 use crate::core::command::{CM_CANCEL, CM_FILE_FOCUSED, CM_OK, CommandId};
 use crate::core::event::{Event, EventType};
 use crate::core::geometry::Rect;
@@ -789,11 +789,17 @@ impl FileDialog {
 }
 
 impl View for FileDialog {
-    fn bounds(&self) -> Rect {
-        self.dialog.bounds()
+    fn core(&self) -> &ViewCore {
+        self.dialog.core()
+    }
+
+    fn core_mut(&mut self) -> &mut ViewCore {
+        self.dialog.core_mut()
     }
 
     fn set_bounds(&mut self, bounds: Rect) {
+        // Forwarded explicitly: the inner view's `set_bounds` cascades to its
+        // children, which the `ViewCore` default would bypass.
         self.dialog.set_bounds(bounds);
     }
 

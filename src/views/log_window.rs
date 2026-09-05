@@ -27,12 +27,11 @@
 
 use super::shared::Shared;
 use super::terminal_widget::TerminalWidget;
-use super::view::View;
+use super::view::{View, ViewCore};
 use super::window::{Window, WindowPaletteType};
 use crate::core::event::Event;
 use crate::core::geometry::Rect;
 use crate::core::palette::{Attr, TvColor};
-use crate::core::state::StateFlags;
 use crate::terminal::Terminal;
 
 use std::cell::RefCell;
@@ -186,19 +185,18 @@ impl LogWindow {
 }
 
 impl View for LogWindow {
-    fn bounds(&self) -> Rect {
-        self.window.bounds()
+    fn core(&self) -> &ViewCore {
+        self.window.core()
     }
+
+    fn core_mut(&mut self) -> &mut ViewCore {
+        self.window.core_mut()
+    }
+
     fn set_bounds(&mut self, bounds: Rect) {
         self.window.set_bounds(bounds);
         // Window handles interior repositioning; widget bounds are updated
         // by the window's interior Group during draw
-    }
-    fn grow_mode(&self) -> crate::core::state::GrowFlags {
-        self.window.grow_mode()
-    }
-    fn set_grow_mode(&mut self, grow_mode: crate::core::state::GrowFlags) {
-        self.window.set_grow_mode(grow_mode);
     }
     fn draw(&mut self, terminal: &mut Terminal) {
         self.drain_logs();
@@ -209,18 +207,6 @@ impl View for LogWindow {
     }
     fn can_focus(&self) -> bool {
         true
-    }
-    fn state(&self) -> StateFlags {
-        self.window.state()
-    }
-    fn set_state(&mut self, state: StateFlags) {
-        self.window.set_state(state);
-    }
-    fn options(&self) -> u16 {
-        self.window.options()
-    }
-    fn set_options(&mut self, options: u16) {
-        self.window.set_options(options);
     }
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
         self.window.get_palette()

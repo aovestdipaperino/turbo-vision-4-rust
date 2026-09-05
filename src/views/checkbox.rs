@@ -21,10 +21,9 @@
 //   );
 
 use super::cluster::{Cluster, ClusterState};
-use super::view::View;
+use super::view::{View, ViewCore};
 use crate::core::event::Event;
 use crate::core::geometry::Rect;
-use crate::core::state::StateFlags;
 use crate::terminal::Terminal;
 
 /// CheckBox - A boolean selection control with a label
@@ -33,22 +32,23 @@ use crate::terminal::Terminal;
 /// Matches Borland: TCheckBoxes (extends TCluster)
 #[derive(Debug)]
 pub struct CheckBox {
-    bounds: Rect,
+    core: ViewCore,
     label: String,
     cluster_state: ClusterState,
-    state: StateFlags,
-    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
 }
 
 impl CheckBox {
     /// Create a new checkbox with the given bounds and label
     pub fn new(bounds: Rect, label: &str) -> Self {
         CheckBox {
-            bounds,
+            core: ViewCore {
+                bounds,
+                state: 0,
+                palette_chain: None,
+                ..ViewCore::default()
+            },
             label: label.to_string(),
             cluster_state: ClusterState::new(),
-            state: 0,
-            palette_chain: None,
         }
     }
 
@@ -69,12 +69,12 @@ impl CheckBox {
 }
 
 impl View for CheckBox {
-    fn bounds(&self) -> Rect {
-        self.bounds
+    fn core(&self) -> &ViewCore {
+        &self.core
     }
 
-    fn set_bounds(&mut self, bounds: Rect) {
-        self.bounds = bounds;
+    fn core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
     }
 
     fn handle_event(&mut self, event: &mut Event) {
@@ -89,22 +89,6 @@ impl View for CheckBox {
 
     fn can_focus(&self) -> bool {
         true
-    }
-
-    fn state(&self) -> StateFlags {
-        self.state
-    }
-
-    fn set_state(&mut self, state: StateFlags) {
-        self.state = state;
-    }
-
-    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
-        self.palette_chain = node;
-    }
-
-    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
-        self.palette_chain.as_ref()
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {

@@ -9,14 +9,13 @@
 
 use super::help_file::{CrossRef, HelpTopic, TextSegment};
 use super::scrollbar::ScrollBar;
-use super::view::{View, write_line_to_terminal};
+use super::view::{View, ViewCore, write_line_to_terminal};
 use crate::core::draw::DrawBuffer;
 use crate::core::event::{
     Event, EventType, KB_DOWN, KB_END, KB_ENTER, KB_HOME, KB_LEFT, KB_PGDN, KB_PGUP, KB_RIGHT,
     KB_SHIFT_TAB, KB_TAB, KB_UP, MB_LEFT_BUTTON,
 };
 use crate::core::geometry::{Point, Rect};
-use crate::core::state::StateFlags;
 use crate::terminal::Terminal;
 
 /// HelpViewer - Displays help topic content with cross-reference navigation
@@ -28,8 +27,7 @@ use crate::terminal::Terminal;
 /// - TAB/Shift+TAB cycles through links
 /// - ENTER follows the selected link
 pub struct HelpViewer {
-    bounds: Rect,
-    state: StateFlags,
+    core: ViewCore,
     delta: Point, // Current scroll offset
     limit: Point, // Maximum scroll values
     vscrollbar: Option<Box<ScrollBar>>,
@@ -37,15 +35,18 @@ pub struct HelpViewer {
     cross_refs: Vec<CrossRef>,           // Cross-references with position info
     selected: usize,                     // Currently selected cross-ref (1-based like Borland)
     current_topic: Option<String>,
-    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
 }
 
 impl HelpViewer {
     /// Create a new help viewer
     pub fn new(bounds: Rect) -> Self {
         Self {
-            bounds,
-            state: 0,
+            core: ViewCore {
+                bounds,
+                state: 0,
+                palette_chain: None,
+                ..ViewCore::default()
+            },
             delta: Point::new(0, 0),
             limit: Point::new(0, 0),
             vscrollbar: None,
@@ -53,17 +54,16 @@ impl HelpViewer {
             cross_refs: Vec::new(),
             selected: 1, // 1-based, like Borland
             current_topic: None,
-            palette_chain: None,
         }
     }
 
     /// Create a help viewer with scrollbar
     pub fn with_scrollbar(mut self) -> Self {
         let sb_bounds = Rect::new(
-            self.bounds.b.x - 1,
-            self.bounds.a.y,
-            self.bounds.b.x,
-            self.bounds.b.y,
+            self.core.bounds.b.x - 1,
+            self.core.bounds.a.y,
+            self.core.bounds.b.x,
+            self.core.bounds.b.y,
         );
         self.vscrollbar = Some(Box::new(ScrollBar::new_vertical(sb_bounds)));
         self
@@ -88,13 +88,13 @@ impl HelpViewer {
 
         // Update limits (vertical and horizontal)
         let display_width = if self.vscrollbar.is_some() {
-            self.bounds.width() - 1
+            self.core.bounds.width() - 1
         } else {
-            self.bounds.width()
+            self.core.bounds.width()
         };
         let max_x = (max_line_width - display_width).max(0);
-        let max_y = if self.styled_lines.len() > self.bounds.height_clamped() as usize {
-            self.styled_lines.len() as i16 - self.bounds.height()
+        let max_y = if self.styled_lines.len() > self.core.bounds.height_clamped() as usize {
+            self.styled_lines.len() as i16 - self.core.bounds.height()
         } else {
             0
         };
@@ -134,8 +134,8 @@ impl HelpViewer {
             if key_point_y <= d.y {
                 d.y = key_point_y - 1;
             }
-            if key_point_y > d.y + self.bounds.height() {
-                d.y = key_point_y - self.bounds.height();
+            if key_point_y > d.y + self.core.bounds.height() {
+                d.y = key_point_y - self.core.bounds.height();
             }
 
             if d.y != self.delta.y {
@@ -178,7 +178,7 @@ impl HelpViewer {
         }
 
         let visible_start = self.delta.y + 1; // 1-based line number
-        let visible_end = visible_start + self.bounds.height();
+        let visible_end = visible_start + self.core.bounds.height();
 
         // Collect visible cross-refs (1-based indices)
         let visible: Vec<usize> = self
@@ -211,11 +211,15 @@ impl HelpViewer {
     /// Matches Borland: THelpViewer::getNumRows() pattern for hit testing
     fn get_cross_ref_at(&self, screen_x: i16, screen_y: i16) -> usize {
         // Convert screen coordinates to view-relative coordinates
-        let rel_x = screen_x - self.bounds.a.x;
-        let rel_y = screen_y - self.bounds.a.y;
+        let rel_x = screen_x - self.core.bounds.a.x;
+        let rel_y = screen_y - self.core.bounds.a.y;
 
         // Check bounds
-        if rel_x < 0 || rel_y < 0 || rel_x >= self.bounds.width() || rel_y >= self.bounds.height() {
+        if rel_x < 0
+            || rel_y < 0
+            || rel_x >= self.core.bounds.width()
+            || rel_y >= self.core.bounds.height()
+        {
             return 0;
         }
 
@@ -280,7 +284,7 @@ impl HelpViewer {
     /// Update scrollbar position
     fn update_scrollbar(&mut self) {
         if let Some(ref mut sb) = self.vscrollbar {
-            let size = self.bounds.height();
+            let size = self.core.bounds.height();
 
             sb.set_params(
                 self.delta.y as i32,
@@ -322,12 +326,16 @@ fn styled_attr(
 }
 
 impl View for HelpViewer {
-    fn bounds(&self) -> Rect {
-        self.bounds
+    fn core(&self) -> &ViewCore {
+        &self.core
+    }
+
+    fn core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
     }
 
     fn set_bounds(&mut self, bounds: Rect) {
-        self.bounds = bounds;
+        self.core.bounds = bounds;
 
         // Update scrollbar position if present
         if self.vscrollbar.is_some() {
@@ -347,13 +355,13 @@ impl View for HelpViewer {
 
         // Recalculate limits (vertical and horizontal)
         let display_width = if self.vscrollbar.is_some() {
-            self.bounds.width() - 1
+            self.core.bounds.width() - 1
         } else {
-            self.bounds.width()
+            self.core.bounds.width()
         };
         let max_x = (max_line_width - display_width).max(0);
-        let max_y = if self.styled_lines.len() > self.bounds.height_clamped() as usize {
-            self.styled_lines.len() as i16 - self.bounds.height()
+        let max_y = if self.styled_lines.len() > self.core.bounds.height_clamped() as usize {
+            self.styled_lines.len() as i16 - self.core.bounds.height()
         } else {
             0
         };
@@ -367,9 +375,9 @@ impl View for HelpViewer {
 
         // Determine display width (leave room for scrollbar if present)
         let display_width = if self.vscrollbar.is_some() {
-            (self.bounds.width() - 1) as usize
+            (self.core.bounds.width() - 1) as usize
         } else {
-            self.bounds.width_clamped() as usize
+            self.core.bounds.width_clamped() as usize
         };
 
         // Get colors from palette for rich text rendering
@@ -382,7 +390,7 @@ impl View for HelpViewer {
         let italic_color = self.map_color(5); // Italic text
         let code_color = self.map_color(6); // Code text
 
-        for row in 0..self.bounds.height() {
+        for row in 0..self.core.bounds.height() {
             let line_num = (start_line + row as usize + 1) as i16; // 1-based line number
             let line_idx = start_line + row as usize;
 
@@ -454,7 +462,12 @@ impl View for HelpViewer {
                 }
             }
 
-            write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y + row, &buf);
+            write_line_to_terminal(
+                terminal,
+                self.core.bounds.a.x,
+                self.core.bounds.a.y + row,
+                &buf,
+            );
         }
 
         // Draw scrollbar if present
@@ -464,7 +477,7 @@ impl View for HelpViewer {
     }
 
     fn handle_event(&mut self, event: &mut Event) {
-        let page_size = self.bounds.height();
+        let page_size = self.core.bounds.height();
 
         match event.what {
             EventType::Keyboard => {
@@ -554,7 +567,8 @@ impl View for HelpViewer {
                 // Matches Borland: THelpViewer::handleEvent() evMouseDown case (help.cc:122-155)
                 let mouse_pos = event.mouse.pos;
 
-                if self.bounds.contains(mouse_pos) && event.mouse.buttons & MB_LEFT_BUTTON != 0 {
+                if self.core.bounds.contains(mouse_pos) && event.mouse.buttons & MB_LEFT_BUTTON != 0
+                {
                     // Check if click is on a cross-reference link
                     let hit_ref = self.get_cross_ref_at(mouse_pos.x, mouse_pos.y);
 
@@ -570,14 +584,14 @@ impl View for HelpViewer {
             }
             EventType::MouseWheelUp => {
                 // Scroll up on mouse wheel
-                if self.bounds.contains(event.mouse.pos) {
+                if self.core.bounds.contains(event.mouse.pos) {
                     self.scroll_by(0, -3);
                     event.clear();
                 }
             }
             EventType::MouseWheelDown => {
                 // Scroll down on mouse wheel
-                if self.bounds.contains(event.mouse.pos) {
+                if self.core.bounds.contains(event.mouse.pos) {
                     self.scroll_by(0, 3);
                     event.clear();
                 }
@@ -588,22 +602,6 @@ impl View for HelpViewer {
 
     fn can_focus(&self) -> bool {
         true
-    }
-
-    fn state(&self) -> StateFlags {
-        self.state
-    }
-
-    fn set_state(&mut self, state: StateFlags) {
-        self.state = state;
-    }
-
-    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
-        self.palette_chain = node;
-    }
-
-    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
-        self.palette_chain.as_ref()
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {

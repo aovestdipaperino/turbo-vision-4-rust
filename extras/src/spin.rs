@@ -11,10 +11,9 @@ use turbo_vision::core::event::{
 };
 use turbo_vision::core::geometry::Rect;
 use turbo_vision::core::palette::{Attr, TvColor};
-use turbo_vision::core::state::StateFlags;
 use turbo_vision::terminal::Terminal;
-use turbo_vision::views::View;
 use turbo_vision::views::view::write_line_to_terminal;
+use turbo_vision::views::{View, ViewCore};
 
 /// Numeric spinner: `[  42 ]▲▼`.
 ///
@@ -36,11 +35,10 @@ use turbo_vision::views::view::write_line_to_terminal;
 /// ```
 #[derive(Debug)]
 pub struct SpinControl {
-    bounds: Rect,
+    core: ViewCore,
     min: i32,
     max: i32,
     value: Rc<RefCell<i32>>,
-    state: StateFlags,
     palette_chain: Option<turbo_vision::core::palette_chain::PaletteChainNode>,
 }
 
@@ -55,11 +53,14 @@ impl SpinControl {
             *v = (*v).clamp(min, max);
         }
         Self {
-            bounds,
+            core: ViewCore {
+                bounds,
+                state: 0,
+                ..ViewCore::default()
+            },
             min,
             max,
             value,
-            state: 0,
             palette_chain: None,
         }
     }
@@ -81,26 +82,26 @@ impl SpinControl {
 
     /// Column of the ▲ cell (relative to bounds).
     fn up_col(&self) -> i16 {
-        self.bounds.width() - 2
+        self.core.bounds.width() - 2
     }
 
     /// Column of the ▼ cell (relative to bounds).
     fn down_col(&self) -> i16 {
-        self.bounds.width() - 1
+        self.core.bounds.width() - 1
     }
 }
 
 impl View for SpinControl {
-    fn bounds(&self) -> Rect {
-        self.bounds
+    fn core(&self) -> &ViewCore {
+        &self.core
     }
 
-    fn set_bounds(&mut self, bounds: Rect) {
-        self.bounds = bounds;
+    fn core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        let width = self.bounds.width_clamped() as usize;
+        let width = self.core.bounds.width_clamped() as usize;
         if width < 4 {
             return;
         }
@@ -121,7 +122,7 @@ impl View for SpinControl {
         buf.put_char(self.up_col() as usize, '▲', arrow_attr);
         buf.put_char(self.down_col() as usize, '▼', arrow_attr);
 
-        write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y, &buf);
+        write_line_to_terminal(terminal, self.core.bounds.a.x, self.core.bounds.a.y, &buf);
     }
 
     fn handle_event(&mut self, event: &mut Event) {
@@ -138,8 +139,8 @@ impl View for SpinControl {
             }
             EventType::MouseDown => {
                 let pos = event.mouse.pos;
-                if event.mouse.buttons & MB_LEFT_BUTTON != 0 && self.bounds.contains(pos) {
-                    let col = pos.x - self.bounds.a.x;
+                if event.mouse.buttons & MB_LEFT_BUTTON != 0 && self.core.bounds.contains(pos) {
+                    let col = pos.x - self.core.bounds.a.x;
                     if col == self.up_col() {
                         self.step(1);
                     } else if col == self.down_col() {
@@ -154,14 +155,6 @@ impl View for SpinControl {
 
     fn can_focus(&self) -> bool {
         true
-    }
-
-    fn state(&self) -> StateFlags {
-        self.state
-    }
-
-    fn set_state(&mut self, state: StateFlags) {
-        self.state = state;
     }
 
     fn get_palette(&self) -> Option<turbo_vision::core::palette::Palette> {

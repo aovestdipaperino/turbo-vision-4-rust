@@ -9,10 +9,9 @@ use turbo_vision::core::event::{
 };
 use turbo_vision::core::geometry::Rect;
 use turbo_vision::core::palette::{Attr, TvColor};
-use turbo_vision::core::state::StateFlags;
 use turbo_vision::terminal::Terminal;
-use turbo_vision::views::View;
 use turbo_vision::views::view::write_line_to_terminal;
+use turbo_vision::views::{View, ViewCore};
 
 /// Horizontal slider: `min ────────◆────── max`.
 ///
@@ -33,13 +32,12 @@ use turbo_vision::views::view::write_line_to_terminal;
 /// ```
 #[derive(Debug)]
 pub struct Slider {
-    bounds: Rect,
+    core: ViewCore,
     min: i32,
     max: i32,
     value: i32,
     step: i32,
     on_change: Option<CommandId>,
-    state: StateFlags,
     palette_chain: Option<turbo_vision::core::palette_chain::PaletteChainNode>,
 }
 
@@ -47,13 +45,16 @@ impl Slider {
     /// Create a slider over `min..=max` (max is clamped to at least min+1).
     pub fn new(bounds: Rect, min: i32, max: i32) -> Self {
         Self {
-            bounds,
+            core: ViewCore {
+                bounds,
+                state: 0,
+                ..ViewCore::default()
+            },
             min,
             max: max.max(min + 1),
             value: min,
             step: 1,
             on_change: None,
-            state: 0,
             palette_chain: None,
         }
     }
@@ -100,16 +101,16 @@ impl Slider {
 }
 
 impl View for Slider {
-    fn bounds(&self) -> Rect {
-        self.bounds
+    fn core(&self) -> &ViewCore {
+        &self.core
     }
 
-    fn set_bounds(&mut self, bounds: Rect) {
-        self.bounds = bounds;
+    fn core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        let width = self.bounds.width_clamped() as usize;
+        let width = self.core.bounds.width_clamped() as usize;
         if width == 0 {
             return;
         }
@@ -124,11 +125,11 @@ impl View for Slider {
         let mut buf = DrawBuffer::new(width);
         buf.move_char(0, '─', track_attr, width);
         buf.put_char(self.value_to_col(width), '◆', thumb_attr);
-        write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y, &buf);
+        write_line_to_terminal(terminal, self.core.bounds.a.x, self.core.bounds.a.y, &buf);
     }
 
     fn handle_event(&mut self, event: &mut Event) {
-        let width = self.bounds.width_clamped() as usize;
+        let width = self.core.bounds.width_clamped() as usize;
         match event.what {
             EventType::Keyboard if self.is_focused() => {
                 let new_value = match event.key_code {
@@ -144,8 +145,8 @@ impl View for Slider {
             EventType::MouseDown | EventType::MouseMove => {
                 let pos = event.mouse.pos;
                 let pressed = event.mouse.buttons & MB_LEFT_BUTTON != 0;
-                if pressed && self.bounds.contains(pos) {
-                    self.set_value(self.col_to_value(pos.x - self.bounds.a.x, width));
+                if pressed && self.core.bounds.contains(pos) {
+                    self.set_value(self.col_to_value(pos.x - self.core.bounds.a.x, width));
                     self.changed(event);
                 }
             }
@@ -155,14 +156,6 @@ impl View for Slider {
 
     fn can_focus(&self) -> bool {
         true
-    }
-
-    fn state(&self) -> StateFlags {
-        self.state
-    }
-
-    fn set_state(&mut self, state: StateFlags) {
-        self.state = state;
     }
 
     fn get_palette(&self) -> Option<turbo_vision::core::palette::Palette> {

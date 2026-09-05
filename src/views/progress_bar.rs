@@ -23,7 +23,7 @@
 //! assert_eq!(bar.percent(), 45);
 //! ```
 
-use super::view::{View, write_line_to_terminal};
+use super::view::{View, ViewCore, write_line_to_terminal};
 use crate::core::draw::DrawBuffer;
 use crate::core::event::Event;
 use crate::core::geometry::Rect;
@@ -88,7 +88,7 @@ enum Caption {
 
 /// A horizontal progress indicator.
 pub struct ProgressBar {
-    bounds: Rect,
+    core: ViewCore,
     value: u64,
     max: u64,
     mode: ProgressMode,
@@ -102,7 +102,6 @@ pub struct ProgressBar {
     tick_interval: Duration,
     /// When the marquee last stepped, for the `IdleView` animation.
     last_tick: Instant,
-    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
 }
 
 /// Marquee block width as a fraction of the track width.
@@ -118,7 +117,11 @@ impl ProgressBar {
     /// then reads as 0% until a real maximum is set.
     pub fn new(bounds: Rect, max: u64) -> Self {
         Self {
-            bounds,
+            core: ViewCore {
+                bounds,
+                palette_chain: None,
+                ..ViewCore::default()
+            },
             value: 0,
             max: max.max(1),
             mode: ProgressMode::Determinate,
@@ -128,7 +131,6 @@ impl ProgressBar {
             marquee_forward: true,
             tick_interval: DEFAULT_TICK_INTERVAL,
             last_tick: Instant::now(),
-            palette_chain: None,
         }
     }
 
@@ -233,7 +235,7 @@ impl ProgressBar {
         if self.mode != ProgressMode::Marquee {
             return;
         }
-        let width = self.bounds.width_clamped().max(0) as u16;
+        let width = self.core.bounds.width_clamped().max(0) as u16;
         let block = Self::marquee_width(width);
         // The leading edge travels over the cells the block cannot occupy.
         let span = width.saturating_sub(block);
@@ -355,21 +357,21 @@ impl ProgressBar {
 }
 
 impl View for ProgressBar {
-    fn bounds(&self) -> Rect {
-        self.bounds
+    fn core(&self) -> &ViewCore {
+        &self.core
     }
 
-    fn set_bounds(&mut self, bounds: Rect) {
-        self.bounds = bounds;
+    fn core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        let width = self.bounds.width_clamped().max(0) as usize;
+        let width = self.core.bounds.width_clamped().max(0) as usize;
         // CP_PROGRESS_BAR: 1 = filled, 2 = empty track.
         let filled = self.map_color(1);
         let empty = self.map_color(2);
         let buf = self.render(width, filled, empty);
-        write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y, &buf);
+        write_line_to_terminal(terminal, self.core.bounds.a.x, self.core.bounds.a.y, &buf);
     }
 
     fn handle_event(&mut self, _event: &mut Event) {
@@ -378,14 +380,6 @@ impl View for ProgressBar {
 
     fn can_focus(&self) -> bool {
         false
-    }
-
-    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
-        self.palette_chain = node;
-    }
-
-    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
-        self.palette_chain.as_ref()
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {

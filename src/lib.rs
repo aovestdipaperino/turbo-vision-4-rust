@@ -296,5 +296,5 @@ pub mod prelude {
     };
 
     pub use crate::app::Application;
-    pub use crate::views::View;
+    pub use crate::views::{View, ViewCore};
 }

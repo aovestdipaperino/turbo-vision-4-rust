@@ -6,11 +6,10 @@ use turbo_vision::core::draw::DrawBuffer;
 use turbo_vision::core::event::{Event, EventType, MB_LEFT_BUTTON};
 use turbo_vision::core::geometry::Rect;
 use turbo_vision::core::palette::{Attr, TvColor};
-use turbo_vision::core::state::StateFlags;
 use turbo_vision::terminal::Terminal;
-use turbo_vision::views::View;
 use turbo_vision::views::group::Group;
 use turbo_vision::views::view::write_line_to_terminal;
+use turbo_vision::views::{View, ViewCore};
 
 /// Ctrl+PgDn / Ctrl+PgUp switch to the next/previous tab.
 const KB_CTRL_PGDN: u16 = 0x7600;
@@ -38,18 +37,17 @@ const KB_CTRL_PGUP: u16 = 0x8400;
 /// assert_eq!(notebook.active_page(), 1);
 /// ```
 pub struct Notebook {
-    bounds: Rect,
+    core: ViewCore,
     labels: Vec<String>,
     pages: Vec<Group>,
     active: usize,
-    state: StateFlags,
     palette_chain: Option<turbo_vision::core::palette_chain::PaletteChainNode>,
 }
 
 impl std::fmt::Debug for Notebook {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Notebook")
-            .field("bounds", &self.bounds)
+            .field("bounds", &self.core.bounds)
             .field("pages", &self.labels)
             .field("active", &self.active)
             .finish()
@@ -60,11 +58,14 @@ impl Notebook {
     /// Create an empty notebook.
     pub fn new(bounds: Rect) -> Self {
         Self {
-            bounds,
+            core: ViewCore {
+                bounds,
+                state: 0,
+                ..ViewCore::default()
+            },
             labels: Vec::new(),
             pages: Vec::new(),
             active: 0,
-            state: 0,
             palette_chain: None,
         }
     }
@@ -72,10 +73,10 @@ impl Notebook {
     /// Screen area of the pages (bounds minus the tab row).
     fn page_bounds(&self) -> Rect {
         Rect::new(
-            self.bounds.a.x,
-            self.bounds.a.y + 1,
-            self.bounds.b.x,
-            self.bounds.b.y,
+            self.core.bounds.a.x,
+            self.core.bounds.a.y + 1,
+            self.core.bounds.b.x,
+            self.core.bounds.b.y,
         )
     }
 
@@ -140,12 +141,16 @@ impl Notebook {
 }
 
 impl View for Notebook {
-    fn bounds(&self) -> Rect {
-        self.bounds
+    fn core(&self) -> &ViewCore {
+        &self.core
+    }
+
+    fn core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
     }
 
     fn set_bounds(&mut self, bounds: Rect) {
-        self.bounds = bounds;
+        self.core.bounds = bounds;
         let page_bounds = self.page_bounds();
         for page in &mut self.pages {
             page.set_bounds(page_bounds);
@@ -153,7 +158,7 @@ impl View for Notebook {
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        let width = self.bounds.width_clamped() as usize;
+        let width = self.core.bounds.width_clamped() as usize;
         if width == 0 {
             return;
         }
@@ -176,7 +181,7 @@ impl View for Notebook {
                 buf.move_str(*start as usize, &text, attr);
             }
         }
-        write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y, &buf);
+        write_line_to_terminal(terminal, self.core.bounds.a.x, self.core.bounds.a.y, &buf);
 
         // Active page
         if let Some(page) = self.pages.get_mut(self.active) {
@@ -203,8 +208,8 @@ impl View for Notebook {
             },
             EventType::MouseDown => {
                 let pos = event.mouse.pos;
-                if event.mouse.buttons & MB_LEFT_BUTTON != 0 && pos.y == self.bounds.a.y {
-                    let rel_x = pos.x - self.bounds.a.x;
+                if event.mouse.buttons & MB_LEFT_BUTTON != 0 && pos.y == self.core.bounds.a.y {
+                    let rel_x = pos.x - self.core.bounds.a.x;
                     for (i, (start, end)) in self.tab_spans().iter().enumerate() {
                         if rel_x >= *start && rel_x < *end {
                             self.set_active_page(i);
@@ -236,14 +241,6 @@ impl View for Notebook {
                 page.clear_all_focus();
             }
         }
-    }
-
-    fn state(&self) -> StateFlags {
-        self.state
-    }
-
-    fn set_state(&mut self, state: StateFlags) {
-        self.state = state;
     }
 
     fn get_palette(&self) -> Option<turbo_vision::core::palette::Palette> {

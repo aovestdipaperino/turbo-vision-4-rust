@@ -2,7 +2,7 @@
 
 //! Indicator view - visual indicator for displaying scroll position or progress.
 
-use super::view::{View, write_line_to_terminal};
+use super::view::{View, ViewCore, write_line_to_terminal};
 use crate::core::draw::DrawBuffer;
 use crate::core::event::Event;
 use crate::core::geometry::{Point, Rect};
@@ -11,19 +11,21 @@ use crate::terminal::Terminal;
 /// Indicator displays window size or cursor position,
 /// typically shown in the bottom-left of an editor window.
 pub struct Indicator {
-    bounds: Rect,
+    core: ViewCore,
     location: Point, // Width x Height for window size display
     modified: bool,  // Has the document been modified?
-    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
 }
 
 impl Indicator {
     pub fn new(bounds: Rect) -> Self {
         Self {
-            bounds,
+            core: ViewCore {
+                bounds,
+                palette_chain: None,
+                ..ViewCore::default()
+            },
             location: Point::new(1, 1),
             modified: false,
-            palette_chain: None,
         }
     }
 
@@ -41,16 +43,16 @@ impl Indicator {
 }
 
 impl View for Indicator {
-    fn bounds(&self) -> Rect {
-        self.bounds
+    fn core(&self) -> &ViewCore {
+        &self.core
     }
 
-    fn set_bounds(&mut self, bounds: Rect) {
-        self.bounds = bounds;
+    fn core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        let width = self.bounds.width_clamped() as usize;
+        let width = self.core.bounds.width_clamped() as usize;
         let mut buf = DrawBuffer::new(width);
 
         // Use palette indices from CP_INDICATOR
@@ -82,19 +84,11 @@ impl View for Indicator {
             buf.move_str(start_pos, &text, color);
         }
 
-        write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y, &buf);
+        write_line_to_terminal(terminal, self.core.bounds.a.x, self.core.bounds.a.y, &buf);
     }
 
     fn handle_event(&mut self, _event: &mut Event) {
         // Indicator doesn't handle events
-    }
-
-    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
-        self.palette_chain = node;
-    }
-
-    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
-        self.palette_chain.as_ref()
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {

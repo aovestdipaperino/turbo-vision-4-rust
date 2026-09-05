@@ -6,10 +6,9 @@ use turbo_vision::core::draw::DrawBuffer;
 use turbo_vision::core::event::Event;
 use turbo_vision::core::geometry::Rect;
 use turbo_vision::core::palette::{Attr, TvColor};
-use turbo_vision::core::state::StateFlags;
 use turbo_vision::terminal::Terminal;
-use turbo_vision::views::View;
 use turbo_vision::views::view::write_line_to_terminal;
+use turbo_vision::views::{View, ViewCore};
 
 /// Horizontal progress bar with optional percentage caption.
 ///
@@ -25,11 +24,10 @@ use turbo_vision::views::view::write_line_to_terminal;
 /// ```
 #[derive(Debug)]
 pub struct Gauge {
-    bounds: Rect,
+    core: ViewCore,
     value: i32,
     max: i32,
     show_percent: bool,
-    state: StateFlags,
     palette_chain: Option<turbo_vision::core::palette_chain::PaletteChainNode>,
 }
 
@@ -37,11 +35,14 @@ impl Gauge {
     /// Create a gauge running from 0 to `max` (clamped to at least 1).
     pub fn new(bounds: Rect, max: i32) -> Self {
         Self {
-            bounds,
+            core: ViewCore {
+                bounds,
+                state: 0,
+                ..ViewCore::default()
+            },
             value: 0,
             max: max.max(1),
             show_percent: true,
-            state: 0,
             palette_chain: None,
         }
     }
@@ -68,16 +69,16 @@ impl Gauge {
 }
 
 impl View for Gauge {
-    fn bounds(&self) -> Rect {
-        self.bounds
+    fn core(&self) -> &ViewCore {
+        &self.core
     }
 
-    fn set_bounds(&mut self, bounds: Rect) {
-        self.bounds = bounds;
+    fn core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        let width = self.bounds.width_clamped() as usize;
+        let width = self.core.bounds.width_clamped() as usize;
         if width == 0 {
             return;
         }
@@ -98,21 +99,13 @@ impl View for Gauge {
             buf.move_str(start, &pct, text_attr);
         }
 
-        write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y, &buf);
+        write_line_to_terminal(terminal, self.core.bounds.a.x, self.core.bounds.a.y, &buf);
     }
 
     fn handle_event(&mut self, _event: &mut Event) {}
 
     fn can_focus(&self) -> bool {
         false
-    }
-
-    fn state(&self) -> StateFlags {
-        self.state
-    }
-
-    fn set_state(&mut self, state: StateFlags) {
-        self.state = state;
     }
 
     fn get_palette(&self) -> Option<turbo_vision::core::palette::Palette> {

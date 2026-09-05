@@ -7,11 +7,10 @@ use turbo_vision::core::draw::DrawBuffer;
 use turbo_vision::core::event::Event;
 use turbo_vision::core::geometry::Rect;
 use turbo_vision::core::palette::{Attr, TvColor};
-use turbo_vision::core::state::StateFlags;
 use turbo_vision::terminal::Terminal;
-use turbo_vision::views::View;
 use turbo_vision::views::list_viewer::{ListViewer, ListViewerState};
 use turbo_vision::views::view::write_line_to_terminal;
+use turbo_vision::views::{View, ViewCore};
 
 /// Lazy item source for [`VirtualListBox`].
 ///
@@ -63,18 +62,17 @@ impl ListProvider for Vec<String> {
 /// assert_eq!(list.item_count(), 1_000_000);
 /// ```
 pub struct VirtualListBox {
-    bounds: Rect,
+    core: ViewCore,
     provider: Box<dyn ListProvider>,
     list_state: ListViewerState,
     on_select: CommandId,
-    state: StateFlags,
     palette_chain: Option<turbo_vision::core::palette_chain::PaletteChainNode>,
 }
 
 impl std::fmt::Debug for VirtualListBox {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("VirtualListBox")
-            .field("bounds", &self.bounds)
+            .field("bounds", &self.core.bounds)
             .field("items", &self.provider.len())
             .finish()
     }
@@ -86,11 +84,14 @@ impl VirtualListBox {
         let mut list_state = ListViewerState::new();
         list_state.set_range(provider.len());
         Self {
-            bounds,
+            core: ViewCore {
+                bounds,
+                state: 0,
+                ..ViewCore::default()
+            },
             provider,
             list_state,
             on_select,
-            state: 0,
             palette_chain: None,
         }
     }
@@ -115,24 +116,24 @@ impl VirtualListBox {
     /// Focus an item by index.
     pub fn set_selection(&mut self, index: usize) {
         if index < self.provider.len() {
-            let visible = self.bounds.height_clamped() as usize;
+            let visible = self.core.bounds.height_clamped() as usize;
             self.list_state.focus_item(index, visible);
         }
     }
 }
 
 impl View for VirtualListBox {
-    fn bounds(&self) -> Rect {
-        self.bounds
+    fn core(&self) -> &ViewCore {
+        &self.core
     }
 
-    fn set_bounds(&mut self, bounds: Rect) {
-        self.bounds = bounds;
+    fn core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        let width = self.bounds.width_clamped() as usize;
-        let height = self.bounds.height_clamped() as usize;
+        let width = self.core.bounds.width_clamped() as usize;
+        let height = self.core.bounds.height_clamped() as usize;
 
         let normal = Attr::new(TvColor::Black, TvColor::Cyan);
         let selected = if self.is_focused() {
@@ -157,8 +158,8 @@ impl View for VirtualListBox {
             }
             write_line_to_terminal(
                 terminal,
-                self.bounds.a.x,
-                self.bounds.a.y + row as i16,
+                self.core.bounds.a.x,
+                self.core.bounds.a.y + row as i16,
                 &buf,
             );
         }
@@ -181,14 +182,6 @@ impl View for VirtualListBox {
 
     fn can_focus(&self) -> bool {
         true
-    }
-
-    fn state(&self) -> StateFlags {
-        self.state
-    }
-
-    fn set_state(&mut self, state: StateFlags) {
-        self.state = state;
     }
 
     fn set_list_selection(&mut self, index: usize) {

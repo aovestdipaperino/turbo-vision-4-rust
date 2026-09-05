@@ -5,7 +5,7 @@
 use super::indicator::Indicator;
 use super::scrollbar::ScrollBar;
 use super::syntax::SyntaxHighlighter;
-use super::view::{View, write_line_to_terminal};
+use super::view::{View, ViewCore, write_line_to_terminal};
 use crate::core::clipboard;
 use crate::core::draw::DrawBuffer;
 use crate::core::event::{
@@ -13,7 +13,6 @@ use crate::core::event::{
     KB_PGUP, KB_RIGHT, KB_TAB, KB_UP, MB_LEFT_BUTTON,
 };
 use crate::core::geometry::{Point, Rect};
-use crate::core::state::StateFlags;
 use crate::terminal::Terminal;
 use std::cell::RefCell;
 use std::cmp::min;
@@ -138,14 +137,13 @@ pub enum SelectionMode {
 }
 
 pub struct EditorWindow {
-    bounds: Rect,
+    core: ViewCore,
     lines: Vec<String>,
     cursor: Point,
     delta: Point,
     selection_start: Option<Point>,
     /// Interpretation of the current selection. Fixed when a selection starts.
     selection_mode: SelectionMode,
-    state: StateFlags,
     v_scrollbar: Option<Rc<RefCell<ScrollBar>>>,
     h_scrollbar: Option<Rc<RefCell<ScrollBar>>>,
     indicator: Option<Rc<RefCell<Indicator>>>,
@@ -169,24 +167,24 @@ pub struct EditorWindow {
     backup_files: bool,
     // Syntax highlighting
     highlighter: Option<Box<dyn SyntaxHighlighter>>,
-    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
-    /// Grow flags: the editor fills its parent's interior, so its bottom-right
-    /// edge follows a resize while the top-left stays pinned.
-    grow_mode: crate::core::state::GrowFlags,
 }
 
 impl EditorWindow {
     /// Create a new editor control
     pub fn new(bounds: Rect) -> Self {
         Self {
-            bounds,
+            core: ViewCore {
+                bounds,
+                grow_mode: crate::core::state::GF_GROW_HI_X | crate::core::state::GF_GROW_HI_Y,
+                state: 0,
+                palette_chain: None,
+                ..ViewCore::default()
+            },
             lines: vec![String::new()],
             cursor: Point::zero(),
             delta: Point::zero(),
             selection_start: None,
             selection_mode: SelectionMode::Stream,
-            grow_mode: crate::core::state::GF_GROW_HI_X | crate::core::state::GF_GROW_HI_Y,
-            state: 0,
             v_scrollbar: None,
             h_scrollbar: None,
             indicator: None,
@@ -204,7 +202,6 @@ impl EditorWindow {
             crlf_line_endings: false,
             backup_files: false,
             highlighter: None,
-            palette_chain: None,
         }
     }
 
@@ -328,13 +325,13 @@ impl EditorWindow {
 
     /// Check if vertical scrollbar is needed
     pub fn needs_vertical_scrollbar(&self) -> bool {
-        let visible_height = self.bounds.height_clamped() as usize;
+        let visible_height = self.core.bounds.height_clamped() as usize;
         self.line_count() > visible_height
     }
 
     /// Check if horizontal scrollbar is needed
     pub fn needs_horizontal_scrollbar(&self) -> bool {
-        let visible_width = self.bounds.width_clamped() as usize;
+        let visible_width = self.core.bounds.width_clamped() as usize;
         self.max_line_width() > visible_width
     }
 
@@ -589,7 +586,7 @@ impl EditorWindow {
     fn get_content_area(&self) -> Rect {
         // In the Borland-style architecture, scrollbars are siblings (not children)
         // So the editor's bounds already exclude scrollbar space - just return full bounds
-        self.bounds
+        self.core.bounds
     }
 
     /// Convert mouse position to cursor position (line, column)
@@ -1592,26 +1589,22 @@ impl EditorWindow {
 }
 
 impl View for EditorWindow {
-    fn bounds(&self) -> Rect {
-        self.bounds
+    fn core(&self) -> &ViewCore {
+        &self.core
+    }
+
+    fn core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
     }
 
     fn set_bounds(&mut self, bounds: Rect) {
-        self.bounds = bounds;
+        self.core.bounds = bounds;
         // Note: Scrollbars and indicator are now children of the Window, not the EditorWindow
         // The Window's interior Group automatically handles their positioning
         // We only need to update our internal state
         self.clamp_cursor();
         self.ensure_cursor_visible();
         self.update_scrollbars();
-    }
-
-    fn grow_mode(&self) -> crate::core::state::GrowFlags {
-        self.grow_mode
-    }
-
-    fn set_grow_mode(&mut self, grow_mode: crate::core::state::GrowFlags) {
-        self.grow_mode = grow_mode;
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
@@ -2060,14 +2053,6 @@ impl View for EditorWindow {
     // set_focus() now uses default implementation from View trait
     // which sets/clears SF_FOCUSED flag
 
-    fn state(&self) -> StateFlags {
-        self.state
-    }
-
-    fn set_state(&mut self, state: StateFlags) {
-        self.state = state;
-    }
-
     fn update_cursor(&self, terminal: &mut Terminal) {
         if self.is_focused() {
             // Calculate cursor position on screen using content area (not bounds)
@@ -2079,14 +2064,6 @@ impl View for EditorWindow {
             // Show cursor at the position
             let _ = terminal.show_cursor(cursor_x as u16, cursor_y as u16);
         }
-    }
-
-    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
-        self.palette_chain = node;
-    }
-
-    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
-        self.palette_chain.as_ref()
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {

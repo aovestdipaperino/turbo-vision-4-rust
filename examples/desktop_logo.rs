@@ -13,9 +13,9 @@ use turbo_vision::core::event::{Event, EventType};
 use turbo_vision::core::geometry::Rect;
 use turbo_vision::core::menu_data::{Menu, MenuItem};
 use turbo_vision::core::palette::{Attr, Palette, TvColor};
-use turbo_vision::core::state::StateFlags;
 use turbo_vision::helpers::msgbox::{MF_ABOUT, MF_OK_BUTTON, message_box};
 use turbo_vision::terminal::Terminal;
+use turbo_vision::views::ViewCore;
 use turbo_vision::views::ansi_background::AnsiBackground;
 use turbo_vision::views::view::write_line_to_terminal;
 use turbo_vision::views::{
@@ -31,8 +31,7 @@ const CM_LOAD_ASCII: u16 = 102;
 
 // Animated Crab Widget for Status Bar
 struct CrabWidget {
-    bounds: Rect,
-    state: StateFlags,
+    core: ViewCore,
     position: usize, // Current position (0-9)
     direction: i8,   // 1 for right, -1 for left
     last_update: Instant,
@@ -41,8 +40,11 @@ struct CrabWidget {
 impl CrabWidget {
     fn new(x: i16, y: i16) -> Self {
         Self {
-            bounds: Rect::new(x, y, x + 10, y + 1),
-            state: 0,
+            core: ViewCore {
+                bounds: Rect::new(x, y, x + 10, y + 1),
+                state: 0,
+                ..ViewCore::default()
+            },
             position: 0,
             direction: 1,
             last_update: Instant::now(),
@@ -51,20 +53,12 @@ impl CrabWidget {
 }
 
 impl View for CrabWidget {
-    fn bounds(&self) -> Rect {
-        self.bounds
+    fn core(&self) -> &ViewCore {
+        &self.core
     }
 
-    fn set_bounds(&mut self, bounds: Rect) {
-        self.bounds = bounds;
-    }
-
-    fn state(&self) -> StateFlags {
-        self.state
-    }
-
-    fn set_state(&mut self, state: StateFlags) {
-        self.state = state;
+    fn core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
@@ -80,7 +74,7 @@ impl View for CrabWidget {
         // Place the crab at current position
         buf.move_char(self.position, '🦀', color, 1);
 
-        write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y, &buf);
+        write_line_to_terminal(terminal, self.core.bounds.a.x, self.core.bounds.a.y, &buf);
     }
 
     fn handle_event(&mut self, _event: &mut Event) {}
@@ -132,8 +126,7 @@ const ASCII_LOGO: &str = r#"████████╗██╗   ██╗█�
 
 // Custom Desktop Background with Logo Pattern (fallback for ASCII art)
 struct LogoBackground {
-    bounds: Rect,
-    state: StateFlags,
+    core: ViewCore,
     logo_lines: Vec<String>,
 }
 
@@ -141,33 +134,28 @@ impl LogoBackground {
     fn new(bounds: Rect) -> Self {
         let logo_lines: Vec<String> = ASCII_LOGO.lines().map(|s| s.to_string()).collect();
         Self {
-            bounds,
-            state: 0,
+            core: ViewCore {
+                bounds,
+                state: 0,
+                ..ViewCore::default()
+            },
             logo_lines,
         }
     }
 }
 
 impl View for LogoBackground {
-    fn bounds(&self) -> Rect {
-        self.bounds
+    fn core(&self) -> &ViewCore {
+        &self.core
     }
 
-    fn set_bounds(&mut self, bounds: Rect) {
-        self.bounds = bounds;
-    }
-
-    fn state(&self) -> StateFlags {
-        self.state
-    }
-
-    fn set_state(&mut self, state: StateFlags) {
-        self.state = state;
+    fn core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        let width = self.bounds.width() as usize;
-        let height = self.bounds.height() as usize;
+        let width = self.core.bounds.width() as usize;
+        let height = self.core.bounds.height() as usize;
         // Use cyan background for desktop
         let color = Attr::new(TvColor::LightGray, TvColor::DarkGray);
 
@@ -205,7 +193,12 @@ impl View for LogoBackground {
                 }
             }
 
-            write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y + i as i16, &buf);
+            write_line_to_terminal(
+                terminal,
+                self.core.bounds.a.x,
+                self.core.bounds.a.y + i as i16,
+                &buf,
+            );
         }
     }
 

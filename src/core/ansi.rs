@@ -153,8 +153,14 @@ impl AnsiParser {
                 // Start of escape sequence
                 if chars.peek() == Some(&'[') {
                     chars.next(); // consume '['
-                    let (new_fg, new_bg, new_bright, new_style, new_fg_explicit) = self
-                        .parse_sgr(&mut chars, current_fg, current_bg, bright, style, fg_explicit);
+                    let (new_fg, new_bg, new_bright, new_style, new_fg_explicit) = self.parse_sgr(
+                        &mut chars,
+                        current_fg,
+                        current_bg,
+                        bright,
+                        style,
+                        fg_explicit,
+                    );
                     current_fg = new_fg;
                     current_bg = new_bg;
                     bright = new_bright;

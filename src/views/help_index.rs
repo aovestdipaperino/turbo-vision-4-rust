@@ -13,7 +13,7 @@ use super::input_line::InputLine;
 use super::label::Label;
 use super::listbox::ListBox;
 use super::static_text::StaticText;
-use super::{View, ViewId};
+use super::{View, ViewCore, ViewId};
 use crate::core::command::{CM_CANCEL, CM_OK};
 use crate::core::event::{Event, EventType};
 use crate::core::geometry::Rect;
@@ -180,11 +180,17 @@ impl HelpIndex {
 }
 
 impl View for HelpIndex {
-    fn bounds(&self) -> Rect {
-        self.dialog.bounds()
+    fn core(&self) -> &ViewCore {
+        self.dialog.core()
+    }
+
+    fn core_mut(&mut self) -> &mut ViewCore {
+        self.dialog.core_mut()
     }
 
     fn set_bounds(&mut self, bounds: Rect) {
+        // Forwarded explicitly: the inner view's `set_bounds` cascades to its
+        // children, which the `ViewCore` default would bypass.
         self.dialog.set_bounds(bounds);
     }
 
@@ -206,14 +212,6 @@ impl View for HelpIndex {
 
     fn can_focus(&self) -> bool {
         true
-    }
-
-    fn state(&self) -> crate::core::state::StateFlags {
-        self.dialog.state()
-    }
-
-    fn set_state(&mut self, state: crate::core::state::StateFlags) {
-        self.dialog.set_state(state);
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {

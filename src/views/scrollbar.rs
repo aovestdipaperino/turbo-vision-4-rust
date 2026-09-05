@@ -2,7 +2,7 @@
 
 //! ScrollBar view - vertical or horizontal scrollbar with draggable indicator.
 
-use super::view::{View, write_line_to_terminal};
+use super::view::{View, ViewCore, write_line_to_terminal};
 use crate::core::draw::DrawBuffer;
 use crate::core::event::{
     Event, EventType, KB_DOWN, KB_END, KB_HOME, KB_LEFT, KB_PGDN, KB_PGUP, KB_RIGHT, KB_UP,
@@ -57,7 +57,7 @@ enum RepeatAction {
 }
 
 pub struct ScrollBar {
-    bounds: Rect,
+    core: ViewCore,
     value: i32,
     min_val: i32,
     max_val: i32,
@@ -66,7 +66,6 @@ pub struct ScrollBar {
     total: i32,   // Total content size (lines or columns) for proportional thumb
     chars: [char; 5],
     is_vertical: bool,
-    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
     dragging_thumb: bool,
     /// What the held button is repeating, and when the next repeat is due.
     repeat: Option<(RepeatAction, Instant)>,
@@ -75,7 +74,11 @@ pub struct ScrollBar {
 impl ScrollBar {
     pub fn new_vertical(bounds: Rect) -> Self {
         Self {
-            bounds,
+            core: ViewCore {
+                bounds,
+                palette_chain: None,
+                ..ViewCore::default()
+            },
             value: 0,
             min_val: 0,
             max_val: 0,
@@ -84,7 +87,6 @@ impl ScrollBar {
             total: 0,
             chars: VSCROLL_CHARS,
             is_vertical: true,
-            palette_chain: None,
             dragging_thumb: false,
             repeat: None,
         }
@@ -92,7 +94,11 @@ impl ScrollBar {
 
     pub fn new_horizontal(bounds: Rect) -> Self {
         Self {
-            bounds,
+            core: ViewCore {
+                bounds,
+                palette_chain: None,
+                ..ViewCore::default()
+            },
             value: 0,
             min_val: 0,
             max_val: 0,
@@ -101,7 +107,6 @@ impl ScrollBar {
             total: 0,
             chars: HSCROLL_CHARS,
             is_vertical: false,
-            palette_chain: None,
             dragging_thumb: false,
             repeat: None,
         }
@@ -145,9 +150,9 @@ impl ScrollBar {
     /// Get the size of the scrollbar track (not including arrows)
     fn get_size(&self) -> i32 {
         if self.is_vertical {
-            (self.bounds.height() - 2).max(1) as i32
+            (self.core.bounds.height() - 2).max(1) as i32
         } else {
-            (self.bounds.width() - 2).max(1) as i32
+            (self.core.bounds.width() - 2).max(1) as i32
         }
     }
 
@@ -184,13 +189,13 @@ impl ScrollBar {
         reason = "Borland TV API - reserved for advanced scrollbar interaction"
     )]
     fn get_part_at(&self, p: Point) -> i16 {
-        let rel_x = p.x - self.bounds.a.x;
-        let rel_y = p.y - self.bounds.a.y;
+        let rel_x = p.x - self.core.bounds.a.x;
+        let rel_y = p.y - self.core.bounds.a.y;
 
         if self.is_vertical {
             if rel_y == 0 {
                 SB_UP_ARROW
-            } else if rel_y == self.bounds.height() - 1 {
+            } else if rel_y == self.core.bounds.height() - 1 {
                 SB_DOWN_ARROW
             } else {
                 let pos = self.get_pos();
@@ -204,7 +209,7 @@ impl ScrollBar {
             }
         } else if rel_x == 0 {
             SB_UP_ARROW // Left arrow for horizontal
-        } else if rel_x == self.bounds.width() - 1 {
+        } else if rel_x == self.core.bounds.width() - 1 {
             SB_DOWN_ARROW // Right arrow for horizontal
         } else {
             let pos = self.get_pos();
@@ -288,7 +293,7 @@ impl ScrollBar {
         if self.is_vertical {
             // Update thumb position based on mouse Y
             let mouse_y = event.mouse.pos.y;
-            let rel_y = (mouse_y - self.bounds.a.y - 1) as i32; // Relative to track start
+            let rel_y = (mouse_y - self.core.bounds.a.y - 1) as i32; // Relative to track start
             let range = self.max_val - self.min_val + 1;
             let s = self.get_size();
             log::debug!(
@@ -307,7 +312,7 @@ impl ScrollBar {
         } else {
             // Horizontal scrollbar
             let mouse_x = event.mouse.pos.x;
-            let rel_x = (mouse_x - self.bounds.a.x - 1) as i32; // Relative to track start
+            let rel_x = (mouse_x - self.core.bounds.a.x - 1) as i32; // Relative to track start
             let range = self.max_val - self.min_val + 1;
             let s = self.get_size();
             log::debug!(
@@ -369,13 +374,13 @@ impl ScrollBar {
         let mouse_pos = event.mouse.pos;
 
         if self.is_vertical {
-            if mouse_pos.x >= self.bounds.a.x
-                && mouse_pos.x < self.bounds.b.x
-                && mouse_pos.y >= self.bounds.a.y
-                && mouse_pos.y < self.bounds.b.y
+            if mouse_pos.x >= self.core.bounds.a.x
+                && mouse_pos.x < self.core.bounds.b.x
+                && mouse_pos.y >= self.core.bounds.a.y
+                && mouse_pos.y < self.core.bounds.b.y
             {
-                let rel_y = mouse_pos.y - self.bounds.a.y;
-                let height = self.bounds.height();
+                let rel_y = mouse_pos.y - self.core.bounds.a.y;
+                let height = self.core.bounds.height();
 
                 if rel_y == 0 {
                     self.apply(RepeatAction::StepBack);
@@ -406,13 +411,13 @@ impl ScrollBar {
                 }
             }
         } else {
-            if mouse_pos.y >= self.bounds.a.y
-                && mouse_pos.y < self.bounds.b.y
-                && mouse_pos.x >= self.bounds.a.x
-                && mouse_pos.x < self.bounds.b.x
+            if mouse_pos.y >= self.core.bounds.a.y
+                && mouse_pos.y < self.core.bounds.b.y
+                && mouse_pos.x >= self.core.bounds.a.x
+                && mouse_pos.x < self.core.bounds.b.x
             {
-                let rel_x = mouse_pos.x - self.bounds.a.x;
-                let width = self.bounds.width();
+                let rel_x = mouse_pos.x - self.core.bounds.a.x;
+                let width = self.core.bounds.width();
 
                 if rel_x == 0 {
                     self.apply(RepeatAction::StepBack);
@@ -447,12 +452,12 @@ impl ScrollBar {
 }
 
 impl View for ScrollBar {
-    fn bounds(&self) -> Rect {
-        self.bounds
+    fn core(&self) -> &ViewCore {
+        &self.core
     }
 
-    fn set_bounds(&mut self, bounds: Rect) {
-        self.bounds = bounds;
+    fn core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
@@ -467,7 +472,7 @@ impl View for ScrollBar {
         let thumb_end = thumb_start + thumb as i16;
 
         if self.is_vertical {
-            let height = self.bounds.height();
+            let height = self.core.bounds.height();
 
             for y in 0..height {
                 let mut buf = DrawBuffer::new(1);
@@ -487,10 +492,15 @@ impl View for ScrollBar {
 
                 let attr = if in_thumb { indicator_attr } else { page_attr };
                 buf.put_char(0, ch, attr);
-                write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y + y, &buf);
+                write_line_to_terminal(
+                    terminal,
+                    self.core.bounds.a.x,
+                    self.core.bounds.a.y + y,
+                    &buf,
+                );
             }
         } else {
-            let width = self.bounds.width();
+            let width = self.core.bounds.width();
             let mut buf = DrawBuffer::new(width as usize);
 
             for x in 0..width {
@@ -512,7 +522,7 @@ impl View for ScrollBar {
                 buf.put_char(x as usize, ch, attr);
             }
 
-            write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y, &buf);
+            write_line_to_terminal(terminal, self.core.bounds.a.x, self.core.bounds.a.y, &buf);
         }
     }
 
@@ -550,14 +560,6 @@ impl View for ScrollBar {
             }
             _ => {}
         }
-    }
-
-    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
-        self.palette_chain = node;
-    }
-
-    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
-        self.palette_chain.as_ref()
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
@@ -694,7 +696,7 @@ impl ScrollBarBuilder {
         };
 
         ScrollBar {
-            bounds,
+            core: ViewCore::new(bounds),
             value: self
                 .value
                 .max(self.min_val)
@@ -706,7 +708,6 @@ impl ScrollBarBuilder {
             total: 0,
             chars,
             is_vertical: self.is_vertical,
-            palette_chain: None,
             dragging_thumb: false,
             repeat: None,
         }

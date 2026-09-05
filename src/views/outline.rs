@@ -11,11 +11,10 @@
 //! - Custom node data
 
 use super::list_viewer::{ListViewer, ListViewerState};
-use super::view::{View, write_line_to_terminal};
+use super::view::{View, ViewCore, write_line_to_terminal};
 use crate::core::draw::DrawBuffer;
 use crate::core::event::{Event, EventType, KB_ENTER, KB_LEFT, KB_RIGHT};
 use crate::core::geometry::Rect;
-use crate::core::state::StateFlags;
 use crate::terminal::Terminal;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -124,8 +123,7 @@ impl DisplayNode {
 /// OutlineViewer - displays a hierarchical tree of nodes
 /// Matches Borland: TOutlineViewer
 pub struct OutlineViewer<T> {
-    bounds: Rect,
-    state: StateFlags,
+    core: ViewCore,
     /// Root nodes
     roots: Vec<Rc<RefCell<Node<T>>>>,
     /// Flattened list for display
@@ -136,7 +134,6 @@ pub struct OutlineViewer<T> {
     list_state: ListViewerState,
     /// Function to convert data to display string
     format_fn: Box<dyn Fn(&T) -> String>,
-    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
 }
 
 impl<T: 'static> OutlineViewer<T> {
@@ -147,14 +144,17 @@ impl<T: 'static> OutlineViewer<T> {
         F: Fn(&T) -> String + 'static,
     {
         Self {
-            bounds,
-            state: 0,
+            core: ViewCore {
+                bounds,
+                state: 0,
+                palette_chain: None,
+                ..ViewCore::default()
+            },
             roots: Vec::new(),
             display_nodes: Vec::new(),
             all_nodes: Vec::new(),
             list_state: ListViewerState::new(),
             format_fn: Box::new(format_fn),
-            palette_chain: None,
         }
     }
 
@@ -280,17 +280,17 @@ impl<T: 'static> OutlineViewer<T> {
 }
 
 impl<T: 'static> View for OutlineViewer<T> {
-    fn bounds(&self) -> Rect {
-        self.bounds
+    fn core(&self) -> &ViewCore {
+        &self.core
     }
 
-    fn set_bounds(&mut self, bounds: Rect) {
-        self.bounds = bounds;
+    fn core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        let width = self.bounds.width_clamped() as usize;
-        let height = self.bounds.height_clamped() as usize;
+        let width = self.core.bounds.width_clamped() as usize;
+        let height = self.core.bounds.height_clamped() as usize;
 
         use crate::core::palette::colors::{
             LISTBOX_FOCUSED, LISTBOX_NORMAL, LISTBOX_SELECTED, LISTBOX_SELECTED_FOCUSED,
@@ -333,7 +333,12 @@ impl<T: 'static> View for OutlineViewer<T> {
                 buf.move_char(0, ' ', color_normal, width);
             }
 
-            write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y + i as i16, &buf);
+            write_line_to_terminal(
+                terminal,
+                self.core.bounds.a.x,
+                self.core.bounds.a.y + i as i16,
+                &buf,
+            );
         }
     }
 
@@ -364,24 +369,8 @@ impl<T: 'static> View for OutlineViewer<T> {
         self.handle_list_event(event);
     }
 
-    fn state(&self) -> StateFlags {
-        self.state
-    }
-
-    fn set_state(&mut self, state: StateFlags) {
-        self.state = state;
-    }
-
     fn can_focus(&self) -> bool {
         true
-    }
-
-    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
-        self.palette_chain = node;
-    }
-
-    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
-        self.palette_chain.as_ref()
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {

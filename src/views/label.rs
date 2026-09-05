@@ -2,7 +2,7 @@
 
 //! Label view - static text display with optional linked control focus.
 
-use super::view::{View, ViewId, write_line_to_terminal};
+use super::view::{View, ViewCore, ViewId, write_line_to_terminal};
 use crate::core::draw::DrawBuffer;
 use crate::core::event::{Event, EventType};
 use crate::core::geometry::Rect;
@@ -11,23 +11,23 @@ use crate::core::state::OF_POST_PROCESS;
 use crate::terminal::Terminal;
 
 pub struct Label {
-    bounds: Rect,
+    core: ViewCore,
     text: String,
     link: Option<ViewId>, // ID of linked control
-    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
-    state: u16,
-    options: u16,
 }
 
 impl Label {
     pub fn new(bounds: Rect, text: &str) -> Self {
         Self {
-            bounds,
+            core: ViewCore {
+                bounds,
+                palette_chain: None,
+                state: 0,
+                options: OF_POST_PROCESS, // Labels need PostProcess to handle keyboard shortcuts
+                ..ViewCore::default()
+            },
             text: text.to_string(),
             link: None,
-            palette_chain: None,
-            state: 0,
-            options: OF_POST_PROCESS, // Labels need PostProcess to handle keyboard shortcuts
         }
     }
 
@@ -56,16 +56,16 @@ impl Label {
 }
 
 impl View for Label {
-    fn bounds(&self) -> Rect {
-        self.bounds
+    fn core(&self) -> &ViewCore {
+        &self.core
     }
 
-    fn set_bounds(&mut self, bounds: Rect) {
-        self.bounds = bounds;
+    fn core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        let width = self.bounds.width_clamped() as usize;
+        let width = self.core.bounds.width_clamped() as usize;
         let mut buf = DrawBuffer::new(width);
 
         // Label palette indices:
@@ -76,7 +76,7 @@ impl View for Label {
         buf.move_char(0, ' ', normal_attr, width);
         buf.move_str_with_shortcut(0, &self.text, normal_attr, shortcut_attr);
 
-        write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y, &buf);
+        write_line_to_terminal(terminal, self.core.bounds.a.x, self.core.bounds.a.y, &buf);
     }
 
     fn handle_event(&mut self, event: &mut Event) {
@@ -139,26 +139,6 @@ impl View for Label {
     /// Matches Borland: TLabel::link field
     fn label_link(&self) -> Option<ViewId> {
         self.link
-    }
-
-    fn state(&self) -> u16 {
-        self.state
-    }
-
-    fn set_state(&mut self, state: u16) {
-        self.state = state;
-    }
-
-    fn options(&self) -> u16 {
-        self.options
-    }
-
-    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
-        self.palette_chain = node;
-    }
-
-    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
-        self.palette_chain.as_ref()
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {

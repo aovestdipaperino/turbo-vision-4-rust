@@ -283,6 +283,9 @@ mod tests {
         dump_buffer(&mut out, &buffer, 2, 1).unwrap();
         let s = String::from_utf8(out).unwrap();
         assert!(s.contains("\x1b[1m"), "bold on-code emitted");
-        assert!(s.contains("\x1b[22m"), "bold off-code emitted before plain char");
+        assert!(
+            s.contains("\x1b[22m"),
+            "bold off-code emitted before plain char"
+        );
     }
 }

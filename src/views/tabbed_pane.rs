@@ -53,7 +53,7 @@
 //! ```
 
 use super::group::Group;
-use super::view::{View, write_line_to_terminal};
+use super::view::{View, ViewCore, write_line_to_terminal};
 use crate::core::draw::DrawBuffer;
 use crate::core::event::{Event, EventType, KB_F6, KB_PGDN, KB_PGUP, MB_LEFT_BUTTON};
 use crate::core::geometry::{Point, Rect};
@@ -152,22 +152,24 @@ fn parse_title(title: &str) -> (String, Option<char>, Option<usize>) {
 
 /// A strip of tabs over a stack of pages.
 pub struct TabbedPane {
-    bounds: Rect,
+    core: ViewCore,
     tabs: Vec<Tab>,
     active: usize,
     view_state: StateFlags,
-    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
 }
 
 impl TabbedPane {
     /// Create an empty pane. The top row is the tab strip.
     pub fn new(bounds: Rect) -> Self {
         Self {
-            bounds,
+            core: ViewCore {
+                bounds,
+                palette_chain: None,
+                ..ViewCore::default()
+            },
             tabs: Vec::new(),
             active: 0,
             view_state: 0,
-            palette_chain: None,
         }
     }
 
@@ -176,10 +178,10 @@ impl TabbedPane {
     /// Build each page's [`Group`] with this, so pages line up with the pane.
     pub fn page_area(&self) -> Rect {
         Rect::new(
-            self.bounds.a.x + 1,
-            self.bounds.a.y + HEADER_ROWS,
-            self.bounds.b.x - 1,
-            self.bounds.b.y - 1,
+            self.core.bounds.a.x + 1,
+            self.core.bounds.a.y + HEADER_ROWS,
+            self.core.bounds.b.x - 1,
+            self.core.bounds.b.y - 1,
         )
     }
 
@@ -282,11 +284,11 @@ impl TabbedPane {
     fn tab_at(&self, pos: Point) -> Option<usize> {
         // Any of the tab's own three rows counts as a hit on it, so a click
         // near the top or bottom edge is not silently lost.
-        let local_y = pos.y - self.bounds.a.y;
-        if !(0..HEADER_ROWS).contains(&local_y) || !self.bounds.contains(pos) {
+        let local_y = pos.y - self.core.bounds.a.y;
+        if !(0..HEADER_ROWS).contains(&local_y) || !self.core.bounds.contains(pos) {
             return None;
         }
-        let local_x = (pos.x - self.bounds.a.x) as usize;
+        let local_x = (pos.x - self.core.bounds.a.x) as usize;
         let offsets = self.tab_offsets();
         for (index, offset) in offsets.iter().enumerate() {
             if local_x >= *offset && local_x < offset + self.tabs[index].width() {
@@ -307,8 +309,8 @@ impl TabbedPane {
     /// Three header rows: the tab tops, the titles, then the page's top edge,
     /// which is broken open under the active tab so the two read as one shape.
     fn draw_frame(&mut self, terminal: &mut Terminal) {
-        let width = self.bounds.width_clamped().max(0) as usize;
-        let height = self.bounds.height_clamped().max(0) as usize;
+        let width = self.core.bounds.width_clamped().max(0) as usize;
+        let height = self.core.bounds.height_clamped().max(0) as usize;
         if width < 2 || height <= HEADER_ROWS as usize {
             return;
         }
@@ -316,11 +318,17 @@ impl TabbedPane {
         // of the dialog rather than as a button; the active one is told apart by
         // its open floor and its brighter text.
         let tabs_painter = HeaderPainter {
-            chain: self.palette_chain.clone(),
+            core: ViewCore {
+                palette_chain: self.core.palette_chain.clone(),
+                ..ViewCore::default()
+            },
             palette: crate::core::palette::palettes::CP_LABEL,
         };
         let rules_painter = HeaderPainter {
-            chain: self.palette_chain.clone(),
+            core: ViewCore {
+                palette_chain: self.core.palette_chain.clone(),
+                ..ViewCore::default()
+            },
             palette: crate::core::palette::palettes::CP_LABEL,
         };
         let normal = tabs_painter.map_color(LABEL_NORMAL);
@@ -330,8 +338,8 @@ impl TabbedPane {
         // sits in a dialog without a colour of its own.
         let frame = rules_painter.map_color(LABEL_DIMMED);
 
-        let x0 = self.bounds.a.x;
-        let y0 = self.bounds.a.y;
+        let x0 = self.core.bounds.a.x;
+        let y0 = self.core.bounds.a.y;
 
         // Row 0 and row 1: each tab as its own box. Blank elsewhere, so the
         // dialog shows between tabs.
@@ -399,7 +407,7 @@ impl TabbedPane {
         for row in HEADER_ROWS as usize..height - 1 {
             let y = y0 + row as i16;
             write_line_to_terminal(terminal, x0, y, &wall);
-            write_line_to_terminal(terminal, self.bounds.b.x - 1, y, &wall);
+            write_line_to_terminal(terminal, self.core.bounds.b.x - 1, y, &wall);
         }
 
         // Bottom edge.
@@ -407,7 +415,7 @@ impl TabbedPane {
         bottom.move_char(0, FRAME_HORIZONTAL, frame, width);
         bottom.put_char(0, FRAME_BOTTOM_LEFT, frame);
         bottom.put_char(width - 1, FRAME_BOTTOM_RIGHT, frame);
-        write_line_to_terminal(terminal, x0, self.bounds.b.y - 1, &bottom);
+        write_line_to_terminal(terminal, x0, self.core.bounds.b.y - 1, &bottom);
     }
 }
 
@@ -418,24 +426,22 @@ impl TabbedPane {
 /// tab titles and static-text colours for the box rules, which read as ordinary
 /// text on the owner's background. Neither ever joins the view hierarchy.
 struct HeaderPainter {
-    chain: Option<crate::core::palette_chain::PaletteChainNode>,
+    core: ViewCore,
     palette: &'static [u8],
 }
 
 impl View for HeaderPainter {
-    fn bounds(&self) -> Rect {
-        Rect::new(0, 0, 0, 0)
+    fn core(&self) -> &ViewCore {
+        &self.core
     }
 
-    fn set_bounds(&mut self, _bounds: Rect) {}
+    fn core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
+    }
 
     fn draw(&mut self, _terminal: &mut Terminal) {}
 
     fn handle_event(&mut self, _event: &mut Event) {}
-
-    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
-        self.chain.as_ref()
-    }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
         Some(crate::core::palette::Palette::from_slice(self.palette))
@@ -443,12 +449,16 @@ impl View for HeaderPainter {
 }
 
 impl View for TabbedPane {
-    fn bounds(&self) -> Rect {
-        self.bounds
+    fn core(&self) -> &ViewCore {
+        &self.core
+    }
+
+    fn core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
     }
 
     fn set_bounds(&mut self, bounds: Rect) {
-        self.bounds = bounds;
+        self.core.bounds = bounds;
         // Every page follows the pane, so a resized dialog resizes its pages.
         let area = self.page_area();
         for tab in &mut self.tabs {
@@ -488,7 +498,7 @@ impl View for TabbedPane {
 
         let chain = crate::core::palette_chain::PaletteChainNode::new(
             self.get_palette(),
-            self.palette_chain.clone(),
+            self.core.palette_chain.clone(),
         );
         if let Some(tab) = self.tabs.get_mut(self.active) {
             tab.page.set_palette_chain(Some(chain));
@@ -536,14 +546,6 @@ impl View for TabbedPane {
         if let Some(tab) = self.tabs.get_mut(self.active) {
             tab.page.handle_event(event);
         }
-    }
-
-    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
-        self.palette_chain = node;
-    }
-
-    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
-        self.palette_chain.as_ref()
     }
 
     /// Transparent, so a page's controls map their colours through whatever

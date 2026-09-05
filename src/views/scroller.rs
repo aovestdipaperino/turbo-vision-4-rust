@@ -3,7 +3,7 @@
 //! Scroller view - scrollable viewport base for text viewers and editors.
 
 use super::scrollbar::ScrollBar;
-use super::view::View;
+use super::view::{View, ViewCore};
 use crate::core::event::Event;
 use crate::core::geometry::{Point, Rect};
 use crate::terminal::Terminal;
@@ -12,12 +12,11 @@ use crate::terminal::Terminal;
 /// It manages scroll offsets (delta) and content size (limit),
 /// and coordinates with horizontal and vertical scrollbars.
 pub struct Scroller {
-    bounds: Rect,
+    core: ViewCore,
     delta: Point, // Current scroll offset
     limit: Point, // Maximum scroll range (content size)
     h_scrollbar: Option<Box<ScrollBar>>,
     v_scrollbar: Option<Box<ScrollBar>>,
-    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
 }
 
 impl Scroller {
@@ -27,12 +26,15 @@ impl Scroller {
         v_scrollbar: Option<Box<ScrollBar>>,
     ) -> Self {
         let mut scroller = Self {
-            bounds,
+            core: ViewCore {
+                bounds,
+                palette_chain: None,
+                ..ViewCore::default()
+            },
             delta: Point::zero(),
             limit: Point::zero(),
             h_scrollbar,
             v_scrollbar,
-            palette_chain: None,
         };
         scroller.update_scrollbars();
         scroller
@@ -41,8 +43,8 @@ impl Scroller {
     /// Maximum scroll offset: content size minus one page, never negative.
     fn max_delta(&self) -> Point {
         Point::new(
-            (self.limit.x - self.bounds.width()).max(0),
-            (self.limit.y - self.bounds.height()).max(0),
+            (self.limit.x - self.core.bounds.width()).max(0),
+            (self.limit.y - self.core.bounds.height()).max(0),
         )
     }
 
@@ -85,8 +87,8 @@ impl Scroller {
         // Matches Borland TScroller::setLimit: the scrollbar's maximum is
         // content size minus one page (you can't scroll a full page past the
         // end) and paging moves size-1 lines so one line of overlap remains
-        let page_w = self.bounds.width() as i32;
-        let page_h = self.bounds.height() as i32;
+        let page_w = self.core.bounds.width() as i32;
+        let page_h = self.core.bounds.height() as i32;
 
         if let Some(ref mut h_bar) = self.h_scrollbar {
             h_bar.set_params(
@@ -143,12 +145,16 @@ impl Scroller {
 }
 
 impl View for Scroller {
-    fn bounds(&self) -> Rect {
-        self.bounds
+    fn core(&self) -> &ViewCore {
+        &self.core
+    }
+
+    fn core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
     }
 
     fn set_bounds(&mut self, bounds: Rect) {
-        self.bounds = bounds;
+        self.core.bounds = bounds;
 
         // Update scrollbar positions (they are typically at edges)
         if let Some(ref mut h_bar) = self.h_scrollbar {
@@ -172,14 +178,6 @@ impl View for Scroller {
 
     fn handle_event(&mut self, event: &mut Event) {
         self.handle_scrollbar_events(event);
-    }
-
-    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
-        self.palette_chain = node;
-    }
-
-    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
-        self.palette_chain.as_ref()
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {

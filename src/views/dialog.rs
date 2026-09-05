@@ -2,7 +2,7 @@
 
 //! Dialog view - modal window for user interaction with OK/Cancel buttons.
 
-use super::view::{View, ViewId};
+use super::view::{View, ViewCore, ViewId};
 use super::window::Window;
 use crate::core::command::{CM_CANCEL, CommandId};
 use crate::core::event::{Event, EventType, KB_ENTER, KB_ESC_ESC};
@@ -329,11 +329,17 @@ pub(crate) fn show_dropdown_popup(event: &mut Event, terminal: &mut Terminal) {
 }
 
 impl View for Dialog {
-    fn bounds(&self) -> Rect {
-        self.window.bounds()
+    fn core(&self) -> &ViewCore {
+        self.window.core()
+    }
+
+    fn core_mut(&mut self) -> &mut ViewCore {
+        self.window.core_mut()
     }
 
     fn set_bounds(&mut self, bounds: Rect) {
+        // Forwarded explicitly: the inner view's `set_bounds` cascades to its
+        // children, which the `ViewCore` default would bypass.
         self.window.set_bounds(bounds);
     }
 
@@ -458,22 +464,6 @@ impl View for Dialog {
             }
             // If not modal, let commands pass through unchanged
         }
-    }
-
-    fn state(&self) -> crate::core::state::StateFlags {
-        self.window.state()
-    }
-
-    fn set_state(&mut self, state: crate::core::state::StateFlags) {
-        self.window.set_state(state);
-    }
-
-    fn options(&self) -> u16 {
-        self.window.options()
-    }
-
-    fn set_options(&mut self, options: u16) {
-        self.window.set_options(options);
     }
 
     fn can_focus(&self) -> bool {

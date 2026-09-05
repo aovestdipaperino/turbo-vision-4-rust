@@ -13,7 +13,7 @@
 
 use super::menu_box::MenuBox;
 use super::menu_viewer::{MenuViewer, MenuViewerState};
-use super::view::{View, write_line_to_terminal};
+use super::view::{View, ViewCore, write_line_to_terminal};
 use crate::core::command_set;
 use crate::core::draw::DrawBuffer;
 use crate::core::event::{
@@ -24,7 +24,6 @@ use crate::core::event::{
 };
 use crate::core::geometry::{Point, Rect};
 use crate::core::menu_data::{Menu, MenuItem};
-use crate::core::state::StateFlags;
 use crate::terminal::Terminal;
 
 // MenuBar palette indices (matches Borland TMenuView)
@@ -77,13 +76,11 @@ fn extract_hotkey(text: &str) -> Option<char> {
 ///
 /// Matches Borland: TMenuBar
 pub struct MenuBar {
-    bounds: Rect,
+    core: ViewCore,
     submenus: Vec<SubMenu>,
     menu_positions: Vec<i16>, // X positions of each menu for dropdown placement
     active_menu_idx: Option<usize>, // Which submenu is currently open
     menu_state: MenuViewerState, // State for dropdown menu items
-    state: StateFlags,
-    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
     /// Optional right-aligned status marker, re-queried on every draw
     right_indicator: Option<fn() -> Option<String>>,
 }
@@ -91,13 +88,16 @@ pub struct MenuBar {
 impl MenuBar {
     pub fn new(bounds: Rect) -> Self {
         Self {
-            bounds,
+            core: ViewCore {
+                bounds,
+                state: 0,
+                palette_chain: None,
+                ..ViewCore::default()
+            },
             submenus: Vec::new(),
             menu_positions: Vec::new(),
             active_menu_idx: None,
             menu_state: MenuViewerState::new(),
-            state: 0,
-            palette_chain: None,
             right_indicator: None,
         }
     }
@@ -207,7 +207,7 @@ impl MenuBar {
 
             // Position submenu to the right of the dropdown
             let dropdown_x = self.menu_positions.get(menu_idx).copied().unwrap_or(0);
-            let item_y = self.bounds.a.y + 2 + current_idx as i16; // +1 for bar, +1 for top border
+            let item_y = self.core.bounds.a.y + 2 + current_idx as i16; // +1 for bar, +1 for top border
 
             // Calculate dropdown width (same math as draw_dropdown)
             let dropdown_width = Self::dropdown_width(&self.submenus[menu_idx].menu);
@@ -271,7 +271,7 @@ impl MenuBar {
         }
 
         let menu_x = self.menu_positions[menu_idx];
-        let menu_y = self.bounds.a.y + 1;
+        let menu_y = self.core.bounds.a.y + 1;
         let menu = &self.submenus[menu_idx].menu;
 
         let normal_attr = self.map_color(MENU_NORMAL);
@@ -434,16 +434,16 @@ impl MenuBar {
 }
 
 impl View for MenuBar {
-    fn bounds(&self) -> Rect {
-        self.bounds
+    fn core(&self) -> &ViewCore {
+        &self.core
     }
 
-    fn set_bounds(&mut self, bounds: Rect) {
-        self.bounds = bounds;
+    fn core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        let width = self.bounds.width_clamped() as usize;
+        let width = self.core.bounds.width_clamped() as usize;
         let mut buf = DrawBuffer::new(width);
 
         let normal_attr = self.map_color(MENU_NORMAL);
@@ -507,7 +507,7 @@ impl View for MenuBar {
             }
         }
 
-        write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y, &buf);
+        write_line_to_terminal(terminal, self.core.bounds.a.x, self.core.bounds.a.y, &buf);
 
         // Draw dropdown if active
         if let Some(idx) = self.active_menu_idx {
@@ -521,7 +521,7 @@ impl View for MenuBar {
                 let mouse_pos = event.mouse.pos;
 
                 // Click on menu bar - toggle/switch menus
-                if mouse_pos.y == self.bounds.a.y {
+                if mouse_pos.y == self.core.bounds.a.y {
                     for (i, &menu_x) in self.menu_positions.iter().enumerate() {
                         if i < self.submenus.len() {
                             let menu_width =
@@ -553,7 +553,7 @@ impl View for MenuBar {
                     let (dropdown_bounds, item_count) = if menu_idx < self.menu_positions.len() {
                         if let Some(menu) = self.menu_state.get_menu() {
                             let menu_x = self.menu_positions[menu_idx];
-                            let menu_y = self.bounds.a.y + 1;
+                            let menu_y = self.core.bounds.a.y + 1;
                             let item_count = menu.items.len();
 
                             // Dropdown bounds: top border + items + bottom border
@@ -601,7 +601,7 @@ impl View for MenuBar {
                     let (dropdown_bounds, item_count) = if menu_idx < self.menu_positions.len() {
                         if let Some(menu) = self.menu_state.get_menu() {
                             let menu_x = self.menu_positions[menu_idx];
-                            let menu_y = self.bounds.a.y + 1;
+                            let menu_y = self.core.bounds.a.y + 1;
                             let item_count = menu.items.len();
 
                             let bounds = Rect::new(
@@ -671,12 +671,12 @@ impl View for MenuBar {
                     let mouse_pos = event.mouse.pos;
 
                     // Hover over dropdown items
-                    if mouse_pos.y > self.bounds.a.y {
+                    if mouse_pos.y > self.core.bounds.a.y {
                         self.handle_menu_event(event);
                     }
 
                     // Hover over different menu on bar - switch
-                    if mouse_pos.y == self.bounds.a.y {
+                    if mouse_pos.y == self.core.bounds.a.y {
                         for (i, &menu_x) in self.menu_positions.iter().enumerate() {
                             if i < self.submenus.len() && i != menu_idx {
                                 let menu_width =
@@ -790,22 +790,6 @@ impl View for MenuBar {
         }
     }
 
-    fn state(&self) -> StateFlags {
-        self.state
-    }
-
-    fn set_state(&mut self, state: StateFlags) {
-        self.state = state;
-    }
-
-    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
-        self.palette_chain = node;
-    }
-
-    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
-        self.palette_chain.as_ref()
-    }
-
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
         use crate::core::palette::{Palette, palettes};
         Some(Palette::from_slice(palettes::CP_MENU_BAR))
@@ -826,7 +810,7 @@ impl MenuViewer for MenuBar {
         if let Some(menu_idx) = self.active_menu_idx {
             if menu_idx < self.menu_positions.len() {
                 let menu_x = self.menu_positions[menu_idx];
-                let menu_y = self.bounds.a.y + 1;
+                let menu_y = self.core.bounds.a.y + 1;
                 let width = Self::dropdown_width(&self.submenus[menu_idx].menu) as i16;
                 // Items start at menu_y + 1 (after top border), each is 1 row
                 return crate::core::geometry::Rect::new(

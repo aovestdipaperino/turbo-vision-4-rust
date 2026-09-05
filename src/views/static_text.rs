@@ -2,7 +2,7 @@
 
 //! StaticText view - multi-line static text display with word wrapping.
 
-use super::view::{View, write_line_to_terminal};
+use super::view::{View, ViewCore, write_line_to_terminal};
 use crate::core::draw::DrawBuffer;
 use crate::core::event::Event;
 use crate::core::geometry::Rect;
@@ -10,50 +10,55 @@ use crate::core::palette::STATIC_TEXT_NORMAL;
 use crate::terminal::Terminal;
 
 pub struct StaticText {
-    bounds: Rect,
+    core: ViewCore,
     text: String,
     centered: bool,
-    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
 }
 
 impl StaticText {
     pub fn new(bounds: Rect, text: &str) -> Self {
         Self {
-            bounds,
+            core: ViewCore {
+                bounds,
+                palette_chain: None,
+                ..ViewCore::default()
+            },
             text: text.to_string(),
             centered: false,
-            palette_chain: None,
         }
     }
 
     pub fn new_centered(bounds: Rect, text: &str) -> Self {
         Self {
-            bounds,
+            core: ViewCore {
+                bounds,
+                palette_chain: None,
+                ..ViewCore::default()
+            },
             text: text.to_string(),
             centered: true,
-            palette_chain: None,
         }
     }
 }
 
 impl View for StaticText {
-    fn bounds(&self) -> Rect {
-        self.bounds
+    fn core(&self) -> &ViewCore {
+        &self.core
     }
 
-    fn set_bounds(&mut self, bounds: Rect) {
-        self.bounds = bounds;
+    fn core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        let width = self.bounds.width_clamped() as usize;
+        let width = self.core.bounds.width_clamped() as usize;
         let lines: Vec<&str> = self.text.split('\n').collect();
 
         // StaticText palette color index 1 = normal text
         let text_attr = self.map_color(STATIC_TEXT_NORMAL);
 
         for (i, line) in lines.iter().enumerate() {
-            if i >= self.bounds.height_clamped() as usize {
+            if i >= self.core.bounds.height_clamped() as usize {
                 break;
             }
             let mut buf = DrawBuffer::new(width);
@@ -77,20 +82,17 @@ impl View for StaticText {
 
             // For now, use same color for shortcuts (no separate shortcut color in StaticText palette)
             buf.move_str_with_shortcut(start_pos, line, text_attr, text_attr);
-            write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y + i as i16, &buf);
+            write_line_to_terminal(
+                terminal,
+                self.core.bounds.a.x,
+                self.core.bounds.a.y + i as i16,
+                &buf,
+            );
         }
     }
 
     fn handle_event(&mut self, _event: &mut Event) {
         // Static text doesn't handle events
-    }
-
-    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
-        self.palette_chain = node;
-    }
-
-    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
-        self.palette_chain.as_ref()
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
@@ -167,10 +169,9 @@ impl StaticTextBuilder {
         let text = self.text.expect("StaticText text must be set");
 
         StaticText {
-            bounds,
+            core: ViewCore::new(bounds),
             text,
             centered: self.centered,
-            palette_chain: None,
         }
     }
 

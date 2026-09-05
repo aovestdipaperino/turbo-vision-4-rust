@@ -9,13 +9,12 @@
 //! as it always did, so the two never fight.
 
 use super::list_viewer::{ListViewer, ListViewerState};
-use super::view::{View, write_line_to_terminal};
+use super::view::{View, ViewCore, write_line_to_terminal};
 use crate::core::command::CommandId;
 use crate::core::draw::DrawBuffer;
 use crate::core::event::{Event, EventType, KB_ENTER, MB_LEFT_BUTTON};
 use crate::core::geometry::Rect;
 use crate::core::palette::{LISTBOX_FOCUSED, LISTBOX_NORMAL, LISTBOX_SELECTED};
-use crate::core::state::StateFlags;
 use crate::terminal::Terminal;
 use std::collections::BTreeSet;
 
@@ -33,10 +32,9 @@ const MARK_OFF: &str = "  ";
 /// Now implements ListViewer trait for standard navigation behavior.
 /// Matches Borland: TListBox (extends TListViewer)
 pub struct ListBox {
-    bounds: Rect,
+    core: ViewCore,
     items: Vec<String>,
     list_state: ListViewerState, // Embedded state from ListViewer
-    state: StateFlags,
     on_select_command: CommandId,
     /// Whether items can be marked independently of the focus.
     multi_select: bool,
@@ -44,22 +42,24 @@ pub struct ListBox {
     marked: BTreeSet<usize>,
     /// Where the last Shift+click run started.
     anchor: usize,
-    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
 }
 
 impl ListBox {
     /// Create a new list box
     pub fn new(bounds: Rect, on_select_command: CommandId) -> Self {
         Self {
-            bounds,
+            core: ViewCore {
+                bounds,
+                state: 0,
+                palette_chain: None,
+                ..ViewCore::default()
+            },
             items: Vec::new(),
             list_state: ListViewerState::new(),
-            state: 0,
             on_select_command,
             multi_select: false,
             marked: BTreeSet::new(),
             anchor: 0,
-            palette_chain: None,
         }
     }
 
@@ -184,7 +184,7 @@ impl ListBox {
     /// Set the selected item by index
     pub fn set_selection(&mut self, index: usize) {
         if index < self.items.len() {
-            let visible_rows = self.bounds.height_clamped() as usize;
+            let visible_rows = self.core.bounds.height_clamped() as usize;
             self.list_state.focus_item(index, visible_rows);
         }
     }
@@ -199,53 +199,53 @@ impl ListBox {
 
     /// Move selection up (convenience method)
     pub fn select_prev(&mut self) {
-        let visible_rows = self.bounds.height_clamped() as usize;
+        let visible_rows = self.core.bounds.height_clamped() as usize;
         self.list_state.focus_prev(visible_rows);
     }
 
     /// Move selection down (convenience method)
     pub fn select_next(&mut self) {
-        let visible_rows = self.bounds.height_clamped() as usize;
+        let visible_rows = self.core.bounds.height_clamped() as usize;
         self.list_state.focus_next(visible_rows);
     }
 
     /// Select first item (convenience method)
     pub fn select_first(&mut self) {
-        let visible_rows = self.bounds.height_clamped() as usize;
+        let visible_rows = self.core.bounds.height_clamped() as usize;
         self.list_state.focus_first(visible_rows);
     }
 
     /// Select last item (convenience method)
     pub fn select_last(&mut self) {
-        let visible_rows = self.bounds.height_clamped() as usize;
+        let visible_rows = self.core.bounds.height_clamped() as usize;
         self.list_state.focus_last(visible_rows);
     }
 
     /// Page up (convenience method)
     pub fn page_up(&mut self) {
-        let visible_rows = self.bounds.height_clamped() as usize;
+        let visible_rows = self.core.bounds.height_clamped() as usize;
         self.list_state.focus_page_up(visible_rows);
     }
 
     /// Page down (convenience method)
     pub fn page_down(&mut self) {
-        let visible_rows = self.bounds.height_clamped() as usize;
+        let visible_rows = self.core.bounds.height_clamped() as usize;
         self.list_state.focus_page_down(visible_rows);
     }
 }
 
 impl View for ListBox {
-    fn bounds(&self) -> Rect {
-        self.bounds
+    fn core(&self) -> &ViewCore {
+        &self.core
     }
 
-    fn set_bounds(&mut self, bounds: Rect) {
-        self.bounds = bounds;
+    fn core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        let width = self.bounds.width_clamped() as usize;
-        let height = self.bounds.height_clamped() as usize;
+        let width = self.core.bounds.width_clamped() as usize;
+        let height = self.core.bounds.height_clamped() as usize;
 
         // ListBox palette indices:
         // 1: Normal, 2: Focused, 3: Selected, 4: Divider
@@ -295,7 +295,12 @@ impl View for ListBox {
                 buf.move_char(0, ' ', color_normal, width);
             }
 
-            write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y + i as i16, &buf);
+            write_line_to_terminal(
+                terminal,
+                self.core.bounds.a.x,
+                self.core.bounds.a.y + i as i16,
+                &buf,
+            );
         }
     }
 
@@ -306,19 +311,19 @@ impl View for ListBox {
             let mouse_pos = event.mouse.pos;
 
             // Check if click is within the listbox bounds
-            if self.bounds.contains(mouse_pos) && event.mouse.buttons & MB_LEFT_BUTTON != 0 {
+            if self.core.bounds.contains(mouse_pos) && event.mouse.buttons & MB_LEFT_BUTTON != 0 {
                 // Double-click triggers selection command (matching Borland's TListViewer)
                 if event.mouse.double_click {
                     // CRITICAL: Update selection to the double-clicked item BEFORE converting to command
                     // Without this, the selection would still point to the previously selected item,
                     // causing FileDialog to act on the wrong file/directory (e.g., double-clicking a
                     // folder would close the dialog instead of navigating into it)
-                    let relative_y = (mouse_pos.y - self.bounds.a.y) as usize;
+                    let relative_y = (mouse_pos.y - self.core.bounds.a.y) as usize;
                     let clicked_item = self.list_state.top_item + relative_y;
 
                     // Update the selection to the double-clicked item
                     if clicked_item < self.items.len() {
-                        let visible_rows = self.bounds.height_clamped() as usize;
+                        let visible_rows = self.core.bounds.height_clamped() as usize;
                         self.list_state.focus_item(clicked_item, visible_rows);
                     }
 
@@ -335,9 +340,9 @@ impl View for ListBox {
         if self.multi_select
             && event.what == EventType::MouseDown
             && event.mouse.buttons & MB_LEFT_BUTTON != 0
-            && self.bounds.contains(event.mouse.pos)
+            && self.core.bounds.contains(event.mouse.pos)
         {
-            let relative_y = (event.mouse.pos.y - self.bounds.a.y) as usize;
+            let relative_y = (event.mouse.pos.y - self.core.bounds.a.y) as usize;
             let clicked = self.list_state.top_item + relative_y;
             if clicked < self.items.len() {
                 if event
@@ -379,14 +384,14 @@ impl View for ListBox {
             }
             EventType::MouseWheelUp => {
                 let mouse_pos = event.mouse.pos;
-                if self.bounds.contains(mouse_pos) {
+                if self.core.bounds.contains(mouse_pos) {
                     self.select_prev();
                     event.clear();
                 }
             }
             EventType::MouseWheelDown => {
                 let mouse_pos = event.mouse.pos;
-                if self.bounds.contains(mouse_pos) {
+                if self.core.bounds.contains(mouse_pos) {
                     self.select_next();
                     event.clear();
                 }
@@ -399,28 +404,12 @@ impl View for ListBox {
         true
     }
 
-    fn state(&self) -> StateFlags {
-        self.state
-    }
-
-    fn set_state(&mut self, state: StateFlags) {
-        self.state = state;
-    }
-
     fn set_list_selection(&mut self, index: usize) {
         self.set_selection(index);
     }
 
     fn get_list_selection(&self) -> usize {
         self.list_state.focused.unwrap_or(0)
-    }
-
-    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
-        self.palette_chain = node;
-    }
-
-    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
-        self.palette_chain.as_ref()
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {

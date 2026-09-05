@@ -35,6 +35,46 @@ impl ViewId {
     }
 }
 
+/// The fields Borland declares once in `TView` and every subclass inherits.
+/// Each view owns exactly one of these and hands it back from `View::core()`.
+#[derive(Clone, Default)]
+pub struct ViewCore {
+    pub bounds: Rect,
+    pub state: StateFlags,
+    pub options: u16,
+    pub grow_mode: crate::core::state::GrowFlags,
+    pub palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
+}
+
+impl std::fmt::Debug for ViewCore {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ViewCore")
+            .field("bounds", &self.bounds)
+            .field("state", &self.state)
+            .field("options", &self.options)
+            .field("grow_mode", &self.grow_mode)
+            .field("palette_chain", &self.palette_chain.is_some())
+            .finish()
+    }
+}
+
+impl ViewCore {
+    pub fn new(bounds: Rect) -> Self {
+        Self {
+            bounds,
+            ..Self::default()
+        }
+    }
+
+    pub fn with_options(bounds: Rect, options: u16) -> Self {
+        Self {
+            bounds,
+            options,
+            ..Self::default()
+        }
+    }
+}
+
 /// View trait - all UI components implement this
 ///
 /// ## Owner/Parent Communication Pattern
@@ -61,8 +101,16 @@ impl ViewId {
 /// This achieves the same result (child-to-parent communication) without raw pointers,
 /// using Rust's ownership system and the call stack for context.
 pub trait View {
-    fn bounds(&self) -> Rect;
-    fn set_bounds(&mut self, bounds: Rect);
+    /// Base fields shared by every view (Borland: the `TView` data members).
+    fn core(&self) -> &ViewCore;
+    fn core_mut(&mut self) -> &mut ViewCore;
+
+    fn bounds(&self) -> Rect {
+        self.core().bounds
+    }
+    fn set_bounds(&mut self, bounds: Rect) {
+        self.core_mut().bounds = bounds;
+    }
     fn draw(&mut self, terminal: &mut Terminal);
     fn handle_event(&mut self, event: &mut Event);
     fn can_focus(&self) -> bool {
@@ -89,19 +137,23 @@ pub trait View {
 
     /// Get view option flags (OF_SELECTABLE, OF_PRE_PROCESS, OF_POST_PROCESS, etc.)
     fn options(&self) -> u16 {
-        0
+        self.core().options
     }
 
     /// Set view option flags
-    fn set_options(&mut self, _options: u16) {}
+    fn set_options(&mut self, options: u16) {
+        self.core_mut().options = options;
+    }
 
     /// Get view state flags
     fn state(&self) -> StateFlags {
-        0
+        self.core().state
     }
 
     /// Set view state flags
-    fn set_state(&mut self, _state: StateFlags) {}
+    fn set_state(&mut self, state: StateFlags) {
+        self.core_mut().state = state;
+    }
 
     /// Get this view's grow mode flags (Borland: TView::growMode).
     ///
@@ -111,7 +163,7 @@ pub trait View {
     /// and position relative to the parent's origin), matching Borland's
     /// default `growMode = 0`.
     fn grow_mode(&self) -> crate::core::state::GrowFlags {
-        0
+        self.core().grow_mode
     }
 
     /// Set this view's grow mode flags (Borland: TView::growMode).
@@ -119,7 +171,9 @@ pub trait View {
     /// The default implementation is a no-op; views that participate in
     /// parent-resize layout store the flags in a field and override both
     /// `grow_mode()` and `set_grow_mode()`.
-    fn set_grow_mode(&mut self, _grow_mode: crate::core::state::GrowFlags) {}
+    fn set_grow_mode(&mut self, grow_mode: crate::core::state::GrowFlags) {
+        self.core_mut().grow_mode = grow_mode;
+    }
 
     /// Set or clear specific state flag(s)
     /// Matches Borland's TView::setState(ushort aState, Boolean enable)
@@ -376,14 +430,14 @@ pub trait View {
 
     /// Set the QCell-based palette chain node for this view.
     /// Called by parent (Group/Window) during draw to establish the safe owner chain.
-    fn set_palette_chain(&mut self, _node: Option<crate::core::palette_chain::PaletteChainNode>) {
-        // Default: do nothing (views that need palette chain will override)
+    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
+        self.core_mut().palette_chain = node;
     }
 
     /// Get the QCell-based palette chain node for this view.
     /// Used by `map_color()` to safely walk the owner chain.
     fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
-        None // Default: no palette chain
+        self.core().palette_chain.as_ref()
     }
 
     /// Set the parent's bounds for drag/resize limit resolution.
@@ -562,4 +616,35 @@ pub fn draw_shadow_bounds(terminal: &mut Terminal, bounds: Rect) {
         }
     }
     write_line_to_terminal(terminal, bounds.a.x + ss.0, bounds.b.y, &bottom_buf);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn accessors_read_and_write_the_core() {
+        struct Probe(ViewCore);
+        impl View for Probe {
+            fn core(&self) -> &ViewCore {
+                &self.0
+            }
+            fn core_mut(&mut self) -> &mut ViewCore {
+                &mut self.0
+            }
+            fn draw(&mut self, _t: &mut Terminal) {}
+            fn handle_event(&mut self, _e: &mut Event) {}
+            fn get_palette(&self) -> Option<crate::core::palette::Palette> {
+                None
+            }
+        }
+        let mut p = Probe(ViewCore::new(Rect::new(1, 2, 3, 4)));
+        assert_eq!(p.bounds(), Rect::new(1, 2, 3, 4));
+        p.set_state(SF_FOCUSED);
+        assert!(p.is_focused());
+        p.set_options(0x0004);
+        assert_eq!(p.options(), 0x0004);
+        p.set_bounds(Rect::new(0, 0, 8, 8));
+        assert_eq!(p.core().bounds, Rect::new(0, 0, 8, 8));
+    }
 }

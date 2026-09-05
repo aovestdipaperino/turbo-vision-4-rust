@@ -32,7 +32,7 @@
 //! assert_eq!(spin.value(), 43);
 //! ```
 
-use super::view::{View, write_line_to_terminal};
+use super::view::{View, ViewCore, write_line_to_terminal};
 use crate::core::command::CommandId;
 use crate::core::draw::DrawBuffer;
 use crate::core::event::{
@@ -54,7 +54,7 @@ const PAGE_FACTOR: i64 = 10;
 
 /// A numeric field with up and down steppers.
 pub struct Spinner {
-    bounds: Rect,
+    core: ViewCore,
     value: i64,
     min: i64,
     max: i64,
@@ -69,7 +69,6 @@ pub struct Spinner {
     /// digit then replaces the value instead of extending it.
     fresh: bool,
     view_state: StateFlags,
-    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
 }
 
 impl Spinner {
@@ -80,7 +79,11 @@ impl Spinner {
     pub fn new(bounds: Rect, min: i64, max: i64) -> Self {
         let (min, max) = if min <= max { (min, max) } else { (max, min) };
         Self {
-            bounds,
+            core: ViewCore {
+                bounds,
+                palette_chain: None,
+                ..ViewCore::default()
+            },
             value: min,
             min,
             max,
@@ -90,7 +93,6 @@ impl Spinner {
             on_change: 0,
             fresh: true,
             view_state: 0,
-            palette_chain: None,
         }
     }
 
@@ -217,8 +219,8 @@ impl Spinner {
     /// Screen column of the up stepper, or `None` when the field is too narrow
     /// to draw the steppers.
     fn up_arrow_x(&self) -> Option<i16> {
-        let width = self.bounds.width_clamped();
-        (width as usize > STEPPER_WIDTH).then(|| self.bounds.b.x - STEPPER_WIDTH as i16)
+        let width = self.core.bounds.width_clamped();
+        (width as usize > STEPPER_WIDTH).then(|| self.core.bounds.b.x - STEPPER_WIDTH as i16)
     }
 
     /// Turn a value change into the outgoing event: the change broadcast when
@@ -233,12 +235,12 @@ impl Spinner {
 }
 
 impl View for Spinner {
-    fn bounds(&self) -> Rect {
-        self.bounds
+    fn core(&self) -> &ViewCore {
+        &self.core
     }
 
-    fn set_bounds(&mut self, bounds: Rect) {
-        self.bounds = bounds;
+    fn core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
     }
 
     fn can_focus(&self) -> bool {
@@ -260,7 +262,7 @@ impl View for Spinner {
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        let width = self.bounds.width_clamped().max(0) as usize;
+        let width = self.core.bounds.width_clamped().max(0) as usize;
         if width == 0 {
             return;
         }
@@ -297,11 +299,11 @@ impl View for Spinner {
             buf.put_char(width - 1, DOWN_ARROW, arrow_attr);
         }
 
-        write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y, &buf);
+        write_line_to_terminal(terminal, self.core.bounds.a.x, self.core.bounds.a.y, &buf);
     }
 
     fn handle_event(&mut self, event: &mut Event) {
-        if event.what == EventType::MouseDown && self.bounds.contains(event.mouse.pos) {
+        if event.what == EventType::MouseDown && self.core.bounds.contains(event.mouse.pos) {
             if let Some(up_x) = self.up_arrow_x() {
                 let changed = if event.mouse.pos.x == up_x {
                     self.step_up()
@@ -316,12 +318,12 @@ impl View for Spinner {
             return;
         }
 
-        if event.what == EventType::MouseWheelUp && self.bounds.contains(event.mouse.pos) {
+        if event.what == EventType::MouseWheelUp && self.core.bounds.contains(event.mouse.pos) {
             let changed = self.step_up();
             self.report(event, changed);
             return;
         }
-        if event.what == EventType::MouseWheelDown && self.bounds.contains(event.mouse.pos) {
+        if event.what == EventType::MouseWheelDown && self.core.bounds.contains(event.mouse.pos) {
             let changed = self.step_down();
             self.report(event, changed);
             return;
@@ -364,14 +366,6 @@ impl View for Spinner {
         };
 
         self.report(event, changed);
-    }
-
-    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
-        self.palette_chain = node;
-    }
-
-    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
-        self.palette_chain.as_ref()
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {

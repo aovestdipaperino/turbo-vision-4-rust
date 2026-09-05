@@ -19,7 +19,7 @@ use turbo_vision::terminal::Terminal;
 use turbo_vision::views::progress_bar::{ProgressBar, ProgressBarBuilder, ProgressStyle};
 use turbo_vision::views::static_text::StaticText;
 use turbo_vision::views::status_line::{StatusItem, StatusLine};
-use turbo_vision::views::{IdleView, View};
+use turbo_vision::views::{IdleView, View, ViewCore};
 
 /// A caption plus a bar, driving the bar's value from wall-clock time.
 struct DemoRow {
@@ -44,12 +44,12 @@ impl DemoRow {
 }
 
 impl View for DemoRow {
-    fn bounds(&self) -> Rect {
-        self.bar.bounds()
+    fn core(&self) -> &ViewCore {
+        self.bar.core()
     }
 
-    fn set_bounds(&mut self, bounds: Rect) {
-        self.bar.set_bounds(bounds);
+    fn core_mut(&mut self) -> &mut ViewCore {
+        self.bar.core_mut()
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {

@@ -2,7 +2,7 @@
 
 //! Group view - container for managing multiple child views with focus handling.
 
-use super::view::{View, ViewId, write_line_to_terminal};
+use super::view::{View, ViewCore, ViewId, write_line_to_terminal};
 use crate::core::draw::DrawBuffer;
 use crate::core::event::{Event, EventType, KB_SHIFT_TAB, KB_TAB};
 use crate::core::geometry::Rect;
@@ -12,42 +12,44 @@ use crate::terminal::Terminal;
 /// Group - a container for child views
 /// Matches Borland: TGroup (tgroup.h/tgroup.cc)
 pub struct Group {
-    bounds: Rect,
+    core: ViewCore,
     children: Vec<Box<dyn View>>,
     view_ids: Vec<ViewId>, // Parallel vec storing ID for each child
     focused: usize,
     background: Option<Attr>,
     end_state: crate::core::command::CommandId, // For execute() event loop (Borland: endState)
-    palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
-    /// Grow mode of this Group itself when nested inside another Group
-    /// (Borland: TView::growMode)
-    grow_mode: crate::core::state::GrowFlags,
 }
 
 impl Group {
     pub fn new(bounds: Rect) -> Self {
         Self {
-            bounds,
+            core: ViewCore {
+                bounds,
+                palette_chain: None,
+                grow_mode: 0,
+                ..ViewCore::default()
+            },
             children: Vec::new(),
             view_ids: Vec::new(),
             focused: 0,
             background: None,
             end_state: 0,
-            palette_chain: None,
-            grow_mode: 0,
         }
     }
 
     pub fn with_background(bounds: Rect, background: Attr) -> Self {
         Self {
-            bounds,
+            core: ViewCore {
+                bounds,
+                palette_chain: None,
+                grow_mode: 0,
+                ..ViewCore::default()
+            },
             children: Vec::new(),
             view_ids: Vec::new(),
             focused: 0,
             background: Some(background),
             end_state: 0,
-            palette_chain: None,
-            grow_mode: 0,
         }
     }
 
@@ -67,10 +69,10 @@ impl Group {
         // Child bounds are specified relative to this Group's interior
         let child_bounds = view.bounds();
         let absolute_bounds = Rect::new(
-            self.bounds.a.x + child_bounds.a.x,
-            self.bounds.a.y + child_bounds.a.y,
-            self.bounds.a.x + child_bounds.b.x,
-            self.bounds.a.y + child_bounds.b.y,
+            self.core.bounds.a.x + child_bounds.a.x,
+            self.core.bounds.a.y + child_bounds.a.y,
+            self.core.bounds.a.x + child_bounds.b.x,
+            self.core.bounds.a.y + child_bounds.b.y,
         );
         view.set_bounds(absolute_bounds);
 
@@ -477,21 +479,25 @@ impl Group {
 }
 
 impl View for Group {
-    fn bounds(&self) -> Rect {
-        self.bounds
+    fn core(&self) -> &ViewCore {
+        &self.core
+    }
+
+    fn core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
     }
 
     fn set_bounds(&mut self, bounds: Rect) {
         // Calculate the offset (how much the group moved)
-        let dx = bounds.a.x - self.bounds.a.x;
-        let dy = bounds.a.y - self.bounds.a.y;
+        let dx = bounds.a.x - self.core.bounds.a.x;
+        let dy = bounds.a.y - self.core.bounds.a.y;
 
         // Calculate the size change (how much the group was resized)
-        let dw = bounds.width() - self.bounds.width();
-        let dh = bounds.height() - self.bounds.height();
+        let dw = bounds.width() - self.core.bounds.width();
+        let dh = bounds.height() - self.core.bounds.height();
 
         // Update our bounds
-        self.bounds = bounds;
+        self.core.bounds = bounds;
 
         // Update all children's bounds. Every child shifts by the group's
         // offset (children store absolute coordinates); each edge additionally
@@ -514,19 +520,24 @@ impl View for Group {
     fn draw(&mut self, terminal: &mut Terminal) {
         // Draw background if specified
         if let Some(bg_attr) = self.background {
-            let width = self.bounds.width_clamped() as usize;
-            let height = self.bounds.height_clamped() as usize;
+            let width = self.core.bounds.width_clamped() as usize;
+            let height = self.core.bounds.height_clamped() as usize;
 
             for y in 0..height {
                 let mut buf = DrawBuffer::new(width);
                 buf.move_char(0, ' ', bg_attr, width);
-                write_line_to_terminal(terminal, self.bounds.a.x, self.bounds.a.y + y as i16, &buf);
+                write_line_to_terminal(
+                    terminal,
+                    self.core.bounds.a.x,
+                    self.core.bounds.a.y + y as i16,
+                    &buf,
+                );
             }
         }
 
         // Push clipping region for this group's bounds
         // Expand by 1 on all sides to allow children (like scrollbars) to overlap with parent's frame
-        let mut clip_bounds = self.bounds;
+        let mut clip_bounds = self.core.bounds;
         clip_bounds.grow(1, 1);
         terminal.push_clip(clip_bounds);
 
@@ -534,7 +545,7 @@ impl View for Group {
         // Group is typically transparent (no palette), but carries the parent link.
         let my_chain_node = crate::core::palette_chain::PaletteChainNode::new(
             self.get_palette(),
-            self.palette_chain.clone(),
+            self.core.palette_chain.clone(),
         );
 
         // Only draw children that intersect with this group's bounds
@@ -542,7 +553,7 @@ impl View for Group {
         for child in &mut self.children {
             child.set_palette_chain(Some(my_chain_node.clone()));
             let child_bounds = child.bounds();
-            if self.bounds.intersects(&child_bounds) {
+            if self.core.bounds.intersects(&child_bounds) {
                 child.draw(terminal);
             }
         }
@@ -778,22 +789,6 @@ impl View for Group {
         }
     }
 
-    fn grow_mode(&self) -> crate::core::state::GrowFlags {
-        self.grow_mode
-    }
-
-    fn set_grow_mode(&mut self, grow_mode: crate::core::state::GrowFlags) {
-        self.grow_mode = grow_mode;
-    }
-
-    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
-        self.palette_chain = node;
-    }
-
-    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
-        self.palette_chain.as_ref()
-    }
-
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
         // TGroup has no palette (returns empty palette in Borland)
         // Returning None achieves the same effect - skip to parent's palette
@@ -853,26 +848,29 @@ mod tests {
 
     // Helper to count how many times draw is called on views
     struct DrawCountView {
-        bounds: Rect,
+        core: ViewCore,
         draw_count: std::cell::RefCell<usize>,
     }
 
     impl DrawCountView {
         fn new(bounds: Rect) -> Self {
             Self {
-                bounds,
+                core: ViewCore {
+                    bounds,
+                    ..ViewCore::default()
+                },
                 draw_count: std::cell::RefCell::new(0),
             }
         }
     }
 
     impl View for DrawCountView {
-        fn bounds(&self) -> Rect {
-            self.bounds
+        fn core(&self) -> &ViewCore {
+            &self.core
         }
 
-        fn set_bounds(&mut self, bounds: Rect) {
-            self.bounds = bounds;
+        fn core_mut(&mut self) -> &mut ViewCore {
+            &mut self.core
         }
 
         fn draw(&mut self, _terminal: &mut Terminal) {
@@ -888,30 +886,31 @@ mod tests {
 
     // Test view that records events, can take focus, and stores a grow mode
     struct RecorderView {
-        bounds: Rect,
-        state: crate::core::state::StateFlags,
-        grow_mode: crate::core::state::GrowFlags,
+        core: ViewCore,
         events: std::rc::Rc<std::cell::RefCell<Vec<EventType>>>,
     }
 
     impl RecorderView {
         fn new(bounds: Rect) -> Self {
             Self {
-                bounds,
-                state: 0,
-                grow_mode: 0,
+                core: ViewCore {
+                    bounds,
+                    state: 0,
+                    grow_mode: 0,
+                    ..ViewCore::default()
+                },
                 events: std::rc::Rc::new(std::cell::RefCell::new(Vec::new())),
             }
         }
     }
 
     impl View for RecorderView {
-        fn bounds(&self) -> Rect {
-            self.bounds
+        fn core(&self) -> &ViewCore {
+            &self.core
         }
 
-        fn set_bounds(&mut self, bounds: Rect) {
-            self.bounds = bounds;
+        fn core_mut(&mut self) -> &mut ViewCore {
+            &mut self.core
         }
 
         fn draw(&mut self, _terminal: &mut Terminal) {}
@@ -922,22 +921,6 @@ mod tests {
 
         fn can_focus(&self) -> bool {
             true
-        }
-
-        fn state(&self) -> crate::core::state::StateFlags {
-            self.state
-        }
-
-        fn set_state(&mut self, state: crate::core::state::StateFlags) {
-            self.state = state;
-        }
-
-        fn grow_mode(&self) -> crate::core::state::GrowFlags {
-            self.grow_mode
-        }
-
-        fn set_grow_mode(&mut self, grow_mode: crate::core::state::GrowFlags) {
-            self.grow_mode = grow_mode;
         }
 
         fn get_palette(&self) -> Option<crate::core::palette::Palette> {
@@ -1030,15 +1013,17 @@ mod tests {
     fn test_broadcast_delivered_to_all_children() {
         // A child that clears broadcast events (simulates a "consumer")
         struct Consumer {
-            bounds: Rect,
+            core: ViewCore,
         }
         impl View for Consumer {
-            fn bounds(&self) -> Rect {
-                self.bounds
+            fn core(&self) -> &ViewCore {
+                &self.core
             }
-            fn set_bounds(&mut self, bounds: Rect) {
-                self.bounds = bounds;
+
+            fn core_mut(&mut self) -> &mut ViewCore {
+                &mut self.core
             }
+
             fn draw(&mut self, _terminal: &mut Terminal) {}
             fn handle_event(&mut self, event: &mut Event) {
                 if event.what == EventType::Broadcast {
@@ -1053,7 +1038,7 @@ mod tests {
         let mut group = Group::new(Rect::new(0, 0, 80, 25));
         // First child consumes broadcasts
         group.add(Box::new(Consumer {
-            bounds: Rect::new(0, 0, 5, 1),
+            core: ViewCore::new(Rect::new(0, 0, 5, 1)),
         }));
         // Second child records what it receives
         let recorder = RecorderView::new(Rect::new(0, 2, 5, 3));
@@ -1077,7 +1062,7 @@ mod tests {
         let child_bounds = Rect::new(100, 15, 110, 20);
 
         // Verify the child is outside parent bounds
-        assert!(!group.bounds.intersects(&child_bounds));
+        assert!(!group.bounds().intersects(&child_bounds));
     }
 
     #[test]
@@ -1095,7 +1080,7 @@ mod tests {
         assert_eq!(group.children[0].bounds(), Rect::new(15, 15, 25, 25));
 
         // Verify child intersects with parent (so it would be drawn)
-        assert!(group.bounds.intersects(&group.children[0].bounds()));
+        assert!(group.bounds().intersects(&group.children[0].bounds()));
     }
 
     #[test]
@@ -1113,7 +1098,7 @@ mod tests {
         assert_eq!(group.children[0].bounds(), Rect::new(25, 25, 35, 35));
 
         // Verify child still intersects with parent (partially visible)
-        assert!(group.bounds.intersects(&group.children[0].bounds()));
+        assert!(group.bounds().intersects(&group.children[0].bounds()));
 
         // Note: The child will be drawn, but the Terminal's write methods
         // will clip at the terminal boundaries. For proper parent clipping,
@@ -1153,13 +1138,13 @@ mod tests {
 
         // Verify intersections
         // Child 1: completely inside, should intersect
-        assert!(group.bounds.intersects(&group.children[0].bounds()));
+        assert!(group.bounds().intersects(&group.children[0].bounds()));
 
         // Child 2: completely outside, should NOT intersect
-        assert!(!group.bounds.intersects(&group.children[1].bounds()));
+        assert!(!group.bounds().intersects(&group.children[1].bounds()));
 
         // Child 3: partially outside, should intersect
-        assert!(group.bounds.intersects(&group.children[2].bounds()));
+        assert!(group.bounds().intersects(&group.children[2].bounds()));
     }
 
     #[test]

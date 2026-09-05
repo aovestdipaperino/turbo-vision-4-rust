@@ -16,12 +16,11 @@ use crate::app::Application;
 use crate::core::command::CommandId;
 use crate::core::event::Event;
 use crate::core::geometry::Rect;
-use crate::core::state::StateFlags;
 use crate::terminal::Terminal;
 
 use super::edit_window::EditWindow;
 use super::editor_traits::{Editor, ExternalState, FileEditor, confirm_save_on_close};
-use super::view::View;
+use super::view::{View, ViewCore};
 
 pub struct FileEditorWindow {
     edit_window: EditWindow,
@@ -205,11 +204,17 @@ impl FileEditor for FileEditorWindow {
 }
 
 impl View for FileEditorWindow {
-    fn bounds(&self) -> Rect {
-        self.edit_window.bounds()
+    fn core(&self) -> &ViewCore {
+        self.edit_window.core()
+    }
+
+    fn core_mut(&mut self) -> &mut ViewCore {
+        self.edit_window.core_mut()
     }
 
     fn set_bounds(&mut self, bounds: Rect) {
+        // Forwarded explicitly: the inner view's `set_bounds` cascades to its
+        // children, which the `ViewCore` default would bypass.
         self.edit_window.set_bounds(bounds);
     }
 
@@ -225,32 +230,8 @@ impl View for FileEditorWindow {
         self.edit_window.can_focus()
     }
 
-    fn options(&self) -> u16 {
-        self.edit_window.options()
-    }
-
-    fn set_options(&mut self, options: u16) {
-        self.edit_window.set_options(options);
-    }
-
-    fn state(&self) -> StateFlags {
-        self.edit_window.state()
-    }
-
-    fn set_state(&mut self, state: StateFlags) {
-        self.edit_window.set_state(state);
-    }
-
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
         self.edit_window.get_palette()
-    }
-
-    fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
-        self.edit_window.set_palette_chain(node);
-    }
-
-    fn get_palette_chain(&self) -> Option<&crate::core::palette_chain::PaletteChainNode> {
-        self.edit_window.get_palette_chain()
     }
 }
 

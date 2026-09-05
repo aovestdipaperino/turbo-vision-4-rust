@@ -17,8 +17,8 @@ use turbo_vision::core::event::{Event, EventType, KB_ALT_X, KB_CTRL_C, KB_ESC_ES
 use turbo_vision::core::geometry::Rect;
 use turbo_vision::core::palette::colors;
 use turbo_vision::terminal::Terminal;
-use turbo_vision::views::View;
 use turbo_vision::views::group::Group;
+use turbo_vision::views::{View, ViewCore};
 
 // Custom commands
 const CMD_BROADCAST_TEST: CommandId = 200;
@@ -26,7 +26,7 @@ const CMD_BUTTON_BASE: CommandId = 201;
 
 /// Custom button that tracks broadcasts received
 struct BroadcastButton {
-    bounds: Rect,
+    core: ViewCore,
     label: String,
     command: CommandId,
     broadcast_count: Cell<u32>,
@@ -36,7 +36,10 @@ struct BroadcastButton {
 impl BroadcastButton {
     fn new(bounds: Rect, label: &str, command: CommandId) -> Self {
         Self {
-            bounds,
+            core: ViewCore {
+                bounds,
+                ..ViewCore::default()
+            },
             label: label.to_string(),
             command,
             broadcast_count: Cell::new(0),
@@ -46,17 +49,17 @@ impl BroadcastButton {
 }
 
 impl View for BroadcastButton {
-    fn bounds(&self) -> Rect {
-        self.bounds
+    fn core(&self) -> &ViewCore {
+        &self.core
     }
 
-    fn set_bounds(&mut self, bounds: Rect) {
-        self.bounds = bounds;
+    fn core_mut(&mut self) -> &mut ViewCore {
+        &mut self.core
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
-        let width = self.bounds.width_clamped() as usize;
-        let height = self.bounds.height();
+        let width = self.core.bounds.width_clamped() as usize;
+        let height = self.core.bounds.height();
 
         for y in 0..height {
             let mut buf = DrawBuffer::new(width);
@@ -85,8 +88,8 @@ impl View for BroadcastButton {
 
             turbo_vision::views::view::write_line_to_terminal(
                 terminal,
-                self.bounds.a.x,
-                self.bounds.a.y + y as i16,
+                self.core.bounds.a.x,
+                self.core.bounds.a.y + y as i16,
                 &buf,
             );
         }
@@ -99,10 +102,10 @@ impl View for BroadcastButton {
             EventType::MouseDown => {
                 let mouse_pos = event.mouse.pos;
                 if event.mouse.buttons & MB_LEFT_BUTTON != 0
-                    && mouse_pos.x >= self.bounds.a.x
-                    && mouse_pos.x < self.bounds.b.x
-                    && mouse_pos.y >= self.bounds.a.y
-                    && mouse_pos.y < self.bounds.b.y
+                    && mouse_pos.x >= self.core.bounds.a.x
+                    && mouse_pos.x < self.core.bounds.b.x
+                    && mouse_pos.y >= self.core.bounds.a.y
+                    && mouse_pos.y < self.core.bounds.b.y
                 {
                     self.click_count.set(self.click_count.get() + 1);
                     *event = Event::command(self.command);
