@@ -24,6 +24,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   three methods for its windows.
 
 ### Changed (breaking)
+- **`CloseOn` replaces the "commands below 1000 close the dialog" rule.**
+  A modal `Dialog` now ends on `CM_OK`, `CM_CANCEL`, `CM_YES`, `CM_NO` and
+  on the commands of the buttons added to it (`CloseOn::StandardAndButtons`,
+  the default); `CloseOn::Standard` and `CloseOn::Commands(..)` are the
+  alternatives, set with `DialogBuilder::close_on` or `Dialog::set_close_on`.
+  A command from any other child (a list box, say) is left for the caller
+  whatever its number, so commands no longer need to be numbered above 1000
+  to pass through.
 - **`add` takes any view.** `GroupLike::add`, `Desktop::add`,
   `Application::exec_view` and `add_overlay_widget` accept `impl View`
   (`impl IdleView` for overlays); `Box<dyn View>` still works because a boxed

@@ -137,6 +137,7 @@ pub use cluster_group::{CheckBoxes, RadioButtons};
 #[doc(inline)]
 pub use combo_box::{ComboBox, ComboState};
 #[doc(inline)]
+pub use dialog::CloseOn;
 pub use group::GroupLike;
 pub use handle::Handle;
 pub use label::Label;

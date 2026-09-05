@@ -69,6 +69,12 @@ impl Button {
         self.command
     }
 
+    /// Whether the button broadcasts its command to its siblings instead of
+    /// emitting it as a command (see `set_broadcast`).
+    pub fn is_broadcast(&self) -> bool {
+        self.is_broadcast
+    }
+
     pub fn set_disabled(&mut self, disabled: bool) {
         self.set_state_flag(SF_DISABLED, disabled);
     }

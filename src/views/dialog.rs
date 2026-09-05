@@ -5,7 +5,7 @@
 use super::button::Button;
 use super::group::Group;
 use super::group::GroupLike;
-use super::view::View;
+use super::view::{View, ViewId};
 use super::window::{Window, WindowLike};
 use crate::app::ModalTick;
 use crate::core::command::{CM_CANCEL, CommandId};
@@ -14,9 +14,28 @@ use crate::core::geometry::Rect;
 use crate::terminal::Terminal;
 use std::time::{Duration, Instant};
 
+/// Which commands close a modal dialog (Borland: `TDialog::handleEvent`
+/// ends the modal loop on cmOK, cmCancel, cmYes and cmNo).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CloseOn {
+    /// Borland's rule: `CM_OK`, `CM_CANCEL`, `CM_YES`, `CM_NO`.
+    Standard,
+    /// Standard plus every command carried by a `Button` added to this
+    /// dialog. The default: a custom button closes the dialog with its own
+    /// command, whatever its number.
+    StandardAndButtons,
+    /// Exactly this list.
+    Commands(Vec<CommandId>),
+}
+
 pub struct Dialog {
     window: Window,
     result: CommandId,
+    /// Which commands end the modal loop; see [`CloseOn`].
+    close_on: CloseOn,
+    /// Commands of the (non-broadcast) buttons added so far, for
+    /// `CloseOn::StandardAndButtons`.
+    button_commands: Vec<CommandId>,
     /// When set, `execute` closes the dialog with the given command once
     /// this much time has passed without the user closing it first.
     auto_dismiss: Option<(Duration, CommandId)>,
@@ -27,6 +46,8 @@ impl Dialog {
         Self {
             window: Window::new_for_dialog(bounds, title),
             result: CM_CANCEL,
+            close_on: CloseOn::StandardAndButtons,
+            button_commands: Vec::new(),
             auto_dismiss: None,
         }
     }
@@ -37,6 +58,25 @@ impl Dialog {
     /// The timer starts when `execute` is entered. Only the `execute`
     /// modal loop honours it; a dialog run through `Application::exec_view`
     /// is unaffected.
+    /// Choose which commands close the dialog; see [`CloseOn`].
+    pub fn set_close_on(&mut self, policy: CloseOn) {
+        self.close_on = policy;
+    }
+
+    pub fn close_on(&self) -> &CloseOn {
+        &self.close_on
+    }
+
+    fn closes_on(&self, command: CommandId) -> bool {
+        use crate::core::command::{CM_NO, CM_OK, CM_YES};
+        let standard = matches!(command, CM_OK | CM_CANCEL | CM_YES | CM_NO);
+        match &self.close_on {
+            CloseOn::Standard => standard,
+            CloseOn::StandardAndButtons => standard || self.button_commands.contains(&command),
+            CloseOn::Commands(list) => list.contains(&command),
+        }
+    }
+
     pub fn set_auto_dismiss(&mut self, timeout: Duration, command: CommandId) {
         self.auto_dismiss = Some((timeout, command));
     }
@@ -168,6 +208,16 @@ impl GroupLike for Dialog {
     fn group_mut(&mut self) -> &mut Group {
         self.window.group_mut()
     }
+    fn add_boxed(&mut self, view: Box<dyn View>) -> ViewId {
+        // Remember each button's command so `CloseOn::StandardAndButtons` can
+        // recognise it later. Broadcast buttons never end the dialog.
+        if let Some(button) = view.as_any().downcast_ref::<Button>() {
+            if !button.is_broadcast() {
+                self.button_commands.push(button.command());
+            }
+        }
+        self.window.add_boxed(view)
+    }
 }
 
 impl WindowLike for Dialog {
@@ -248,24 +298,17 @@ crate::impl_view_for_window!(Dialog {
             // Only intercept commands if this dialog is modal
             if self.state() & SF_MODAL != 0 {
                 match event.command {
-                    CM_CANCEL => {
-                        // Cancel button or Esc-Esc pressed
-                        // End the modal loop with CM_CANCEL
-                        // Matches Borland: endModal(cmCancel)
-                        self.end_modal(CM_CANCEL);
-                        event.clear();
-                    }
-                    CM_OK | CM_YES | CM_NO => {
-                        // OK/Yes/No button pressed
-                        // On accept (OK/Yes, not No/Cancel), broadcast CM_RECORD_HISTORY
-                        // so History views record their linked InputLine data.
-                        // Matches Borland: TButton::press() message(owner, evBroadcast,
-                        // cmRecordHistory, 0) before emitting the command.
+                    CM_CANCEL | CM_OK | CM_YES | CM_NO if self.closes_on(event.command) => {
+                        // The standard four end the modal loop (Borland:
+                        // endModal(command)). On accept (OK/Yes, not No/Cancel),
+                        // record every History's linked InputLine text first.
+                        // Matches Borland: TButton::press() message(owner,
+                        // evBroadcast, cmRecordHistory, 0), which THistory
+                        // answers through its link pointer; here the owner
+                        // resolves the link.
                         if event.command == CM_OK || event.command == CM_YES {
                             crate::views::history::record_history_in(self.group());
                         }
-                        // End the modal loop with the command
-                        // Matches Borland: endModal(command)
                         self.end_modal(event.command);
                         event.clear();
                     }
@@ -273,27 +316,17 @@ crate::impl_view_for_window!(Dialog {
                     | crate::core::command::CM_SHOW_DROPDOWN => {
                         // A History button was clicked, or a ComboBox asked to
                         // drop its list. Leave the event alone so the modal loop
-                        // in Dialog::execute() (which has terminal access) can
-                        // open the popup. Must not fall through to the
-                        // "< 1000 closes the dialog" rule below.
+                        // (which has terminal access) can open the popup.
                     }
-                    _ => {
-                        // Other commands - distinguish between button commands and internal commands
-                        // Button commands (< 1000): Custom button commands like 1, 2, 3
-                        //   These should end the modal loop and return to caller
-                        // Internal commands (>= 1000): Commands from child views like CMD_FILE_SELECTED (1000)
-                        //   These are used by specific dialog implementations (FileDialog, etc.)
-                        //   and should NOT close the dialog - let them pass through
-                        //
-                        // Convention: Commands >= 1000 are internal/custom view commands
-                        //            Commands < 1000 are dialog close commands
-                        if event.command < 1000 {
-                            // Custom button command - end modal and return to caller
-                            self.end_modal(event.command);
-                            event.clear();
-                        }
-                        // else: Internal command >= 1000 - pass through to caller without closing
+                    command if self.closes_on(command) => {
+                        // A command this dialog closes on (see `CloseOn`): a
+                        // custom button, or an explicitly listed command.
+                        // Anything else, such as a list box's own command, is
+                        // left for the caller.
+                        self.end_modal(command);
+                        event.clear();
                     }
+                    _ => {}
                 }
             }
             // If not modal, let commands pass through unchanged
@@ -387,6 +420,7 @@ pub struct DialogBuilder {
     title: Option<String>,
     modal: bool,
     resizable: bool,
+    close_on: CloseOn,
 }
 
 impl DialogBuilder {
@@ -397,7 +431,16 @@ impl DialogBuilder {
             title: None,
             modal: false,
             resizable: false,
+            close_on: CloseOn::StandardAndButtons,
         }
+    }
+
+    /// Which commands close the dialog (default: the standard four plus the
+    /// dialog's own buttons); see [`CloseOn`].
+    #[must_use]
+    pub fn close_on(mut self, policy: CloseOn) -> Self {
+        self.close_on = policy;
+        self
     }
 
     /// Sets the dialog bounds (required).
@@ -440,6 +483,7 @@ impl DialogBuilder {
         let title = self.title.expect("Dialog title must be set");
 
         let mut dialog = Dialog::new(bounds, &title);
+        dialog.set_close_on(self.close_on);
 
         if self.resizable {
             dialog.set_resizable(true);
@@ -473,6 +517,41 @@ impl Default for DialogBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn standard_policy_ignores_custom_button_commands() {
+        let mut d = DialogBuilder::new()
+            .bounds(Rect::new(0, 0, 30, 8))
+            .title("t")
+            .close_on(CloseOn::Standard)
+            .build();
+        d.add(Button::new(Rect::new(1, 1, 10, 3), "Go", 7, false));
+        d.set_state(d.state() | SF_MODAL);
+        let mut ev = Event::command(7);
+        d.handle_event(&mut ev);
+        assert_eq!(d.end_state(), 0);
+        assert_eq!(ev.what, EventType::Command);
+    }
+
+    #[test]
+    fn default_policy_closes_on_commands_of_added_buttons_regardless_of_number() {
+        let mut d = Dialog::new(Rect::new(0, 0, 30, 8), "t");
+        d.add(Button::new(Rect::new(1, 1, 10, 3), "Go", 5000, false));
+        d.set_state(d.state() | SF_MODAL);
+        let mut ev = Event::command(5000);
+        d.handle_event(&mut ev);
+        assert_eq!(d.end_state(), 5000);
+    }
+
+    #[test]
+    fn default_policy_leaves_other_child_commands_to_the_caller() {
+        let mut d = Dialog::new(Rect::new(0, 0, 30, 8), "t");
+        d.set_state(d.state() | SF_MODAL);
+        let mut ev = Event::command(42);
+        d.handle_event(&mut ev);
+        assert_eq!(d.end_state(), 0, "42 is not a button of this dialog");
+        assert_eq!(ev.what, EventType::Command);
+    }
 
     #[test]
     fn default_button_is_found_by_downcast_not_by_view_hook() {
@@ -528,130 +607,72 @@ mod tests {
     /// 2. Custom button commands (< 1000) DO close modal dialogs
     #[test]
     fn test_dialog_command_handling() {
-        // Test 1: Internal command (>= 1000) should NOT close dialog
+        // A command from a child that is not one of this dialog's buttons is
+        // left for the caller (Borland: TDialog::handleEvent only ends the
+        // modal loop on the standard four commands).
         {
             let mut dialog = Dialog::new(Rect::new(0, 0, 40, 10), "Test");
             let current_state = dialog.state();
             dialog.set_state(current_state | SF_MODAL);
 
-            // Simulate an internal command like CMD_FILE_SELECTED (1000)
             let mut event = Event::command(1000);
             dialog.handle_event(&mut event);
 
-            // Dialog should NOT close (end_state should remain 0)
             assert_eq!(
                 dialog.end_state(),
                 0,
-                "Internal command (1000) should not close dialog"
+                "a child's command must not close the dialog"
             );
-
-            // Event should still be available (not cleared)
             assert_eq!(
                 event.what,
                 EventType::Command,
-                "Internal command event should not be cleared"
+                "and must stay pending for the caller"
             );
-            assert_eq!(
-                event.command, 1000,
-                "Internal command should remain unchanged"
-            );
+            assert_eq!(event.command, 1000);
         }
 
-        // Test 2: Custom button command (< 1000) should close dialog
+        // A custom button added to the dialog closes it with its own command,
+        // whatever the number (`CloseOn::StandardAndButtons`, the default).
         {
             let mut dialog = Dialog::new(Rect::new(0, 0, 40, 10), "Test");
+            dialog.add(Button::new(Rect::new(1, 1, 10, 3), "Go", 100, false));
             let current_state = dialog.state();
             dialog.set_state(current_state | SF_MODAL);
 
-            // Simulate a custom button command (e.g., 100)
             let mut event = Event::command(100);
             dialog.handle_event(&mut event);
 
-            // Dialog SHOULD close (end_state should be set to the command)
             assert_eq!(
                 dialog.end_state(),
                 100,
-                "Custom button command (100) should close dialog"
+                "the button's command closes the dialog"
             );
-
-            // Event should be cleared
-            assert_eq!(
-                event.what,
-                EventType::Nothing,
-                "Custom button command event should be cleared"
-            );
+            assert_eq!(event.what, EventType::Nothing, "and is consumed");
         }
 
-        // Test 3: Boundary test - command 999 should close, 1000 should not
+        // An explicit list closes on exactly those commands.
         {
+            use crate::core::command::CM_OK;
             let mut dialog = Dialog::new(Rect::new(0, 0, 40, 10), "Test");
+            dialog.set_close_on(CloseOn::Commands(vec![999]));
             let current_state = dialog.state();
             dialog.set_state(current_state | SF_MODAL);
 
             let mut event = Event::command(999);
             dialog.handle_event(&mut event);
+            assert_eq!(dialog.end_state(), 999);
+            assert_eq!(event.what, EventType::Nothing);
 
-            assert_eq!(
-                dialog.end_state(),
-                999,
-                "Command 999 should close dialog (< 1000)"
-            );
-            assert_eq!(
-                event.what,
-                EventType::Nothing,
-                "Command 999 event should be cleared"
-            );
-        }
-
-        {
             let mut dialog = Dialog::new(Rect::new(0, 0, 40, 10), "Test");
+            dialog.set_close_on(CloseOn::Commands(vec![999]));
             let current_state = dialog.state();
             dialog.set_state(current_state | SF_MODAL);
-
-            let mut event = Event::command(1000);
+            let mut event = Event::command(CM_OK);
             dialog.handle_event(&mut event);
-
-            assert_eq!(
-                dialog.end_state(),
-                0,
-                "Command 1000 should not close dialog (>= 1000)"
-            );
-            assert_eq!(
-                event.what,
-                EventType::Command,
-                "Command 1000 event should not be cleared"
-            );
-        }
-
-        // Test 4: Standard commands (OK, Cancel, etc.) should still work
-        {
-            use crate::core::command::{CM_CANCEL, CM_NO, CM_OK, CM_YES};
-
-            for cmd in [CM_OK, CM_CANCEL, CM_YES, CM_NO] {
-                let mut dialog = Dialog::new(Rect::new(0, 0, 40, 10), "Test");
-                let current_state = dialog.state();
-                dialog.set_state(current_state | SF_MODAL);
-
-                let mut event = Event::command(cmd);
-                dialog.handle_event(&mut event);
-
-                assert_eq!(
-                    dialog.end_state(),
-                    cmd,
-                    "Standard command {} should close dialog",
-                    cmd
-                );
-                assert_eq!(
-                    event.what,
-                    EventType::Nothing,
-                    "Standard command {} event should be cleared",
-                    cmd
-                );
-            }
+            assert_eq!(dialog.end_state(), 0, "CM_OK is not in the list");
         }
     }
 
-    /// Test that non-modal dialogs don't interfere with command handling
     #[test]
     fn test_non_modal_dialog_commands() {
         let mut dialog = Dialog::new(Rect::new(0, 0, 40, 10), "Test");
