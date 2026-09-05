@@ -18,6 +18,7 @@ exclude = [
     "local-only/*",
     "legacy/*",
     "docs/*",
+    "website/*",
     "debug/*",
     "data/*",
     "to-do/*",
