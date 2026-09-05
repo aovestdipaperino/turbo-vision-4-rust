@@ -315,18 +315,20 @@ impl Window {
         let mut new_x = self.core.bounds.a.x;
         let mut new_y = self.core.bounds.a.y;
 
-        // Apply all drag mode constraints
-        // dmLimitLoX: keep left edge within bounds
-        new_x = new_x.max(limits.a.x);
-
-        // dmLimitLoY: keep top edge within bounds
-        new_y = new_y.max(limits.a.y);
-
+        // Apply all drag mode constraints. Far edges first, near edges last,
+        // as in Borland TView::moveGrow: when the window cannot fit, the
+        // top-left corner stays at the limit instead of going negative.
         // dmLimitHiX: keep right edge (including shadow) within bounds
         new_x = new_x.min(limits.b.x - width - shadow_x);
 
         // dmLimitHiY: keep bottom edge (including shadow) within bounds
         new_y = new_y.min(limits.b.y - height - shadow_y);
+
+        // dmLimitLoX: keep left edge within bounds
+        new_x = new_x.max(limits.a.x);
+
+        // dmLimitLoY: keep top edge within bounds
+        new_y = new_y.max(limits.a.y);
 
         // A move leaves the frame and interior alone: they are window-relative.
         if new_x != self.core.bounds.a.x || new_y != self.core.bounds.a.y {
@@ -590,19 +592,20 @@ pub trait WindowLike: GroupLike {
                 };
 
                 // Apply drag constraints to keep window fully within parent bounds
-                // Matches Borland: dmLimitLoX | dmLimitLoY | dmLimitHiX | dmLimitHiY (full containment)
-
-                // dmLimitLoX: keep left edge within bounds (prevent negative x)
-                new_x = new_x.max(limits.a.x);
-
-                // dmLimitLoY: keep top edge within bounds (prevent negative y)
-                new_y = new_y.max(limits.a.y);
+                // Matches Borland: dmLimitLoX | dmLimitLoY | dmLimitHiX | dmLimitHiY (full containment),
+                // far edges first and near edges last (TView::moveGrow).
 
                 // dmLimitHiX: keep right edge (including shadow) within bounds
                 new_x = new_x.min(limits.b.x - width - shadow_x);
 
                 // dmLimitHiY: keep bottom edge (including shadow) within bounds
                 new_y = new_y.min(limits.b.y - height - shadow_y);
+
+                // dmLimitLoX: keep left edge within bounds (prevent negative x)
+                new_x = new_x.max(limits.a.x);
+
+                // dmLimitLoY: keep top edge within bounds (prevent negative y)
+                new_y = new_y.max(limits.a.y);
 
                 // Save previous bounds for union rect calculation (Borland's locate pattern)
                 self.window_mut().prev_bounds = Some(self.bounds());
@@ -644,8 +647,12 @@ pub trait WindowLike: GroupLike {
 
                 // Update bounds (maintaining position, changing size)
                 let a = self.bounds().a;
-                self.core_mut().bounds =
-                    Rect::new(a.x, a.y, a.x + final_width as i16, a.y + final_height as i16);
+                self.core_mut().bounds = Rect::new(
+                    a.x,
+                    a.y,
+                    a.x + final_width as i16,
+                    a.y + final_height as i16,
+                );
                 self.window_mut().layout_frame_and_interior();
 
                 event.clear(); // Mark event as handled
@@ -1126,6 +1133,18 @@ impl Default for WindowBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_window_as_large_as_its_limits_keeps_its_top_left_corner() {
+        // Borland TView::moveGrow clamps the far edge first and the near edge
+        // last, so a window that cannot fit (its shadow hangs past the limit)
+        // stays at the limit's origin instead of being pushed to a negative one.
+        let mut window = Window::new(Rect::new(0, 0, 100, 28), "Full");
+        window.set_drag_limits(Rect::new(0, 0, 100, 28));
+        window.constrain_to_limits();
+        assert_eq!(window.bounds().a, Point::new(0, 0));
+        assert_eq!(window.bounds().b, Point::new(100, 28));
+    }
 
     #[test]
     fn window_like_override_of_get_palette_is_used_by_window_draw() {

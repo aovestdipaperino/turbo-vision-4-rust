@@ -112,6 +112,12 @@ impl_view_for_window!(MyWindow {
   `get` / `get_mut` give the concrete child back. `Desktop` has the same
   three methods for its windows.
 
+### Fixed
+- A window as large as its owner (a full-desktop editor with a shadow) was
+  pushed to a negative origin, hiding its top row and left column. Drag limits
+  now clamp the far edges first and the near edges last, as Borland's
+  `TView::moveGrow` does, so the top-left corner stays put.
+
 ### Changed (breaking)
 - **Owner-relative coordinates.** `Group::add`, `Window::add` and
   `Window::add_frame_child` store the bounds they are given instead of
