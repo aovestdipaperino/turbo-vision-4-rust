@@ -1,0 +1,1927 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [3.0.0] - 2026-09-05
+
+A major release: the `View` trait changes for every downstream crate, so the
+other API changes that needed a breaking release ride along. The analysis and
+plan are in `docs/MISSING-INHERITANCE.md`; the coordinate model is in
+`docs/OWNER-COORDINATES.md`.
+
+### Migrating to owner-relative coordinates
+
+A view's `bounds()` are now relative to its owner, as Borland's `TView::origin`
+is, and stay put when the owner moves. A view draws in its own space, `(0, 0)`
+to `extent()`, and mouse positions arrive in that same space; the owner
+translates on the way down and back up.
+
+```rust
+// 2.x: bounds were screen coordinates once added
+let x = self.bounds().a.x;
+write_line_to_terminal(terminal, x, self.bounds().a.y + row, &buf);
+if self.bounds().contains(event.mouse.pos) { .. }
+
+// 3.0.0: draw at (0, 0); mouse positions are view-local
+write_line_to_terminal(terminal, 0, row, &buf);
+if self.extent().contains(event.mouse.pos) { .. }
+```
+
+A view that holds children by value pushes each child's origin around its
+`draw` and dispatches events in the child's space: `views::view::draw_child`
+and `views::view::dispatch_to_child` do both. Code outside the tree that draws
+a top-level view itself (`app.desktop.draw(&mut app.terminal)` in a custom
+loop) calls `app.terminal.draw_view(&mut app.desktop)` instead, and dispatches
+with `dispatch_to_child(&mut app.desktop, &mut event)`. Positions given when
+adding a child were always owner-relative and do not change.
+
+### Migrating a downstream view
+
+```rust
+// 2.x
+pub struct MyView { bounds: Rect, state: StateFlags, options: u16, palette_chain: Option<PaletteChainNode>, .. }
+impl View for MyView {
+    fn bounds(&self) -> Rect { self.bounds }
+    fn set_bounds(&mut self, b: Rect) { self.bounds = b; }
+    /* eight more accessors */
+    fn draw(..) { .. } fn handle_event(..) { .. } fn get_palette(..) { .. }
+}
+
+// 3.0.0
+pub struct MyView { core: ViewCore, .. }
+impl View for MyView {
+    fn core(&self) -> &ViewCore { &self.core }
+    fn core_mut(&mut self) -> &mut ViewCore { &mut self.core }
+    fn as_any(&self) -> &dyn std::any::Any { self }
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any { self }
+    fn draw(..) { .. } fn handle_event(..) { .. } fn get_palette(..) { .. }
+}
+
+// A type wrapping a Window, 3.0.0
+impl GroupLike for MyWindow { fn group(&self) -> &Group { self.window.group() } fn group_mut(&mut self) -> &mut Group { self.window.group_mut() } }
+impl WindowLike for MyWindow { fn window(&self) -> &Window { &self.window } fn window_mut(&mut self) -> &mut Window { &mut self.window } }
+impl_view_for_window!(MyWindow {
+    fn handle_event(&mut self, event: &mut Event) { self.window_handle_event(event); /* ... */ }
+});
+```
+
+| Change | Before | After |
+|---|---|---|
+| Base fields | Own `bounds`, `state`, `options`, `palette_chain` fields and ten accessors | One `core: ViewCore` field, `core()` and `core_mut()` |
+| Downcasting | `as_any` optional, panicking default | `as_any` and `as_any_mut` required |
+| Hooks removed from `View` | `is_default_button`, `button_command`, `set_list_selection`, `get_list_selection`, `get_end_state`, `set_end_state` | Downcast to `Button` or `ListBox`; `GroupLike::end_state` / `end_modal`, reached through `View::as_group()` |
+| Window-shaped types | `impl View for MyWindow` with forwarding | `impl WindowLike for MyWindow` plus `impl_view_for_window!(MyWindow { overrides })` |
+| Idle | `impl IdleView` | `fn idle` on `View` |
+| Adding children | `add(Box::new(v))` | `add(v)`; boxing still accepted; `GroupLike` must be in scope (it is in the prelude) |
+| Reading a field | `Rc<RefCell<String>>` passed to `InputLineBuilder::data` | `let h = dialog.add_typed(field)` then `dialog.get(h).unwrap().text()` |
+| Flags | `SF_MODAL`, `OF_SELECTABLE`, `GF_GROW_ALL`, `MF_OK_BUTTON` as integers | `State::MODAL`, `Options::SELECTABLE`, `Grow::ALL`, `MsgBox::OK_BUTTON`; old names deprecated for one release |
+| Dialog close | Any command below 1000 | `CloseOn` policy; default closes on the standard commands and the dialog's own buttons |
+| Commands | Library exports application commands | Library reserves 0 to 199; applications start at `CM_USER`, 200 |
+| Message boxes | `helpers::msgbox` or `views::msgbox` | `views::msgbox` only (`helpers` re-exports it, deprecated) |
+| Menus and status | Positional constructors with scan codes | Builders with chord strings |
+| Application loop | Copy `run()` to add a command handler | `impl AppHandler` and `run_with` |
+| Modal loops | Copy `Dialog::execute` to poll a job while a dialog is up | `app.execute_modal(&mut dialog, tick)` |
+| Shared children | Hand-written `SharedX(Rc<RefCell<X>>)` newtypes | `Shared<X>` |
+| Finding a desktop window | Iterate children and `downcast_ref` | `desktop.get(handle)` |
+| Editor access | `EditWindow::editor_rc()` | `editor()` / `editor_mut()` (`editor_rc` deprecated) |
+
+
+### Added
+- **Owner-relative coordinates.** `View::extent()` (Borland `getExtent`);
+  `Terminal::push_origin` / `pop_origin` / `origin` and `Terminal::draw_view`;
+  `views::view::draw_child` and `dispatch_to_child` for owners that hold
+  children by value. `Terminal::write_cell`, `write_line`, `read_cell`,
+  `show_cursor` and `push_clip` take local `i16` coordinates and translate by
+  the pushed origins. `TestBackend::cursor_handle` reads back the cursor
+  position a test drew.
+- **`AppHandler` and `Application::run_with`.** Application-level hooks
+  (`pre_event`, `handle_command`, `idle`, `window_closed`) replace the
+  hand-written copies of the event loop that programs wrote to handle their
+  own commands (Borland: `TApplication::handleEvent` and `idle` overrides).
+  `Application::run()` is now `run_with(&mut ())`.
+- **`Application::execute_modal` and `ModalTick`.** The one modal loop behind
+  `Dialog::execute`, `FileDialog::execute` and `HelpWindow::execute`; a
+  per-tick closure can poll a background job and end the dialog. Events go to
+  the outer type's `handle_event`, so a `FileDialog` no longer needs its own
+  copy of the loop to react to its children.
+
+- **Typed child handles.** `GroupLike::add_typed` returns a `Handle<T>`;
+  `get` / `get_mut` give the concrete child back. `Desktop` has the same
+  three methods for its windows.
+
+### Fixed
+- A window as large as its owner (a full-desktop editor with a shadow) was
+  pushed to a negative origin, hiding its top row and left column. Drag limits
+  now clamp the far edges first and the near edges last, as Borland's
+  `TView::moveGrow` does, so the top-left corner stays put.
+
+### Changed (breaking)
+- **Owner-relative coordinates.** `Group::add`, `Window::add` and
+  `Window::add_frame_child` store the bounds they are given instead of
+  converting them to screen coordinates; `group_set_bounds` no longer shifts
+  children on a move, only applies the grow bits on a resize (Borland:
+  `TGroup::changeBounds`). Every view draws at `(0, 0)` and sees view-local
+  mouse positions (see the migration section above). `set_parent_bounds` is
+  `set_owner_extent` and receives the owner's extent; `make_global` and
+  `make_local` convert one hop, between a view and its owner. Standalone
+  popups (`MenuBox`, `HistoryWindow`, the combo box drop-down) push their own
+  origin. Tests that inspected a child's `bounds()` after adding it now see
+  owner coordinates.
+- **Typed flag sets.** `State`, `Options` and `Grow` (in `core::state`),
+  `MsgBox` (in `views::msgbox`) and `ValidatorOptions` (in
+  `views::validator`) replace the bare `u16` / `u8` bit masks, so a state
+  cannot be handed to an options parameter by mistake. `View::options()` and
+  `set_options` use `Options`; `ViewCore`'s fields are typed. The old
+  constants (`SF_MODAL`, `OF_SELECTABLE`, `GF_GROW_ALL`, `MF_OK_BUTTON`,
+  `VO_FILL`, ...) remain as deprecated aliases of the associated constants
+  (`State::MODAL`, `Options::SELECTABLE`, `Grow::ALL`, `MsgBox::OK_BUTTON`,
+  `ValidatorOptions::FILL`) for one release. Tests like `state & SF_X != 0`
+  become `state.contains(State::X)`; `StateFlags` and `GrowFlags` are type
+  aliases of `State` and `Grow`.
+- **`CloseOn` replaces the "commands below 1000 close the dialog" rule.**
+  A modal `Dialog` now ends on `CM_OK`, `CM_CANCEL`, `CM_YES`, `CM_NO` and
+  on the commands of the buttons added to it (`CloseOn::StandardAndButtons`,
+  the default); `CloseOn::Standard` and `CloseOn::Commands(..)` are the
+  alternatives, set with `DialogBuilder::close_on` or `Dialog::set_close_on`.
+  A command from any other child (a list box, say) is left for the caller
+  whatever its number, so commands no longer need to be numbered above 1000
+  to pass through.
+- **Command numbers have owners.** `0..=99` are Borland's standard commands
+  (the `editors.h` file set `CM_NEW`..`CM_CLOSE_FILE` moves to 30..35),
+  `100..=199` are this crate's internal commands and broadcasts
+  (`CM_REDRAW`, `CM_SHOW_HISTORY`, `CM_SCREENSHOT` and friends are
+  renumbered into that band), and applications start at `CM_USER` (200).
+  The demo-application commands (`CM_ABOUT`, `CM_BIRTHDATE`,
+  `CM_TEXT_VIEWER`, `CM_CONTROLS_DEMO`, `CM_FIND_IN_FILES`, `CM_ZOOM_IN`,
+  `CM_ZOOM_OUT`, `CM_TOGGLE_SIDEBAR`, `CM_TOGGLE_STATUSBAR`,
+  `CM_KEYBOARD_REF`, `CM_LISTBOX_DEMO`, `CM_LISTBOX_SELECT`, `CM_MEMO_DEMO`)
+  leave the library; define them in your program.
+- **One message-box module, one `StatusItem`, `idle` on `View`.**
+  `views::msgbox` is the only message-box implementation (it gains
+  `MF_ABOUT`); `helpers::msgbox` re-exports it, with deprecated
+  `input_box` / `input_box_rect` shims keeping the old tuple return.
+  `views::status_line::StatusItem` is now a re-export of
+  `core::status_data::StatusItem`. The `IdleView` trait is gone: `View` has
+  `fn idle(&mut self) {}` and `Application::add_overlay_widget` takes any
+  `View`.
+- **Key chords in the menu and status builders.** `MenuBuilder::item(text,
+  command)` binds no key, `item_key(text, command, "Ctrl+O")` binds and
+  shows the chord, `MenuItemBuilder::key(..)` and `StatusItemBuilder::key(..)`
+  do the same for single items, and `MenuBuilder::add(item)` takes a
+  prebuilt item. The positional `MenuItem::new`, `MenuItem::with_shortcut`,
+  `MenuItem::new_disabled` and `StatusItem::new` are gone; `MenuItem::flag`,
+  `submenu` and `separator` stay, and the `KB_*` constants remain public for
+  `handle_event` match arms. An unknown chord panics at first run.
+- **`add` takes any view.** `GroupLike::add`, `Desktop::add`,
+  `Application::exec_view` and `add_overlay_widget` accept `impl View`
+  (`impl IdleView` for overlays); `Box<dyn View>` still works because a boxed
+  view is itself a `View`, so `add(Box::new(v))` keeps compiling. The boxed
+  primitive is `add_boxed`.
+- **`InputLine` owns its text.** `InputLine::new(bounds, max_length)` and
+  `with_validator(bounds, max_length, validator)` drop the
+  `Rc<RefCell<String>>` parameter; `InputLineBuilder::text(..)` replaces
+  `data(..)`; read the value back with `text()` through a `Handle<InputLine>`
+  after `execute`. `History::new` takes the `Handle<InputLine>` it is linked
+  to, and the owning dialog records and fills the input (Borland's `link`
+  pointer resolved by the owner), so the `CM_RECORD_HISTORY` and
+  `CM_HISTORY_SELECTED` broadcasts are no longer handled by `History`.
+- `EditWindow::editor()` / `editor_mut()` and `HelpWindow::viewer()` /
+  `viewer_mut()` replace `editor_rc()` / `viewer_rc()`, which are deprecated.
+- **`Desktop::remove_closed_windows` returns `Vec<ViewId>`** (the windows it
+  removed) instead of `bool`.
+- `FileDialog::handle_selection` no longer takes a `&mut Terminal`.
+- **`View::core()` and `View::core_mut()` are required.** Every view owns a
+  `ViewCore` holding `bounds`, `state`, `options`, `grow_mode` and
+  `palette_chain`; the ten field accessors are now trait defaults that read
+  it, so a view can no longer forget to report its state.
+- **`View::as_any()` and `View::as_any_mut()` are required.** The panicking
+  defaults are gone; every view can be downcast.
+- **`GroupLike` and `WindowLike` traits.** `Group`'s and `Window`'s behaviour
+  live in trait defaults with `group_*` / `window_*` names so a container
+  type can make a base call. `Window` and `Dialog` no longer have inherent
+  `add`, `child_*`, `execute`, `end_modal`, `get_end_state` or
+  `set_end_state`; import `GroupLike` (it is in the prelude) to keep calling
+  them. Window-shaped types get their `View` impl from
+  `impl_view_for_window!`, with overrides written inline.
+- **Six hooks removed from `View`:** `is_default_button`, `button_command`,
+  `set_list_selection`, `get_list_selection`, `get_end_state`,
+  `set_end_state`. Downcast to `Button` (`is_default()`, `command()`) or
+  `ListBox` (`set_selection`, `get_selection`) instead; the modal end state
+  lives on `GroupLike::end_state` / `end_modal`, reachable from a
+  `&dyn View` through the new `View::as_group()` (Borland's
+  `dynamic_cast<TGroup*>`).
+- **`Shared<T>`** replaces the per-type `SharedScrollBar`, `SharedEditor`,
+  `SharedIndicator`, `SharedHelpViewer` and `SharedTerminalWidget` newtypes.
+
+## [2.4.0] - 2026-09-05
+
+### Added
+- **`ProgressBar` view.** A determinate or marquee progress indicator, the
+  first item from the new `docs/MORE-CONTROLS.md` roadmap. Determinate bars
+  fill in proportion to `value / max`; marquee bars sweep a block for work of
+  unknown duration and animate themselves through `IdleView`, so adding one as
+  an overlay widget is enough. Three glyph styles: `Smooth` (default, partial
+  block glyphs give eighth-of-a-cell resolution), `Blocks`, and `Ascii` for
+  terminals without box-drawing characters. The centred overlay is the
+  truncated percentage by default and can be switched off with
+  `set_show_percent(false)` / `ProgressBarBuilder::show_percent(false)`, or
+  replaced with fixed text via `set_caption`. New `CP_PROGRESS_BAR` palette
+  reuses the scrollbar gauge colours, so a bar drops into an existing dialog
+  or window unchanged. See `examples/progress_bar.rs`.
+- **`ComboBox` view.** A read-only field showing one choice, with a drop-down
+  list. F4, Alt+Down or a click opens the list; Up and Down cycle the choice
+  without opening it. Opening is a two-step the way the history button already
+  works: the control emits `CM_SHOW_DROPDOWN`, and the `Dialog` modal loop or
+  `Application` runs the popup, since a control cannot reach the terminal from
+  `handle_event`. The popup draws its own thin frame, flips above the field when
+  there is no room below, scrolls past eight items and writes the choice back
+  into the shared `ComboState`.
+- **`Spinner` view.** A numeric field with up and down steppers, holding one
+  integer inside a range. Typed input is clamped rather than rejected, and the
+  first digit of a focus session replaces the value instead of extending it.
+  Arrows step, PgUp and PgDn step ten times as far, Home and End jump to the
+  range ends, Backspace drops a digit. Optional wrap-around and unit suffix.
+- **`Table` view.** A scrollable grid with a header row, per-column widths and
+  alignment. Focus is a cell rather than a row: Up and Down move rows, Left and
+  Right move columns, Ctrl+Left and Ctrl+Right jump to the end columns, and the
+  grid scrolls in both directions by whole columns so a column is never clipped
+  in half. Rows are read positionally, so a ragged row draws blank cells instead
+  of panicking. This is the control `ListViewer::num_cols` was never meant to be:
+  that field lays one list out in newspaper columns.
+- **`TabbedPane` view.** A tab strip over a stack of pages, each page a `Group`
+  that holds ordinary controls and runs its own focus traversal. Drawn as
+  enclosed tab boxes sitting on the page frame, with the active tab's floor open
+  so the two read as one shape. F6 and Shift+F6 switch pages; Ctrl+PgUp and
+  Ctrl+PgDn do too, where the terminal sends them, and a tilde-marked letter in a
+  title is its Alt hotkey. The pane is transparent, so a page's controls take the
+  owner's colours as if they sat in the dialog directly.
+- **`SplitPane` view.** Two panes divided by a draggable splitter, vertical or
+  horizontal, with a minimum size for each half. A bare divider cannot resize
+  siblings it does not own, so the control owns both halves, each a `Group`, the
+  way `TabbedPane` owns its pages. Dragging the divider moves it, clicking a half
+  focuses it, and F8 moves focus between them. Moving the divider from the
+  keyboard is left to the host through `grow_first` and `shrink_first`, rather
+  than stealing a key from the controls inside the panes.
+- **Multi-select in `ListBox`.** `set_multi_select` turns on marks that are
+  independent of the focus: Space marks the focused item, Shift+click marks a run
+  from the anchor, and `marked_items` / `marked_text` report them in list order.
+  Marked rows carry a check glyph in a two-cell column that keeps the text
+  aligned, and `is_selected` follows the marks in that mode. Off by default, so
+  existing single-selection lists behave exactly as before. Replacing the items
+  drops the marks, whose indices would otherwise refer to the old list.
+- **ScrollBar mouse auto-repeat**, the last omission recorded against the
+  scrollbar in `TO-DO.md`. `Application` tracks whether a mouse button is held
+  and, only then, broadcasts the new `CM_MOUSE_AUTO_REPEAT` from its idle pass.
+  A held arrow or track press repeats after 400 ms, then every 80 ms, and stops
+  on release or at the end of the range. Nothing is broadcast while no button is
+  down, so an idle app stays idle.
+- **`examples/new_controls.rs`.** One dialog running all five new controls: a
+  tabbed pane over two pages, the first wiring three combo boxes and a spinner to
+  a progress bar, the second a table.
+- **`CheckBoxes` and `RadioButtons`.** The Borland shape the port was missing:
+  each holds its items in one focusable control with a single bitmask value.
+  Arrows move within the cluster, Space toggles a box or selects a button, Tab
+  leaves it, and a tilde-marked letter is an item's Alt hotkey; items can be
+  disabled individually and draw dimmed. Radio clusters keep exactly one bit set,
+  so pressing Space on the selected button does not turn it off. The existing
+  one-label `CheckBox` and `RadioButton` are untouched and still supported.
+- **`Tooltip` view.** Hover hints for a whole dialog: register a rect and a line
+  of text per control, and the pointer resting on one raises the hint beside it,
+  flipping above the control when there is no room below. Add it last, since it
+  draws over its neighbours. Any click or keypress takes the hint down.
+- **Frame zoom triangle.** A resizable window's title bar now carries `[\u{25B2}]`
+  beside the close box, turning into `[\u{25BC}]` once zoomed. It tracks press and
+  release like the close box, so a press that slides off cancels rather than
+  zooming. Dialogs show none: Borland pairs wfZoom with wfGrow, and a dialog has
+  neither. Closes the last "visual polish only" note in `TO-DO.md`.
+- **`CM_IDLE_TICK`.** Broadcast from `Application::idle` whenever the event poll
+  times out, so views can run timers of their own. The tooltip's hover delay is
+  the first user; animation is the obvious second. Views must not consume it,
+  since a broadcast stops travelling once it is.
+- **`examples/cluster_tooltip.rs`.** The three above in one dialog.
+- **`docs/MORE-CONTROLS.md`.** Gap analysis of the widget set against Borland
+  Turbo Vision and modern text-UI expectations, with a checklist roadmap. Every
+  item on it is now done.
+
+### Changed
+- **Focus is visible on the new controls.** Borland's input palette gives
+  "normal" and "focused" the same colour because a `TInputLine` shows focus with
+  its cursor. `ComboBox` and `Spinner` draw no cursor, so they use the
+  selected-text colour when focused.
+
+## [2.3.1] - 2026-09-05
+
+### Added
+- **Auto-dismissing message boxes.** A new `MF_AUTO_DISMISS` flag on both
+  `views::msgbox` and `helpers::msgbox` closes the box after
+  `MESSAGE_BOX_AUTO_DISMISS_TIMEOUT` (3 seconds) if the user has not
+  dismissed it, returning the default button's command (OK when present,
+  otherwise the first button, `CM_CANCEL` when there are none). It is
+  built on a generic `Dialog::set_auto_dismiss(timeout, command)` that the
+  `Dialog::execute` modal loop honours, so any dialog can use it.
+
+### Changed
+- **Message-box height follows the buttons.** A message box with no button
+  flags no longer reserves the button row: the text area runs to the
+  bottom frame and the box is two rows shorter (three in `helpers::msgbox`,
+  whose minimum drops from 9 to 5 rows). This makes button-less,
+  auto-dismissing boxes usable as splash screens.
+- The Pascal IDE example's startup about box is now such a splash: no OK
+  button, gone after 3 seconds, Esc closes it early.
+
+## [2.3.0] - 2026-09-04
+
+### Fixed
+- **Windows now follow a terminal resize.** `Window` never implemented
+  `grow_mode`/`set_grow_mode`, so it inherited `View`'s fixed default and
+  `set_grow_mode` on it was a silent no-op. The resize cascade reached each
+  window, was told it was fixed, and left it at its old geometry: frames
+  stayed at the old width and contents were clipped at the new screen edge.
+  `Window` now stores grow flags and defaults to `GF_GROW_HI_X | GF_GROW_HI_Y`,
+  pinning the top-left and growing the bottom-right edge, which is what a
+  window filling the desktop wants. Note this is deliberately not Borland's
+  literal `gfGrowAll`: in this crate's cascade all four bits mean "translate
+  by the size delta, keep the same size", which would slide a window away
+  from the corner it was filling rather than stretch it.
+- **A terminal that resizes at startup left the whole app a row too tall.**
+  Warp reports the pre-alternate-screen size for a moment after the switch (one
+  row taller than the real alternate screen), and the matching SIGWINCH can
+  land before crossterm's event source exists, so it never arrives as a resize
+  event: the app stayed laid out for the wrong size for the rest of the
+  session, with the editor window's bottom frame and indicator falling on the
+  status-line row. `Application::idle` now re-checks the backend size and
+  re-lays out if it disagrees with the cached one, which self-heals a resize
+  that was never delivered.
+- **The editor did not follow a window resize.** `EditorWindow` inherited
+  `View`'s fixed grow mode, so when a terminal resized (Warp resizes right
+  after startup) the window and its frame moved to the new geometry while the
+  editor kept its old size: a too-tall editor overdrew the bottom frame, so the
+  window looked one row taller than its client area and the indicator line
+  disappeared. `EditorWindow` now carries a grow mode, defaulting to
+  `GF_GROW_HI_X | GF_GROW_HI_Y` so it keeps filling the window interior, and
+  re-clamps the cursor and scrollbars to the new size.
+- `EditWindow`, `LogWindow` and `HelpWindow` wrap a `Window` and delegate
+  `bounds`/`state` to it, but had not delegated the grow-mode accessors, so
+  they carried the same bug. They now do.
+
+### Added
+- `WindowBuilder::grow_mode` for callers that want something other than the
+  default.
+- **Global block-edit mode.** `Application::block_edit_mode`,
+  `set_block_edit_mode` and `toggle_block_edit_mode` read and write a global
+  flag (`core::state`) that decides whether an editor selection is rectangular.
+  `Application` handles the new `CM_TOGGLE_BLOCK_MODE` command, and
+  `MenuItem::flag` (also `MenuItemBuilder::checked`) creates a checkable menu
+  item whose check mark is re-queried on every draw. `MenuBar::set_right_indicator` and
+  `StatusLine::set_right_indicator` draw a right-aligned marker (also
+  re-queried on every draw) at the far end of those bars. The `pascal_ide`
+  example gains an Edit menu with a "Block mode" flag item and shows a
+  "▭ Block" marker at the right of the status line while the mode is on.
+
+### Behaviour change
+- **Block selection no longer uses the Alt/Option modifier.** Alt+arrows and
+  Alt-drag no longer start a rectangular selection, because terminals disagree
+  on whether they deliver Alt at all (macOS Terminal.app only does so with
+  "Use Option as Meta key" off). Selections are always extended with
+  Shift+arrows or a mouse drag; their shape now comes from the global
+  block-edit mode above.
+
+- Any application that positions a `Window` itself and adds it to a `Desktop`
+  will now see that window move and resize when the terminal is resized, where
+  previously it silently did not. Call `window.set_grow_mode(0)` to keep the
+  old fixed behaviour.
+
+## [2.2.1] - 2026-08-31
+
+### Added
+- **Rectangular (block) selection in the editor.** Hold **Alt/Option** with the
+  arrow keys, or Alt-drag with the mouse, to select a column block instead of a
+  continuous stream. Block copy yields each row's column slice (joined by
+  newlines); block delete removes the column band from every row and undoes in a
+  single step. Stream selection (Shift+arrows / plain drag) is unchanged.
+- **`CM_SELECT_ALL` is now a working command.** `EditorWindow` and `Memo` handle
+  it (focus-gated) in addition to the existing Ctrl+A, so an Edit-menu item or
+  command dispatch selects all content of the focused window.
+
+### Changed
+- **Bold no longer brightens explicitly-chosen colors.** The ANSI parser still
+  applies the classic bold-is-bright convention to the basic 16-color palette
+  (`\x1b[1;31m` → bright red), but a foreground set via 256-color (`38;5;n`) or
+  truecolor (`38;2;r;g;b`) now keeps its exact hue when bold — only the `BOLD`
+  style flag is set. This lets syntax highlighters bold keywords without
+  shifting their color.
+
+## [2.2.0] - 2026-08-31
+
+### Added
+- **Text styling attributes.** `Attr` now carries a `Style` bitset alongside its
+  foreground/background colors, supporting **bold**, **dim**, **italic**,
+  **underline**, **reverse** (inverse video), and **strikethrough**. Apply them
+  with composable builder methods — `Attr::new(fg, bg).bold().italic()` — or set
+  several at once via `.with_style(Style::ITALIC | Style::UNDERLINE)`.
+- Styles are emitted as real SGR escape codes by the renderer: on the live
+  terminal and SSH output (`Terminal::flush`) and in ANSI screen dumps
+  (`ansi_dump`). The ANSI parser now recognizes incoming style codes, and the
+  help viewer renders `**bold**` / `*italic*` markdown segments with real
+  terminal styles instead of color-only emphasis.
+- New `text_styling` example (`cargo run --example text_styling`) printing a
+  table of every style and several combinations.
+
+### Notes
+- Fully backward compatible: `Attr::new(fg, bg)` keeps its two-argument
+  signature (style defaults to empty), so existing call sites are unaffected.
+- The classic Turbo Vision color byte still encodes colors only — `to_u8` /
+  `from_u8` preserve colors and drop style, by design.
+- PNG screenshots remain color-only; blink is intentionally not supported.
+
+## [2.0.0] - 2026-07-02
+
+Full code review against the kloczek/tvision C++ reference, with all critical
+(P0), high (P1), and medium (P2) findings fixed. See TO-DO.md for the
+itemized checklist.
+
+### Breaking
+- **Standard command IDs renumbered to Borland's values** (`cmQuit=1`,
+  `cmClose=4`, `cmZoom=5`, `cmResize=6`, `cmNext=7`, `cmPrev=8`,
+  `cmCut/Copy/Paste/Undo=20-23`, `cmClear=24`, `cmTile=25`, `cmCascade=26`,
+  `cmRecordHistory=60`, `cmGrabDefault/cmReleaseDefault=61/62`,
+  `cmFileFocused/cmFileDoubleClicked=102/103`). Demo file-menu commands moved
+  to 300-305. Code that uses the `CM_*` constants is unaffected.
+- `KB_CTRL_F12` corrected to the BIOS scan code `0x8A00`.
+- **SSH server authentication is now deny-by-default**: configure
+  `SshServerConfig::auth_password_fn` / `auth_publickey_fn`, or opt into the
+  old accept-everything behavior explicitly with `allow_anonymous()`.
+- `Scroller::set_limit` follows Borland semantics: the maximum scroll offset
+  is content size minus one page.
+- Saving an editor buffer appends a POSIX trailing newline for programmatic
+  content and preserves the loaded file's CRLF/trailing-newline style.
+- `Event` gained an `info: u16` field (Borland `infoPtr` equivalent) used by
+  several new broadcasts.
+
+### Fixed
+- **UTF-8 safety**: InputLine, editor search, Memo selection, ParamText,
+  TerminalWidget, and SortedListBox no longer mix byte and character
+  indices — multibyte text (e.g. pasting "é") previously panicked.
+- **Editor**: Enter and line-join deletions are undoable; overwrite mode is a
+  single undo step; `replace_all` no longer loops forever when the
+  replacement contains the pattern; `find_next` no longer skips adjacent
+  matches; search matches Borland's non-wrapping behavior.
+- **Event routing**: clicks that hit no child are no longer delivered to the
+  focused control; broadcasts reach every child; removing the focused child
+  re-establishes focus; the focus chain skips disabled children and never
+  strands focus.
+- **Windows**: `SF_ACTIVE` propagates so inactive windows draw with the
+  inactive palette; auto-close honors `valid(cmClose)`; modal views are
+  tracked by identity (not index); `valid(endState)` re-entry lets failing
+  validators veto OK; frame close button tracks press+release; frame titles
+  are centered; per-child grow modes (`GF_GROW_*`) with Borland `calcBounds`.
+- **Dialogs/controls**: Enter presses the focused button (grab-default
+  semantics); disabled commands no longer fire from the status line or menu
+  boxes; menu dropdown hit-testing uses real widths; buttons fire on release
+  (cancellable by dragging off); radio buttons are mutually exclusive;
+  checkboxes/radios respond to the mouse; ColorDialog returns the actual
+  selection; SortedListBox has incremental type-to-search; menu item
+  shortcuts (F2, ...) dispatch while the bar is closed.
+- **Validators**: PictureValidator is a complete TPXPictureValidator port
+  (`#?&@!`, `;` escapes, `{}`/`[]` groups, `*N` repetition, `,` alternatives)
+  with auto-fill wired into InputLine typing; InputLine validators can veto
+  dialog close.
+- **File dialog**: typed paths (e.g. `src/main.rs`) return the file instead
+  of being discarded; wildcard filtering is a real glob (`*`/`?`).
+- **Palettes**: restored three zeroed bytes in the app palette, remapped
+  `CP_BLUE_DIALOG` to a proper blue region, corrected `CP_CLUSTER`.
+- **SSH/terminal**: `poll_event` honors its timeout (no more 100% CPU per
+  session); dead backends stop the app instead of spinning; client window
+  resizes reach the layout; the input parser survives partial X10 mouse
+  sequences and caps unterminated CSI buffering; `set_esc_timeout` works.
+- **Desktop**: tile uses Borland's exact-fill algorithm; cascade extends all
+  windows to the corner; quit during a modal loop returns `cmQuit`.
+- Parallel test runs no longer segfault (OS clipboard access serialized and
+  skipped under tests) or flake on the global history manager.
+
+### Added
+- History system wired end-to-end: the History button opens its popup,
+  dialog OK records the linked InputLine text (`cmRecordHistory`), and the
+  selected entry is copied back.
+- `Application::put_event` (Borland `putEvent` pending-event slot).
+- Alt+1..9 window selection (`cmSelectWindowNum`), window numbers drawn in
+  the frame, `Window::set_number`.
+- `cmZoom` dispatch with double-click-title zoom; `cmResize` keyboard
+  move/resize mode (arrows move, Shift+arrows resize, Enter/Esc).
+- `StatusLine::with_defs` + `update()`: Borland TStatusDef item sets that
+  switch with the help context (`Application::set_help_context`).
+- Editor word operations (Ctrl+arrows, Ctrl+Backspace/Del), Ins overwrite
+  toggle, opt-in `.bak` backups (`set_backup_files`).
+- InputLine select-all-on-focus, Shift+arrow selection, Ins overwrite mode.
+- `Menu::find_hotkey`, `Validator::complete`, `Backend::as_any_mut`,
+  `Desktop::top_view_id`/`child_by_id`/`remove_child_by_id`,
+  `CM_SCROLLBAR_CHANGED`, `SshAuthPolicy`.
+
+## [1.3.1] - 2026-06-07
+
+### Fixed
+- `Group::remove_by_id()` removed the matching entry from the parallel `view_ids` vector twice (once inside `remove()`, then again directly), which corrupted the view-id ↔ child alignment — `child_by_id()` could then miss an untouched view, and removing the last child panicked with an out-of-bounds index. It now delegates to `remove()`, which already keeps `children` and `view_ids` in lock-step.
+
+## [1.3.0] - 2026-06-07
+
+### Added
+- **Screen capture shortcuts** — two consolidated global shortcuts, both capturing the whole screen:
+  - **F12** → ASCII (ANSI-colored) dump to a timestamped `screen-YYYYMMDD-HHMMSS.ans` file (`Application::dump_screen_ansi()`, wrapping `Terminal::dump_screen`)
+  - **Ctrl+F12** → PNG screenshot to a timestamped `screenshot-YYYYMMDD-HHMMSS.png` file (`Application::take_screenshot()` / `CM_SCREENSHOT`)
+- **PNG Screenshots** (`src/core/screenshot.rs`)
+  - New `Terminal::save_screenshot_png(path)` renders the current screen buffer to a true-color PNG using the embedded **Spleen 8x16** bitmap font (BSD-2-Clause; see `fonts/Spleen-LICENSE`) with crisp integer scaling derived from the terminal's reported font cell height; Turbo Vision box-drawing (single and double, with correct corner joinery), block, shade, arrow, and corner-resize (`◢`) glyphs are rendered procedurally so frames tile cleanly at any scale
+  - New `Terminal::query_font_pixel_size()` reports the current font cell size in pixels (falls back to 8x16 when the terminal does not report pixel dimensions)
+  - Self-contained PNG encoder (no new dependencies): RGB, 8-bit, stored DEFLATE blocks with CRC-32 / Adler-32 checksums
+  - New `CM_SCREENSHOT` command, also triggerable from a clickable status-line item or menu entry
+- **Remote Input over TCP** (`src/terminal/remote_input.rs`) — disabled by default
+  - `Terminal::enable_remote_input(port)` / `Application::enable_remote_input(port)` start a `127.0.0.1`-only TCP listener that injects events into the event loop; also enabled without code changes via the `TV_REMOTE_KEYS` environment variable (port number)
+  - Key lines contain whitespace-separated chords in human format (e.g. `CTRL+F12` or `CTRL+F12 ALT+X`), parsed by the new public `core::event::parse_key_chord()`; mouse lines (`CLICK x y`, `RCLICK x y`, `MCLICK x y`) inject button-down/up at 0-indexed cell coordinates. Primarily a testing/automation aid (e.g. triggering Ctrl+F12 on terminals that do not forward that chord)
+  - New `examples/screenshot.rs` demonstrating the screenshot feature and remote-input testing
+
+### Removed
+- The unused Shift+F12 "active view" ASCII dump and its plumbing (`KB_SHIFT_F12`, the backend `on_screen_dump`/`on_view_dump` callbacks, and `Terminal::set_active_view_bounds`/`clear_active_view_bounds`). Screen capture is now F12 (ASCII) and Ctrl+F12 (PNG); per-view dumps remain available programmatically via `View::dump_to_file` / `Terminal::dump_region`.
+
+## [1.2.0] - 2026-05-04
+
+### Added
+- **LogWindow** (#87): a scrollable log view with a `tracing::Subscriber` integration for capturing structured logs inside the TUI
+- **Multi-editor support**: window auto-close, `Desktop::contains_id()`, and `Group` `view_id` synchronization on removal
+- **Editor**: trait-level edit operations, atomic paste, `can_undo()`/`can_redo()`, and a cursor position accessor
+- **StatusLine**: context-sensitive hint text with truncation, and automatic greying-out of items whose `CommandId` is currently disabled
+- CI workflow for publishing to crates.io
+
+### Fixed
+- Emoji/wide-character width handling in window titles
+- `CM_REDRAW` broadcast on terminal resize for correct re-layout
+- ESC+letter (macOS Alt emulation) handling
+- Bounds double-offset for nested views (#95) and dialog drag artifacts
+- Mouse-drag scroll vanishing on negative delta
+- MsgBox word-wraps long messages and left-aligns them
+
+## [1.1.1] - 2026-04-10
+
+### Added
+- **Public Window Palette Selection** (#96)
+  - `Window::new_with_type(bounds, title, WindowPaletteType)` constructor for creating Blue, Cyan, Gray, or Dialog windows directly
+  - `WindowBuilder::palette_type()` setter for fluent window construction with any palette type
+
+- **Palette-Integrated Syntax Highlighting** (#98)
+  - Syntax highlighting colors now flow through the palette chain (Editor -> Window -> App) instead of being hardcoded to blue background
+  - Editors in Cyan or Gray windows automatically get syntax colors matching the window background
+  - Extended CP_APP_COLOR with 33 new entries (positions 64-96) for syntax colors across Blue, Cyan, and Gray backgrounds
+  - Extended CP_BLUE_WINDOW, CP_CYAN_WINDOW, CP_GRAY_WINDOW from 8 to 19 entries
+  - Extended CP_EDITOR from 2 to 13 entries (normal, selected, plus 11 syntax token types)
+  - New `TokenType::palette_index()` method for palette-based color resolution
+
+- **Desktop Bring-to-Front API** (#103)
+  - `Desktop::bring_to_front(ViewId)` to bring a specific window to the front of the Z-order
+  - `Group::view_id_at(index)` helper for ViewId lookup by index
+
+- **HelpWindow UX Improvements** (#97)
+  - Single-click on hyperlinks now follows them (previously required double-click)
+  - Up/Down arrow keys cycle through visible hyperlinks with automatic scrolling
+  - Backspace (go_back) restores scroll position and selected hyperlink
+  - History entries now store full view state (topic, scroll offset, selected link)
+
+### Fixed
+- **HelpWindow Click-to-Focus** (#97): `HelpWindow` now delegates `options()` and `set_options()` to the inner `Window`, restoring `OF_TOP_SELECT` so Desktop click-to-focus works correctly
+- **Group View ID Sync**: `Group::bring_to_front()` and `send_to_back()` now keep `view_ids` in sync with `children` after z-order changes, fixing silent lookup bugs
+
+## [1.0.2] - 2025-12-15
+
+### Added
+- **ANSI Escape Sequence Parser** (src/core/ansi.rs)
+  - New `AnsiParser` for parsing ANSI escape sequences from text
+  - New `AnsiImage` struct for storing parsed ANSI art as colored cells
+  - Supports basic 16-color (codes 30-37, 40-47)
+  - Supports bright colors (codes 90-97, 100-107)
+  - Supports 256-color palette (`\x1b[38;5;Nm` / `\x1b[48;5;Nm`)
+  - Supports true color RGB (`\x1b[38;2;R;G;Bm` / `\x1b[48;2;R;G;Bm`)
+  - Supports bold/bright attribute (`\x1b[1m`) and reset (`\x1b[0m`)
+  - Includes comprehensive unit tests for all color modes
+
+- **ANSI Background View** (src/views/ansi_background.rs)
+  - New `AnsiBackground` view for displaying ANSI art on desktop
+  - `from_file()` method to load ANSI art from text files
+  - `from_string()` method to parse ANSI art from strings
+  - Automatic centering support (horizontal and vertical)
+  - `AnsiBackgroundBuilder` with fluent API for construction
+  - Works with existing `examples/logo.txt` true-color ANSI art
+
+### Changed
+- **Desktop Logo Example** (examples/desktop_logo.rs)
+  - Now automatically loads ANSI art from `examples/logo.txt` if available
+  - Falls back to ASCII art when ANSI file is not found
+  - Added File menu with "Load ANSI File" and "Load ASCII Art" options
+  - Updated About dialog to mention ANSI support
+
+## [1.0.1] - 2025-12-15
+
+### Added
+- **F1 Help System for rust_editor** (demo/rust_editor.rs)
+  - F1 key now opens the Help window with context-sensitive help
+  - Help file located at demo/help/rust_editor.md with comprehensive documentation
+  - Covers File Menu, Edit Menu, Search Menu, Window Menu operations
+  - Includes keyboard shortcuts reference and navigation instructions
+
+- **CyanWindow Owner Type for Palette Remapping** (src/views/view.rs, src/views/window.rs)
+  - Added `OwnerType::CyanWindow` enum variant for proper cyan window palette handling
+  - Views inside cyan windows (like HelpWindow) now correctly use CP_CYAN_WINDOW colors
+  - Updated `map_color()` to remap through cyan window palette
+  - Updated `Window::add()` to set CyanWindow owner type for cyan palette windows
+
+- **Backspace Navigation in Help Window** (src/views/help_window.rs)
+  - Backspace key now navigates back in help history (alternative to Alt+F1)
+  - More intuitive navigation for users accustomed to browser-style back navigation
+
+- **HelpWindow Modal State Support** (src/views/help_window.rs, src/app/application.rs)
+  - Added `get_end_state()` and `set_end_state()` to HelpWindow for proper modal execution
+  - SF_MODAL flag now correctly set on HelpWindow in `show_help_topic()`
+  - Modal help windows properly block until closed
+
+### Fixed
+- **Help Window Content Positioning** (src/views/help_window.rs)
+  - Fixed HelpViewer bounds calculation in `set_bounds()` to use absolute coordinates
+  - Content no longer appears offset or cut off when help window is displayed
+
+- **Help Text Cyan Background Color** (src/core/palette.rs, src/views/button.rs)
+  - Help viewer now correctly displays with cyan background (classic Borland style)
+  - Fixed palette chain to properly remap through CP_CYAN_WINDOW
+  - Added CyanWindow handling in button.rs for shadow color calculation
+
+- **Exit Command During Modal Help Window** (src/app/application.rs)
+  - Alt+X (quit) now works even when modal help window is open
+  - Added `self.running` check in `exec_view()` modal loop to respect application quit
+
+### Changed
+- **Help Text Foreground Color** (src/core/palette.rs)
+  - Changed normal help text from light gray (0x37) to black (0x30) on cyan
+  - Improves readability on modern terminals where light gray on cyan has poor contrast
+  - Comment added explaining deviation from Borland's original palette
+
+- **CP_HELP_VIEWER Palette** (src/core/palette.rs)
+  - Extended from 3 to 6 color entries for rich text support
+  - Indices now properly remap through CP_CYAN_WINDOW palette chain
+  - Supports normal text, links, selected links, bold, italic, and code styles
+
+## [0.10.4] - 2025-11-13
+
+### Fixed
+- **ESC + Letter Keyboard Handling for macOS** (src/core/event.rs)
+  - ESC + letter sequences (within 500ms) now produce identical key codes to Alt + letter
+  - Fixes issue where ESC + letter would insert the letter into focused input fields instead of triggering shortcuts
+  - Example: ESC then 'L' now produces KB_ALT_L (0x2600), identical to Alt+L
+  - Prevents InputLine controls from capturing the letter character
+  - Menu shortcuts (ESC+F, ESC+E, etc.) continue to work correctly
+
+### Added
+- **Complete ALT+letter Key Code Support** (src/core/event.rs)
+  - Added KB_ALT_A through KB_ALT_Z constants with proper PC keyboard scan codes
+  - Added `char_to_alt_code()` helper function for letter-to-ALT-code mapping
+  - All 26 letters now have defined ALT key codes for consistent shortcut handling
+
+- **Label Keyboard Shortcut Support** (src/views/label.rs)
+  - Labels now handle keyboard shortcuts matching their `~X~` hotkey markers
+  - Added OF_POST_PROCESS flag to Label for three-phase event processing
+  - Added `get_hotkey()` method to extract shortcut character from label text
+  - Implemented `handle_event()` to detect Alt+letter matches and focus linked controls
+  - Example: Label with "~L~ast Name:" now focuses linked input when Alt+L (or ESC+L) is pressed
+  - Matches Borland TLabel behavior for keyboard-driven form navigation
+
+- **Group Focus Management** (src/views/group.rs)
+  - Added `focus_by_view_id()` method to focus child views by ViewId
+  - Used by Label to transfer focus to linked InputLine controls
+  - Enhanced `set_focus_to()` with can_focus() check for safety
+
+### Changed
+- **Code Cleanup**
+  - Removed redundant KB_ESC_X checks from MenuBar (src/views/menu_bar.rs)
+  - Removed redundant KB_ESC_X checks from Application (src/app/application.rs)
+  - Updated imports to use new KB_ALT_S and KB_ALT_V constants
+  - Menu shortcuts now only check for KB_ALT_X instead of both KB_ALT_X and KB_ESC_X
+
+### Documentation
+- **Project Statistics Update**
+  - Updated README.md tokei statistics: 110 files (up from 108), 32,838 lines (up from 31,264)
+  - Updated README.md test count: 199 tests (up from 198), 190 unit tests (up from 189)
+  - Updated version to 0.10.4
+
+## [0.10.1] - 2025-11-10
+
+### Added
+- **Runtime Palette Customization**
+  - New `Application::set_palette()` method for changing application palette at runtime
+  - Automatically triggers redraw when palette actually changes
+  - Change detection avoids unnecessary redraws
+  - Simplifies theme switching API - one method call instead of two
+  - Example usage: `app.set_palette(Some(dark_palette))` - redraw is automatic
+  - Thread-local storage for custom palettes via `palettes::set_custom_palette()`
+
+- **Palette Themes Demo** (examples/palette_themes_demo.rs - 214 lines)
+  - Interactive demonstration of 4 different color themes
+  - Default theme: Classic Borland Turbo Vision colors
+  - Dark theme: Dark backgrounds with bright text for low-light environments
+  - High-Contrast theme: Black/white for maximum visibility and accessibility
+  - Solarized theme: Earth tones inspired by the Solarized color scheme
+  - Shows how to create custom palettes with 63-byte color arrays
+  - Demonstrates automatic redraw on palette change
+
+### Fixed
+- **Dialog Command Handling** (src/views/dialog.rs)
+  - Fixed: Dialogs now properly handle custom button commands
+  - Previously only CM_OK, CM_YES, CM_NO, CM_CANCEL closed dialogs
+  - Now all commands (including custom ones) call `end_modal()`
+  - Enables theme switching buttons and other custom commands to work correctly
+
+- **Syntax Highlighting Import** (src/views/syntax.rs)
+  - Fixed unused import warning for TvColor
+  - Made TvColor import conditional with `#[cfg(test)]`
+  - Only used in test code, not production
+
+### Changed
+- **Documentation Updates**
+  - README.md: Added "Runtime Customization" bullet to palette features
+  - README.md: New "Custom Palettes and Theming" section with code example
+  - README.md: Updated tokei statistics (108 files, 31,215 lines, 23,546 code)
+  - README.md: Updated test count (198 tests, up from 194)
+  - docs/PALETTE_SYSTEM.md: New "Runtime Palette Customization" section (137 lines)
+  - docs/PALETTE_SYSTEM.md: Documents `Application::set_palette()` API with examples
+  - docs/PALETTE_SYSTEM.md: Explains custom palette format (63 bytes, fg<<4|bg encoding)
+  - docs/PALETTE_SYSTEM.md: Palette layout reference and theme creation examples
+
+### Technical Details
+**Color Mapping Flow**:
+1. User calls `app.set_palette(Some(palette))`
+2. Method compares new palette with current palette
+3. If different, calls `palettes::set_custom_palette(palette)`
+4. Sets `needs_redraw` flag to trigger full redraw
+5. Next frame, all views remap colors through new palette
+
+**Implementation Benefits**:
+- Simple API: One method call instead of two (set + redraw)
+- Efficient: Only redraws when palette actually changes
+- Safe: No redundant redraws on same palette
+- Automatic: Users don't need to remember `needs_redraw()`
+
+**Custom Palette Format**:
+- 63-byte array where each byte encodes: `(foreground << 4) | background`
+- Color values: 0=Black, 1=Blue, 2=Green, 3=Cyan, 4=Red, 5=Magenta, 6=Brown, 7=LightGray, 8=DarkGray, 9=LightBlue, A=LightGreen, B=LightCyan, C=LightRed, D=LightMagenta, E=Yellow, F=White
+- Layout: 1-8 Desktop, 9-15 Menu/StatusLine, 16-23 Cyan Window, 24-31 Gray Window, 32-63 Dialog/Controls
+
+## [0.10.0] - 2025-11-09
+
+### Fixed
+- **Palette Remapping System**
+  - Fixed dialog control palette remapping to match Borland Turbo Vision behavior
+  - Labels now display correct white-on-grey instead of red-on-grey
+  - Menu selected items show black-on-green instead of white-on-grey
+  - Menu shortcuts display red-on-grey as in original Borland implementation
+  - Button shadows render correctly with proper foreground/background swap
+  - Added `owner_type` field to Button, Label, StaticText, and InputLine
+  - All dialog controls now default to `OwnerType::Dialog` for proper palette remapping
+  - Views with `OwnerType::None` (MenuBar, StatusLine) use direct app palette
+  - Views with `OwnerType::Dialog` remap indices 1-31 through dialog palette
+
+### Added
+- **Palette Regression Tests**
+  - Added 9 comprehensive palette regression tests in `tests/palette_regression_tests.rs`
+  - Tests verify Borland-accurate colors for Button, Label, StaticText, InputLine, ScrollBar, MenuBar, and Dialog
+  - Tests ensure color stability across changes
+  - All tests pass with visually correct colors
+
+### Changed
+- Moved palette regression tests from `src/core/` to `tests/` directory for better organization
+- Updated `map_color()` to respect `OwnerType` for context-aware palette remapping
+- Fixed CP_MENU_BAR palette to match Borland's original values `[2, 5, 3, 4]`
+- Removed ScrollBar's custom `map_color()` implementation (now uses default View trait implementation)
+- Replaced magic palette indices in StatusLine with named constants
+
+### Removed
+- Deleted obsolete example files: `dialog_example.rs`, `history.rs`, `key_test.rs`, `menu_status_data.rs`, `quick_start.rs`, `status_line_demo.rs`
+- Moved `menu_status_data.rs` to `tests/` directory
+
+## [0.9.2] - 2025-11-08
+
+### Added
+- **Semi-Transparent Shadows**
+  - Shadows now darken underlying content instead of drawing opaque backgrounds
+  - Matches Borland Turbo Vision's original VGA-based shadow behavior
+  - Added `TvColor::to_rgb()` for RGB component extraction
+  - Added `TvColor::from_rgb()` for closest color matching via Euclidean distance
+  - Added `Attr::darken(factor)` method for color darkening (default 50%)
+  - Added `Terminal::read_cell()` to read existing buffer content
+  - Completely rewrote `draw_shadow()` to use read-modify-write pattern
+  - Preserves underlying characters while darkening colors
+  - Cross-platform implementation using RGB blending instead of VGA bit manipulation
+
+### Changed
+- Shadow rendering now reads terminal buffer before drawing
+- Shadow cells show darkened version of underlying content (semi-transparent effect)
+- Updated Rust-vs-Borland comparison document with new shadow implementation details
+
+### Technical Details
+- Darkening uses 50% factor (configurable constant)
+- Color matching finds nearest color in 16-color palette using RGB distance
+- Falls back to default shadow color for out-of-bounds positions
+- No performance impact - shadow rendering is still O(n) where n = shadow size
+
+## [0.3.0] - 2025-11-06
+
+### Added
+- **Real-Time Input Validation System**
+  - Complete birthdate validation in biorhythm example with three validation layers
+  - RangeValidator for field-level input filtering
+  - Cross-field date validation (leap years, month lengths, future dates)
+  - Command set integration for dynamic button enable/disable
+  - Custom event loop pattern for real-time validation feedback
+  - Validation runs after every keystroke with immediate UI updates
+
+- **Command Set Broadcasting Pattern**
+  - `CM_COMMAND_SET_CHANGED` broadcast system for global command state changes
+  - Buttons automatically update disabled state via command set queries
+  - Declarative command management instead of direct widget manipulation
+  - Matches Borland Turbo Vision's command enable/disable architecture
+
+- **Enhanced Biorhythm Calculator**
+  - Startup dialog for birthdate input (no default random chart)
+  - Clean exit on cancel (no orphaned windows)
+  - Date prefill across dialog invocations
+  - Centered windows and dialogs accounting for shadow size
+  - Three-layer validation: RangeValidator, complete date check, command updates
+  - Enter key support via event reprocessing
+
+- **Dialog Event Reprocessing**
+  - Fixed Enter key handling in dialogs with default buttons
+  - Event conversion (KB_ENTER → CM_OK) now properly reprocessed
+  - Matches Borland's `putEvent()` pattern for converted events
+  - Ensures modal dialogs close correctly when Enter pressed in InputLine
+
+- **Window Centering with Shadow Calculations**
+  - Proper centering accounting for shadow size (2 cols width, 1 row height)
+  - Menu bar and status line offset calculations for main windows
+  - Dialog centering for full-screen placement
+  - Visual balance maintained across different terminal sizes
+
+- **Comprehensive Documentation**
+  - `docs/BIORHYTHM-TUTORIAL.md` - Narrative blog-style tutorial (822 lines)
+  - Real-world examples and personal discovery stories
+  - Common patterns and gotchas with DO/DON'T comparisons
+  - Manual test cases for validation scenarios
+  - Quick reference section for key patterns
+
+### Changed
+- **Biorhythm Example Architecture**
+  - Moved from random initial chart to dialog-first startup flow
+  - Window creation deferred until after successful date validation
+  - Custom event loop replaces standard `dialog.execute()` for validation needs
+  - Command set pattern used instead of direct button manipulation
+
+### Fixed
+- **Enter Key in Modal Dialogs**
+  - Dialog event loop now reprocesses converted command events
+  - KB_ENTER → CM_OK conversion properly triggers `end_modal()`
+  - Matches Borland's event re-queuing behavior
+
+### Removed
+- **Unused Downcasting Infrastructure**
+  - Removed `as_any_mut()` from View trait (not needed with command set pattern)
+  - Removed Button's `as_any_mut()` implementation
+  - Removed `std::any::Any` imports
+  - Cleaner API without unnecessary complexity
+
+### Technical Details
+
+**Real-Time Validation Architecture:**
+
+The validation system uses three coordinated layers:
+1. **RangeValidator** - Character-level filtering during typing (1-31 for day, 1-12 for month)
+2. **Complete Date Validation** - Cross-field checks (Feb 31, leap years, future dates)
+3. **Command Set Updates** - Global command enable/disable with broadcast propagation
+
+The custom event loop pattern enables validation after every event:
+```rust
+loop {
+    draw_and_flush();
+    if let Some(event) = poll_event() {
+        dialog.handle_event(&mut event);
+        if event.what == EventType::Command {
+            dialog.handle_event(&mut event);  // Reprocess converted events
+        }
+        validate_and_update_command_state();  // After every event
+        broadcast_if_changed();
+    }
+    if dialog.get_end_state() != 0 { break; }
+}
+```
+
+**Command Set Pattern vs Direct Manipulation:**
+
+Instead of fragile child index access:
+```rust
+// OLD: Direct manipulation (removed)
+dialog.child_at_mut(8).downcast_mut::<Button>().set_disabled(true);
+```
+
+Use declarative command state:
+```rust
+// NEW: Command set pattern
+command_set::disable_command(CM_OK);
+broadcast(CM_COMMAND_SET_CHANGED);
+```
+
+Benefits: Scales to multiple buttons, no fragile indices, separates validation from UI structure.
+
+**Shadow-Aware Centering:**
+
+Windows have shadows (2 cols right, 1 row bottom) that must be included in centering:
+```rust
+let x = (screen_width - (window_width + 2)) / 2;  // +2 for shadow
+let y = 1 + ((screen_height - 2) - (window_height + 1)) / 2;  // +1 for shadow, 1+ for menu
+```
+
+This ensures visual balance - ignoring shadows makes windows appear off-center.
+
+**Event Reprocessing Pattern:**
+
+When dialogs convert keyboard events to commands, the converted event must be reprocessed:
+```rust
+dialog.handle_event(&mut event);  // First pass: KB_ENTER → CM_OK
+if event.what == EventType::Command {
+    dialog.handle_event(&mut event);  // Second pass: Process CM_OK
+}
+```
+
+Without this, Enter key appears to do nothing in modal dialogs.
+
+## [0.2.11] - 2025-11-04
+
+### Fixed
+- **StatusLine Drawing and Hit Detection** - Fixed highlighting extending into separator
+  - StatusLine now draws leading and trailing spaces around text (matches Borland tstatusl.cc:143-145)
+  - Selection highlight includes spaces before and after text, but not the separator
+  - Separator "│ " always drawn in normal color, never highlighted
+  - Hit detection properly includes leading space and text with trailing space
+  - Matches Borland TStatusLine drawing and hit detection behavior exactly
+
+### Technical Details
+The StatusLine highlighting bug was caused by not matching Borland's exact drawing pattern. In Borland TStatusLine::drawSelect (tstatusl.cc:143-145), each status item is drawn as:
+1. Space before text (in selection color when selected)
+2. The text itself (with proper shortcut highlighting)
+3. Space after text (in selection color when selected)
+4. Separator (always in normal color)
+
+Previously, we were drawing the text directly without surrounding spaces, and the separator was being drawn with the selection color. This caused the selection highlight to extend into the separator. The fix now exactly replicates Borland's drawing sequence.
+
+## [0.2.10] - 2025-11-04
+
+### Added
+- **FileEditor Component** (src/views/file_editor.rs)
+  - Proper implementation of Borland's TFileEditor pattern
+  - File name tracking and modified flag management
+  - `valid(app, command)` method for save prompts on close
+  - Load/Save/SaveAs operations with proper file management
+  - Wraps Editor component with file-specific functionality
+  - Ready for future proper architecture implementation
+
+- **Window and Desktop Helper Methods**
+  - `Window::get_editor_text_if_present()` - Extract current editor text
+  - `Window::is_editor_modified()` - Check if editor has unsaved changes
+  - `Window::clear_editor_modified()` - Clear modified flag after save
+  - `Desktop::get_first_window_as_window()` - Get immutable window reference
+  - `Desktop::get_first_window_as_window_mut()` - Get mutable window reference
+  - Pragmatic unsafe downcasting helpers for editor demo use case
+
+- **Standard Library Dialog Functions** (src/views/msgbox.rs)
+  - `message_box_ok()` - Simple information message with OK button
+  - `message_box_error()` - Error message with OK button
+  - `message_box_warning()` - Warning message with OK button
+  - `confirmation_box()` - Yes/No/Cancel confirmation dialog
+  - `confirmation_box_yes_no()` - Yes/No confirmation dialog
+  - `confirmation_box_ok_cancel()` - OK/Cancel confirmation dialog
+  - `search_box()` - Search dialog returning Option<String>
+  - `search_replace_box()` - Find/replace dialog returning Option<(String, String)>
+  - `goto_line_box()` - Go to line dialog returning Option<usize> with validation
+  - Convenience wrappers around existing `message_box()` function
+  - Eliminates need for manual dialog construction in common cases
+  - Example: `examples/dialogs_demo.rs` demonstrating all dialog types
+
+- **Rust Text Editor Demo** (demo/rust_editor.rs)
+  - Full-featured text editor application with Rust syntax highlighting
+  - File operations: New, Open, Save, Save As (using FileDialog)
+  - Menu bar: File, Edit, Tools menus with keyboard shortcuts
+  - Status line: F10 Menu, Ctrl+S Save, Ctrl+F Find
+  - Close menu item (Ctrl+W) for closing editor window
+  - Close button (■) in window frame
+  - Smart dirty flag tracking - only prompts when actually modified
+  - Save prompts before destructive operations (Close, New, Quit)
+  - Actual save on "Yes" in confirmation dialog
+  - Search and Replace dialogs using standard library functions (search_box, search_replace_box, goto_line_box)
+  - Rust analyzer integration (placeholder for future LSP integration)
+  - About dialog showing "Lonbard Turbo Rust" on startup
+  - Empty desktop on startup - user must choose File → New or File → Open
+  - Comprehensive demonstration of Editor, FileDialog, and standard dialogs
+  - Documentation: demo/README.md with features, shortcuts, and usage guide
+
+### Changed
+- **Rust Editor Cleanup**
+  - Replaced local dialog implementations with standard library functions
+  - Removed 120+ lines of duplicate dialog code (show_search_dialog, show_replace_dialog, show_goto_line_dialog)
+  - Simplified show_about_dialog() to use message_box_ok()
+  - Removed unused imports (Button, Dialog, InputLine, Label, Rc, RefCell)
+
+- **msgbox.rs Dialog Layout**
+  - Moved dialog text and buttons one row higher for better appearance
+  - Improved visual spacing in confirmation dialogs
+
+- **msgbox.rs Command Constants**
+  - Removed duplicate CM_YES and CM_NO definitions
+  - Now imports CM_YES and CM_NO from core::command module
+  - Maintains consistency across entire framework
+
+- **Window CM_CLOSE Event Handling**
+  - Non-modal windows no longer auto-close on CM_CLOSE
+  - CM_CLOSE event propagates to application level for validation
+  - Matches Borland's TWindow::close() → valid(cmClose) pattern
+  - Applications can intercept and validate before allowing close
+
+- **Rust Editor Save Operations**
+  - Fixed critical bug: now saves actual editor content, not stale state
+  - Simplified EditorState to only track filename
+  - Save operations retrieve current text from editor window
+  - Clear modified flag after successful save
+  - CM_SAVE no longer recreates window (performance optimization)
+  - CMD_SAVE_AS only recreates window on success (to update title)
+
+### Fixed
+- **StatusLine Event Handling** - Critical bug where StatusLine was completely non-functional
+  - Changed from OF_POST_PROCESS to OF_PRE_PROCESS to match Borland behavior (tstatusl.cc:33)
+  - Added status_line.handle_event() call in rust_editor event loop
+  - StatusLine now properly handles mouse clicks and keyboard shortcuts
+  - Items now generate commands when clicked or shortcuts pressed
+- **StatusLine Hit Detection** - Fixed "one off to the right" highlighting issue
+  - First item now includes leading space (position 0) in hit area
+  - All items include first separator space after text (matches Borland's inc=2)
+  - Subsequent items don't include previous separator in their hit area
+  - Hit detection now matches Borland TStatusLine behavior (tstatusl.cc:204)
+- **Editor Content Not Saved** - Critical bug where saves would write initial content instead of current edits
+- **Close Button Not Prompting** - Frame's close button now properly triggers save confirmation
+- **Always Prompting on Close** - Now only prompts when editor is actually modified
+- **Save on Confirmation** - "Yes" button in save dialog now actually saves the file
+
+### Technical Details
+The FileEditor component provides the proper Borland TFileEditor pattern with encapsulated file management and validation. The Window/Desktop helpers enable pragmatic downcasting for the editor demo while maintaining type safety. The rust_editor now properly synchronizes editor content with file operations.
+
+**StatusLine Event Processing**: The StatusLine bug was caused by using OF_POST_PROCESS instead of OF_PRE_PROCESS. In Borland's TStatusLine (tstatusl.cc:33), the status line sets `options |= ofPreProcess` to ensure it gets first chance at events. This allows it to intercept function keys and mouse clicks before they reach the focused view. The fix also required adding the status_line.handle_event() call in the event loop's pre-process phase, matching Borland's TGroup::handleEvent() three-phase architecture.
+
+The standard library dialog functions provide a cleaner API for common dialog patterns. Instead of manually constructing Dialog with StaticText and Button components, applications can now use simple function calls:
+
+**Before** (47 lines):
+```rust
+let mut dialog = Dialog::new(bounds, "Save Changes?");
+let text = StaticText::new_centered(...);
+dialog.add(Box::new(text));
+let yes_button = Button::new(..., CM_YES, true);
+dialog.add(Box::new(yes_button));
+// ... more buttons ...
+let result = dialog.execute(app);
+```
+
+**After** (1 line):
+```rust
+let result = confirmation_box(app, "Save changes?");
+```
+
+The new input dialog functions follow the same simple pattern:
+```rust
+// Search dialog
+if let Some(search_text) = search_box(&mut app, "Search") {
+    // User entered search text
+}
+
+// Find and replace dialog
+if let Some((find, replace)) = search_replace_box(&mut app, "Replace") {
+    // User entered both find and replace text
+}
+
+// Go to line dialog with validation
+if let Some(line_num) = goto_line_box(&mut app, "Go to Line") {
+    // User entered valid line number
+}
+```
+
+The rust_editor demo showcases a complete application built with Turbo Vision for Rust, demonstrating best practices for:
+- Application structure with event loops
+- Desktop/Window management
+- Menu systems with cascading submenus
+- File I/O with FileDialog integration
+- Modal dialog patterns
+- Syntax highlighting with Editor component
+- Status line with keyboard shortcuts
+
+This editor serves as a reference implementation for building complete TUI applications.
+
+## [0.2.9] - 2025-11-04
+
+### Fixed
+- **MenuBox Mouse Interaction** (CRITICAL BUG FIX - Borland Compatibility)
+  - **Root Cause**: MenuBox executed commands on MouseDown instead of MouseUp, inconsistent with Borland Turbo Vision
+  - **Impact**: Menu items executed before mouse was fully released, preventing proper drag-selection
+  - **Fix**: Following Borland tmenuvie.cc:215-222, MouseDown now only tracks selection, MouseUp executes commands
+  - **Result**: Menu behavior now matches original Turbo Vision exactly
+
+- **MenuBox ESC/ESC ESC Handling**
+  - Both KB_ESC and KB_ESC_ESC now properly close popup menus
+  - Returns command 0 to signal cancellation matching Borland behavior (tmenuvie.cc:264-268)
+
+- **Submenu Auto-Popup Removed** (Borland Compatibility)
+  - **Issue**: Submenus were appearing automatically on hover or right arrow navigation
+  - **Fix**: Following Borland tmenuvie.cc:333-349, submenus now only show on explicit action:
+    - Press Enter on submenu item
+    - Click (MouseUp) on submenu item
+  - KB_RIGHT now only navigates to next top-level menu, doesn't open submenus
+  - Matches original Turbo Vision behavior perfectly
+
+- **Validator Demo Dialog Height**
+  - Increased dialog height from 30 to 34 lines to properly display all fields and buttons
+
+### Added
+- **MenuBar Cascading Submenu Support**
+  - Added `show_cascading_submenu()` method to display nested submenus
+  - Added `check_cascading_submenu()` public method for event loop integration
+  - MenuBox positioned to right of parent dropdown menu
+  - Proper keyboard (Enter) and mouse (Click) activation
+  - Full support for multi-level menu hierarchies
+
+- **Extended Menu Example** (examples/menu.rs)
+  - File menu now includes Recent Files submenu (3 sample files, Clear Recent option)
+  - Edit menu added with Cut/Copy/Paste and Preferences submenu
+  - Preferences submenu contains General, Appearance, and Keyboard Shortcuts
+  - Right-click popup menu on desktop with New File, Open File, Properties
+  - Comprehensive demonstration of all menu features
+  - Status line shows "Right-Click Popup" hint
+
+- **MenuBar MouseUp Event Handling**
+  - Added proper MouseUp event handling matching Borland behavior
+  - Executes commands only when mouse released on selected item
+  - Handles submenu activation on click-release
+
+### Changed
+- **Validator Demo Unified**
+  - Removed initial menu selection dialog
+  - All validators (Filter, Range, Picture) now shown in single comprehensive dialog
+  - Organized into clear sections with dynamic layout
+  - Filter & Range Validators section with 4 different validator types
+  - Picture Mask Validators section with phone, date, and product code examples
+
+### Technical Details
+- **Borland Compatibility**: All menu changes verified against local-only/borland-tvision source code
+- **Files Modified**:
+  - src/views/menu_box.rs (mouse handling, ESC handling)
+  - src/views/menu_bar.rs (cascading menus, MouseUp support, removed auto-popup)
+  - examples/menu.rs (extended with submenus and popup menu)
+  - examples/validator_demo.rs (unified dialog, removed menu)
+
+## [0.2.8] - 2025-11-03
+
+### Fixed
+- **Keyboard Modifiers Lost in Event System** (CRITICAL BUG FIX)
+  - **Root Cause**: `Terminal::poll_event()` was creating Event with `Event::keyboard(key_code)` which lost modifiers from crossterm's KeyEvent
+  - **Impact**: ALL keyboard modifiers (Shift, Ctrl, Alt) were being stripped, making Shift+Arrow selection completely non-functional
+  - **Discovery**: Through debug testing, found crossterm correctly sent SHIFT but Editor received KeyModifiers(0x0)
+  - **Fix**: Changed Terminal to preserve `key.modifiers` when creating Event structure
+  - **Result**: Shift+Arrow keys now work perfectly with visible cyan selection highlighting
+
+- **Editor Selection Visibility**
+  - Added `is_position_selected()` helper method to check if character is in selection
+  - Modified `draw()` to apply EDITOR_SELECTED color (black on cyan) to selected text
+  - Selection highlighting works with both plain text and syntax-highlighted code
+  - Multi-line selections fully supported
+
+- **Window ESC ESC Handling**
+  - Window now handles both KB_ESC and KB_ESC_ESC to close modal windows
+  - Matches expected Turbo Vision behavior for double-ESC
+
+### Added
+- **examples/key_test.rs** - Diagnostic tool to test keyboard input directly from crossterm
+  - Shows raw KeyCode and KeyModifiers for debugging
+  - Useful for verifying terminal keyboard behavior
+
+### Changed
+- **Test Suite**: 178 tests (all passing)
+- **Code Size**: 16,030 lines total, 12,239 lines of code
+
+## [0.2.7] - 2025-11-03
+
+### Fixed
+- **Editor Text Selection with Shift+Arrow Keys** (CRITICAL BUG FIX)
+  - **Root Cause**: Event structure didn't track keyboard modifiers (Shift, Ctrl, Alt). Editor had hardcoded `shift_pressed = false` with TODO comment
+  - **Impact**: Shift+Arrow keys, Shift+Home, Shift+End didn't create text selections
+  - **Fix**: Added `key_modifiers` field to Event structure, updated Editor to check for SHIFT modifier
+  - **Features Now Working**:
+    - Shift+Arrow keys create text selection
+    - Shift+Home selects from cursor to start of line
+    - Shift+End selects from cursor to end of line
+    - Shift+PgUp/PgDn select full pages
+    - Moving without Shift clears selection (expected behavior)
+
+- **Button Broadcast Handling** (CRITICAL BUG FIX)
+  - **Root Cause**: Disabled buttons were checking disabled state before processing broadcasts, causing them to return early and never receive CM_COMMAND_SET_CHANGED broadcasts
+  - **Impact**: Buttons that started disabled (e.g., Cut, Copy, Paste when clipboard empty) would stay disabled forever, breaking the command set system
+  - **Fix**: Moved broadcast handling to the top of `Button::handle_event()`, before disabled check
+  - **Verification**: Confirmed implementation matches Borland's original behavior (tbutton.cc:196, tview.cc:486, tbutton.cc:255-262)
+  - **Documentation**: Added detailed comments referencing Borland source code line numbers
+  - Fixed command_set_demo - Enable/Disable buttons now properly update button states
+
+- **Dialog Event Handling**
+  - Fixed Dialog to accept ANY command as end-modal signal, not just CM_OK/CM_CANCEL/CM_YES/CM_NO
+  - Matches Borland behavior where any command reaching the dialog ends the modal loop
+  - Fixed editor_demo and validator_demo menu dialogs with custom command IDs
+
+- **Editor Demo Modal Windows**
+  - Wrapped all editor demos in modal Windows so they can be used interactively
+  - Added ESC key handling to Window for modal windows (calls end_modal on ESC press)
+  - Fixed editor_demo to use Window with SF_MODAL flag for all four demo modes
+
+### Added
+- **Regression Tests for Button Broadcasts** (7 new tests)
+  - test_disabled_button_receives_broadcast_and_becomes_enabled (main regression test)
+  - test_enabled_button_receives_broadcast_and_becomes_disabled
+  - test_button_creation_with_disabled_command
+  - test_button_creation_with_enabled_command
+  - test_disabled_button_ignores_keyboard_events
+  - test_disabled_button_ignores_mouse_clicks
+  - test_broadcast_does_not_clear_event
+
+### Changed
+- **Test Suite**: 178 tests (was 171) - all passing
+- **Code Size**: 16,030 lines total, 12,239 lines of code (was 15,845 / 12,134)
+
+## [0.2.6] - 2025-11-03
+
+### Added
+- **Syntax Highlighting System** (~450 lines, 7 tests)
+  - **SyntaxHighlighter trait** (src/views/syntax.rs)
+    - Extensible architecture for language-specific highlighting
+    - Token-based coloring system (Keywords, Strings, Comments, Numbers, etc.)
+    - Line-by-line highlighting with efficient token generation
+    - Methods: `language()`, `highlight_line()`, multi-line context support
+  - **TokenType enum** - 11 token types with default color mappings
+    - Keywords (Yellow), Strings (LightRed), Comments (LightCyan)
+    - Numbers (LightMagenta), Operators (White), Types (LightGreen)
+    - Functions (Cyan), Preprocessor (LightCyan), etc.
+  - **RustHighlighter** - Built-in Rust syntax highlighting
+    - Recognizes Rust keywords (fn, let, if, for, match, etc.)
+    - String and character literals with escape sequences
+    - Line comments (//) and block comments (/* */)
+    - Numeric literals (decimal, hex, float)
+    - Type names (i32, String, custom types)
+    - Operators and special characters
+  - **PlainTextHighlighter** - No-op highlighter for plain text
+  - **Editor Integration**
+    - `set_highlighter()` - Attach syntax highlighter to Editor
+    - `clear_highlighter()` - Remove highlighting
+    - `has_highlighter()` - Check if highlighting is enabled
+    - Automatic per-token color rendering in draw method
+    - Preserves all existing Editor functionality (search/replace, undo/redo, etc.)
+
+- **TPXPictureValidator** (Picture Mask Validator) (~360 lines, 11 tests)
+  - **PictureValidator** (src/views/picture_validator.rs - 255 lines, 8 tests)
+    - Validates and formats input according to picture masks
+    - Matches Borland's TPXPictureValidator from validate.h
+    - Mask characters:
+      - `#` - Digit (0-9)
+      - `@` - Alpha (A-Z, a-z)
+      - `!` - Any character
+      - `*` - Optional section marker
+      - Literals - Must match exactly (e.g., `/`, `-`, `(`, `)`)
+    - Methods: `new()`, `format()`, `set_auto_format()`
+    - Auto-formatting mode inserts literals automatically as user types
+    - Example masks:
+      - `"(###) ###-####"` - Phone number: (555) 123-4567
+      - `"##/##/####"` - Date: 12/25/2023
+      - `"@@@@-####"` - Product code: ABCD-1234
+    - Implements Validator trait for InputLine integration
+  - **Helper function**: `picture_validator()` - Creates ValidatorRef
+
+### Examples
+- **editor_demo.rs** - Comprehensive editor demonstration (290 lines)
+  - Menu-driven interface with 4 demonstrations:
+    1. Basic editing (undo/redo/clipboard operations)
+    2. Search and replace functionality
+    3. Syntax highlighting (Rust code with colored tokens)
+    4. File I/O operations (load/save)
+  - Consolidates previous examples: file_editor.rs, full_editor.rs, syntax_highlighting.rs
+  - Shows all Editor features in one interactive demo
+- **validator_demo.rs** - All validator types demonstration (320 lines)
+  - Menu-driven interface with 2 demonstrations:
+    1. FilterValidator and RangeValidator (character filtering, numeric ranges, hex numbers)
+    2. PictureValidator (phone numbers, dates, product codes with format masks)
+  - Consolidates previous examples: validator_demo.rs, picture_validator.rs
+  - Shows all validation patterns with interactive examples
+
+### Changed
+- **Examples reorganization** - Reduced from 19 to 16 examples by consolidation
+  - Removed: file_editor.rs, full_editor.rs, syntax_highlighting.rs (→ editor_demo.rs)
+  - Removed: picture_validator.rs (→ validator_demo.rs)
+  - Updated examples/README.md with new structure and descriptions
+
+### Technical Details
+**Syntax Highlighting** implements a token-based coloring system that works efficiently with the Editor's line-by-line rendering. Each line is parsed into tokens (keyword, string, comment, etc.) with start/end positions. The Editor's draw method iterates through tokens and applies colors accordingly. The system is extensible - new languages can be added by implementing the SyntaxHighlighter trait.
+
+**Design Patterns**:
+- Hook-based architecture for language extensions
+- Token type abstraction for color mapping customization
+- Line-by-line processing for efficiency
+- Optional multi-line state tracking for block comments
+- Integrates seamlessly with existing Editor features
+
+**TPXPictureValidator** provides input formatting and validation using Borland's picture mask pattern. Unlike character filtering (FilterValidator) or range validation (RangeValidator), picture masks define the exact format of input including literal characters. The validator can auto-format input by inserting literals (like parentheses, slashes, dashes) as the user types, or validate completed input against the mask pattern.
+
+**Design Patterns**:
+- Matches Borland's TPXPictureValidator architecture
+- Integrates with InputLine via Validator trait
+- Supports both auto-format and validation-only modes
+- Optional sections with `*` marker (partially implemented)
+- Real-time validation during typing
+
+Reference: Borland Turbo Vision tvalidat.cc, validate.h (picture validators)
+
+### Test Coverage
+- **Syntax Highlighting**: 7 new tests
+  - Token type colors, plain text, Rust keywords, strings, comments, numbers, types
+- **Picture Validator**: 11 new tests
+  - Phone mask, date mask, format functions, alpha mask, optional sections, partial input
+- **Total Tests**: 171 tests passing (up from 154)
+
+## [0.2.5] - 2025-11-03
+
+### Added
+- **Help System** (Phase 9 - 867 lines, 22 tests)
+  - **HelpFile** (src/views/help_file.rs - 302 lines, 7 tests)
+    - Parses markdown files into help topics with # Title {#topic-id} format
+    - Cross-reference support via [Text](#topic-id) markdown links
+    - Methods: `get_topic()`, `get_default_topic()`, `get_topic_ids()`, `reload()`
+    - Human-readable format replacing Borland's binary TPH files
+  - **HelpViewer** (src/views/help_viewer.rs - 286 lines, 4 tests)
+    - Displays help topic content with scrolling support
+    - Keyboard navigation: Up/Down, PgUp/PgDn, Home/End
+    - Optional vertical scrollbar for long topics
+    - Focus-aware coloring (HELP_NORMAL, HELP_FOCUSED)
+    - Uses DrawBuffer for efficient rendering
+  - **HelpWindow** (src/views/help_window.rs - 157 lines, 4 tests)
+    - Modal help window wrapper around HelpViewer
+    - Methods: `show_topic()`, `show_default_topic()`, `execute()`
+    - ESC key closes help window
+    - Delegates to Window for frame and modal behavior
+  - **HelpContext** (src/views/help_context.rs - 122 lines, 7 tests)
+    - Maps context IDs (u16) to help topic IDs (String)
+    - Methods: `register()`, `get_topic()`, `has_context()`, `unregister()`
+    - Foundation for F1 context-sensitive help support
+  - Example: examples/help_system.rs demonstrating help topics and navigation
+  - Sample help file: examples/help.md with 6 topics and cross-references
+
+- **Color Palette**:
+  - `HELP_NORMAL`: Black on LightGray for unfocused help text
+  - `HELP_FOCUSED`: Black on White for focused help text
+
+### Technical Details
+The Help System implements Borland's context-sensitive help architecture using modern markdown format instead of proprietary binary TPH files. Key advantages:
+
+**Markdown Format**:
+- Human-readable and easy to author
+- Version control friendly (plain text diffs)
+- No special tools required for editing
+- Cross-platform compatible
+- Can be generated from other documentation
+
+**Architecture**:
+- HelpFile parses markdown on load, building a HashMap of topics
+- Topics identified by {#topic-id} in heading: # Welcome {#welcome}
+- Cross-references via standard markdown links: [See also](#other-topic)
+- HelpViewer provides scrollable display with keyboard navigation
+- HelpWindow wraps viewer in a modal window for display
+- HelpContext enables F1-style context-sensitive help
+
+**Design Patterns**:
+- Matches Borland's THelpFile, THelpViewer, THelpWindow patterns
+- Uses Rc<RefCell<HelpFile>> for shared help file access
+- Modal execution via Window's execute() method
+- Keyboard-driven navigation matching Borland's behavior
+
+Reference: Borland Turbo Vision help.h and help system architecture
+
+## [0.2.3] - 2025-11-03
+
+### Added
+- **TEditWindow** (src/views/edit_window.rs - 169 lines, 3 tests)
+  - Window wrapper around Editor for ready-to-use editor windows
+  - Delegates file operations: `load_file()`, `save_file()`, `save_as()`, `get_filename()`
+  - Provides editor access methods: `editor()`, `editor_mut()`, `is_modified()`
+  - Automatically adjusts editor bounds when window is resized
+  - Implements View trait with proper event routing to both Window and Editor
+  - Matches Borland's TEditWindow pattern from teditor.h
+
+- **TLookupValidator** (src/views/lookup_validator.rs - 255 lines, 8 tests)
+  - Validates input against a list of valid values
+  - Supports case-sensitive mode via `new()` and case-insensitive via `new_case_insensitive()`
+  - Helper methods: `add_value()`, `remove_value()`, `contains()`, `set_case_sensitive()`
+  - Implements Validator trait for InputLine integration
+  - Allows all characters during typing, validates on completion
+  - Matches Borland's TLookupValidator pattern from validate.h
+
+- **OS Clipboard Integration** (src/core/clipboard.rs - enhanced with arboard 3.3)
+  - Added system clipboard integration via arboard crate
+  - Fallback strategy: attempts OS clipboard first, falls back to in-memory
+  - Cross-platform support (macOS, Linux, Windows)
+  - Functions: `set_clipboard()`, `get_clipboard()`, `has_clipboard_content()`, `clear_clipboard()`
+  - Editor can now copy/paste to/from system clipboard (Ctrl+C, Ctrl+X, Ctrl+V)
+  - Graceful degradation on platforms without clipboard support
+
+### Changed
+- **Documentation**: Updated MISSING_FEATURES.md progress tracking
+  - Marked TFileCollection and TDirCollection as obsolete (use Vec<FileEntry/DirEntry>)
+  - Updated summary: 29 missing components (down from 35), 648 hours remaining
+  - HIGH Priority: COMPLETE (0 hours remaining)
+  - Added Phase 7+ improvements section documenting recent work
+  - Updated statistics: 134 tests passing (up from 126)
+
+- **Cargo.toml**: Added arboard 3.3 dependency for OS clipboard support
+
+### Technical Details
+**TEditWindow** provides a complete editor window solution by composing a Window with an Editor. It matches Borland's TEditWindow pattern where the editor fills the window interior and the window provides the frame and title bar. The implementation properly handles View trait delegation, routing draw and event calls to both the Window (for frame) and Editor (for content).
+
+**TLookupValidator** implements Borland's validation pattern for restricting input to predefined values. Unlike FilterValidator (character-by-character) or RangeValidator (numeric), LookupValidator validates the complete string against a list. This is useful for dropdowns, enum values, or any constrained input set.
+
+**OS Clipboard** integration uses the arboard crate to access the system clipboard across platforms. The fallback strategy ensures the application works even when OS clipboard access fails, maintaining the in-memory clipboard as a reliable backup.
+
+Reference: Borland's TEditWindow (teditor.h), TLookupValidator (validate.h), and clipboard integration patterns.
+
+## [0.2.2] - 2025-11-03
+
+### Fixed
+- **Editor UTF-8 Support**: Critical bug fixes for proper UTF-8 character handling
+  - Fixed crash when pressing DELETE/BACKSPACE on multi-byte UTF-8 characters
+  - Added `char_to_byte_idx()` helper to convert character positions to byte indices
+  - Fixed `delete_char()`, `backspace()`, `insert_char()` to use byte indices for string operations
+  - Fixed `apply_action()` undo/redo to handle UTF-8 correctly
+  - Fixed `clamp_cursor()` to use character count instead of byte length
+  - Fixed `get_selection_text()` to convert character positions to byte indices
+  - Fixed `delete_selection_internal()` string slicing for UTF-8
+  - Fixed `insert_text_internal()` to use byte indices for `insert_str()`
+  - Fixed `insert_newline()` string slicing to use byte indices
+  - Fixed `select_all()` to count characters not bytes
+  - Fixed `max_line_length()` to count characters for scrollbar calculations
+  - Fixed find operations to count characters for cursor positioning
+  - Fixed KB_END key handler to use character count
+  - Added safety checks to delete operations
+
+- **Editor Cursor Rendering**: Fixed two-cursor display bug
+  - Fixed `update_cursor()` to use `get_content_area()` instead of `bounds`
+  - Cursor now correctly positioned when editor has scrollbars and indicator
+  - Previously showed two cursors: one at correct position, one offset by indicator height
+
+- **ScrollBar**: Fixed division by zero crash
+  - Added validation in `set_params()` to ensure `max_val >= min_val`
+  - Added safety check in `get_pos()` to handle `range <= 0` or `size <= 0`
+  - Prevents crash when content becomes smaller than viewport
+  - Prevents crash from invalid scrollbar parameters
+
+### Added
+- **full_editor example**: Comprehensive editor demonstration with search/replace
+  - Shows editor with scrollbars, indicator, and sample text for testing
+  - Sample text includes patterns for testing case-sensitive/whole-word search
+  - Added panic logging to capture crashes with full backtrace to debug log
+
+- **editor_test example**: Minimal editor test for debugging
+
+### Technical Details
+The Editor was incorrectly mixing character indices (used for cursor position tracking) with byte indices (required by Rust's `String::remove()` and `String::insert()` methods). In UTF-8 encoding:
+- ASCII characters are 1 byte each
+- Many Unicode characters (accented letters, emojis, CJK) are 2-4 bytes each
+
+When the editor tried to delete or insert at position `cursor.x` (a character index) using `String::remove(cursor.x)` (which expects a byte index), it would panic with "byte index is not a char boundary" on any multi-byte character.
+
+The fix adds proper character-to-byte index conversion throughout the editor, ensuring all string manipulation uses byte indices while cursor tracking continues to use character positions.
+
+The two-cursor bug occurred because `update_cursor()` used `self.bounds` while `draw()` used `get_content_area()`. When an indicator is added (via `with_scrollbars_and_indicator()`), the content area starts 1 row below the bounds, causing the terminal cursor to be positioned incorrectly.
+
+The scrollbar division by zero occurred when `max_val < min_val`, making `(max_val - min_val + 1) <= 0`. This could happen when content shrinks below viewport size or parameters are set incorrectly.
+
+## [0.2.1] - 2025-11-03
+
+### Added
+- **Input Validators**: Comprehensive input validation system matching Borland's TValidator architecture
+  - New `Validator` trait with `is_valid()`, `is_valid_input()`, `error()`, and `valid()` methods
+  - `FilterValidator`: Validates input against allowed character set (e.g., digits only)
+  - `RangeValidator`: Validates numeric input within min/max range
+  - Support for decimal, hexadecimal (0x prefix), and octal (0 prefix) number formats
+  - Real-time validation: invalid characters rejected as user types
+  - Final validation: check complete input before accepting
+  - `ValidatorRef` type alias: `Rc<RefCell<dyn Validator>>` for shared validator references
+
+### Changed
+- **InputLine**: Enhanced with validator support
+  - Added `with_validator()` constructor to create InputLine with validator
+  - Added `set_validator()` method to attach validator after construction
+  - Added `validate()` method to check current input validity
+  - Character insertion now checks `is_valid_input()` before accepting
+  - Matches Borland's `TInputLine` with `TValidator` attachment pattern
+
+### Examples
+- **validator_demo.rs**: New example demonstrating input validation
+  - Field 1: Digits only (FilterValidator with "0123456789")
+  - Field 2: Number 0-100 (RangeValidator for positive range)
+  - Field 3: Number -50 to 50 (RangeValidator for mixed range)
+  - Field 4: Hex 0x00-0xFF (RangeValidator with hex support)
+  - Shows real-time rejection of invalid characters
+  - Displays validation results when OK is clicked
+
+### Technical Details
+This implements Borland Turbo Vision's validator architecture from validate.h and tvalidat.cc. The `Validator` trait provides the base validation interface, with `FilterValidator` implementing character filtering (matching `TFilterValidator` from tfilterv.cc) and `RangeValidator` implementing numeric range validation (matching `TRangeValidator` from trangeva.cc).
+
+The `InputLine` checks validators in two contexts:
+1. **During typing** (`is_valid_input()`): Rejects invalid characters immediately
+2. **Final validation** (`is_valid()`): Checks complete input when accepting
+
+RangeValidator supports multiple number formats:
+- Decimal: "123", "-45"
+- Hexadecimal: "0xFF", "0xAB"
+- Octal: "077" (63 decimal), "0100" (64 decimal)
+
+This matches Borland's `get_val()` and `get_uval()` functions from trangeva.cc:59-69.
+
+Reference: Borland's TValidator architecture in validate.h, tvalidat.cc, tfilterv.cc, and trangeva.cc.
+
+## [0.2.0] - 2025-11-03
+
+### Added
+- **Broadcast Enhancement**: Added owner-aware broadcast method to Group
+  - New `broadcast()` method takes optional `owner_index` parameter
+  - Prevents broadcast echo back to the originating view
+  - Matches Borland's `message()` function pattern from tvutil.h
+  - Enables focus-list navigation and sophisticated command routing patterns
+  - Foundation for future inter-view communication features
+
+### Fixed
+- **Menu Example**: Fixed OK button command to use CM_OK instead of 0
+  - Buttons in menu.rs dialogs now properly close when clicked
+  - Added CM_OK to imports
+  - Dialog's handle_event now correctly recognizes CM_OK command
+
+### Technical Details
+The `Group::broadcast()` method implements Borland's message pattern where broadcasts can skip the originator. This prevents circular event loops and enables proper implementation of focus navigation commands (like Ctrl+Tab to cycle through siblings without the current view receiving its own broadcast).
+
+The method signature is `broadcast(&mut self, event: &mut Event, owner_index: Option<usize>)` where owner_index identifies the child that originated the broadcast. This child will be skipped when distributing the event to all children.
+
+Reference: Borland's `void *message(TView *receiver, ...)` in tvutil.h and TGroup::forEach pattern in tgroup.cc:675-689.
+
+## [0.1.10] - 2025-11-03
+
+### Added
+- **Event Re-queuing System**: Implemented Borland's putEvent() pattern for deferred event processing
+  - Added `put_event()` method to Terminal
+  - Added `pending_event` field to Terminal struct
+  - Events can now be re-queued for processing in next iteration
+  - Matches Borland's `TProgram::putEvent()` and `TProgram::pending` from tprogram.cc
+  - Enables complex event transformation chains and command generation patterns
+
+### Changed
+- **Terminal**: Enhanced `poll_event()` to check pending events first
+  - Pending events are processed before polling for new input
+  - Matches Borland's `TProgram::getEvent()` behavior (tprogram.cc:154-194)
+  - Event queue is FIFO - pending event delivered on next poll
+  - Supports Borland-style event flow patterns
+
+### Technical Details
+This completes the event architecture trilogy started in v0.1.9. While three-phase processing handles HOW events flow through views, event re-queuing handles WHEN events are processed. The `put_event()` method allows views to:
+- Generate new events for next iteration (e.g., converting mouse clicks to commands)
+- Defer complex event processing
+- Implement modal dialog patterns where unhandled events bubble up
+- Match Borland's event generation patterns from status line and buttons
+
+The pending event is checked first in `poll_event()`, ensuring re-queued events take priority over new input. This matches the exact behavior of `TProgram::getEvent()` which checks `pending.what != evNothing` before reading new events.
+
+## [0.1.9] - 2025-11-03
+
+### Added
+- **Three-Phase Event Processing**: Implemented Borland's three-phase event handling architecture
+  - Phase 1 (PreProcess): Views with `OF_PRE_PROCESS` flag get first chance at events
+  - Phase 2 (Focused): Currently focused view processes event
+  - Phase 3 (PostProcess): Views with `OF_POST_PROCESS` flag get last chance
+  - Enables proper event interception patterns matching Borland's TGroup::handleEvent()
+  - `Button` now uses `OF_POST_PROCESS` to intercept Space/Enter when not focused
+  - `StatusLine` now uses `OF_POST_PROCESS` to monitor all key presses
+  - Added `options()` and `set_options()` methods to View trait
+
+### Changed
+- **Group**: Enhanced `handle_event()` with three-phase processing for keyboard/command events
+  - Mouse events continue to use positional routing (no three-phase)
+  - Keyboard and Command events now flow through PreProcess → Focused → PostProcess
+  - Matches Borland's `focusedEvents` vs `positionalEvents` distinction
+  - Each phase checks if event was handled (EventType::Nothing) before continuing
+
+- **Button**: Now implements `options()` with `OF_POST_PROCESS` flag
+  - Buttons can intercept their hotkeys even when not focused
+  - Matches Borland's button behavior from tbutton.cc
+
+- **StatusLine**: Now implements `options()` with `OF_POST_PROCESS` flag
+  - Status line monitors all key presses in post-process phase
+  - Enables status line to handle function keys globally
+  - Matches Borland's TStatusLine architecture from tstatusl.cc
+
+- **View trait**: Added `options()` and `set_options()` methods
+  - Default implementation returns 0 (no special processing)
+  - Views can set `OF_PRE_PROCESS` or `OF_POST_PROCESS` flags
+  - Foundation for advanced event routing patterns
+
+### Technical Details
+This implements the critical architectural pattern from Borland's TGroup::handleEvent() (tgroup.cc:342-369). The three-phase system allows views to intercept events before or after the focused view processes them. This is essential for:
+- Buttons responding to Space/Enter even when another control is focused
+- Status line handling function keys globally
+- Modal dialogs intercepting Esc/F10 regardless of focus
+
+The implementation distinguishes between `focusedEvents` (keyboard/command) which use three-phase processing, and `positionalEvents` (mouse) which route directly to the view under the cursor.
+
+## [0.1.8] - 2025-11-03
+
+### Added
+- **Status Line Hot Spots**: Status line items now have visual feedback and improved interaction
+  - Mouse hover highlighting: items change color when mouse hovers over them
+  - Hover color: White on Green (matching button style) for better visibility
+  - Dedicated `draw_select()` method to render items with selection state
+  - Context-sensitive hint display: `set_hint()` method to show help text on status line
+  - Improved mouse tracking during clicks for better user feedback
+  - New `StatusLine::item_mouse_is_in()` helper to detect which item mouse is over
+  - New example: `status_line_demo.rs` showcasing all status line improvements
+
+### Changed
+- **StatusLine**: Enhanced with hover state tracking and hint system
+  - Added `selected_item: Option<usize>` field to track hovered item
+  - Added `hint_text: Option<String>` field for context-sensitive help
+  - Improved `handle_event()` with mouse move detection for hover effects
+  - Hint text displayed on right side when available and space permits
+  - Matches Borland's `TStatusLine::drawSelect()` pattern from tstatusl.cc
+
+- **Color Palette**: Added new status line selection colors
+  - `STATUS_SELECTED`: White on Green for selected status items
+  - `STATUS_SELECTED_SHORTCUT`: Yellow on Green for shortcuts in selected items
+  - Provides clear visual feedback matching button color scheme
+
+### Technical Details
+This implements Borland Turbo Vision's status line hot spot pattern. The status line now provides visual feedback when the user hovers over items, matching the behavior of `TStatusLine::drawSelect()` in the original implementation. The hint system allows displaying context-sensitive help text on the status line, which can be updated based on the focused control or current application state. This is a step toward full context-sensitive help support planned for v0.3.0.
+
+## [0.1.7] - 2025-11-03
+
+### Added
+- **Keyboard Shortcuts in Menus**: Menu items now display keyboard shortcuts right-aligned
+  - New `MenuItem::new_with_shortcut()` constructor to specify shortcut text
+  - Shortcuts displayed right-aligned in dropdown menus (e.g., "Ctrl+O", "F3", "Alt+X")
+  - Menu width automatically adjusts to accommodate shortcuts
+  - Matches Borland's `TMenuItem::keyCode` display pattern
+
+### Changed
+- **MenuItem**: Enhanced with optional `shortcut` field for display purposes
+  - Shortcut text is purely visual - shows users what keys to press
+  - Improves menu polish and user experience
+  - Follows desktop UI conventions for shortcut display
+
+### Technical Details
+This implements Borland Turbo Vision's menu shortcut display pattern. Menu items can now show keyboard shortcuts right-aligned, similar to modern desktop applications. The implementation calculates menu width based on both item text and shortcut length, ensuring proper alignment and visual polish. Shortcuts are currently display-only - actual global shortcut handling would require application-level key routing.
+
+## [0.1.6] - 2025-11-03
+
+### Added
+- **Window Resize Support**: Windows can now be resized by dragging the bottom-right corner
+  - Click and drag the bottom-right corner (last 2 columns, last row) to resize
+  - Minimum size constraints prevent windows from becoming too small (16x6 minimum)
+  - All child views automatically update during resize
+  - Efficient redrawing using union rect pattern (same as window movement)
+  - Matches Borland's `TWindow` resize behavior from `twindow.cc` and `tframe.cc`
+
+### Changed
+- **Frame**: Enhanced mouse event handling to detect resize corner clicks
+  - Bottom-right corner detection: `mouse.x >= size.x - 2 && mouse.y >= size.y - 1`
+  - New `SF_RESIZING` state flag to track resize operations
+  - Matches Borland's `TFrame::handleEvent()` pattern (tframe.cc:214-219)
+
+- **Window**: Added resize drag logic and size constraints
+  - Tracks resize offset from bottom-right corner during drag
+  - Applies minimum size limits (16 wide, 6 tall) matching Borland's `minWinSize`
+  - Updates frame and interior bounds during resize
+  - Prevents resizing smaller than minimum dimensions
+
+### Technical Details
+This implements Borland Turbo Vision's window resizing architecture. The Frame detects resize corner clicks and sets the `SF_RESIZING` flag. The Window handles mouse move events during resize, calculating new size while respecting minimum size constraints from `sizeLimits()`. Child views are automatically repositioned through the `set_bounds()` cascade, and efficient redrawing uses the union rect pattern to minimize screen updates.
+
+## [0.1.5] - 2025-11-03
+
+### Added
+- **Double-click Detection**: Implemented proper double-click detection for mouse events
+  - Added timing and position tracking to Terminal (`last_click_time`, `last_click_pos`)
+  - Detects double-clicks within 500ms at the same position
+  - `MouseEvent.double_click` field now properly set by `Terminal::convert_mouse_event()`
+  - Matches expected desktop UI behavior for quick successive clicks
+
+### Changed
+- **ListBox**: Updated to trigger selection command on double-click instead of repeated single clicks
+  - Double-clicking an item in ListBox now immediately triggers the `on_select_command`
+  - Single clicks select items without triggering the command
+  - Matches Borland's `TListViewer` pattern: `if (event.mouse.doubleClick) selectItem(focused)`
+
+- **FileDialog**: Automatically benefits from ListBox double-click support
+  - Double-clicking files now opens them immediately (no need to click OK button)
+  - Double-clicking folders navigates into them
+  - Improves user experience with modern expected behavior
+
+### Technical Details
+This implements double-click detection based on Borland Turbo Vision's `MouseEventType.doubleClick` field. The implementation tracks click timing using `Instant` and checks that consecutive clicks occur within 500ms at the same position. This pattern matches modern desktop UI conventions while maintaining compatibility with Borland's event-driven architecture.
+
+## [0.1.4] - 2025-11-02
+
+### Changed
+- **Refactored Modal Execution Architecture**: Completely redesigned how modal dialogs work to match Borland Turbo Vision's architecture
+  - Moved event loop from `Dialog` to `Group` level (matching Borland's `TGroup::execute()`)
+  - `Group` now has `execute()`, `end_modal()`, and `get_end_state()` methods
+  - `Dialog::execute()` now implements its own event loop that calls `Dialog::handle_event()` for proper polymorphic behavior
+  - Dialog handles its own drawing because it's not on the desktop
+  - Fixed modal dialog hang bugs related to event loop and end state checking
+  - This change eliminates window movement trails and provides correct modal behavior
+
+### Added
+- **Architectural Documentation**: Created `local-only/ARCHITECTURAL-FINDINGS.md` documenting:
+  - How Borland's event loop architecture works (studied original C++ source)
+  - Differences between C++ inheritance and Rust composition patterns
+  - Why the event loop belongs in Group, not Dialog
+  - Bug fixes and design decisions
+  - Comparison of Borland's TGroup::execute() with the Rust implementation
+
+### Fixed
+- **Modal Dialog Trails**: Fixed issue where moving modal dialogs left visual trails on screen
+- **Dialog Hang Bug #1**: Fixed infinite loop where `end_state` check was inside event handling block
+- **Dialog Hang Bug #2**: Fixed polymorphism issue where `Group::handle_event()` was called instead of `Dialog::handle_event()`
+- **Application::get_event()**: Now properly draws desktop before returning events, preventing trails
+
+### Technical Details
+This release implements Borland Turbo Vision's proven architecture for modal execution. The key insight from studying the original Borland C++ source code (in `local-only/borland-tvision/`) is that **the event loop belongs in TGroup**, not in individual dialog types. In Borland:
+
+```cpp
+// TGroup::execute() - the ONE event loop (tgroup.cc:182-195)
+ushort TGroup::execute() {
+    do {
+        endState = 0;
+        do {
+            TEvent e;
+            getEvent(e);        // Get event from owner chain
+            handleEvent(e);     // Virtual dispatch to TDialog::handleEvent
+        } while(endState == 0);
+    } while(!valid(endState));
+    return endState;
+}
+```
+
+Our Rust implementation adapts this pattern:
+- `Group` has `execute()` with event loop and `end_state` field
+- `Dialog::execute()` implements the loop pattern but calls `Dialog::handle_event()` for polymorphism
+- `Dialog::handle_event()` calls `window.end_modal()` when commands occur
+- Drawing happens in the loop because dialogs aren't on the desktop
+
+See `local-only/ARCHITECTURAL-FINDINGS.md` for complete analysis.
+
+## [0.1.3] - 2025-11-02
+
+### Added
+- **Scroll Wheel Support**: Mouse wheel scrolling now works in ListBox, Memo, and TextView components
+  - Wheel up scrolls content upward (moves selection/cursor up)
+  - Wheel down scrolls content downward (moves selection/cursor down)
+  - Only responds when mouse is within the component's bounds
+  - Implemented by adding `MouseWheelUp` and `MouseWheelDown` event types to the event system
+  - Terminal now converts crossterm's `ScrollUp` and `ScrollDown` events to internal event types
+
+- **Window Closing Support**: Non-modal windows can now be properly closed
+  - Click close button on non-modal windows to remove them from desktop
+  - Modal dialogs: close button converts `CM_CLOSE` to `CM_CANCEL`
+  - Non-modal windows: close button sets `SF_CLOSED` flag, removed by Desktop on next frame
+  - Matches Borland's `TWindow::handleEvent()` behavior (twindow.cc lines 124-138)
+  - Added `SF_CLOSED` flag (0x1000) to mark windows for removal
+  - Desktop automatically removes closed windows after event handling
+
+### Fixed
+- **TextView Indicator**: Indicator now updates properly when scrolling with mouse wheel or keyboard
+
+### Technical Details
+**Scroll Wheel**: This implements modern mouse wheel support that wasn't present in the original Borland Turbo Vision (which predated mouse wheels). The implementation follows the framework's event-driven architecture:
+- Added event type constants `EV_MOUSE_WHEEL_UP` (0x0010) and `EV_MOUSE_WHEEL_DOWN` (0x0020)
+- Updated `EV_MOUSE` mask to 0x003F to include wheel events
+- Each scrollable component checks mouse position before handling wheel events
+- Wheel events are cleared after handling to prevent propagation
+
+**Window Closing**: Adapts Borland's architecture for Rust's ownership model:
+- Borland uses `CLY_destroy(this)` to remove views from owner
+- Rust uses `SF_CLOSED` flag since views can't remove themselves from parent Vec
+- `Window::handle_event()` sets flag on `CM_CLOSE` (non-modal) or converts to `CM_CANCEL` (modal)
+- `Desktop::remove_closed_windows()` removes flagged windows after event handling
+- `Group::remove()` handles child removal and focus tracking
+
+## [0.1.2] - 2025-11-02
+
+### Added
+- **Z-Order Management**: Non-modal windows can now be brought to the front by clicking on them, matching Borland Turbo Vision's `TGroup::selectView()` behavior.
+- **Modal Window Support**: Modal dialogs (like `Dialog::execute()`) now properly block interaction with background windows. When a modal dialog is present, clicking background windows has no effect.
+- **Menu Borders and Shadows**: Dropdown menus now display with single-line borders and shadows, matching Borland's TMenuBox styling:
+  - Single-line box drawing characters (`┌─┐`, `│`, `└─┘`, `├─┤`)
+  - 2x1 shadow (2 cells wide on right, 1 cell tall on bottom)
+  - Verified against original Borland Turbo Vision source code
+- **Window Overlap Test**: New `window_modal_overlap_test` example demonstrating z-order management with three overlapping non-modal windows.
+
+### Fixed
+- **Mouse Event Z-Order**: Fixed mouse event handling to search in reverse z-order (top-most view first), preventing background views from capturing events intended for foreground windows.
+- **Upward Dragging**: Fixed issue where windows could not be dragged upward. Windows can now be dragged in all directions by sending mouse events to dragging windows even when the mouse moves outside their bounds.
+
+### Changed
+- **Group::bring_to_front()**: Added method to reorder children in z-order, automatically updating focused index.
+- **Desktop Event Handling**: Desktop now manages z-order changes on mouse clicks and enforces modal blocking when modal windows are present.
+- **Dialog Modal Flag**: `Dialog::execute()` now automatically sets and clears the `SF_MODAL` flag, making all executed dialogs modal by default.
+
+### Technical Details
+This release implements Borland Turbo Vision's window management architecture:
+- **Z-Order**: Children vector index represents z-order (higher index = on top)
+- **Modal Scope**: Top-most window with `SF_MODAL` flag captures all events
+- **Border Drawing**: Uses Borland's `frameChars` pattern for consistent styling
+- **Shadow Rendering**: Matches Borland's `shadowSize = {2, 1}` and rendering algorithm
+
+## [0.1.1] - 2025-11-02
+
+### Fixed
+- **Window dragging trails**: Fixed visual corruption when dragging windows. Modal dialogs now properly redraw the desktop background on each frame, matching Borland Turbo Vision's `TProgram::getEvent()` pattern where the entire screen is redrawn before polling for events.
+
+### Changed
+- **Desktop architecture**: Desktop now uses a `Background` view as its first child (matching Borland's `TDeskTop` with `TBackground`), ensuring proper z-order rendering.
+- **FileDialog execution**: `FileDialog::execute()` now takes an `Application` reference and redraws the desktop before drawing the dialog, following Borland's modal dialog pattern.
+
+### Technical Details
+The fix addresses a fundamental architectural issue where modal dialogs had their own event loops that only redrawed themselves, not the desktop background. This caused visible trails when windows moved. The solution follows Borland Turbo Vision's pattern where `getEvent()` triggers a full screen redraw before returning events to modal views.
+
+## [0.1.0] - 2025-11-02
+
+### Added
+
+#### Core System
+- Event-driven architecture with keyboard and command-based event routing
+- Complete drawing system with color support (16-color palette with attribute system)
+- Geometry primitives with absolute and relative positioning
+- Focus management with Tab navigation and keyboard shortcuts
+- Modal dialog execution system
+- Cross-platform terminal I/O abstraction layer built on crossterm
+
+#### UI Components
+- **Dialog**: Dialog boxes with frames and close buttons
+- **Button**: Interactive buttons with keyboard shortcuts and mouse support
+- **StaticText**: Text labels with centered text support
+- **InputLine**: Single-line text input fields
+- **Menu**: Menu bar with dropdown menus and mouse support
+- **StatusLine**: Status bar with clickable items
+- **Desktop**: Desktop manager for window management
+- **ScrollBar**: Vertical and horizontal scrollbars with mouse support
+- **Scroller**: Base class for scrollable views
+- **Indicator**: Position/status display widget
+- **TextView**: Scrollable text viewer with line numbers
+- **CheckBox**: Checkbox controls with mouse support
+- **RadioButton**: Radio button groups with mouse support
+- **ListBox**: List selection widget with mouse and keyboard navigation
+- **Memo**: Multi-line text editor with basic editing capabilities
+- **FileDialog**: Full-featured file selection dialog with directory navigation
+
+#### Input & Navigation
+- Full keyboard support with arrow keys, Tab, Enter, Escape
+- Mouse support including:
+  - Button clicks and hover effects
+  - Menu interaction
+  - Status bar clicks
+  - Dialog close buttons
+  - ListBox item selection
+  - Scrollbar interaction
+- Keyboard shortcuts for quick access
+
+#### Application Framework
+- Application class with event loop
+- Terminal initialization and cleanup
+- Resource management
+
+### Documentation
+- Comprehensive README with quick start guide
+- Module overview documentation
+- Example programs demonstrating framework usage
+
+### Known Limitations
+- Full text editor with search/replace not yet implemented (basic editing available in Memo)
+
+[2.2.1]: https://github.com/aovestdipaperino/turbo-vision-4-rust/releases/tag/v2.2.1
+[2.2.0]: https://github.com/aovestdipaperino/turbo-vision-4-rust/releases/tag/v2.2.0
+[2.0.0]: https://github.com/aovestdipaperino/turbo-vision-4-rust/releases/tag/v2.0.0
+[0.1.3]: https://github.com/aovestdipaperino/turbo-vision-4-rust/releases/tag/v0.1.3
+[0.1.2]: https://github.com/aovestdipaperino/turbo-vision-4-rust/releases/tag/v0.1.2
+[0.1.1]: https://github.com/aovestdipaperino/turbo-vision-4-rust/releases/tag/v0.1.1
+[0.1.0]: https://github.com/aovestdipaperino/turbo-vision-4-rust/releases/tag/v0.1.0

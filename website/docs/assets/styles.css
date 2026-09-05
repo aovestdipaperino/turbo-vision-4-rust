@@ -1,0 +1,70 @@
+:root {
+  --tv-blue: #0000aa;
+  --tv-cyan: #00aaaa;
+  --tv-yellow: #ffff55;
+}
+
+[data-md-color-scheme="default"] {
+  --md-primary-fg-color: #1a1a8c;
+  --md-primary-fg-color--dark: #0000aa;
+  --md-accent-fg-color: #a86f00;
+}
+
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color: #2a2ac0;
+  --md-accent-fg-color: var(--tv-yellow);
+  --md-accent-fg-color--transparent: rgba(255, 255, 85, 0.1);
+}
+
+.tv-tagline {
+  font-size: 1.15rem;
+  line-height: 1.6;
+  max-width: 42rem;
+  opacity: 0.9;
+}
+
+.md-typeset .grid.cards > ul > li {
+  border-radius: 0.2rem;
+}
+
+/* Screenshots are terminal captures: keep them crisp, not smoothed. */
+.md-typeset img[src*="screenshots"] {
+  image-rendering: -webkit-optimize-contrast;
+  border-radius: 0.2rem;
+  box-shadow: 0 0.2rem 0.6rem rgba(0, 0, 0, 0.28);
+}
+
+.md-typeset table:not([class]) th {
+  white-space: nowrap;
+}
+
+.md-typeset .md-button {
+  margin-right: 0.4rem;
+  margin-bottom: 0.4rem;
+}
+
+/* Homepage hero: intro text beside the boxed-software illustration. */
+.tv-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.72fr);
+  gap: 1.6rem;
+  align-items: center;
+  margin: 1rem 0 2rem;
+}
+
+.tv-hero__box .tv-box {
+  width: 100%;
+  height: auto;
+  max-width: 24rem;
+  display: block;
+  margin: 0 auto;
+}
+
+@media screen and (max-width: 76.234375em) {
+  .tv-hero {
+    grid-template-columns: 1fr;
+  }
+  .tv-hero__box .tv-box {
+    max-width: 20rem;
+  }
+}

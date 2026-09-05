@@ -1,7 +1,18 @@
 # Turbo Vision - Rust TUI Library
 
 <p align="center">
+  <a href="https://tv.enzolombardi.net/"><img src="https://img.shields.io/badge/docs-tv.enzolombardi.net-1a1a8c?style=flat-square&labelColor=101010" alt="Documentation"></a>
+  <a href="https://crates.io/crates/turbo-vision"><img src="https://img.shields.io/crates/v/turbo-vision?style=flat-square&labelColor=101010" alt="crates.io"></a>
   <a href="https://ai.enzolombardi.net/"><img src="https://img.shields.io/badge/built%20with-AI-D97757?style=flat-square&labelColor=101010&logo=anthropic&logoColor=white" alt="Built with AI — part of Enzo Lombardi's AI portfolio"></a>
+</p>
+
+<p align="center">
+  <b><a href="https://tv.enzolombardi.net/">Documentation site</a></b> &middot;
+  <a href="https://tv.enzolombardi.net/getting-started/">Getting started</a> &middot;
+  <a href="https://tv.enzolombardi.net/guide/">User guide</a> &middot;
+  <a href="https://tv.enzolombardi.net/tutorials/">Tutorials</a> &middot;
+  <a href="https://tv.enzolombardi.net/compare/app-model/">vs. C++</a> &middot;
+  <a href="https://tv.enzolombardi.net/whats-new/">What's new</a>
 </p>
 
 
@@ -9,7 +20,10 @@
 
 A Rust implementation of the classic Borland Turbo Vision text user interface framework.
 
-**Version 2.0.0 - PRODUCTION READY** ✅
+Full documentation, user guide, tutorials and a side-by-side comparison with the original
+C++ application model live at **[tv.enzolombardi.net](https://tv.enzolombardi.net/)**.
+
+**Version 3.0.0 - PRODUCTION READY** ✅
 
 Based on
 kloczek Borland Turbo Vision C++ port [here](https://github.com/kloczek/tvision)

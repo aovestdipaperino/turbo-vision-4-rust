@@ -1,0 +1,40 @@
+# Netlify build for the Turbo Vision documentation site.
+# Set the site's "Base directory" to `website` in the Netlify UI; this file is
+# then read from that directory and the paths below are relative to it.
+
+[build]
+  command = "pip install -r requirements.txt && mkdocs build --site-dir site"
+  publish = "site"
+
+[build.environment]
+  PYTHON_VERSION = "3.12"
+
+# Screenshots and the box photo never change under the same name.
+[[headers]]
+  for = "/assets/shots/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/assets/images/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Stylesheets and scripts must be revalidated, or a redeploy never reaches
+# browsers that already hold a copy.
+[[headers]]
+  for = "/assets/*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/assets/*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "SAMEORIGIN"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"

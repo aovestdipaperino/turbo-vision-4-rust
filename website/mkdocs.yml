@@ -1,0 +1,152 @@
+site_name: Turbo Vision for Rust
+site_description: A Rust port of Borland's Turbo Vision text-mode UI framework
+site_author: Enzo Lombardi
+site_url: https://tv.enzolombardi.net/
+repo_url: https://github.com/aovestdipaperino/turbo-vision-4-rust
+repo_name: aovestdipaperino/turbo-vision-4-rust
+copyright: "&copy; 2025-2026 Enzo Lombardi &middot; MIT licensed"
+
+theme:
+  name: material
+  logo: assets/logo.png
+  favicon: assets/logo.png
+  language: en
+  font:
+    text: Inter
+    code: JetBrains Mono
+  icon:
+    repo: fontawesome/brands/github
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.instant
+    - navigation.tracking
+    - navigation.indexes
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+  palette:
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/brightness-auto
+        name: Follow system
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: amber
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: amber
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+extra_css:
+  - assets/styles.css
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/aovestdipaperino/turbo-vision-4-rust
+    - icon: fontawesome/brands/rust
+      link: https://crates.io/crates/turbo-vision
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+      toc_depth: 3
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+
+plugins:
+  - search
+
+nav:
+  - Home: index.md
+  - Start here:
+      - whats-new.md
+      - getting-started.md
+  - User guide:
+      - guide/index.md
+      - Building an application:
+          - guide/chapter-01.md
+          - guide/chapter-02.md
+          - guide/chapter-03.md
+          - guide/chapter-04.md
+          - guide/chapter-05.md
+          - guide/chapter-06.md
+      - How the framework works:
+          - guide/chapter-07.md
+          - guide/chapter-08.md
+          - guide/chapter-09.md
+      - Object reference:
+          - guide/chapter-10.md
+          - guide/chapter-11.md
+          - guide/chapter-12.md
+          - guide/chapter-13.md
+          - guide/chapter-14.md
+          - guide/chapter-15.md
+          - guide/chapter-16.md
+          - guide/chapter-17.md
+          - guide/chapter-18.md
+  - Tutorials:
+      - tutorials/index.md
+      - tutorials/quick-start.md
+      - tutorials/biorhythm.md
+  - Examples:
+      - examples/index.md
+      - examples/walkthroughs.md
+  - vs. C++:
+      - compare/index.md
+      - compare/app-model.md
+      - compare/custom-program-cpp.md
+      - compare/custom-application-rust.md
+  - Reference:
+      - reference/index.md
+      - reference/changelog.md
+      - Architecture:
+          - reference/design.md
+          - reference/owner-coordinates.md
+          - reference/inheritance.md
+          - reference/implementation.md
+      - API:
+          - reference/api-index.md
+          - reference/api-catalog.md
+          - reference/more-controls.md
+          - reference/coding-guidelines.md
+      - Palettes:
+          - reference/palette-system.md
+          - reference/palette-design.md
+          - reference/palette-chart.md
+      - Persistence:
+          - reference/serialization.md
+          - reference/serialization-quick.md
