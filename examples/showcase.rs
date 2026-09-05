@@ -136,7 +136,7 @@ impl View for ClockView {
             buf.move_str(0, &time_str, color);
         }
 
-        write_line_to_terminal(terminal, self.core.bounds.a.x, self.core.bounds.a.y, &buf);
+        write_line_to_terminal(terminal, 0, 0, &buf);
     }
 
     fn handle_event(&mut self, _event: &mut Event) {}
@@ -233,7 +233,7 @@ impl View for CrabWidget {
         // Place the crab at current position (emoji is 2 cells wide)
         buf.move_char(self.position, '🦀', color, 1);
 
-        write_line_to_terminal(terminal, self.core.bounds.a.x, self.core.bounds.a.y, &buf);
+        write_line_to_terminal(terminal, 0, 0, &buf);
     }
 
     fn handle_event(&mut self, _event: &mut Event) {}
@@ -476,8 +476,8 @@ impl View for AsciiTable {
 
             write_line_to_terminal(
                 terminal,
-                self.core.bounds.a.x,
-                self.core.bounds.a.y + row as i16,
+                0,
+                row as i16,
                 &buf,
             );
         }
@@ -726,7 +726,7 @@ impl View for CalcDisplay {
         let x_pos = width.saturating_sub(display_text.len() + 1);
         buf.move_str(x_pos, &display_text, color);
 
-        write_line_to_terminal(terminal, self.core.bounds.a.x, self.core.bounds.a.y, &buf);
+        write_line_to_terminal(terminal, 0, 0, &buf);
     }
 
     fn handle_event(&mut self, event: &mut Event) {
@@ -1028,7 +1028,7 @@ impl View for CalendarView {
         buf.move_char(0, ' ', color, width);
         let header = format!("↑{:>12} {:4} ↓", Self::month_name(self.month), self.year);
         buf.move_str(0, &header, color);
-        write_line_to_terminal(terminal, self.core.bounds.a.x, self.core.bounds.a.y, &buf);
+        write_line_to_terminal(terminal, 0, 0, &buf);
 
         // Line 1: Day headers
         let mut buf = DrawBuffer::new(width);
@@ -1036,8 +1036,8 @@ impl View for CalendarView {
         buf.move_str(0, "Su Mo Tu We Th Fr Sa", color);
         write_line_to_terminal(
             terminal,
-            self.core.bounds.a.x,
-            self.core.bounds.a.y + 1,
+            0,
+            1,
             &buf,
         );
 
@@ -1076,8 +1076,8 @@ impl View for CalendarView {
 
             write_line_to_terminal(
                 terminal,
-                self.core.bounds.a.x,
-                self.core.bounds.a.y + 2 + week as i16,
+                0,
+                2 + week as i16,
                 &buf,
             );
         }
@@ -1088,8 +1088,8 @@ impl View for CalendarView {
 
         match event.what {
             EventType::MouseDown => {
-                let local_x = event.mouse.pos.x - self.core.bounds.a.x;
-                let local_y = event.mouse.pos.y - self.core.bounds.a.y;
+                let local_x = event.mouse.pos.x;
+                let local_y = event.mouse.pos.y;
 
                 // Check if clicked on up arrow (position 0, character at x=0)
                 if local_y == 0 && local_x == 0 {
@@ -1291,8 +1291,8 @@ impl PuzzleView {
 
     fn move_tile(&mut self, p: turbo_vision::core::geometry::Point) {
         // Convert screen coordinates to local coordinates
-        let local_x = p.x - self.core.bounds.a.x;
-        let local_y = p.y - self.core.bounds.a.y;
+        let local_x = p.x;
+        let local_y = p.y;
 
         // Find the empty space
         let mut empty_idx = 0;
@@ -1386,8 +1386,8 @@ impl View for PuzzleView {
 
             write_line_to_terminal(
                 terminal,
-                self.core.bounds.a.x,
-                self.core.bounds.a.y + i as i16,
+                0,
+                i as i16,
                 &buf,
             );
         }

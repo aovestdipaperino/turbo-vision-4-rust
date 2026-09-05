@@ -99,10 +99,10 @@ impl ComboBox {
     /// Screen rectangle of the open drop-down.
     fn drop_bounds(&self) -> Rect {
         Rect::new(
-            self.core.bounds.a.x,
-            self.core.bounds.a.y + 1,
-            self.core.bounds.b.x,
-            self.core.bounds.a.y + 1 + self.drop_rows() as i16,
+            0,
+            1,
+            self.extent().b.x,
+            1 + self.drop_rows() as i16,
         )
     }
 
@@ -157,7 +157,7 @@ impl View for ComboBox {
         let text: String = self.data.borrow().chars().take(width - 2).collect();
         buf.move_str(0, &text, field_attr);
         buf.put_char(width - 1, if self.open { '▲' } else { '▼' }, arrow_attr);
-        write_line_to_terminal(terminal, self.core.bounds.a.x, self.core.bounds.a.y, &buf);
+        write_line_to_terminal(terminal, 0, 0, &buf);
 
         // Drop-down
         if self.open {
@@ -184,8 +184,8 @@ impl View for ComboBox {
                 }
                 write_line_to_terminal(
                     terminal,
-                    self.core.bounds.a.x,
-                    self.core.bounds.a.y + 1 + row as i16,
+                    0,
+                    1 + row as i16,
                     &buf,
                 );
             }
@@ -217,7 +217,7 @@ impl View for ComboBox {
                 if event.mouse.buttons & MB_LEFT_BUTTON == 0 {
                     return;
                 }
-                if self.core.bounds.contains(pos) {
+                if self.extent().contains(pos) {
                     if self.open {
                         self.open = false;
                     } else {

@@ -55,8 +55,8 @@ impl View for Background {
         buf.move_char(0, self.pattern, self.attr, width);
 
         // Draw every row
-        for y in self.core.bounds.a.y..self.core.bounds.b.y {
-            write_line_to_terminal(terminal, self.core.bounds.a.x, y, &buf);
+        for y in 0..self.extent().b.y {
+            write_line_to_terminal(terminal, 0, y, &buf);
         }
     }
 

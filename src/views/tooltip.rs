@@ -172,16 +172,16 @@ impl Tooltip {
         let width = (width as i16).min(self.core.bounds.width()).max(1);
 
         let mut x = hint.target.a.x;
-        if x + width > self.core.bounds.b.x {
-            x = (self.core.bounds.b.x - width).max(self.core.bounds.a.x);
+        if x + width > self.extent().b.x {
+            x = (self.extent().b.x - width).max(0);
         }
 
         let mut y = hint.target.b.y;
-        if y >= self.core.bounds.b.y {
+        if y >= self.extent().b.y {
             // No room below: sit above the control instead.
             y = hint.target.a.y - 1;
         }
-        if y < self.core.bounds.a.y || y >= self.core.bounds.b.y {
+        if y < 0 || y >= self.extent().b.y {
             return None;
         }
 

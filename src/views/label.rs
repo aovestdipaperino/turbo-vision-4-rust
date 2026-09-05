@@ -77,7 +77,7 @@ impl View for Label {
         buf.move_char(0, ' ', normal_attr, width);
         buf.move_str_with_shortcut(0, &self.text, normal_attr, shortcut_attr);
 
-        write_line_to_terminal(terminal, self.core.bounds.a.x, self.core.bounds.a.y, &buf);
+        write_line_to_terminal(terminal, 0, 0, &buf);
     }
 
     fn handle_event(&mut self, event: &mut Event) {

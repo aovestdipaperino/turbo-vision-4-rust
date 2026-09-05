@@ -68,7 +68,9 @@ impl ScrollPane {
             },
             virtual_height: virtual_height.max(bounds.height()),
             offset: 0,
-            group: Group::new(bounds),
+            // The group fills the pane's own space, so its children are
+            // pane-relative and it draws with no further origin push.
+            group: Group::new(Rect::new(0, 0, bounds.width(), bounds.height())),
             virtual_bounds: Vec::new(),
             palette_chain: None,
         }
@@ -129,10 +131,10 @@ impl ScrollPane {
             return;
         };
         let b = focused.bounds();
-        if b.a.y < self.core.bounds.a.y {
-            self.scroll_by(b.a.y - self.core.bounds.a.y);
-        } else if b.b.y > self.core.bounds.b.y {
-            self.scroll_by(b.b.y - self.core.bounds.b.y);
+        if b.a.y < 0 {
+            self.scroll_by(b.a.y);
+        } else if b.b.y > self.extent().b.y {
+            self.scroll_by(b.b.y - self.extent().b.y);
         }
     }
 
@@ -158,12 +160,12 @@ impl View for ScrollPane {
 
     fn set_bounds(&mut self, bounds: Rect) {
         self.core.bounds = bounds;
-        self.group.set_bounds(bounds);
+        self.group.set_bounds(self.extent());
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
         // Clip so partially scrolled-out children don't paint outside
-        terminal.push_clip(self.core.bounds);
+        terminal.push_clip(self.extent());
         self.group.draw(terminal);
         terminal.pop_clip();
     }
@@ -196,7 +198,7 @@ impl View for ScrollPane {
             EventType::MouseDown => {
                 // Clicks outside the visible pane never reach hidden children
                 if event.mouse.buttons & MB_LEFT_BUTTON != 0
-                    && !self.core.bounds.contains(event.mouse.pos)
+                    && !self.extent().contains(event.mouse.pos)
                 {
                     return;
                 }
@@ -230,7 +232,7 @@ impl View for ScrollPane {
         if let Some(focused) = self.group.focused_child() {
             // Only show the cursor for controls scrolled into view
             let b = focused.bounds();
-            if b.a.y >= self.core.bounds.a.y && b.b.y <= self.core.bounds.b.y {
+            if b.a.y >= 0 && b.b.y <= self.extent().b.y {
                 focused.update_cursor(terminal);
             }
         }

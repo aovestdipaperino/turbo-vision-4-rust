@@ -126,7 +126,7 @@ impl View for Slider {
         let mut buf = DrawBuffer::new(width);
         buf.move_char(0, '─', track_attr, width);
         buf.put_char(self.value_to_col(width), '◆', thumb_attr);
-        write_line_to_terminal(terminal, self.core.bounds.a.x, self.core.bounds.a.y, &buf);
+        write_line_to_terminal(terminal, 0, 0, &buf);
     }
 
     fn handle_event(&mut self, event: &mut Event) {
@@ -146,8 +146,8 @@ impl View for Slider {
             EventType::MouseDown | EventType::MouseMove => {
                 let pos = event.mouse.pos;
                 let pressed = event.mouse.buttons & MB_LEFT_BUTTON != 0;
-                if pressed && self.core.bounds.contains(pos) {
-                    self.set_value(self.col_to_value(pos.x - self.core.bounds.a.x, width));
+                if pressed && self.extent().contains(pos) {
+                    self.set_value(self.col_to_value(pos.x, width));
                     self.changed(event);
                 }
             }

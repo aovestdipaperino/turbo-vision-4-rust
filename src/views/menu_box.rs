@@ -106,14 +106,18 @@ impl MenuBox {
     /// Returns the selected command, or 0 if cancelled
     pub fn execute(&mut self, terminal: &mut Terminal) -> CommandId {
         loop {
-            // Create fresh token per frame for QCell safety
-            // Draw the menu
+            // Nothing owns this popup, so it pushes its own origin and
+            // translates the raw screen events itself.
+            terminal.push_origin(self.core.bounds.a);
             self.draw(terminal);
+            terminal.pop_origin();
             let _ = terminal.flush();
 
             // Get event
             if let Ok(Some(mut event)) = terminal.poll_event(std::time::Duration::from_millis(50)) {
-                // Handle the event
+                let origin = self.core.bounds.a;
+                event.mouse.pos.x -= origin.x;
+                event.mouse.pos.y -= origin.y;
                 self.handle_event(&mut event);
 
                 // Check for selection or cancellation
@@ -168,7 +172,7 @@ impl View for MenuBox {
             buf.put_char(i, '─', normal_attr);
         }
         buf.put_char(width - 1, '┐', normal_attr);
-        write_line_to_terminal(terminal, self.core.bounds.a.x, self.core.bounds.a.y, &buf);
+        write_line_to_terminal(terminal, 0, 0, &buf);
 
         // Draw menu items
         let mut y = 1;
@@ -307,8 +311,8 @@ impl View for MenuBox {
 
             write_line_to_terminal(
                 terminal,
-                self.core.bounds.a.x,
-                self.core.bounds.a.y + y as i16,
+                0,
+                y as i16,
                 &buf,
             );
             y += 1;
@@ -323,8 +327,8 @@ impl View for MenuBox {
         buf.put_char(width - 1, '┘', normal_attr);
         write_line_to_terminal(
             terminal,
-            self.core.bounds.a.x,
-            self.core.bounds.a.y + y as i16,
+            0,
+            y as i16,
             &buf,
         );
 
@@ -375,7 +379,7 @@ impl View for MenuBox {
 
                 if event.mouse.buttons & MB_LEFT_BUTTON != 0 {
                     // Check if clicked outside menu - cancel
-                    if !self.core.bounds.contains(mouse_pos) {
+                    if !self.extent().contains(mouse_pos) {
                         *event = Event::command(0); // Cancel
                         return;
                     }
@@ -402,7 +406,7 @@ impl View for MenuBox {
 
                 if event.mouse.buttons & MB_LEFT_BUTTON != 0 {
                     // Check if clicked outside menu - cancel
-                    if !self.core.bounds.contains(mouse_pos) {
+                    if !self.extent().contains(mouse_pos) {
                         *event = Event::command(0); // Cancel
                         return;
                     }
@@ -460,10 +464,10 @@ impl MenuViewer for MenuBox {
         // Items start at y=1 (after top border)
         // Each item is 1 row tall
         Rect::new(
-            self.core.bounds.a.x,
-            self.core.bounds.a.y + 1 + item_index as i16,
-            self.core.bounds.b.x,
-            self.core.bounds.a.y + 2 + item_index as i16,
+            0,
+            1 + item_index as i16,
+            self.extent().b.x,
+            2 + item_index as i16,
         )
     }
 }
@@ -510,11 +514,12 @@ mod tests {
 
         let menubox = MenuBox::new(Point::new(10, 5), menu);
 
+        // Item rectangles are in the box's own space, wherever it sits
         let rect0 = menubox.get_item_rect(0);
-        assert_eq!(rect0.a.y, 6); // Position 5 + 1 (border)
+        assert_eq!(rect0.a.y, 1); // border
 
         let rect1 = menubox.get_item_rect(1);
-        assert_eq!(rect1.a.y, 7); // Position 5 + 2 (border + item)
+        assert_eq!(rect1.a.y, 2); // border + item
     }
 
     #[test]

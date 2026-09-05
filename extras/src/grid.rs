@@ -250,7 +250,7 @@ impl View for GridView {
                 .collect();
             buf.move_str(start, &text, header_attr);
         }
-        write_line_to_terminal(terminal, self.core.bounds.a.x, self.core.bounds.a.y, &buf);
+        write_line_to_terminal(terminal, 0, 0, &buf);
 
         // Rows
         let rows = self.provider.rows();
@@ -283,8 +283,8 @@ impl View for GridView {
             }
             write_line_to_terminal(
                 terminal,
-                self.core.bounds.a.x,
-                self.core.bounds.a.y + 1 + screen_row as i16,
+                0,
+                1 + screen_row as i16,
                 &buf,
             );
         }
@@ -326,16 +326,16 @@ impl View for GridView {
             }
             EventType::MouseDown => {
                 let pos = event.mouse.pos;
-                if event.mouse.buttons & MB_LEFT_BUTTON == 0 || !self.core.bounds.contains(pos) {
+                if event.mouse.buttons & MB_LEFT_BUTTON == 0 || !self.extent().contains(pos) {
                     return;
                 }
-                let rel_y = (pos.y - self.core.bounds.a.y) as usize;
+                let rel_y = (pos.y) as usize;
                 if rel_y >= 1 {
                     let row = self.top_row + rel_y - 1;
                     if row < self.provider.rows() {
                         let was_focused = row == self.focused_row;
                         self.focused_row = row;
-                        if let Some(col) = self.col_at((pos.x - self.core.bounds.a.x) as usize) {
+                        if let Some(col) = self.col_at((pos.x) as usize) {
                             self.focused_col = col;
                         }
                         self.clamp_and_scroll();

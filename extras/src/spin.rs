@@ -123,7 +123,7 @@ impl View for SpinControl {
         buf.put_char(self.up_col() as usize, '▲', arrow_attr);
         buf.put_char(self.down_col() as usize, '▼', arrow_attr);
 
-        write_line_to_terminal(terminal, self.core.bounds.a.x, self.core.bounds.a.y, &buf);
+        write_line_to_terminal(terminal, 0, 0, &buf);
     }
 
     fn handle_event(&mut self, event: &mut Event) {
@@ -140,8 +140,8 @@ impl View for SpinControl {
             }
             EventType::MouseDown => {
                 let pos = event.mouse.pos;
-                if event.mouse.buttons & MB_LEFT_BUTTON != 0 && self.core.bounds.contains(pos) {
-                    let col = pos.x - self.core.bounds.a.x;
+                if event.mouse.buttons & MB_LEFT_BUTTON != 0 && self.extent().contains(pos) {
+                    let col = pos.x;
                     if col == self.up_col() {
                         self.step(1);
                     } else if col == self.down_col() {

@@ -189,8 +189,8 @@ impl ScrollBar {
         reason = "Borland TV API - reserved for advanced scrollbar interaction"
     )]
     fn get_part_at(&self, p: Point) -> i16 {
-        let rel_x = p.x - self.core.bounds.a.x;
-        let rel_y = p.y - self.core.bounds.a.y;
+        let rel_x = p.x;
+        let rel_y = p.y;
 
         if self.is_vertical {
             if rel_y == 0 {
@@ -293,7 +293,7 @@ impl ScrollBar {
         if self.is_vertical {
             // Update thumb position based on mouse Y
             let mouse_y = event.mouse.pos.y;
-            let rel_y = (mouse_y - self.core.bounds.a.y - 1) as i32; // Relative to track start
+            let rel_y = (mouse_y - 1) as i32; // Relative to track start
             let range = self.max_val - self.min_val + 1;
             let s = self.get_size();
             log::debug!(
@@ -312,7 +312,7 @@ impl ScrollBar {
         } else {
             // Horizontal scrollbar
             let mouse_x = event.mouse.pos.x;
-            let rel_x = (mouse_x - self.core.bounds.a.x - 1) as i32; // Relative to track start
+            let rel_x = (mouse_x - 1) as i32; // Relative to track start
             let range = self.max_val - self.min_val + 1;
             let s = self.get_size();
             log::debug!(
@@ -374,12 +374,12 @@ impl ScrollBar {
         let mouse_pos = event.mouse.pos;
 
         if self.is_vertical {
-            if mouse_pos.x >= self.core.bounds.a.x
-                && mouse_pos.x < self.core.bounds.b.x
-                && mouse_pos.y >= self.core.bounds.a.y
-                && mouse_pos.y < self.core.bounds.b.y
+            if mouse_pos.x >= 0
+                && mouse_pos.x < self.extent().b.x
+                && mouse_pos.y >= 0
+                && mouse_pos.y < self.extent().b.y
             {
-                let rel_y = mouse_pos.y - self.core.bounds.a.y;
+                let rel_y = mouse_pos.y;
                 let height = self.core.bounds.height();
 
                 if rel_y == 0 {
@@ -411,12 +411,12 @@ impl ScrollBar {
                 }
             }
         } else {
-            if mouse_pos.y >= self.core.bounds.a.y
-                && mouse_pos.y < self.core.bounds.b.y
-                && mouse_pos.x >= self.core.bounds.a.x
-                && mouse_pos.x < self.core.bounds.b.x
+            if mouse_pos.y >= 0
+                && mouse_pos.y < self.extent().b.y
+                && mouse_pos.x >= 0
+                && mouse_pos.x < self.extent().b.x
             {
-                let rel_x = mouse_pos.x - self.core.bounds.a.x;
+                let rel_x = mouse_pos.x;
                 let width = self.core.bounds.width();
 
                 if rel_x == 0 {
@@ -494,8 +494,8 @@ impl View for ScrollBar {
                 buf.put_char(0, ch, attr);
                 write_line_to_terminal(
                     terminal,
-                    self.core.bounds.a.x,
-                    self.core.bounds.a.y + y,
+                    0,
+                    y,
                     &buf,
                 );
             }
@@ -522,7 +522,7 @@ impl View for ScrollBar {
                 buf.put_char(x as usize, ch, attr);
             }
 
-            write_line_to_terminal(terminal, self.core.bounds.a.x, self.core.bounds.a.y, &buf);
+            write_line_to_terminal(terminal, 0, 0, &buf);
         }
     }
 

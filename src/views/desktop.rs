@@ -18,13 +18,13 @@ pub struct Desktop {
 
 impl Desktop {
     pub fn new(bounds: Rect) -> Self {
-        let mut children = Group::new(bounds);
-
-        // Add background as first child (matches Borland's TDeskTop::TDeskTop)
-        // Background fills the entire desktop area
-        // NOTE: Must use relative coordinates (0, 0) because Group.add() converts to absolute
+        // The child group fills the desktop's own space, so its children are
+        // desktop-relative and it draws without a further origin push.
         let width = bounds.width();
         let height = bounds.height();
+        let mut children = Group::new(Rect::new(0, 0, width, height));
+
+        // Add background as first child (matches Borland's TDeskTop::TDeskTop)
         let background_bounds = Rect::new(0, 0, width, height);
         let background = Box::new(Background::new(
             background_bounds,
@@ -56,8 +56,8 @@ impl Desktop {
     pub fn add<V: View + 'static>(&mut self, view: V) -> ViewId {
         let mut view: Box<dyn View> = Box::new(view);
 
-        // Set parent bounds for safe drag limit resolution
-        view.set_owner_extent(self.bounds());
+        // Drag and resize limits are the desktop's own extent
+        view.set_owner_extent(self.extent());
 
         // Apply automatic centering if Options::CENTERED flags are set
         // Matches Borland: TView with ofCentered is centered when inserted
@@ -71,10 +71,7 @@ impl Desktop {
 
         let view_id = self.children.add_boxed(view);
 
-        // Constrain window to Desktop bounds AFTER Group::add() has converted
-        // relative bounds to absolute. Constraining before the conversion would
-        // apply absolute limits to relative coordinates, causing a double offset.
-        // (See GitHub issue #95)
+        // Keep the window (and its shadow) inside the desktop
         let num_children = self.children.len();
         if num_children > 0 {
             let last_idx = num_children - 1;
@@ -232,7 +229,7 @@ impl Desktop {
 
         // Draw background in the affected rect first
         terminal.push_clip(rect);
-        self.children.child_at_mut(0).draw(terminal);
+        super::view::draw_child(terminal, self.children.child_at_mut(0));
         terminal.pop_clip();
 
         // Then draw all windows from start_index onwards in the affected rect
@@ -304,7 +301,7 @@ impl Desktop {
     /// Cascade windows in a staircase pattern (using full desktop bounds)
     /// Matches Borland: TDesktop::cascade(const TRect &r)
     pub fn cascade(&mut self) {
-        self.cascade_with_rect(self.core.bounds);
+        self.cascade_with_rect(self.extent());
     }
 
     /// Cascade windows in a staircase pattern within specified rect
@@ -351,7 +348,7 @@ impl Desktop {
     /// Tile windows in a grid pattern (using full desktop bounds)
     /// Matches Borland: TDesktop::tile(const TRect &r)
     pub fn tile(&mut self) {
-        self.tile_with_rect(self.core.bounds);
+        self.tile_with_rect(self.extent());
     }
 
     /// Tile windows in a grid pattern within specified rect
@@ -513,11 +510,11 @@ impl Desktop {
         // Call zoom on the topmost view (typically a Window)
         // This matches Borland: owner handles cmZoom, calls window->zoom()
         // window->zoom() uses sizeLimits() which returns owner->size as max
-        // We pass desktop bounds (equivalent to owner->size in Borland)
-        let desktop_bounds = self.core.bounds;
+        // We pass the desktop extent (owner->size in Borland)
+        let desktop_extent = self.extent();
         self.children
             .child_at_mut(top_window_idx)
-            .zoom(desktop_bounds);
+            .zoom(desktop_extent);
     }
 
     /// Bring a specific window to the front of the Z-order by its ViewId.
@@ -590,7 +587,7 @@ impl View for Desktop {
 
     fn set_bounds(&mut self, bounds: Rect) {
         self.core.bounds = bounds;
-        self.children.set_bounds(bounds);
+        self.children.set_bounds(self.extent());
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {
@@ -731,7 +728,7 @@ impl View for Desktop {
         // Matches Borland: modal views block events to views behind them
         if has_modal {
             let modal_idx = self.children.len() - 1;
-            self.children.child_at_mut(modal_idx).handle_event(event);
+            super::view::dispatch_to_child(self.children.child_at_mut(modal_idx), event);
         } else {
             self.children.handle_event(event);
         }
@@ -808,7 +805,7 @@ mod tests {
         desktop.set_bounds(Rect::new(0, 1, 80, 24));
         assert_eq!(
             desktop.children.child_at(0).bounds(),
-            Rect::new(0, 1, 80, 24),
+            Rect::new(0, 0, 80, 23),
             "background did not track the resized desktop"
         );
 
@@ -817,7 +814,7 @@ mod tests {
         desktop.set_bounds(Rect::new(0, 1, 60, 20));
         assert_eq!(
             desktop.children.child_at(0).bounds(),
-            Rect::new(0, 1, 60, 20)
+            Rect::new(0, 0, 60, 19)
         );
     }
 

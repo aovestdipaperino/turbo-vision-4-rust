@@ -336,8 +336,8 @@ impl<T: 'static> View for OutlineViewer<T> {
 
             write_line_to_terminal(
                 terminal,
-                self.core.bounds.a.x,
-                self.core.bounds.a.y + i as i16,
+                0,
+                i as i16,
                 &buf,
             );
         }

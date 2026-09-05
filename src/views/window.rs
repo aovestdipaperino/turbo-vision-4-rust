@@ -134,10 +134,11 @@ impl Window {
         window_palette: WindowPaletteType,
         resizable: bool,
     ) -> Self {
-        let frame = Frame::with_palette(bounds, title, frame_palette, resizable);
-
-        // Interior bounds are ABSOLUTE (inset by 1 from window bounds for frame)
-        let mut interior_bounds = bounds;
+        // Frame and interior live in the window's own space: the frame fills
+        // the extent, the interior is inset by one for the frame.
+        let extent = Rect::new(0, 0, bounds.width(), bounds.height());
+        let frame = Frame::with_palette(extent, title, frame_palette, resizable);
+        let mut interior_bounds = extent;
         interior_bounds.grow(-1, -1);
         // Don't use background - the Frame fills the interior space (matching Borland)
         let interior = Group::new(interior_bounds);
@@ -198,18 +199,9 @@ impl Window {
     /// Add a child positioned relative to the window frame (not interior)
     /// Used for scrollbars and other frame-edge elements
     /// Matches Borland: TWindow is a TGroup, all children use window-relative coords
-    pub fn add_frame_child(&mut self, mut view: Box<dyn View>) -> usize {
-        // Convert from relative to absolute coordinates (relative to window frame)
-        // Palette chain is set up during draw
-        let child_bounds = view.bounds();
-        let absolute_bounds = Rect::new(
-            self.core.bounds.a.x + child_bounds.a.x,
-            self.core.bounds.a.y + child_bounds.a.y,
-            self.core.bounds.a.x + child_bounds.b.x,
-            self.core.bounds.a.y + child_bounds.b.y,
-        );
-        view.set_bounds(absolute_bounds);
-
+    pub fn add_frame_child(&mut self, view: Box<dyn View>) -> usize {
+        // Bounds are window-relative and stay so; the palette chain is set up
+        // during draw.
         self.frame_children.push(view);
         self.frame_children.len() - 1
     }
@@ -336,16 +328,19 @@ impl Window {
         // dmLimitHiY: keep bottom edge (including shadow) within bounds
         new_y = new_y.min(limits.b.y - height - shadow_y);
 
-        // Update bounds if position changed
+        // A move leaves the frame and interior alone: they are window-relative.
         if new_x != self.core.bounds.a.x || new_y != self.core.bounds.a.y {
             self.core.bounds = Rect::new(new_x, new_y, new_x + width, new_y + height);
-
-            // Update frame and interior bounds
-            self.frame.set_bounds(self.core.bounds);
-            let mut interior_bounds = self.core.bounds;
-            interior_bounds.grow(-1, -1);
-            self.interior.set_bounds(interior_bounds);
         }
+    }
+
+    /// Give the frame and the interior the window's current size.
+    fn layout_frame_and_interior(&mut self) {
+        let extent = Rect::new(0, 0, self.core.bounds.width(), self.core.bounds.height());
+        self.frame.set_bounds(extent);
+        let mut interior_bounds = extent;
+        interior_bounds.grow(-1, -1);
+        self.interior.set_bounds(interior_bounds);
     }
 
     /// Set the maximum size for zoom operations
@@ -429,12 +424,7 @@ pub trait WindowLike: GroupLike {
 
     fn window_set_bounds(&mut self, bounds: Rect) {
         self.core_mut().bounds = bounds;
-        self.window_mut().frame.set_bounds(bounds);
-
-        // Update interior bounds (absolute, inset by 1 for frame)
-        let mut interior_bounds = bounds;
-        interior_bounds.grow(-1, -1);
-        self.window_mut().interior.set_bounds(interior_bounds);
+        self.window_mut().layout_frame_and_interior();
 
         // NOTE: We do NOT automatically update frame_children here
         // Subclasses like EditWindow handle frame_children positioning manually
@@ -449,20 +439,27 @@ pub trait WindowLike: GroupLike {
             self.get_palette_chain().cloned(),
         );
 
+        // Frame, interior and frame children are window-relative: push each
+        // one's origin around its draw (the frame's is (0, 0)).
         self.window_mut()
             .frame
             .set_palette_chain(Some(my_chain_node.clone()));
         self.window_mut().frame.draw(terminal);
 
+        let interior_origin = self.window().interior.bounds().a;
         self.window_mut()
             .interior
             .set_palette_chain(Some(my_chain_node.clone()));
+        terminal.push_origin(interior_origin);
         self.window_mut().interior.draw(terminal);
+        terminal.pop_origin();
 
         // Draw frame children (scrollbars, etc.) after interior so they appear on top
         for child in &mut self.window_mut().frame_children {
             child.set_palette_chain(Some(my_chain_node.clone()));
+            terminal.push_origin(child.bounds().a);
             child.draw(terminal);
+            terminal.pop_origin();
         }
 
         // Draw shadow if enabled
@@ -472,8 +469,10 @@ pub trait WindowLike: GroupLike {
     }
 
     fn window_update_cursor(&self, terminal: &mut Terminal) {
-        // Propagate cursor update to interior group
+        // Propagate cursor update to interior group, in its space
+        terminal.push_origin(self.window().interior.bounds().a);
         self.window().interior.update_cursor(terminal);
+        terminal.pop_origin();
     }
 
     fn window_handle_event(&mut self, event: &mut Event) {
@@ -542,11 +541,9 @@ pub trait WindowLike: GroupLike {
         if frame_dragging && self.window_mut().drag_offset.is_none() {
             // Frame just started dragging - record offset
             if event.what == EventType::MouseDown || event.what == EventType::MouseMove {
-                let mouse_pos = event.mouse.pos;
-                self.window_mut().drag_offset = Some(Point::new(
-                    mouse_pos.x - self.bounds().a.x,
-                    mouse_pos.y - self.bounds().a.y,
-                ));
+                // Mouse positions are window-local, so the pointer's offset
+                // from the top-left corner is the position itself.
+                self.window_mut().drag_offset = Some(event.mouse.pos);
                 self.set_state_flag(State::DRAGGING, true);
                 event.clear(); // Mark event as handled
                 return;
@@ -557,11 +554,11 @@ pub trait WindowLike: GroupLike {
             // Frame just started resizing - record initial size
             if event.what == EventType::MouseDown || event.what == EventType::MouseMove {
                 let mouse_pos = event.mouse.pos;
-                // Calculate offset from bottom-right corner
+                // Offset from the bottom-right corner
                 // Borland: p = size - event.mouse.where (tview.cc:235)
                 self.window_mut().resize_start_size = Some(Point::new(
-                    self.bounds().b.x - mouse_pos.x,
-                    self.bounds().b.y - mouse_pos.y,
+                    self.bounds().width() - mouse_pos.x,
+                    self.bounds().height() - mouse_pos.y,
                 ));
                 self.set_state_flag(State::RESIZING, true);
                 event.clear(); // Mark event as handled
@@ -572,12 +569,12 @@ pub trait WindowLike: GroupLike {
         // Handle mouse move during drag
         if frame_dragging && self.window_mut().drag_offset.is_some() {
             if event.what == EventType::MouseMove {
-                let mouse_pos = event.mouse.pos;
+                // The pointer in the owner's space is local + our origin; the
+                // new origin keeps the pointer at the same offset in the window.
+                let (owner_x, owner_y) = self.make_global(event.mouse.pos.x, event.mouse.pos.y);
                 let offset = self.window_mut().drag_offset.unwrap();
-
-                // Calculate new position
-                let mut new_x = mouse_pos.x - offset.x;
-                let mut new_y = mouse_pos.y - offset.y;
+                let mut new_x = owner_x - offset.x;
+                let mut new_y = owner_y - offset.y;
 
                 // Get drag limits from owner (parent bounds)
                 // Matches Borland: TView::moveGrow() constrains position to limits
@@ -610,15 +607,8 @@ pub trait WindowLike: GroupLike {
                 // Save previous bounds for union rect calculation (Borland's locate pattern)
                 self.window_mut().prev_bounds = Some(self.bounds());
 
-                // Update bounds (maintaining size)
+                // A move does not touch the window-relative frame and interior
                 self.core_mut().bounds = Rect::new(new_x, new_y, new_x + width, new_y + height);
-
-                // Update frame and interior bounds
-                let bounds = self.bounds();
-                self.window_mut().frame.set_bounds(bounds);
-                let mut interior_bounds = self.bounds();
-                interior_bounds.grow(-1, -1);
-                self.window_mut().interior.set_bounds(interior_bounds);
 
                 event.clear(); // Mark event as handled
                 return;
@@ -631,10 +621,10 @@ pub trait WindowLike: GroupLike {
                 let mouse_pos = event.mouse.pos;
                 let offset = self.window_mut().resize_start_size.unwrap();
 
-                // Calculate new size (Borland: event.mouse.where += p, then use as size)
-                // Ensure positive before casting to u16 to avoid wraparound
-                let new_width = (mouse_pos.x + offset.x - self.bounds().a.x).max(0) as u16;
-                let new_height = (mouse_pos.y + offset.y - self.bounds().a.y).max(0) as u16;
+                // New size (Borland: event.mouse.where += p, then use as size);
+                // the position is window-local so it is already a size.
+                let new_width = (mouse_pos.x + offset.x).max(0) as u16;
+                let new_height = (mouse_pos.y + offset.y).max(0) as u16;
 
                 // Apply size constraints (Borland: sizeLimits)
                 let (min, max) = self.window_mut().size_limits();
@@ -653,15 +643,10 @@ pub trait WindowLike: GroupLike {
                 self.window_mut().prev_bounds = Some(self.bounds());
 
                 // Update bounds (maintaining position, changing size)
-                self.bounds().b.x = self.bounds().a.x + final_width as i16;
-                self.bounds().b.y = self.bounds().a.y + final_height as i16;
-
-                // Update frame and interior bounds
-                let bounds = self.bounds();
-                self.window_mut().frame.set_bounds(bounds);
-                let mut interior_bounds = self.bounds();
-                interior_bounds.grow(-1, -1);
-                self.window_mut().interior.set_bounds(interior_bounds);
+                let a = self.bounds().a;
+                self.core_mut().bounds =
+                    Rect::new(a.x, a.y, a.x + final_width as i16, a.y + final_height as i16);
+                self.window_mut().layout_frame_and_interior();
 
                 event.clear(); // Mark event as handled
                 return;
@@ -721,8 +706,14 @@ pub trait WindowLike: GroupLike {
             return; // Don't pass CM_CLOSE to interior
         }
 
-        // Then let the interior handle it (if not already handled)
+        // Then let the interior handle it (if not already handled), in its
+        // own space; the position comes back in ours whatever it became.
+        let origin = self.window().interior.bounds().a;
+        event.mouse.pos.x -= origin.x;
+        event.mouse.pos.y -= origin.y;
         self.window_mut().interior.handle_event(event);
+        event.mouse.pos.x += origin.x;
+        event.mouse.pos.y += origin.y;
     }
 
     fn window_set_focus(&mut self, focused: bool) {
@@ -768,14 +759,11 @@ pub trait WindowLike: GroupLike {
 
         // Update frame and interior
         let bounds = self.bounds();
-        self.window_mut().frame.set_bounds(bounds);
+        self.window_mut().layout_frame_and_interior();
         // The frame draws a different zoom glyph once the window is zoomed:
         // an up arrow while it can still grow, both ways once it can only be
         // restored.
         self.window_mut().frame.set_zoomed(bounds == max_bounds);
-        let mut interior_bounds = self.bounds();
-        interior_bounds.grow(-1, -1);
-        self.window_mut().interior.set_bounds(interior_bounds);
     }
 
     /// Validate window before closing with given command

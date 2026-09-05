@@ -114,11 +114,11 @@ impl Scroller {
     /// Draw the scroller (draws scrollbars, subclasses override to draw content)
     pub fn draw_scrollbars(&mut self, terminal: &mut Terminal) {
         if let Some(ref mut h_bar) = self.h_scrollbar {
-            h_bar.draw(terminal);
+            crate::views::view::draw_child(terminal, &mut **h_bar);
         }
 
         if let Some(ref mut v_bar) = self.v_scrollbar {
-            v_bar.draw(terminal);
+            crate::views::view::draw_child(terminal, &mut **v_bar);
         }
     }
 
@@ -128,12 +128,12 @@ impl Scroller {
 
         // Let scrollbars handle the event
         if let Some(ref mut h_bar) = self.h_scrollbar {
-            h_bar.handle_event(event);
+            crate::views::view::dispatch_to_child(&mut **h_bar, event);
             self.delta.x = h_bar.get_value() as i16;
         }
 
         if let Some(ref mut v_bar) = self.v_scrollbar {
-            v_bar.handle_event(event);
+            crate::views::view::dispatch_to_child(&mut **v_bar, event);
             self.delta.y = v_bar.get_value() as i16;
         }
 
@@ -155,6 +155,8 @@ impl View for Scroller {
 
     fn set_bounds(&mut self, bounds: Rect) {
         self.core.bounds = bounds;
+        // Children are laid out in this view's own space
+        let bounds = self.extent();
 
         // Update scrollbar positions (they are typically at edges)
         if let Some(ref mut h_bar) = self.h_scrollbar {

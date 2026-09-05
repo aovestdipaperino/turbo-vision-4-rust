@@ -84,7 +84,7 @@ impl View for Indicator {
             buf.move_str(start_pos, &text, color);
         }
 
-        write_line_to_terminal(terminal, self.core.bounds.a.x, self.core.bounds.a.y, &buf);
+        write_line_to_terminal(terminal, 0, 0, &buf);
     }
 
     fn handle_event(&mut self, _event: &mut Event) {

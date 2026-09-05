@@ -158,13 +158,13 @@ impl View for History {
 
         buf.move_str(0, arrow, color);
 
-        write_line_to_terminal(terminal, self.core.bounds.a.x, self.core.bounds.a.y, &buf);
+        write_line_to_terminal(terminal, 0, 0, &buf);
     }
 
     fn handle_event(&mut self, event: &mut Event) {
         match event.what {
             EventType::MouseDown => {
-                if self.core.bounds.contains(event.mouse.pos)
+                if self.extent().contains(event.mouse.pos)
                     && event.mouse.buttons & MB_LEFT_BUTTON != 0
                 {
                     if self.has_items() {
@@ -313,9 +313,10 @@ mod tests {
         HistoryManager::add(4, "entry".to_string());
 
         let mut button = History::new(Point::new(20, 5), 4, Handle::from_id(ViewId::new()));
+        // Mouse positions arrive in the button's own space
         let mut event = Event::mouse(
             EventType::MouseDown,
-            Point::new(20, 5),
+            Point::new(0, 0),
             MB_LEFT_BUTTON,
             false,
         );
@@ -325,7 +326,8 @@ mod tests {
         assert_eq!(event.command, CM_SHOW_HISTORY);
         assert_eq!(event.info, 4);
         // Mouse position preserved so the popup can be placed near the button
-        assert_eq!(event.mouse.pos, Point::new(20, 5));
+        // (each owner adds its origin back on the way up)
+        assert_eq!(event.mouse.pos, Point::new(0, 0));
     }
 
     #[test]
@@ -336,7 +338,7 @@ mod tests {
         let mut button = History::new(Point::new(20, 5), 5, Handle::from_id(ViewId::new()));
         let mut event = Event::mouse(
             EventType::MouseDown,
-            Point::new(21, 5),
+            Point::new(1, 0),
             MB_LEFT_BUTTON,
             false,
         );

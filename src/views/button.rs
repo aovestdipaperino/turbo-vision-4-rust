@@ -118,10 +118,10 @@ impl Button {
     ///
     /// Excludes the shadow row/column at the bottom/right of the bounds.
     fn mouse_in_button(&self, pos: crate::core::geometry::Point) -> bool {
-        pos.x >= self.core.bounds.a.x
-            && pos.x < self.core.bounds.b.x
-            && pos.y >= self.core.bounds.a.y
-            && pos.y < self.core.bounds.b.y - 1
+        pos.x >= 0
+            && pos.x < self.extent().b.x
+            && pos.y >= 0
+            && pos.y < self.extent().b.y - 1
     }
 }
 
@@ -209,8 +209,8 @@ impl View for Button {
 
             write_line_to_terminal(
                 terminal,
-                self.core.bounds.a.x,
-                self.core.bounds.a.y + y as i16,
+                0,
+                y as i16,
                 &buf,
             );
         }
@@ -221,8 +221,8 @@ impl View for Button {
         bottom_buf.move_char(0, SHADOW_BOTTOM, shadow_attr, width - 1);
         write_line_to_terminal(
             terminal,
-            self.core.bounds.a.x + 1,
-            self.core.bounds.a.y + (height - 1) as i16,
+            1,
+            (height - 1) as i16,
             &bottom_buf,
         );
     }

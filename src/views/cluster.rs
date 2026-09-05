@@ -171,7 +171,7 @@ pub trait Cluster: View {
                 // The owning Group has already focused us on the click.
                 use crate::core::event::MB_LEFT_BUTTON;
                 let pos = event.mouse.pos;
-                if event.mouse.buttons & MB_LEFT_BUTTON != 0 && self.bounds().contains(pos) {
+                if event.mouse.buttons & MB_LEFT_BUTTON != 0 && self.extent().contains(pos) {
                     self.on_space_pressed();
                     self.after_press(event);
                     return true;
@@ -205,8 +205,7 @@ pub trait Cluster: View {
         use crate::core::draw::DrawBuffer;
         use crate::views::view::write_line_to_terminal;
 
-        let bounds = self.bounds();
-        let width = bounds.width_clamped() as usize;
+        let width = self.bounds().width_clamped() as usize;
         let mut buffer = DrawBuffer::new(width);
 
         let (color, hotkey_color) = self.get_colors();
@@ -219,7 +218,7 @@ pub trait Cluster: View {
         let label = self.get_label();
         buffer.move_str_with_shortcut(marker.len(), label, color, hotkey_color);
 
-        write_line_to_terminal(terminal, bounds.a.x, bounds.a.y, &buffer);
+        write_line_to_terminal(terminal, 0, 0, &buffer);
     }
 }
 

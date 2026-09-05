@@ -223,16 +223,16 @@ impl SplitPane {
     pub fn first_area(&self) -> Rect {
         match self.orientation {
             Orientation::Vertical => Rect::new(
-                self.core.bounds.a.x,
-                self.core.bounds.a.y,
-                self.core.bounds.a.x + self.position,
-                self.core.bounds.b.y,
+                0,
+                0,
+                self.position,
+                self.extent().b.y,
             ),
             Orientation::Horizontal => Rect::new(
-                self.core.bounds.a.x,
-                self.core.bounds.a.y,
-                self.core.bounds.b.x,
-                self.core.bounds.a.y + self.position,
+                0,
+                0,
+                self.extent().b.x,
+                self.position,
             ),
         }
     }
@@ -241,16 +241,16 @@ impl SplitPane {
     pub fn second_area(&self) -> Rect {
         match self.orientation {
             Orientation::Vertical => Rect::new(
-                self.core.bounds.a.x + self.position + DIVIDER_SIZE,
-                self.core.bounds.a.y,
-                self.core.bounds.b.x,
-                self.core.bounds.b.y,
+                self.position + DIVIDER_SIZE,
+                0,
+                self.extent().b.x,
+                self.extent().b.y,
             ),
             Orientation::Horizontal => Rect::new(
-                self.core.bounds.a.x,
-                self.core.bounds.a.y + self.position + DIVIDER_SIZE,
-                self.core.bounds.b.x,
-                self.core.bounds.b.y,
+                0,
+                self.position + DIVIDER_SIZE,
+                self.extent().b.x,
+                self.extent().b.y,
             ),
         }
     }
@@ -259,16 +259,16 @@ impl SplitPane {
     pub fn divider_area(&self) -> Rect {
         match self.orientation {
             Orientation::Vertical => Rect::new(
-                self.core.bounds.a.x + self.position,
-                self.core.bounds.a.y,
-                self.core.bounds.a.x + self.position + DIVIDER_SIZE,
-                self.core.bounds.b.y,
+                self.position,
+                0,
+                self.position + DIVIDER_SIZE,
+                self.extent().b.y,
             ),
             Orientation::Horizontal => Rect::new(
-                self.core.bounds.a.x,
-                self.core.bounds.a.y + self.position,
-                self.core.bounds.b.x,
-                self.core.bounds.a.y + self.position + DIVIDER_SIZE,
+                0,
+                self.position,
+                self.extent().b.x,
+                self.position + DIVIDER_SIZE,
             ),
         }
     }
@@ -284,8 +284,8 @@ impl SplitPane {
     /// Divider position implied by a mouse at `pos`.
     fn position_for(&self, pos: Point) -> i16 {
         match self.orientation {
-            Orientation::Vertical => pos.x - self.core.bounds.a.x,
-            Orientation::Horizontal => pos.y - self.core.bounds.a.y,
+            Orientation::Vertical => pos.x,
+            Orientation::Horizontal => pos.y,
         }
     }
 
@@ -345,9 +345,9 @@ impl View for SplitPane {
             self.core.palette_chain.clone(),
         );
         self.first.set_palette_chain(Some(chain.clone()));
-        self.first.draw(terminal);
+        super::view::draw_child(terminal, &mut self.first);
         self.second.set_palette_chain(Some(chain));
-        self.second.draw(terminal);
+        super::view::draw_child(terminal, &mut self.second);
 
         // The divider is drawn last so neither half can paint over it.
         let painter = DividerPainter {
@@ -421,9 +421,9 @@ impl View for SplitPane {
 
         // Everything else belongs to the focused half.
         if self.focus_second {
-            self.second.handle_event(event);
+            super::view::dispatch_to_child(&mut self.second, event);
         } else {
-            self.first.handle_event(event);
+            super::view::dispatch_to_child(&mut self.first, event);
         }
     }
 
@@ -645,10 +645,11 @@ mod tests {
     #[test]
     fn resizing_moves_both_halves() {
         let mut s = split();
+        // Halves are in the pane's own space, wherever the pane sits
         s.set_bounds(Rect::new(5, 5, 45, 15));
-        assert_eq!(s.first_area(), Rect::new(5, 5, 25, 15));
-        assert_eq!(s.first.bounds(), Rect::new(5, 5, 25, 15));
-        assert_eq!(s.second.bounds(), Rect::new(26, 5, 45, 15));
+        assert_eq!(s.first_area(), Rect::new(0, 0, 20, 10));
+        assert_eq!(s.first.bounds(), Rect::new(0, 0, 20, 10));
+        assert_eq!(s.second.bounds(), Rect::new(21, 0, 40, 10));
     }
 
     #[test]

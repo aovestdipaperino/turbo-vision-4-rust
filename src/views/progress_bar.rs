@@ -371,7 +371,7 @@ impl View for ProgressBar {
         let filled = self.map_color(1);
         let empty = self.map_color(2);
         let buf = self.render(width, filled, empty);
-        write_line_to_terminal(terminal, self.core.bounds.a.x, self.core.bounds.a.y, &buf);
+        write_line_to_terminal(terminal, 0, 0, &buf);
     }
 
     fn handle_event(&mut self, _event: &mut Event) {

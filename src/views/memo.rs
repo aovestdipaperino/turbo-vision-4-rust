@@ -70,19 +70,19 @@ impl Memo {
         if add_scrollbars {
             // Vertical scrollbar on right edge
             let v_bounds = Rect::new(
-                self.core.bounds.b.x - 1,
-                self.core.bounds.a.y,
-                self.core.bounds.b.x,
-                self.core.bounds.b.y - 1,
+                self.extent().b.x - 1,
+                0,
+                self.extent().b.x,
+                self.extent().b.y - 1,
             );
             self.v_scrollbar = Some(Box::new(ScrollBar::new_vertical(v_bounds)));
 
             // Horizontal scrollbar on bottom edge
             let h_bounds = Rect::new(
-                self.core.bounds.a.x,
-                self.core.bounds.b.y - 1,
-                self.core.bounds.b.x - 1,
-                self.core.bounds.b.y,
+                0,
+                self.extent().b.y - 1,
+                self.extent().b.x - 1,
+                self.extent().b.y,
             );
             self.h_scrollbar = Some(Box::new(ScrollBar::new_horizontal(h_bounds)));
         }
@@ -557,6 +557,8 @@ impl View for Memo {
 
     fn set_bounds(&mut self, bounds: Rect) {
         self.core.bounds = bounds;
+        // Children are laid out in this view's own space
+        let bounds = self.extent();
 
         // Update scrollbar positions
         if self.v_scrollbar.is_some() {
@@ -647,10 +649,10 @@ impl View for Memo {
 
         // Draw scrollbars
         if let Some(ref mut h_bar) = self.h_scrollbar {
-            h_bar.draw(terminal);
+            crate::views::view::draw_child(terminal, &mut **h_bar);
         }
         if let Some(ref mut v_bar) = self.v_scrollbar {
-            v_bar.draw(terminal);
+            crate::views::view::draw_child(terminal, &mut **v_bar);
         }
     }
 
@@ -816,8 +818,8 @@ impl View for Memo {
     fn update_cursor(&self, terminal: &mut Terminal) {
         if self.is_focused() {
             // Calculate cursor position on screen
-            let cursor_x = self.core.bounds.a.x + (self.cursor.x - self.delta.x) as i16;
-            let cursor_y = self.core.bounds.a.y + (self.cursor.y - self.delta.y) as i16;
+            let cursor_x = (self.cursor.x - self.delta.x) as i16;
+            let cursor_y = (self.cursor.y - self.delta.y) as i16;
 
             // Show cursor at the position
             let _ = terminal.show_cursor(cursor_x as i16, cursor_y as i16);

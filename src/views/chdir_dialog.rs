@@ -147,12 +147,19 @@ impl View for SharedDirListBox {
         // Handle scrollbar events first (mouse clicks on scrollbars)
         // Matches Borland: TScroller::handleEvent() processes scrollbar events
         if event.what == EventType::MouseDown || event.what == EventType::MouseMove {
+            // The scroll bars are siblings in the dialog, so hit-test them in
+            // the dialog's space and hand them the event in their own.
             let v_bounds = self.v_scrollbar.borrow().bounds();
             let h_bounds = self.h_scrollbar.borrow().bounds();
+            let local = event.mouse.pos;
+            let (ox, oy) = self.make_global(local.x, local.y);
+            let owner_pos = Point::new(ox, oy);
 
-            if v_bounds.contains(event.mouse.pos) {
+            if v_bounds.contains(owner_pos) {
                 // Let vertical scrollbar handle the event
+                event.mouse.pos = Point::new(ox - v_bounds.a.x, oy - v_bounds.a.y);
                 self.v_scrollbar.borrow_mut().handle_event(event);
+                event.mouse.pos = local;
 
                 // Get the new scroll value and update listbox
                 let new_top = self.v_scrollbar.borrow().get_value() as usize;
@@ -164,9 +171,11 @@ impl View for SharedDirListBox {
                 // Update scrollbars to reflect new position
                 self.update_scrollbars();
                 return;
-            } else if h_bounds.contains(event.mouse.pos) {
+            } else if h_bounds.contains(owner_pos) {
                 // Let horizontal scrollbar handle the event
+                event.mouse.pos = Point::new(ox - h_bounds.a.x, oy - h_bounds.a.y);
                 self.h_scrollbar.borrow_mut().handle_event(event);
+                event.mouse.pos = local;
                 // Horizontal scrolling not used for directory names
                 return;
             }

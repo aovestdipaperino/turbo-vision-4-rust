@@ -305,8 +305,8 @@ impl View for KittyImage {
             buf.move_char(0, ' ', self.background_attr, width);
             write_line_to_terminal(
                 terminal,
-                self.core.bounds.a.x,
-                self.core.bounds.a.y + row as i16,
+                0,
+                row as i16,
                 &buf,
             );
         }
@@ -339,8 +339,8 @@ impl View for KittyImage {
 
             // Display the image at the view position
             let display_seq = self.build_display_sequence(
-                self.core.bounds.a.x as u16,
-                self.core.bounds.a.y as u16,
+                0 as u16,
+                0 as u16,
                 cols,
                 rows,
             );

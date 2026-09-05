@@ -79,9 +79,9 @@ impl Frame {
     /// True if the given position is over the close icon `[■]` on the top
     /// frame row (columns 2..=4 relative to the frame's left edge).
     fn is_on_close_icon(&self, pos: crate::core::geometry::Point) -> bool {
-        pos.y == self.core.bounds.a.y
-            && pos.x >= self.core.bounds.a.x + 2
-            && pos.x <= self.core.bounds.a.x + 4
+        pos.y == 0
+            && pos.x >= 2
+            && pos.x <= 4
     }
 
     /// Leftmost column of the zoom icon `[\u{25B2}]`, three cells wide, sitting
@@ -95,7 +95,7 @@ impl Frame {
         if !self.zoomable || width <= 10 {
             return None;
         }
-        Some(self.core.bounds.a.x + width - 5)
+        Some(width - 5)
     }
 
     /// True if the given position is over the zoom icon on the top frame row.
@@ -103,7 +103,7 @@ impl Frame {
         let Some(x) = self.zoom_icon_x() else {
             return false;
         };
-        pos.y == self.core.bounds.a.y && pos.x >= x && pos.x <= x + 2
+        pos.y == 0 && pos.x >= x && pos.x <= x + 2
     }
 
     /// Set whether the frame is resizable (matches Borland's wfGrow flag).
@@ -222,7 +222,7 @@ impl View for Frame {
         // window can still grow, and down once it is zoomed and the click will
         // restore it. Matches Borland: zoomIcon at width - 5.
         if let Some(x) = self.zoom_icon_x() {
-            let at = (x - self.core.bounds.a.x) as usize;
+            let at = (x) as usize;
             let glyph = if self.zoomed { '\u{25BC}' } else { '\u{25B2}' };
             buf.put_char(at, '[', frame_attr);
             buf.put_char(at + 1, glyph, close_icon_attr);
@@ -251,7 +251,7 @@ impl View for Frame {
                 }
             }
         }
-        write_line_to_terminal(terminal, self.core.bounds.a.x, self.core.bounds.a.y, &buf);
+        write_line_to_terminal(terminal, 0, 0, &buf);
 
         // Middle rows - using double vertical lines
         let mut side_buf = DrawBuffer::new(width);
@@ -266,8 +266,8 @@ impl View for Frame {
         for y in 1..height - 1 {
             write_line_to_terminal(
                 terminal,
-                self.core.bounds.a.x,
-                self.core.bounds.a.y + y as i16,
+                0,
+                y as i16,
                 &side_buf,
             );
         }
@@ -301,8 +301,8 @@ impl View for Frame {
 
         write_line_to_terminal(
             terminal,
-            self.core.bounds.a.x,
-            self.core.bounds.a.y + height as i16 - 1,
+            0,
+            height as i16 - 1,
             &bottom_buf,
         );
     }
@@ -317,7 +317,7 @@ impl View for Frame {
         if event.what == EventType::MouseDown
             && (event.mouse.buttons & MB_LEFT_BUTTON) != 0
             && event.mouse.double_click
-            && event.mouse.pos.y == self.core.bounds.a.y
+            && event.mouse.pos.y == 0
             && !self.is_on_close_icon(event.mouse.pos)
             && !self.is_on_zoom_icon(event.mouse.pos)
         {
@@ -337,8 +337,8 @@ impl View for Frame {
             // Borland: mouse.x >= size.x - 2 && mouse.y >= size.y - 1
             // Only allow resize on resizable frames (matches Borland's wfGrow flag check)
             if self.resizable
-                && mouse_pos.x >= self.core.bounds.b.x - 2
-                && mouse_pos.y >= self.core.bounds.b.y - 1
+                && mouse_pos.x >= self.extent().b.x - 2
+                && mouse_pos.y >= self.extent().b.y - 1
             {
                 // Resize corner - set resizing state
                 self.core.state |= State::RESIZING;
@@ -347,10 +347,10 @@ impl View for Frame {
             }
 
             // Check if click is on the top frame line (title bar)
-            if mouse_pos.y == self.core.bounds.a.y {
+            if mouse_pos.y == 0 {
                 // Check if click is on the close button [■] at position (2,3,4)
-                if mouse_pos.x >= self.core.bounds.a.x + 2
-                    && mouse_pos.x <= self.core.bounds.a.x + 4
+                if mouse_pos.x >= 2
+                    && mouse_pos.x <= 4
                 {
                     // Close button area - arm press tracking, don't start
                     // drag, and consume the press so it doesn't leak to other

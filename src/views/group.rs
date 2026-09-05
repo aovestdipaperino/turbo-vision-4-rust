@@ -68,18 +68,9 @@ impl Group {
 
     /// Add an already boxed child. `GroupLike::add` takes any view and boxes
     /// it; this is the primitive underneath.
-    pub fn add_boxed(&mut self, mut view: Box<dyn View>) -> ViewId {
-        // Convert child's bounds from relative to absolute coordinates
-        // Child bounds are specified relative to this Group's interior
-        let child_bounds = view.bounds();
-        let absolute_bounds = Rect::new(
-            self.core.bounds.a.x + child_bounds.a.x,
-            self.core.bounds.a.y + child_bounds.a.y,
-            self.core.bounds.a.x + child_bounds.b.x,
-            self.core.bounds.a.y + child_bounds.b.y,
-        );
-        view.set_bounds(absolute_bounds);
-
+    pub fn add_boxed(&mut self, view: Box<dyn View>) -> ViewId {
+        // The child's bounds are relative to this group and stay that way
+        // (Borland: TView::origin is owner-relative).
         let view_id = ViewId::new();
         self.children.push(view);
         self.view_ids.push(view_id);
@@ -329,18 +320,18 @@ impl Group {
     /// Used for Borland's drawUnderRect pattern where we only redraw views
     /// that come after (on top of) a moved view
     /// Matches Borland: TGroup::drawSubViews(TView *p, TView *bottom)
+    /// Redraw the children from `start_index` on that intersect `clip`
+    /// (`clip` in this group's space).
     pub fn draw_sub_views(&mut self, terminal: &mut Terminal, start_index: usize, clip: Rect) {
-        // Set clip region to the affected area
         terminal.push_clip(clip);
-
-        // Draw all children from start_index onwards that intersect the clip region
         for i in start_index..self.children.len() {
             let child_bounds = self.children[i].bounds();
             if clip.intersects(&child_bounds) {
+                terminal.push_origin(child_bounds.a);
                 self.children[i].draw(terminal);
+                terminal.pop_origin();
             }
         }
-
         terminal.pop_clip();
     }
 
@@ -437,29 +428,23 @@ pub trait GroupLike: View {
     // ---- inherited implementations, callable as base calls ----
 
     fn group_set_bounds(&mut self, bounds: Rect) {
-        // Calculate the offset (how much the group moved)
-        let dx = bounds.a.x - self.bounds().a.x;
-        let dy = bounds.a.y - self.bounds().a.y;
-
-        // Calculate the size change (how much the group was resized)
+        // Children are owner-relative, so a move leaves them alone; only a
+        // size change reaches them, edge by edge, through their grow bits.
+        // Matches Borland: TGroup::changeBounds() -> TView::calcBounds().
         let dw = bounds.width() - self.bounds().width();
         let dh = bounds.height() - self.bounds().height();
-
-        // Update our bounds
         self.core_mut().bounds = bounds;
-
-        // Update all children's bounds. Every child shifts by the group's
-        // offset (children store absolute coordinates); each edge additionally
-        // follows the size delta only if the matching grow bit is set.
-        // Matches Borland: TView::calcBounds() driven by growMode.
+        if dw == 0 && dh == 0 {
+            return;
+        }
         for child in &mut self.group_mut().children {
             let grow = child.grow_mode();
             let child_bounds = child.bounds();
             let new_bounds = Rect::new(
-                child_bounds.a.x + dx + if grow.contains(Grow::LO_X) { dw } else { 0 },
-                child_bounds.a.y + dy + if grow.contains(Grow::LO_Y) { dh } else { 0 },
-                child_bounds.b.x + dx + if grow.contains(Grow::HI_X) { dw } else { 0 },
-                child_bounds.b.y + dy + if grow.contains(Grow::HI_Y) { dh } else { 0 },
+                child_bounds.a.x + if grow.contains(Grow::LO_X) { dw } else { 0 },
+                child_bounds.a.y + if grow.contains(Grow::LO_Y) { dh } else { 0 },
+                child_bounds.b.x + if grow.contains(Grow::HI_X) { dw } else { 0 },
+                child_bounds.b.y + if grow.contains(Grow::HI_Y) { dh } else { 0 },
             );
             child.set_bounds(new_bounds);
         }
@@ -474,18 +459,13 @@ pub trait GroupLike: View {
             for y in 0..height {
                 let mut buf = DrawBuffer::new(width);
                 buf.move_char(0, ' ', bg_attr, width);
-                write_line_to_terminal(
-                    terminal,
-                    self.bounds().a.x,
-                    self.bounds().a.y + y as i16,
-                    &buf,
-                );
+                write_line_to_terminal(terminal, 0, y as i16, &buf);
             }
         }
 
-        // Push clipping region for this group's bounds
-        // Expand by 1 on all sides to allow children (like scrollbars) to overlap with parent's frame
-        let mut clip_bounds = self.bounds();
+        // Clip to this group's extent, grown by one so children that sit on
+        // the owner's frame (scroll bars) and window shadows still show.
+        let mut clip_bounds = self.extent();
         clip_bounds.grow(1, 1);
         terminal.push_clip(clip_bounds);
 
@@ -496,14 +476,15 @@ pub trait GroupLike: View {
             self.get_palette_chain().cloned(),
         );
 
-        // Only draw children that intersect with this group's bounds
-        // The clipping region ensures children can't render outside parent boundaries
-        let my_bounds = self.bounds();
+        // Each child draws in its own space: push its origin around draw().
+        let extent = self.extent();
         for child in &mut self.group_mut().children {
             child.set_palette_chain(Some(my_chain_node.clone()));
             let child_bounds = child.bounds();
-            if my_bounds.intersects(&child_bounds) {
+            if extent.intersects(&child_bounds) {
+                terminal.push_origin(child_bounds.a);
                 child.draw(terminal);
+                terminal.pop_origin();
             }
         }
 
@@ -531,7 +512,8 @@ pub trait GroupLike: View {
                 let g = self.group_mut();
                 let child_state = g.children[g.focused].state();
                 if child_state.intersects(State::DRAGGING | State::RESIZING) {
-                    g.children[g.focused].handle_event(event);
+                    let focused = g.focused;
+                    self.dispatch_to_child(focused, event);
                     return;
                 }
             }
@@ -572,8 +554,8 @@ pub trait GroupLike: View {
                     }
                 }
 
-                // Second pass: handle the event
-                self.group_mut().children[i].handle_event(event);
+                // Second pass: handle the event, in the child's own space
+                self.dispatch_to_child(i, event);
 
                 // IMPORTANT: If the child converted the event to Broadcast (e.g., calculator buttons),
                 // we need to handle that broadcast now (matches Borland's putEvent behavior)
@@ -611,12 +593,12 @@ pub trait GroupLike: View {
         if event.what == EventType::Keyboard || event.what == EventType::Command {
             // Phase 1: PreProcess
             // Views with Options::PRE_PROCESS get first chance at the event
-            for child in &mut self.group_mut().children {
+            for i in 0..self.group().children.len() {
                 if event.what == EventType::Nothing {
                     break; // Event was handled
                 }
-                if child.options().contains(Options::PRE_PROCESS) {
-                    child.handle_event(event);
+                if self.group().children[i].options().contains(Options::PRE_PROCESS) {
+                    self.dispatch_to_child(i, event);
                 }
             }
 
@@ -625,21 +607,19 @@ pub trait GroupLike: View {
             if event.what != EventType::Nothing
                 && self.group().focused < self.group_mut().children.len()
             {
-                {
-                    let g = self.group_mut();
-                    g.children[g.focused].handle_event(event);
-                }
+                let focused = self.group().focused;
+                self.dispatch_to_child(focused, event);
             }
 
             // Phase 3: PostProcess
             // Views with Options::POST_PROCESS get last chance (e.g., status line, buttons)
             if event.what != EventType::Nothing {
-                for child in &mut self.group_mut().children {
+                for i in 0..self.group().children.len() {
                     if event.what == EventType::Nothing {
                         break; // Event was handled
                     }
-                    if child.options().contains(Options::POST_PROCESS) {
-                        child.handle_event(event);
+                    if self.group().children[i].options().contains(Options::POST_PROCESS) {
+                        self.dispatch_to_child(i, event);
                     }
                 }
 
@@ -681,19 +661,31 @@ pub trait GroupLike: View {
                 // children via forEach(doHandleEvent) — delivery does not stop
                 // when one child clears the event, so every child sees the
                 // broadcast.
-                for child in &mut self.group_mut().children {
-                    child.handle_event(event);
+                for i in 0..self.group().children.len() {
+                    self.dispatch_to_child(i, event);
                 }
             } else {
-                // Other event types: send to focused child only
+                // Other event types (mouse wheel among them): focused child only
                 if self.group().focused < self.group_mut().children.len() {
-                    {
-                        let g = self.group_mut();
-                        g.children[g.focused].handle_event(event);
-                    }
+                    let focused = self.group().focused;
+                    self.dispatch_to_child(focused, event);
                 }
             }
         }
+    }
+
+    /// Hand a positional event to a child in the child's own coordinate
+    /// space, then put the position back into this group's space whatever
+    /// the child turned the event into. That last step is how a control
+    /// reports an anchor upward (History, ComboBox) without an owner chain:
+    /// every group on the way back adds its child's origin.
+    fn dispatch_to_child(&mut self, index: usize, event: &mut Event) {
+        let origin = self.group().children[index].bounds().a;
+        event.mouse.pos.x -= origin.x;
+        event.mouse.pos.y -= origin.y;
+        self.group_mut().children[index].handle_event(event);
+        event.mouse.pos.x += origin.x;
+        event.mouse.pos.y += origin.y;
     }
 
     fn group_update_cursor(&self, terminal: &mut Terminal) {
@@ -702,7 +694,10 @@ pub trait GroupLike: View {
 
         // Update cursor for the focused child (it can show it if needed)
         if self.group().focused < self.group().children.len() {
-            self.group().children[self.group().focused].update_cursor(terminal);
+            let child = &self.group().children[self.group().focused];
+            terminal.push_origin(child.bounds().a);
+            child.update_cursor(terminal);
+            terminal.pop_origin();
         }
     }
 
@@ -970,6 +965,8 @@ impl Default for GroupBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::event::MB_LEFT_BUTTON;
+    use crate::core::geometry::Point;
 
     #[test]
     fn add_accepts_unboxed_and_boxed_views() {
@@ -1190,11 +1187,11 @@ mod tests {
         // GrowAll child: both edges moved
         assert_eq!(group.child_at(2).bounds(), Rect::new(40, 20, 49, 24));
 
-        // Moving the group (no size change) shifts all children equally
+        // Moving the group (no size change) leaves owner-relative children alone
         group.set_bounds(Rect::new(5, 2, 55, 27));
-        assert_eq!(group.child_at(0).bounds(), Rect::new(6, 3, 16, 5));
-        assert_eq!(group.child_at(1).bounds(), Rect::new(6, 7, 26, 14));
-        assert_eq!(group.child_at(2).bounds(), Rect::new(45, 22, 54, 26));
+        assert_eq!(group.child_at(0).bounds(), Rect::new(1, 1, 11, 3));
+        assert_eq!(group.child_at(1).bounds(), Rect::new(1, 5, 21, 12));
+        assert_eq!(group.child_at(2).bounds(), Rect::new(40, 20, 49, 24));
     }
 
     #[test]
@@ -1291,12 +1288,9 @@ mod tests {
         let child = Box::new(DrawCountView::new(Rect::new(5, 5, 15, 15)));
         group.add(child);
 
-        // Verify the child was converted to absolute coordinates
         assert_eq!(group.children.len(), 1);
-        assert_eq!(group.children[0].bounds(), Rect::new(15, 15, 25, 25));
-
-        // Verify child intersects with parent (so it would be drawn)
-        assert!(group.bounds().intersects(&group.children[0].bounds()));
+        assert_eq!(group.children[0].bounds(), Rect::new(5, 5, 15, 15));
+        assert!(group.extent().intersects(&group.children[0].bounds()));
     }
 
     #[test]
@@ -1310,11 +1304,9 @@ mod tests {
         let child = Box::new(DrawCountView::new(Rect::new(15, 15, 25, 25)));
         group.add(child);
 
-        // Verify conversion to absolute
-        assert_eq!(group.children[0].bounds(), Rect::new(25, 25, 35, 35));
-
-        // Verify child still intersects with parent (partially visible)
-        assert!(group.bounds().intersects(&group.children[0].bounds()));
+        // Bounds stay owner-relative; the child overlaps the extent edge
+        assert_eq!(group.children[0].bounds(), Rect::new(15, 15, 25, 25));
+        assert!(group.extent().intersects(&group.children[0].bounds()));
 
         // Note: The child will be drawn, but the Terminal's write methods
         // will clip at the terminal boundaries. For proper parent clipping,
@@ -1323,17 +1315,129 @@ mod tests {
     }
 
     #[test]
-    fn test_coordinate_conversion_on_add() {
-        // Create a group at (20, 30) with size 40x50
+    fn add_keeps_the_child_s_owner_relative_bounds() {
         let mut group = Group::new(Rect::new(20, 30, 60, 80));
+        group.add(DrawCountView::new(Rect::new(5, 10, 15, 20)));
+        assert_eq!(group.children[0].bounds(), Rect::new(5, 10, 15, 20));
+    }
 
-        // Add a child with relative coordinates (5, 10)
-        let child = Box::new(DrawCountView::new(Rect::new(5, 10, 15, 20)));
-        group.add(child);
+    #[test]
+    fn moving_a_group_leaves_its_children_where_they_were() {
+        let mut group = Group::new(Rect::new(20, 30, 60, 80));
+        group.add(DrawCountView::new(Rect::new(5, 10, 15, 20)));
+        group.set_bounds(Rect::new(0, 0, 40, 50));
+        assert_eq!(group.children[0].bounds(), Rect::new(5, 10, 15, 20));
+    }
 
-        // Verify the child's bounds were converted to absolute
-        // Relative (5, 10, 15, 20) + Group origin (20, 30) = Absolute (25, 40, 35, 50)
-        assert_eq!(group.children[0].bounds(), Rect::new(25, 40, 35, 50));
+    /// Writes one marker character at its own local (0, 0) and records the
+    /// local mouse position of every MouseDown it receives.
+    struct Probe {
+        core: ViewCore,
+        marker: char,
+        clicks: std::rc::Rc<std::cell::RefCell<Vec<Point>>>,
+    }
+    impl View for Probe {
+        fn core(&self) -> &ViewCore {
+            &self.core
+        }
+        fn core_mut(&mut self) -> &mut ViewCore {
+            &mut self.core
+        }
+        fn draw(&mut self, terminal: &mut Terminal) {
+            terminal.write_cell(
+                0,
+                0,
+                crate::core::draw::Cell::new(self.marker, crate::core::palette::Attr::from_u8(7)),
+            );
+        }
+        fn handle_event(&mut self, event: &mut Event) {
+            if event.what == EventType::MouseDown {
+                self.clicks.borrow_mut().push(event.mouse.pos);
+                event.clear();
+            }
+        }
+        fn can_focus(&self) -> bool {
+            true
+        }
+        fn get_palette(&self) -> Option<crate::core::palette::Palette> {
+            None
+        }
+        fn as_any(&self) -> &dyn std::any::Any {
+            self
+        }
+        fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+            self
+        }
+    }
+    fn probe(bounds: Rect, marker: char) -> (Probe, std::rc::Rc<std::cell::RefCell<Vec<Point>>>) {
+        let clicks = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
+        (
+            Probe {
+                core: ViewCore::new(bounds),
+                marker,
+                clicks: clicks.clone(),
+            },
+            clicks,
+        )
+    }
+
+    #[test]
+    fn a_group_draws_its_children_translated_by_its_own_origin_and_theirs() {
+        let mut outer = Group::new(Rect::new(10, 2, 40, 12));
+        let mut inner = Group::new(Rect::new(3, 1, 20, 8));
+        inner.add(probe(Rect::new(2, 2, 6, 3), 'X').0);
+        outer.add(inner);
+        let mut t = crate::test_util::test_terminal(60, 20);
+        // The owner of `outer` pushes its origin, as any group would.
+        t.push_origin(outer.bounds().a);
+        outer.draw(&mut t);
+        t.pop_origin();
+        assert_eq!(t.read_cell(15, 5).unwrap().ch, 'X');
+    }
+
+    #[test]
+    fn a_group_delivers_mouse_positions_in_the_child_s_own_space() {
+        let mut group = Group::new(Rect::new(10, 2, 40, 12));
+        let (p, clicks) = probe(Rect::new(4, 3, 14, 6), 'X');
+        group.add(p);
+        let mut event = Event::mouse(EventType::MouseDown, Point::new(6, 4), MB_LEFT_BUTTON, false);
+        group.handle_event(&mut event);
+        assert_eq!(clicks.borrow().as_slice(), &[Point::new(2, 1)]);
+        assert_eq!(event.what, EventType::Nothing);
+    }
+
+    #[test]
+    fn a_group_restores_the_owner_space_position_after_dispatch() {
+        struct ToCommand(ViewCore);
+        impl View for ToCommand {
+            fn core(&self) -> &ViewCore {
+                &self.0
+            }
+            fn core_mut(&mut self) -> &mut ViewCore {
+                &mut self.0
+            }
+            fn draw(&mut self, _: &mut Terminal) {}
+            fn handle_event(&mut self, event: &mut Event) {
+                // Like History: turn the click into a command, keep the anchor.
+                event.what = EventType::Command;
+                event.command = crate::core::command::CM_SHOW_HISTORY;
+            }
+            fn get_palette(&self) -> Option<crate::core::palette::Palette> {
+                None
+            }
+            fn as_any(&self) -> &dyn std::any::Any {
+                self
+            }
+            fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+                self
+            }
+        }
+        let mut group = Group::new(Rect::new(0, 0, 40, 12));
+        group.add(ToCommand(ViewCore::new(Rect::new(4, 3, 14, 6))));
+        let mut event = Event::mouse(EventType::MouseDown, Point::new(6, 4), MB_LEFT_BUTTON, false);
+        group.handle_event(&mut event);
+        assert_eq!(event.what, EventType::Command);
+        assert_eq!(event.mouse.pos, Point::new(6, 4));
     }
 
     #[test]

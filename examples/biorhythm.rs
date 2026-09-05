@@ -236,7 +236,7 @@ impl View for BiorhythmChart {
             let title = format!("Biorhythm Chart - {} days since birth", bio.days_alive);
             let title_start = (width.saturating_sub(title.len())) / 2;
             buf.move_str(title_start, &title, colors::DIALOG_FRAME);
-            write_line_to_terminal(terminal, self.core.bounds.a.x, self.core.bounds.a.y, &buf);
+            write_line_to_terminal(terminal, 0, 0, &buf);
 
             // Chart dimensions
             let chart_top = 2;
@@ -331,8 +331,8 @@ impl View for BiorhythmChart {
 
                 write_line_to_terminal(
                     terminal,
-                    self.core.bounds.a.x,
-                    self.core.bounds.a.y + y as i16,
+                    0,
+                    y as i16,
                     &line,
                 );
             }
@@ -350,8 +350,8 @@ impl View for BiorhythmChart {
 
                 write_line_to_terminal(
                     terminal,
-                    self.core.bounds.a.x,
-                    self.core.bounds.a.y + y as i16,
+                    0,
+                    y as i16,
                     &buf,
                 );
             }

@@ -492,21 +492,18 @@ impl Application {
     {
         loop {
             // Draw desktop first (clears the background), then the modal view
-            // on top: a view that is not on the desktop must draw itself here.
-            self.desktop.draw(&mut self.terminal);
-            if let Some(ref mut menu_bar) = self.menu_bar {
-                menu_bar.draw(&mut self.terminal);
-            }
-            if let Some(ref mut status_line) = self.status_line {
-                status_line.draw(&mut self.terminal);
-            }
-            view.draw(&mut self.terminal);
+            // on top: a view that is not on the desktop is a child of the
+            // application here, so its bounds are screen coordinates.
+            self.draw_chrome();
+            Self::draw_child(&mut self.terminal, view);
             // Overlay widgets keep animating during modal loops
             // (Borland: TProgram::idle() continues running during execView()).
             for widget in &mut self.overlay_widgets {
-                widget.draw(&mut self.terminal);
+                Self::draw_child(&mut self.terminal, widget);
             }
+            self.terminal.push_origin(view.bounds().a);
             view.update_cursor(&mut self.terminal);
+            self.terminal.pop_origin();
             let _ = self.terminal.flush();
 
             // 20ms timeout matches magiblot's eventTimeoutMs; idle() only runs
@@ -518,12 +515,12 @@ impl Application {
                         continue;
                     }
 
-                    view.handle_event(&mut event);
+                    Self::dispatch_child(view, &mut event);
 
                     // A keyboard event turned into a command (Enter -> CM_OK)
                     // is re-dispatched so the command handler runs (putEvent).
                     if event.what == EventType::Command {
-                        view.handle_event(&mut event);
+                        Self::dispatch_child(view, &mut event);
                     }
 
                     // A History button converted its click into CM_SHOW_HISTORY;
@@ -657,7 +654,9 @@ impl Application {
             // Check for moved windows and redraw affected areas (Borland's drawUnderRect pattern)
             // Matches Borland: TView::locate() checks for movement and calls drawUnderRect
             // This optimized redraw only redraws the union of old + new position
+            self.terminal.push_origin(self.desktop.bounds().a);
             let had_moved_windows = self.desktop.handle_moved_windows(&mut self.terminal);
+            self.terminal.pop_origin();
             if had_moved_windows {
                 // Window movement: partial redraw already done via draw_under_rect
                 // Just flush the terminal buffer
@@ -667,26 +666,51 @@ impl Application {
     }
 
     pub fn draw(&mut self) {
-        // Draw desktop first, then menu bar on top (so dropdown appears over desktop)
-        self.desktop.draw(&mut self.terminal);
-
-        if let Some(ref mut menu_bar) = self.menu_bar {
-            menu_bar.draw(&mut self.terminal);
-        }
-
-        if let Some(ref mut status_line) = self.status_line {
-            status_line.draw(&mut self.terminal);
-        }
+        // Desktop first, then menu bar on top (so dropdowns appear over it);
+        // each top-level view draws in its own space.
+        self.draw_chrome();
 
         // Draw overlay widgets on top of everything
         // These continue to animate even during modal dialogs
         for widget in &mut self.overlay_widgets {
-            widget.draw(&mut self.terminal);
+            Self::draw_child(&mut self.terminal, widget);
         }
 
         // Update cursor after drawing all views
         // Desktop contains windows/dialogs with focused controls
+        self.terminal.push_origin(self.desktop.bounds().a);
         self.desktop.update_cursor(&mut self.terminal);
+        self.terminal.pop_origin();
+    }
+
+    /// Draw the desktop, menu bar and status line, each in its own space.
+    fn draw_chrome(&mut self) {
+        Self::draw_child(&mut self.terminal, &mut self.desktop);
+        if let Some(ref mut menu_bar) = self.menu_bar {
+            Self::draw_child(&mut self.terminal, menu_bar);
+        }
+        if let Some(ref mut status_line) = self.status_line {
+            Self::draw_child(&mut self.terminal, status_line);
+        }
+    }
+
+    /// Draw one top-level view with its origin pushed (the application is the
+    /// root, so its children's bounds are screen coordinates).
+    fn draw_child(terminal: &mut Terminal, view: &mut (impl View + ?Sized)) {
+        terminal.push_origin(view.bounds().a);
+        view.draw(terminal);
+        terminal.pop_origin();
+    }
+
+    /// Dispatch an event to one top-level view in that view's space and put
+    /// the mouse position back into screen space afterwards.
+    fn dispatch_child(view: &mut (impl View + ?Sized), event: &mut Event) {
+        let origin = view.bounds().a;
+        event.mouse.pos.x -= origin.x;
+        event.mouse.pos.y -= origin.y;
+        view.handle_event(event);
+        event.mouse.pos.x += origin.x;
+        event.mouse.pos.y += origin.y;
     }
 
     pub fn handle_event(&mut self, event: &mut Event) {
@@ -743,21 +767,21 @@ impl Application {
 
         // Menu bar gets first shot
         if let Some(ref mut menu_bar) = self.menu_bar {
-            menu_bar.handle_event(event);
+            Self::dispatch_child(menu_bar, event);
             if event.what == EventType::Nothing {
                 return;
             }
         }
 
         // Desktop/windows
-        self.desktop.handle_event(event);
+        Self::dispatch_child(&mut self.desktop, event);
         if event.what == EventType::Nothing {
             return;
         }
 
         // Status line
         if let Some(ref mut status_line) = self.status_line {
-            status_line.handle_event(event);
+            Self::dispatch_child(status_line, event);
             if event.what == EventType::Nothing {
                 return;
             }
@@ -979,7 +1003,7 @@ impl Application {
     /// Default implementation returns the full desktop extent
     /// Can be overridden to customize the tile area
     pub fn get_tile_rect(&self) -> Rect {
-        self.desktop.get_bounds()
+        self.desktop.extent()
     }
 
     // Command Set Management
@@ -1189,6 +1213,125 @@ impl Drop for Application {
 mod resize_tests {
     use super::*;
     use crate::core::state::Grow;
+
+    // ---- owner-relative coordinates (docs/OWNER-COORDINATES.md) ----
+
+    fn row_text(app: &Application, y: i16, x0: i16, x1: i16) -> String {
+        (x0..x1)
+            .map(|x| app.terminal.read_cell(x, y).unwrap().ch)
+            .collect()
+    }
+
+    /// Desktop at (0,1) with a window at desktop (10,3) holding a button at
+    /// interior (2,1); returns the app and the button's command.
+    fn desktop_window_button() -> (Application, crate::core::command::CommandId) {
+        use crate::views::button::Button;
+        use crate::views::window::Window;
+        let cmd = crate::core::command::CM_USER + 50;
+        let (mut app, _size, _calls) = build_test_app(80, 25);
+        app.handle_redraw(); // desktop becomes (0,1)-(80,24): a non-zero origin
+        assert_eq!(app.desktop.bounds().a, Point::new(0, 1));
+        let mut window = Window::new(Rect::new(10, 3, 50, 13), "W");
+        window.add(Button::new(Rect::new(2, 1, 12, 3), "OK", cmd, true));
+        app.desktop.add(window);
+        (app, cmd)
+    }
+
+    fn window_mut(app: &mut Application) -> &mut crate::views::window::Window {
+        let idx = app.desktop.child_count() - 1;
+        app.desktop
+            .child_at_mut(idx)
+            .as_any_mut()
+            .downcast_mut::<crate::views::window::Window>()
+            .unwrap()
+    }
+
+    #[test]
+    fn a_button_draws_at_the_sum_of_its_owners_origins() {
+        let (mut app, _) = desktop_window_button();
+        app.draw();
+        // desktop (0,1) + window (10,3) + interior (1,1) + button (2,1) = (13,6)
+        assert!(row_text(&app, 6, 13, 23).contains("OK"), "{:?}", row_text(&app, 6, 13, 23));
+        // and the button never learned where that was
+        let w = window_mut(&mut app);
+        assert_eq!(w.interior_mut().child_at(0).bounds(), Rect::new(2, 1, 12, 3));
+    }
+
+    #[test]
+    fn moving_a_window_moves_the_pixels_but_not_the_child_s_bounds() {
+        let (mut app, _) = desktop_window_button();
+        window_mut(&mut app).set_bounds(Rect::new(20, 5, 60, 15));
+        app.draw();
+        assert!(row_text(&app, 8, 23, 33).contains("OK"), "{:?}", row_text(&app, 8, 23, 33));
+        assert!(!row_text(&app, 6, 13, 23).contains("OK"));
+        let w = window_mut(&mut app);
+        assert_eq!(w.interior_mut().child_at(0).bounds(), Rect::new(2, 1, 12, 3));
+    }
+
+    #[test]
+    fn a_click_reaches_the_button_through_every_owner() {
+        use crate::core::event::MB_LEFT_BUTTON;
+        let (mut app, cmd) = desktop_window_button();
+        let at = Point::new(15, 6); // screen cell inside the button
+        let mut down = Event::mouse(EventType::MouseDown, at, MB_LEFT_BUTTON, false);
+        app.handle_event(&mut down);
+        let mut up = Event::mouse(EventType::MouseUp, at, MB_LEFT_BUTTON, false);
+        app.handle_event(&mut up);
+        assert_eq!(up.what, EventType::Command, "the button fired on release");
+        assert_eq!(up.command, cmd);
+        // A fresh command event starts at the button's local (0,0); every
+        // owner added its origin on the way back, so the root sees the
+        // button's screen origin: desktop (0,1) + window (10,3) + interior
+        // (1,1) + button (2,1).
+        assert_eq!(up.mouse.pos, Point::new(13, 6));
+    }
+
+    #[test]
+    fn dragging_a_window_by_its_title_works_even_when_the_pointer_leaves_it() {
+        use crate::core::event::MB_LEFT_BUTTON;
+        let (mut app, _) = desktop_window_button();
+        // title row of the window: desktop y 1 + window y 3 = screen row 4
+        let mut down = Event::mouse(EventType::MouseDown, Point::new(25, 4), MB_LEFT_BUTTON, false);
+        app.handle_event(&mut down);
+        let mut mv = Event::mouse(EventType::MouseMove, Point::new(40, 10), MB_LEFT_BUTTON, false);
+        app.handle_event(&mut mv);
+        assert_eq!(window_mut(&mut app).bounds(), Rect::new(25, 9, 65, 19));
+        // jump far outside the window's new extent: still delivered to the
+        // dragging window, and clamped to the desktop's left edge
+        let mut mv = Event::mouse(EventType::MouseMove, Point::new(12, 6), MB_LEFT_BUTTON, false);
+        app.handle_event(&mut mv);
+        assert_eq!(window_mut(&mut app).bounds(), Rect::new(0, 5, 40, 15));
+    }
+
+    #[test]
+    fn a_history_click_reaches_the_root_with_a_screen_space_anchor() {
+        use crate::core::command::CM_SHOW_HISTORY;
+        use crate::core::event::MB_LEFT_BUTTON;
+        use crate::core::history::HistoryManager;
+        use crate::views::history::History;
+        use crate::views::input_line::InputLine;
+        use crate::views::window::Window;
+        let _guard = crate::core::history::test_lock();
+        HistoryManager::clear(77);
+        HistoryManager::add(77, "entry".to_string());
+
+        let (mut app, _size, _calls) = build_test_app(80, 25);
+        app.handle_redraw();
+        let mut window = Window::new(Rect::new(10, 3, 50, 13), "W");
+        let input = window.add_typed(InputLine::new(Rect::new(2, 3, 20, 4), 32));
+        window.add(History::new(Point::new(21, 3), 77, input));
+        app.desktop.add(window);
+
+        // desktop (0,1) + window (10,3) + interior (1,1) + history (21,3) = (32,8)
+        let at = Point::new(32, 8);
+        let mut ev = Event::mouse(EventType::MouseDown, at, MB_LEFT_BUTTON, false);
+        // Through the desktop only: the application would open the popup.
+        crate::views::view::dispatch_to_child(&mut app.desktop, &mut ev);
+        assert_eq!(ev.what, EventType::Command);
+        assert_eq!(ev.command, CM_SHOW_HISTORY);
+        assert_eq!(ev.info, 77);
+        assert_eq!(ev.mouse.pos, at, "anchor translated back to screen space");
+    }
 
     #[test]
     fn execute_modal_stops_when_the_tick_says_so_and_dispatches_events_to_the_view() {
@@ -1494,12 +1637,13 @@ mod resize_tests {
         // `Desktop::add`'s `constrain_to_parent_bounds` doesn't shift it.
         app.handle_redraw();
         let (shadow_x, shadow_y) = crate::core::state::shadow_size();
-        let desktop_bounds = app.desktop.get_bounds();
+        // Window bounds are desktop-relative
+        let desktop_extent = app.desktop.extent();
         let window_bounds = Rect::new(
-            desktop_bounds.a.x,
-            desktop_bounds.a.y,
-            desktop_bounds.b.x - shadow_x,
-            desktop_bounds.b.y - shadow_y,
+            0,
+            0,
+            desktop_extent.b.x - shadow_x,
+            desktop_extent.b.y - shadow_y,
         );
 
         // Window::add (via the interior Group) takes bounds relative to the
@@ -1526,7 +1670,7 @@ mod resize_tests {
         app.handle_redraw();
 
         let window_index = app.desktop.child_count() - 1;
-        let new_desktop_bounds = app.desktop.get_bounds();
+        let new_desktop_extent = app.desktop.extent();
         let window = app
             .desktop
             .child_at_mut(window_index)
@@ -1537,26 +1681,24 @@ mod resize_tests {
         // The window's own bounds (and therefore its frame, which shares
         // them) must have grown along with the desktop.
         let expected = Rect::new(
-            new_desktop_bounds.a.x,
-            new_desktop_bounds.a.y,
-            new_desktop_bounds.b.x - shadow_x,
-            new_desktop_bounds.b.y - shadow_y,
+            0,
+            0,
+            new_desktop_extent.b.x - shadow_x,
+            new_desktop_extent.b.y - shadow_y,
         );
         assert_eq!(window.bounds(), expected);
 
         // The interior child (a stand-in for a window's real content, e.g.
         // an editor's TextViewer) must have been re-laid-out too, not just
-        // the window's own bounds: it fills the interior, whose top-left
-        // (window top-left + 1) stays put and whose bottom-right (window
-        // bottom-right - 1) must have grown by the same amount as the
-        // window.
+        // the window's own bounds: it fills the interior, so in interior
+        // space its top-left stays at (0, 0) and its bottom-right is the
+        // window size less the frame.
         assert!(set_bounds_calls.get() > 0);
         let interior_child_bounds = window.interior_mut().child_at(0).bounds();
-        let expected_interior_top_left = Point::new(window_bounds.a.x + 1, window_bounds.a.y + 1);
-        assert_eq!(interior_child_bounds.a, expected_interior_top_left);
+        assert_eq!(interior_child_bounds.a, Point::new(0, 0));
         assert_eq!(
             interior_child_bounds.b,
-            Point::new(expected.b.x - 1, expected.b.y - 1)
+            Point::new(expected.width() - 2, expected.height() - 2)
         );
     }
 
@@ -1576,12 +1718,13 @@ mod resize_tests {
         let (mut app, size, _calls) = build_test_app(80, 25);
         app.handle_redraw();
         let (shadow_x, shadow_y) = crate::core::state::shadow_size();
-        let desktop_bounds = app.desktop.get_bounds();
+        // Window bounds are desktop-relative
+        let desktop_extent = app.desktop.extent();
         let window_bounds = Rect::new(
-            desktop_bounds.a.x,
-            desktop_bounds.a.y,
-            desktop_bounds.b.x - shadow_x,
-            desktop_bounds.b.y - shadow_y,
+            0,
+            0,
+            desktop_extent.b.x - shadow_x,
+            desktop_extent.b.y - shadow_y,
         );
 
         let mut window = Window::new(window_bounds, "Fixed Window");

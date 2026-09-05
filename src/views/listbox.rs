@@ -298,8 +298,8 @@ impl View for ListBox {
 
             write_line_to_terminal(
                 terminal,
-                self.core.bounds.a.x,
-                self.core.bounds.a.y + i as i16,
+                0,
+                i as i16,
                 &buf,
             );
         }
@@ -312,14 +312,14 @@ impl View for ListBox {
             let mouse_pos = event.mouse.pos;
 
             // Check if click is within the listbox bounds
-            if self.core.bounds.contains(mouse_pos) && event.mouse.buttons & MB_LEFT_BUTTON != 0 {
+            if self.extent().contains(mouse_pos) && event.mouse.buttons & MB_LEFT_BUTTON != 0 {
                 // Double-click triggers selection command (matching Borland's TListViewer)
                 if event.mouse.double_click {
                     // CRITICAL: Update selection to the double-clicked item BEFORE converting to command
                     // Without this, the selection would still point to the previously selected item,
                     // causing FileDialog to act on the wrong file/directory (e.g., double-clicking a
                     // folder would close the dialog instead of navigating into it)
-                    let relative_y = (mouse_pos.y - self.core.bounds.a.y) as usize;
+                    let relative_y = (mouse_pos.y) as usize;
                     let clicked_item = self.list_state.top_item + relative_y;
 
                     // Update the selection to the double-clicked item
@@ -341,9 +341,9 @@ impl View for ListBox {
         if self.multi_select
             && event.what == EventType::MouseDown
             && event.mouse.buttons & MB_LEFT_BUTTON != 0
-            && self.core.bounds.contains(event.mouse.pos)
+            && self.extent().contains(event.mouse.pos)
         {
-            let relative_y = (event.mouse.pos.y - self.core.bounds.a.y) as usize;
+            let relative_y = (event.mouse.pos.y) as usize;
             let clicked = self.list_state.top_item + relative_y;
             if clicked < self.items.len() {
                 if event
@@ -385,14 +385,14 @@ impl View for ListBox {
             }
             EventType::MouseWheelUp => {
                 let mouse_pos = event.mouse.pos;
-                if self.core.bounds.contains(mouse_pos) {
+                if self.extent().contains(mouse_pos) {
                     self.select_prev();
                     event.clear();
                 }
             }
             EventType::MouseWheelDown => {
                 let mouse_pos = event.mouse.pos;
-                if self.core.bounds.contains(mouse_pos) {
+                if self.extent().contains(mouse_pos) {
                     self.select_next();
                     event.clear();
                 }

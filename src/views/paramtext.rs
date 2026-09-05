@@ -129,8 +129,8 @@ impl View for ParamText {
             buf.move_str(0, &display_text, normal_attr);
             write_line_to_terminal(
                 terminal,
-                self.core.bounds.a.x,
-                self.core.bounds.a.y + i as i16,
+                0,
+                i as i16,
                 &buf,
             );
         }
@@ -141,8 +141,8 @@ impl View for ParamText {
             buf.move_char(0, ' ', normal_attr, width);
             write_line_to_terminal(
                 terminal,
-                self.core.bounds.a.x,
-                self.core.bounds.a.y + i as i16,
+                0,
+                i as i16,
                 &buf,
             );
         }

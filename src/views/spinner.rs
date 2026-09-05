@@ -220,7 +220,7 @@ impl Spinner {
     /// to draw the steppers.
     fn up_arrow_x(&self) -> Option<i16> {
         let width = self.core.bounds.width_clamped();
-        (width as usize > STEPPER_WIDTH).then(|| self.core.bounds.b.x - STEPPER_WIDTH as i16)
+        (width as usize > STEPPER_WIDTH).then(|| self.extent().b.x - STEPPER_WIDTH as i16)
     }
 
     /// Turn a value change into the outgoing event: the change broadcast when
@@ -299,11 +299,11 @@ impl View for Spinner {
             buf.put_char(width - 1, DOWN_ARROW, arrow_attr);
         }
 
-        write_line_to_terminal(terminal, self.core.bounds.a.x, self.core.bounds.a.y, &buf);
+        write_line_to_terminal(terminal, 0, 0, &buf);
     }
 
     fn handle_event(&mut self, event: &mut Event) {
-        if event.what == EventType::MouseDown && self.core.bounds.contains(event.mouse.pos) {
+        if event.what == EventType::MouseDown && self.extent().contains(event.mouse.pos) {
             if let Some(up_x) = self.up_arrow_x() {
                 let changed = if event.mouse.pos.x == up_x {
                     self.step_up()
@@ -318,12 +318,12 @@ impl View for Spinner {
             return;
         }
 
-        if event.what == EventType::MouseWheelUp && self.core.bounds.contains(event.mouse.pos) {
+        if event.what == EventType::MouseWheelUp && self.extent().contains(event.mouse.pos) {
             let changed = self.step_up();
             self.report(event, changed);
             return;
         }
-        if event.what == EventType::MouseWheelDown && self.core.bounds.contains(event.mouse.pos) {
+        if event.what == EventType::MouseWheelDown && self.extent().contains(event.mouse.pos) {
             let changed = self.step_down();
             self.report(event, changed);
             return;

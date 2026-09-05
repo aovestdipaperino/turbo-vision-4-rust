@@ -61,10 +61,10 @@ impl HelpViewer {
     /// Create a help viewer with scrollbar
     pub fn with_scrollbar(mut self) -> Self {
         let sb_bounds = Rect::new(
-            self.core.bounds.b.x - 1,
-            self.core.bounds.a.y,
-            self.core.bounds.b.x,
-            self.core.bounds.b.y,
+            self.extent().b.x - 1,
+            0,
+            self.extent().b.x,
+            self.extent().b.y,
         );
         self.vscrollbar = Some(Box::new(ScrollBar::new_vertical(sb_bounds)));
         self
@@ -212,8 +212,8 @@ impl HelpViewer {
     /// Matches Borland: THelpViewer::getNumRows() pattern for hit testing
     fn get_cross_ref_at(&self, screen_x: i16, screen_y: i16) -> usize {
         // Convert screen coordinates to view-relative coordinates
-        let rel_x = screen_x - self.core.bounds.a.x;
-        let rel_y = screen_y - self.core.bounds.a.y;
+        let rel_x = screen_x;
+        let rel_y = screen_y;
 
         // Check bounds
         if rel_x < 0
@@ -337,6 +337,8 @@ impl View for HelpViewer {
 
     fn set_bounds(&mut self, bounds: Rect) {
         self.core.bounds = bounds;
+        // Children are laid out in this view's own space
+        let bounds = self.extent();
 
         // Update scrollbar position if present
         if self.vscrollbar.is_some() {
@@ -465,15 +467,15 @@ impl View for HelpViewer {
 
             write_line_to_terminal(
                 terminal,
-                self.core.bounds.a.x,
-                self.core.bounds.a.y + row,
+                0,
+                row,
                 &buf,
             );
         }
 
         // Draw scrollbar if present
         if let Some(ref mut sb) = self.vscrollbar {
-            sb.draw(terminal);
+            crate::views::view::draw_child(terminal, &mut **sb);
         }
     }
 
@@ -568,7 +570,7 @@ impl View for HelpViewer {
                 // Matches Borland: THelpViewer::handleEvent() evMouseDown case (help.cc:122-155)
                 let mouse_pos = event.mouse.pos;
 
-                if self.core.bounds.contains(mouse_pos) && event.mouse.buttons & MB_LEFT_BUTTON != 0
+                if self.extent().contains(mouse_pos) && event.mouse.buttons & MB_LEFT_BUTTON != 0
                 {
                     // Check if click is on a cross-reference link
                     let hit_ref = self.get_cross_ref_at(mouse_pos.x, mouse_pos.y);
@@ -585,14 +587,14 @@ impl View for HelpViewer {
             }
             EventType::MouseWheelUp => {
                 // Scroll up on mouse wheel
-                if self.core.bounds.contains(event.mouse.pos) {
+                if self.extent().contains(event.mouse.pos) {
                     self.scroll_by(0, -3);
                     event.clear();
                 }
             }
             EventType::MouseWheelDown => {
                 // Scroll down on mouse wheel
-                if self.core.bounds.contains(event.mouse.pos) {
+                if self.extent().contains(event.mouse.pos) {
                     self.scroll_by(0, 3);
                     event.clear();
                 }

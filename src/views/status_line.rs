@@ -237,15 +237,15 @@ impl StatusLine {
             }
         }
 
-        write_line_to_terminal(terminal, self.core.bounds.a.x, self.core.bounds.a.y, &buf);
+        write_line_to_terminal(terminal, 0, 0, &buf);
     }
 
     /// Find which item the mouse is currently over
     fn item_mouse_is_in(&self, mouse_x: i16) -> Option<usize> {
         for (i, &(start_x, end_x)) in self.item_positions.iter().enumerate() {
             if i < self.items.len() {
-                let absolute_start = self.core.bounds.a.x + start_x;
-                let absolute_end = self.core.bounds.a.x + end_x;
+                let absolute_start = start_x;
+                let absolute_end = end_x;
 
                 if mouse_x >= absolute_start && mouse_x < absolute_end {
                     return Some(i);
@@ -275,7 +275,7 @@ impl View for StatusLine {
         if event.what == EventType::MouseDown {
             let mouse_pos = event.mouse.pos;
 
-            if event.mouse.buttons & MB_LEFT_BUTTON != 0 && mouse_pos.y == self.core.bounds.a.y {
+            if event.mouse.buttons & MB_LEFT_BUTTON != 0 && mouse_pos.y == 0 {
                 // Track mouse movement while button is held down
                 // Initial selection
                 let selected_item = self.item_mouse_is_in(mouse_pos.x);
@@ -310,7 +310,7 @@ impl View for StatusLine {
         // Handle mouse move to show hover effect
         if event.what == EventType::MouseMove {
             let mouse_pos = event.mouse.pos;
-            if mouse_pos.y == self.core.bounds.a.y {
+            if mouse_pos.y == 0 {
                 let hovered_item = self.item_mouse_is_in(mouse_pos.x);
                 if hovered_item != self.selected_item {
                     self.selected_item = hovered_item;

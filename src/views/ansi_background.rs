@@ -197,8 +197,8 @@ impl View for AnsiBackground {
 
             write_line_to_terminal(
                 terminal,
-                self.core.bounds.a.x,
-                self.core.bounds.a.y + row as i16,
+                0,
+                row as i16,
                 &buf,
             );
         }

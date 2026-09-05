@@ -49,19 +49,19 @@ impl TextViewer {
         if add_scrollbars {
             // Vertical scrollbar on the right edge
             let v_bounds = Rect::new(
-                self.core.bounds.b.x - 1,
-                self.core.bounds.a.y + 1, // Below indicator
-                self.core.bounds.b.x,
-                self.core.bounds.b.y - 1, // Above horizontal scrollbar
+                self.extent().b.x - 1,
+                1, // Below indicator
+                self.extent().b.x,
+                self.extent().b.y - 1, // Above horizontal scrollbar
             );
             self.v_scrollbar = Some(Box::new(ScrollBar::new_vertical(v_bounds)));
 
             // Horizontal scrollbar on the bottom edge
             let h_bounds = Rect::new(
-                self.core.bounds.a.x,
-                self.core.bounds.b.y - 1,
-                self.core.bounds.b.x - 1, // Before vertical scrollbar
-                self.core.bounds.b.y,
+                0,
+                self.extent().b.y - 1,
+                self.extent().b.x - 1, // Before vertical scrollbar
+                self.extent().b.y,
             );
             self.h_scrollbar = Some(Box::new(ScrollBar::new_horizontal(h_bounds)));
         }
@@ -72,10 +72,10 @@ impl TextViewer {
     pub fn with_indicator(mut self, add_indicator: bool) -> Self {
         if add_indicator {
             let indicator_bounds = Rect::new(
-                self.core.bounds.a.x,
-                self.core.bounds.a.y,
-                self.core.bounds.b.x,
-                self.core.bounds.a.y + 1,
+                0,
+                0,
+                self.extent().b.x,
+                1,
             );
             self.indicator = Some(Box::new(Indicator::new(indicator_bounds)));
         }
@@ -195,6 +195,8 @@ impl View for TextViewer {
 
     fn set_bounds(&mut self, bounds: Rect) {
         self.core.bounds = bounds;
+        // Children are laid out in this view's own space
+        let bounds = self.extent();
 
         // Update scrollbar positions
         if let Some(ref mut v_bar) = self.v_scrollbar {
@@ -278,15 +280,15 @@ impl View for TextViewer {
 
         // Draw indicator
         if let Some(ref mut indicator) = self.indicator {
-            indicator.draw(terminal);
+            crate::views::view::draw_child(terminal, &mut **indicator);
         }
 
         // Draw scrollbars
         if let Some(ref mut h_bar) = self.h_scrollbar {
-            h_bar.draw(terminal);
+            crate::views::view::draw_child(terminal, &mut **h_bar);
         }
         if let Some(ref mut v_bar) = self.v_scrollbar {
-            v_bar.draw(terminal);
+            crate::views::view::draw_child(terminal, &mut **v_bar);
         }
     }
 
@@ -364,12 +366,12 @@ impl View for TextViewer {
         let old_delta = self.delta;
 
         if let Some(ref mut h_bar) = self.h_scrollbar {
-            h_bar.handle_event(event);
+            crate::views::view::dispatch_to_child(&mut **h_bar, event);
             self.delta.x = h_bar.get_value() as i16;
         }
 
         if let Some(ref mut v_bar) = self.v_scrollbar {
-            v_bar.handle_event(event);
+            crate::views::view::dispatch_to_child(&mut **v_bar, event);
             self.delta.y = v_bar.get_value() as i16;
         }
 

@@ -309,10 +309,10 @@ impl Table {
 
     /// Row and column under a screen point, if it lands on a cell.
     fn cell_at(&self, pos: Point) -> Option<(usize, usize)> {
-        if !self.core.bounds.contains(pos) {
+        if !self.extent().contains(pos) {
             return None;
         }
-        let local_y = (pos.y - self.core.bounds.a.y) as usize;
+        let local_y = (pos.y) as usize;
         // The header is not a cell.
         let row_index = local_y.checked_sub(self.header_rows())?;
         let row = self.list_state.top_item + row_index;
@@ -320,7 +320,7 @@ impl Table {
             return None;
         }
 
-        let local_x = (pos.x - self.core.bounds.a.x) as usize;
+        let local_x = (pos.x) as usize;
         let mut offset = 0;
         for index in self.first_col..self.columns.len() {
             let width = self.columns[index].width as usize;
@@ -439,7 +439,7 @@ impl View for Table {
         // divider entry is the one that reads as distinct from both.
         let cursor = header;
 
-        let mut y = self.core.bounds.a.y;
+        let mut y = 0;
 
         if self.show_header {
             let mut buf = DrawBuffer::new(width);
@@ -450,7 +450,7 @@ impl View for Table {
                 |i| self.columns[i].title.clone(),
                 |_| header,
             );
-            write_line_to_terminal(terminal, self.core.bounds.a.x, y, &buf);
+            write_line_to_terminal(terminal, 0, y, &buf);
             y += 1;
         }
 
@@ -477,7 +477,7 @@ impl View for Table {
                     },
                 );
             }
-            write_line_to_terminal(terminal, self.core.bounds.a.x, y + screen_row as i16, &buf);
+            write_line_to_terminal(terminal, 0, y + screen_row as i16, &buf);
         }
     }
 
@@ -497,12 +497,12 @@ impl View for Table {
             return;
         }
 
-        if event.what == EventType::MouseWheelUp && self.core.bounds.contains(event.mouse.pos) {
+        if event.what == EventType::MouseWheelUp && self.extent().contains(event.mouse.pos) {
             self.move_row(-1);
             event.clear();
             return;
         }
-        if event.what == EventType::MouseWheelDown && self.core.bounds.contains(event.mouse.pos) {
+        if event.what == EventType::MouseWheelDown && self.extent().contains(event.mouse.pos) {
             self.move_row(1);
             event.clear();
             return;

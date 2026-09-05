@@ -77,7 +77,7 @@ impl View for CrabWidget {
         // Place the crab at current position
         buf.move_char(self.position, '🦀', color, 1);
 
-        write_line_to_terminal(terminal, self.core.bounds.a.x, self.core.bounds.a.y, &buf);
+        write_line_to_terminal(terminal, 0, 0, &buf);
     }
 
     fn handle_event(&mut self, _event: &mut Event) {}
@@ -204,8 +204,8 @@ impl View for LogoBackground {
 
             write_line_to_terminal(
                 terminal,
-                self.core.bounds.a.x,
-                self.core.bounds.a.y + i as i16,
+                0,
+                i as i16,
                 &buf,
             );
         }

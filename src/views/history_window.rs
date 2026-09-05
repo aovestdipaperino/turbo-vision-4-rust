@@ -45,14 +45,8 @@ impl HistoryWindow {
         let window_height = viewer_height + 2; // +2 for frame
 
         let window_bounds = Rect::new(pos.x, pos.y, pos.x + width, pos.y + window_height);
-        // Viewer bounds are in absolute screen coordinates, inset one cell inside
-        // the window frame (the viewer draws directly to the terminal).
-        let viewer_bounds = Rect::new(
-            pos.x + 1,
-            pos.y + 1,
-            pos.x + width - 1,
-            pos.y + 1 + viewer_height,
-        );
+        // The viewer sits one cell inside the frame, in the window's own space
+        let viewer_bounds = Rect::new(1, 1, width - 1, 1 + viewer_height);
 
         let window = Window::new(window_bounds, "History");
         let mut viewer = HistoryViewer::new(viewer_bounds, history_id);
@@ -68,16 +62,22 @@ impl HistoryWindow {
     /// Returns the selected history item, or None if cancelled.
     pub fn execute(&mut self, terminal: &mut Terminal) -> Option<String> {
         loop {
-            // Create fresh token per frame for QCell safety
-            // Draw window and viewer
+            // Nothing owns this popup, so it pushes its own origin, draws the
+            // viewer in the window's space and translates the raw screen
+            // events itself.
+            terminal.push_origin(self.window.bounds().a);
             self.window.draw(terminal);
-            self.viewer.draw(terminal);
+            crate::views::view::draw_child(terminal, &mut self.viewer);
+            terminal.pop_origin();
             let _ = terminal.flush();
 
             // Handle events
             if let Ok(Some(mut event)) = terminal.poll_event(std::time::Duration::from_millis(50)) {
+                let origin = self.window.bounds().a;
+                event.mouse.pos.x -= origin.x;
+                event.mouse.pos.y -= origin.y;
                 // Let viewer handle navigation first
-                self.viewer.handle_event(&mut event);
+                crate::views::view::dispatch_to_child(&mut self.viewer, &mut event);
 
                 // Handle Enter and Esc
                 match event.what {
@@ -134,9 +134,9 @@ mod tests {
 
         let window = HistoryWindow::new(Point::new(10, 5), 11, 30);
 
-        // Viewer is inset one cell inside the window frame at the window's
-        // screen position (regression: it used to be at absolute (1,1)).
-        assert_eq!(window.viewer.bounds(), Rect::new(11, 6, 39, 9));
+        // The viewer is inset one cell inside the frame, in the window's own
+        // space; the window's position on screen does not enter into it.
+        assert_eq!(window.viewer.bounds(), Rect::new(1, 1, 29, 4));
     }
 
     #[test]
@@ -162,8 +162,8 @@ mod tests {
 
         // Should have all 15 items but viewer height capped at 10
         assert_eq!(window.viewer.item_count(), 15);
-        // Viewer must sit inside the window frame at its screen position
-        assert_eq!(window.viewer.bounds().a, Point::new(11, 6));
+        // Viewer sits inside the window frame, in the window's own space
+        assert_eq!(window.viewer.bounds().a, Point::new(1, 1));
         // Viewer bounds height should be at most 10
         let viewer_height = window.viewer.bounds().height();
         assert!(

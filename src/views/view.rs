@@ -326,7 +326,8 @@ pub trait View {
 
         const SHADOW_FACTOR: f32 = 0.5; // Darken to 50% of original brightness
 
-        let bounds = self.bounds();
+        // Local coordinates: the shadow hangs off the right and bottom of the extent
+        let bounds = self.extent();
         let ss = shadow_size();
         let mut buf = DrawBuffer::new(ss.0 as usize);
 
@@ -488,6 +489,27 @@ pub trait View {
             Attr::from_u8(ERROR_ATTR)
         }
     }
+}
+
+/// Draw a child view in its own coordinate space: push its origin, draw,
+/// pop. Every owner that holds children by value uses this.
+pub fn draw_child(terminal: &mut Terminal, child: &mut (impl View + ?Sized)) {
+    terminal.push_origin(child.bounds().a);
+    child.draw(terminal);
+    terminal.pop_origin();
+}
+
+/// Hand an event to a child view in the child's coordinate space and put
+/// the mouse position back into the owner's space afterwards, whatever the
+/// child turned the event into. The unconditional restore is how a control
+/// reports a screen anchor upward (History, ComboBox) without an owner chain.
+pub fn dispatch_to_child(child: &mut (impl View + ?Sized), event: &mut Event) {
+    let origin = child.bounds().a;
+    event.mouse.pos.x -= origin.x;
+    event.mouse.pos.y -= origin.y;
+    child.handle_event(event);
+    event.mouse.pos.x += origin.x;
+    event.mouse.pos.y += origin.y;
 }
 
 /// Helper to draw a line to the terminal

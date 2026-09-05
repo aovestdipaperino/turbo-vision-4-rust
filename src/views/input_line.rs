@@ -241,7 +241,7 @@ impl View for InputLine {
             }
         }
 
-        write_line_to_terminal(terminal, self.core.bounds.a.x, self.core.bounds.a.y, &buf);
+        write_line_to_terminal(terminal, 0, 0, &buf);
     }
 
     fn handle_event(&mut self, event: &mut Event) {
@@ -525,8 +525,8 @@ impl View for InputLine {
     fn update_cursor(&self, terminal: &mut Terminal) {
         if self.is_focused() {
             // Calculate cursor position on screen
-            let cursor_x = self.core.bounds.a.x as usize + (self.cursor_pos - self.first_pos);
-            let cursor_y = self.core.bounds.a.y;
+            let cursor_x = 0 as usize + (self.cursor_pos - self.first_pos);
+            let cursor_y = 0;
 
             // Show cursor at the position
             let _ = terminal.show_cursor(cursor_x as i16, cursor_y as i16);

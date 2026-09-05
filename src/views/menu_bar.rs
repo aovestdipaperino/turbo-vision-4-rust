@@ -208,7 +208,7 @@ impl MenuBar {
 
             // Position submenu to the right of the dropdown
             let dropdown_x = self.menu_positions.get(menu_idx).copied().unwrap_or(0);
-            let item_y = self.core.bounds.a.y + 2 + current_idx as i16; // +1 for bar, +1 for top border
+            let item_y = 2 + current_idx as i16; // +1 for bar, +1 for top border
 
             // Calculate dropdown width (same math as draw_dropdown)
             let dropdown_width = Self::dropdown_width(&self.submenus[menu_idx].menu);
@@ -272,7 +272,7 @@ impl MenuBar {
         }
 
         let menu_x = self.menu_positions[menu_idx];
-        let menu_y = self.core.bounds.a.y + 1;
+        let menu_y = 1;
         let menu = &self.submenus[menu_idx].menu;
 
         let normal_attr = self.map_color(MENU_NORMAL);
@@ -508,7 +508,7 @@ impl View for MenuBar {
             }
         }
 
-        write_line_to_terminal(terminal, self.core.bounds.a.x, self.core.bounds.a.y, &buf);
+        write_line_to_terminal(terminal, 0, 0, &buf);
 
         // Draw dropdown if active
         if let Some(idx) = self.active_menu_idx {
@@ -522,7 +522,7 @@ impl View for MenuBar {
                 let mouse_pos = event.mouse.pos;
 
                 // Click on menu bar - toggle/switch menus
-                if mouse_pos.y == self.core.bounds.a.y {
+                if mouse_pos.y == 0 {
                     for (i, &menu_x) in self.menu_positions.iter().enumerate() {
                         if i < self.submenus.len() {
                             let menu_width =
@@ -554,7 +554,7 @@ impl View for MenuBar {
                     let (dropdown_bounds, item_count) = if menu_idx < self.menu_positions.len() {
                         if let Some(menu) = self.menu_state.get_menu() {
                             let menu_x = self.menu_positions[menu_idx];
-                            let menu_y = self.core.bounds.a.y + 1;
+                            let menu_y = 1;
                             let item_count = menu.items.len();
 
                             // Dropdown bounds: top border + items + bottom border
@@ -602,7 +602,7 @@ impl View for MenuBar {
                     let (dropdown_bounds, item_count) = if menu_idx < self.menu_positions.len() {
                         if let Some(menu) = self.menu_state.get_menu() {
                             let menu_x = self.menu_positions[menu_idx];
-                            let menu_y = self.core.bounds.a.y + 1;
+                            let menu_y = 1;
                             let item_count = menu.items.len();
 
                             let bounds = Rect::new(
@@ -672,12 +672,12 @@ impl View for MenuBar {
                     let mouse_pos = event.mouse.pos;
 
                     // Hover over dropdown items
-                    if mouse_pos.y > self.core.bounds.a.y {
+                    if mouse_pos.y > 0 {
                         self.handle_menu_event(event);
                     }
 
                     // Hover over different menu on bar - switch
-                    if mouse_pos.y == self.core.bounds.a.y {
+                    if mouse_pos.y == 0 {
                         for (i, &menu_x) in self.menu_positions.iter().enumerate() {
                             if i < self.submenus.len() && i != menu_idx {
                                 let menu_width =
@@ -819,7 +819,7 @@ impl MenuViewer for MenuBar {
         if let Some(menu_idx) = self.active_menu_idx {
             if menu_idx < self.menu_positions.len() {
                 let menu_x = self.menu_positions[menu_idx];
-                let menu_y = self.core.bounds.a.y + 1;
+                let menu_y = 1;
                 let width = Self::dropdown_width(&self.submenus[menu_idx].menu) as i16;
                 // Items start at menu_y + 1 (after top border), each is 1 row
                 return crate::core::geometry::Rect::new(

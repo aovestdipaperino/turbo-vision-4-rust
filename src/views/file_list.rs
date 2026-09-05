@@ -296,8 +296,8 @@ impl View for FileList {
 
             for (x, ch) in padded.chars().take(width).enumerate() {
                 terminal.write_cell(
-                    self.core.bounds.a.x + x as i16,
-                    self.core.bounds.a.y + y as i16,
+                    x as i16,
+                    y as i16,
                     crate::core::draw::Cell::new(ch, color),
                 );
             }

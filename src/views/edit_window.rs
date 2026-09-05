@@ -160,7 +160,8 @@ impl EditWindow {
     /// Called from draw() to ensure positions are always correct, preventing visual lag during resize
     /// IMPORTANT: Always update positions regardless of size to prevent elements "staying behind"
     fn sync_frame_children_positions(&mut self) {
-        let bounds = self.window.bounds();
+        // Frame children are window-relative
+        let bounds = self.window.extent();
         let window_width = bounds.width();
         let window_height = bounds.height();
 
@@ -282,7 +283,7 @@ crate::impl_view_for_window!(EditWindow {
         self.window
             .interior_mut()
             .set_palette_chain(Some(my_chain_node.clone()));
-        self.window.interior_mut().draw(terminal);
+        super::view::draw_child(terminal, self.window.interior_mut());
 
         // Check if scrollbars are needed based on content size
         let editor = self.editor.borrow();
@@ -294,19 +295,19 @@ crate::impl_view_for_window!(EditWindow {
         if needs_h_scrollbar {
             if let Some(child) = self.window.get_frame_child_mut(self.h_scrollbar_idx) {
                 child.set_palette_chain(Some(my_chain_node.clone()));
-                child.draw(terminal);
+                super::view::draw_child(terminal, &mut **child);
             }
         }
         if needs_v_scrollbar {
             if let Some(child) = self.window.get_frame_child_mut(self.v_scrollbar_idx) {
                 child.set_palette_chain(Some(my_chain_node.clone()));
-                child.draw(terminal);
+                super::view::draw_child(terminal, &mut **child);
             }
         }
         // Always draw indicator
         if let Some(child) = self.window.get_frame_child_mut(self.indicator_idx) {
             child.set_palette_chain(Some(my_chain_node));
-            child.draw(terminal);
+            super::view::draw_child(terminal, &mut **child);
         }
 
         // Draw shadow if enabled
@@ -336,7 +337,7 @@ crate::impl_view_for_window!(EditWindow {
             // Let horizontal scrollbar handle event if visible
             if needs_h_scrollbar {
                 if let Some(child) = self.window.get_frame_child_mut(self.h_scrollbar_idx) {
-                    child.handle_event(event);
+                    super::view::dispatch_to_child(&mut **child, event);
                     if event.what == EventType::Nothing {
                         scrollbar_handled = true;
                     }
@@ -346,7 +347,7 @@ crate::impl_view_for_window!(EditWindow {
             // Let vertical scrollbar handle event if visible (and not already handled)
             if !scrollbar_handled && needs_v_scrollbar {
                 if let Some(child) = self.window.get_frame_child_mut(self.v_scrollbar_idx) {
-                    child.handle_event(event);
+                    super::view::dispatch_to_child(&mut **child, event);
                     if event.what == EventType::Nothing {
                         scrollbar_handled = true;
                     }
@@ -377,13 +378,8 @@ crate::impl_view_for_window!(EditWindow {
             let interior_height = window_height.saturating_sub(2);
 
             if interior_width > 0 && interior_height > 0 {
-                let interior_a = Point::new(new_bounds.a.x + 1, new_bounds.a.y + 1); // Interior top-left
-                let editor_bounds = Rect::new(
-                    interior_a.x,
-                    interior_a.y,
-                    interior_a.x + interior_width,
-                    interior_a.y + interior_height,
-                );
+                // The editor fills the interior, in interior space
+                let editor_bounds = Rect::new(0, 0, interior_width, interior_height);
                 self.editor.borrow_mut().set_bounds(editor_bounds);
             }
 
@@ -497,7 +493,8 @@ mod resize_tests {
     #[test]
     fn editor_follows_window_resize() {
         let mut w = EditWindow::new(Rect::new(0, 0, 80, 22), "t");
-        let interior_of = |b: Rect| Rect::new(b.a.x + 1, b.a.y + 1, b.b.x - 1, b.b.y - 1);
+        // The editor fills the interior, in interior space
+        let interior_of = |b: Rect| Rect::new(0, 0, b.width() - 2, b.height() - 2);
 
         assert_eq!(w.editor().bounds(), interior_of(w.bounds()));
 

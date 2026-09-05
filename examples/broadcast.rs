@@ -89,8 +89,8 @@ impl View for BroadcastButton {
 
             turbo_vision::views::view::write_line_to_terminal(
                 terminal,
-                self.core.bounds.a.x,
-                self.core.bounds.a.y + y as i16,
+                0,
+                y as i16,
                 &buf,
             );
         }
@@ -103,10 +103,10 @@ impl View for BroadcastButton {
             EventType::MouseDown => {
                 let mouse_pos = event.mouse.pos;
                 if event.mouse.buttons & MB_LEFT_BUTTON != 0
-                    && mouse_pos.x >= self.core.bounds.a.x
-                    && mouse_pos.x < self.core.bounds.b.x
-                    && mouse_pos.y >= self.core.bounds.a.y
-                    && mouse_pos.y < self.core.bounds.b.y
+                    && mouse_pos.x >= 0
+                    && mouse_pos.x < self.extent().b.x
+                    && mouse_pos.y >= 0
+                    && mouse_pos.y < self.extent().b.y
                 {
                     self.click_count.set(self.click_count.get() + 1);
                     *event = Event::command(self.command);

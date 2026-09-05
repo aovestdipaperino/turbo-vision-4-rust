@@ -75,10 +75,10 @@ impl Notebook {
     /// Screen area of the pages (bounds minus the tab row).
     fn page_bounds(&self) -> Rect {
         Rect::new(
-            self.core.bounds.a.x,
-            self.core.bounds.a.y + 1,
-            self.core.bounds.b.x,
-            self.core.bounds.b.y,
+            0,
+            1,
+            self.extent().b.x,
+            self.extent().b.y,
         )
     }
 
@@ -183,11 +183,11 @@ impl View for Notebook {
                 buf.move_str(*start as usize, &text, attr);
             }
         }
-        write_line_to_terminal(terminal, self.core.bounds.a.x, self.core.bounds.a.y, &buf);
+        write_line_to_terminal(terminal, 0, 0, &buf);
 
         // Active page
         if let Some(page) = self.pages.get_mut(self.active) {
-            page.draw(terminal);
+            turbo_vision::views::view::draw_child(terminal, page);
         }
     }
 
@@ -210,8 +210,8 @@ impl View for Notebook {
             },
             EventType::MouseDown => {
                 let pos = event.mouse.pos;
-                if event.mouse.buttons & MB_LEFT_BUTTON != 0 && pos.y == self.core.bounds.a.y {
-                    let rel_x = pos.x - self.core.bounds.a.x;
+                if event.mouse.buttons & MB_LEFT_BUTTON != 0 && pos.y == 0 {
+                    let rel_x = pos.x;
                     for (i, (start, end)) in self.tab_spans().iter().enumerate() {
                         if rel_x >= *start && rel_x < *end {
                             self.set_active_page(i);
@@ -226,7 +226,7 @@ impl View for Notebook {
 
         // Everything else goes to the active page
         if let Some(page) = self.pages.get_mut(self.active) {
-            page.handle_event(event);
+            turbo_vision::views::view::dispatch_to_child(page, event);
         }
     }
 

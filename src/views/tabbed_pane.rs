@@ -179,10 +179,10 @@ impl TabbedPane {
     /// Build each page's [`Group`] with this, so pages line up with the pane.
     pub fn page_area(&self) -> Rect {
         Rect::new(
-            self.core.bounds.a.x + 1,
-            self.core.bounds.a.y + HEADER_ROWS,
-            self.core.bounds.b.x - 1,
-            self.core.bounds.b.y - 1,
+            1,
+            HEADER_ROWS,
+            self.extent().b.x - 1,
+            self.extent().b.y - 1,
         )
     }
 
@@ -285,11 +285,11 @@ impl TabbedPane {
     fn tab_at(&self, pos: Point) -> Option<usize> {
         // Any of the tab's own three rows counts as a hit on it, so a click
         // near the top or bottom edge is not silently lost.
-        let local_y = pos.y - self.core.bounds.a.y;
-        if !(0..HEADER_ROWS).contains(&local_y) || !self.core.bounds.contains(pos) {
+        let local_y = pos.y;
+        if !(0..HEADER_ROWS).contains(&local_y) || !self.extent().contains(pos) {
             return None;
         }
-        let local_x = (pos.x - self.core.bounds.a.x) as usize;
+        let local_x = (pos.x) as usize;
         let offsets = self.tab_offsets();
         for (index, offset) in offsets.iter().enumerate() {
             if local_x >= *offset && local_x < offset + self.tabs[index].width() {
@@ -339,8 +339,8 @@ impl TabbedPane {
         // sits in a dialog without a colour of its own.
         let frame = rules_painter.map_color(LABEL_DIMMED);
 
-        let x0 = self.core.bounds.a.x;
-        let y0 = self.core.bounds.a.y;
+        let x0 = 0;
+        let y0 = 0;
 
         // Row 0 and row 1: each tab as its own box. Blank elsewhere, so the
         // dialog shows between tabs.
@@ -408,7 +408,7 @@ impl TabbedPane {
         for row in HEADER_ROWS as usize..height - 1 {
             let y = y0 + row as i16;
             write_line_to_terminal(terminal, x0, y, &wall);
-            write_line_to_terminal(terminal, self.core.bounds.b.x - 1, y, &wall);
+            write_line_to_terminal(terminal, self.extent().b.x - 1, y, &wall);
         }
 
         // Bottom edge.
@@ -416,7 +416,7 @@ impl TabbedPane {
         bottom.move_char(0, FRAME_HORIZONTAL, frame, width);
         bottom.put_char(0, FRAME_BOTTOM_LEFT, frame);
         bottom.put_char(width - 1, FRAME_BOTTOM_RIGHT, frame);
-        write_line_to_terminal(terminal, x0, self.core.bounds.b.y - 1, &bottom);
+        write_line_to_terminal(terminal, x0, self.extent().b.y - 1, &bottom);
     }
 }
 
@@ -511,7 +511,7 @@ impl View for TabbedPane {
         );
         if let Some(tab) = self.tabs.get_mut(self.active) {
             tab.page.set_palette_chain(Some(chain));
-            tab.page.draw(terminal);
+            super::view::draw_child(terminal, &mut tab.page);
         }
     }
 
@@ -553,7 +553,7 @@ impl View for TabbedPane {
 
         // Everything else is the active page's business.
         if let Some(tab) = self.tabs.get_mut(self.active) {
-            tab.page.handle_event(event);
+            super::view::dispatch_to_child(&mut tab.page, event);
         }
     }
 
@@ -851,8 +851,9 @@ mod tests {
     fn resizing_the_pane_resizes_every_page() {
         let mut p = pane();
         p.set_bounds(Rect::new(5, 5, 45, 20));
-        assert_eq!(p.page_area(), Rect::new(6, 8, 44, 19));
-        assert_eq!(p.page_mut(2).unwrap().bounds(), Rect::new(6, 8, 44, 19));
+        // The page area is in the pane's own space
+        assert_eq!(p.page_area(), Rect::new(1, 3, 39, 14));
+        assert_eq!(p.page_mut(2).unwrap().bounds(), Rect::new(1, 3, 39, 14));
     }
 
     #[test]

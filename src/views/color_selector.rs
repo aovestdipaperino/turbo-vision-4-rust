@@ -120,8 +120,8 @@ impl View for ColorSelector {
 
             write_line_to_terminal(
                 terminal,
-                self.core.bounds.a.x,
-                self.core.bounds.a.y + row as i16,
+                0,
+                row as i16,
                 &buf,
             );
         }
@@ -138,8 +138,8 @@ impl View for ColorSelector {
             label_buf.move_str(0, &text, label_attr);
             write_line_to_terminal(
                 terminal,
-                self.core.bounds.a.x,
-                self.core.bounds.a.y + 2,
+                0,
+                2,
                 &label_buf,
             );
         }
@@ -173,9 +173,9 @@ impl View for ColorSelector {
             EventType::MouseDown => {
                 if event.mouse.buttons & MB_LEFT_BUTTON != 0 {
                     let mouse_pos = event.mouse.pos;
-                    if self.core.bounds.contains(mouse_pos) {
-                        let rel_x = mouse_pos.x - self.core.bounds.a.x;
-                        let rel_y = mouse_pos.y - self.core.bounds.a.y;
+                    if self.extent().contains(mouse_pos) {
+                        let rel_x = mouse_pos.x;
+                        let rel_y = mouse_pos.y;
 
                         if let Some(color) = self.pos_to_color(rel_x, rel_y) {
                             self.set_selected_color(color);

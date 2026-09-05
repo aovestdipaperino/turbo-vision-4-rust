@@ -310,13 +310,13 @@ impl View for ComboBox {
         }
         buf.put_char(width - 1, DROP_ARROW, arrow_attr);
 
-        write_line_to_terminal(terminal, self.core.bounds.a.x, self.core.bounds.a.y, &buf);
+        write_line_to_terminal(terminal, 0, 0, &buf);
     }
 
     fn handle_event(&mut self, event: &mut Event) {
         // A click anywhere on the field opens the list, focused or not, so the
         // control behaves the way a mouse user expects on first click.
-        if event.what == EventType::MouseDown && self.core.bounds.contains(event.mouse.pos) {
+        if event.what == EventType::MouseDown && self.extent().contains(event.mouse.pos) {
             *event = self.open_request();
             return;
         }
@@ -433,8 +433,8 @@ impl DropdownWindow {
         }
 
         let window_bounds = Rect::new(x, y, x + width, y + height);
-        // The list draws straight to the terminal, so its bounds are absolute.
-        let list_rect = Rect::new(x + 1, y + 1, x + width - 1, y + 1 + rows);
+        // The list sits inside the frame, in the popup's own space
+        let list_rect = Rect::new(1, 1, width - 1, 1 + rows);
 
         Self {
             core: ViewCore {
@@ -502,7 +502,7 @@ impl DropdownWindow {
         top.move_char(0, horiz, normal, outer);
         top.put_char(0, tl, normal);
         top.put_char(outer - 1, tr, normal);
-        write_line_to_terminal(terminal, self.core.bounds.a.x, self.core.bounds.a.y, &top);
+        write_line_to_terminal(terminal, 0, 0, &top);
 
         let mut bottom = DrawBuffer::new(outer);
         bottom.move_char(0, horiz, normal, outer);
@@ -510,8 +510,8 @@ impl DropdownWindow {
         bottom.put_char(outer - 1, br, normal);
         write_line_to_terminal(
             terminal,
-            self.core.bounds.a.x,
-            self.core.bounds.b.y - 1,
+            0,
+            self.extent().b.y - 1,
             &bottom,
         );
 
@@ -529,8 +529,8 @@ impl DropdownWindow {
             // Side frame, then the item text between the edges.
             let mut edge = DrawBuffer::new(1);
             edge.put_char(0, vert, normal);
-            write_line_to_terminal(terminal, self.core.bounds.a.x, y, &edge);
-            write_line_to_terminal(terminal, self.core.bounds.b.x - 1, y, &edge);
+            write_line_to_terminal(terminal, 0, y, &edge);
+            write_line_to_terminal(terminal, self.extent().b.x - 1, y, &edge);
             write_line_to_terminal(terminal, self.list_rect.a.x, y, &buf);
         }
     }
@@ -542,13 +542,20 @@ impl DropdownWindow {
     pub fn execute(&mut self, terminal: &mut Terminal) -> Option<usize> {
         self.scroll_into_view();
         loop {
+            // Nothing owns this popup, so it pushes its own origin and
+            // translates the raw screen events itself.
+            terminal.push_origin(self.core.bounds.a);
             self.draw_popup(terminal);
+            terminal.pop_origin();
             let _ = terminal.flush();
 
             let Ok(Some(mut event)) = terminal.poll_event(std::time::Duration::from_millis(50))
             else {
                 continue;
             };
+            let origin = self.core.bounds.a;
+            event.mouse.pos.x -= origin.x;
+            event.mouse.pos.y -= origin.y;
 
             match event.what {
                 EventType::Keyboard => match event.key_code {
@@ -576,7 +583,7 @@ impl DropdownWindow {
                         }
                         // A click outside the popup dismisses it, the way every
                         // other drop-down behaves.
-                        None if !self.core.bounds.contains(event.mouse.pos) => return None,
+                        None if !self.extent().contains(event.mouse.pos) => return None,
                         None => {}
                     }
                     event.clear();

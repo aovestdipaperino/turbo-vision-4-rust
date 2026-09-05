@@ -333,12 +333,11 @@ pub trait ListViewer: View {
             EventType::MouseDown => {
                 if event.mouse.buttons & MB_LEFT_BUTTON != 0 {
                     let mouse_pos = event.mouse.pos;
-                    let bounds = self.bounds();
 
-                    // Check if click is within bounds
-                    if bounds.contains(mouse_pos) {
+                    // Check if click is within the view (positions are local)
+                    if self.extent().contains(mouse_pos) {
                         // Calculate which item was clicked
-                        let relative_y = (mouse_pos.y - bounds.a.y) as usize;
+                        let relative_y = mouse_pos.y as usize;
                         let clicked_item = self.list_state().top_item + relative_y;
 
                         if clicked_item < self.item_count() {

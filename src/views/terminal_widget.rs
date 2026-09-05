@@ -88,10 +88,10 @@ impl TerminalWidget {
     /// Create with vertical scrollbar
     pub fn with_scrollbar(mut self) -> Self {
         let v_bounds = Rect::new(
-            self.core.bounds.b.x - 1,
-            self.core.bounds.a.y,
-            self.core.bounds.b.x,
-            self.core.bounds.b.y,
+            self.extent().b.x - 1,
+            0,
+            self.extent().b.x,
+            self.extent().b.y,
         );
         self.v_scrollbar = Some(Box::new(ScrollBar::new_vertical(v_bounds)));
         self
@@ -306,6 +306,8 @@ impl View for TerminalWidget {
 
     fn set_bounds(&mut self, bounds: Rect) {
         self.core.bounds = bounds;
+        // Children are laid out in this view's own space
+        let bounds = self.extent();
 
         // Update scrollbar bounds
         if self.v_scrollbar.is_some() {
@@ -352,15 +354,15 @@ impl View for TerminalWidget {
 
             write_line_to_terminal(
                 terminal,
-                self.core.bounds.a.x,
-                self.core.bounds.a.y + i as i16,
+                0,
+                i as i16,
                 &buf,
             );
         }
 
         // Draw scrollbar if present
         if let Some(ref mut v_bar) = self.v_scrollbar {
-            v_bar.draw(terminal);
+            crate::views::view::draw_child(terminal, &mut **v_bar);
         }
     }
 
@@ -398,13 +400,13 @@ impl View for TerminalWidget {
                 _ => {}
             },
             EventType::MouseWheelUp => {
-                if self.core.bounds.contains(event.mouse.pos) {
+                if self.extent().contains(event.mouse.pos) {
                     self.scroll_up();
                     event.clear();
                 }
             }
             EventType::MouseWheelDown => {
-                if self.core.bounds.contains(event.mouse.pos) {
+                if self.extent().contains(event.mouse.pos) {
                     self.scroll_down();
                     event.clear();
                 }
