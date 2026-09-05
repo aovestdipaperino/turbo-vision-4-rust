@@ -25,15 +25,13 @@
 //! tracing::debug!("Loading config from {:?}", path);
 //! ```
 
+use super::group::{Group, GroupLike};
 use super::shared::Shared;
 use super::terminal_widget::TerminalWidget;
-use super::view::{View, ViewCore};
-use super::window::{Window, WindowPaletteType};
-use crate::core::event::Event;
+use super::window::{Window, WindowLike, WindowPaletteType};
 use crate::core::geometry::Rect;
 use crate::core::palette::{Attr, TvColor};
 use crate::terminal::Terminal;
-use crate::views::group::GroupLike;
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -185,40 +183,30 @@ impl LogWindow {
     }
 }
 
-impl View for LogWindow {
-    fn core(&self) -> &ViewCore {
-        self.window.core()
+impl GroupLike for LogWindow {
+    fn group(&self) -> &Group {
+        self.window.group()
     }
-
-    fn core_mut(&mut self) -> &mut ViewCore {
-        self.window.core_mut()
-    }
-
-    fn set_bounds(&mut self, bounds: Rect) {
-        self.window.set_bounds(bounds);
-        // Window handles interior repositioning; widget bounds are updated
-        // by the window's interior Group during draw
-    }
-    fn draw(&mut self, terminal: &mut Terminal) {
-        self.drain_logs();
-        self.window.draw(terminal);
-    }
-    fn handle_event(&mut self, event: &mut Event) {
-        self.window.handle_event(event);
-    }
-    fn can_focus(&self) -> bool {
-        true
-    }
-    fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        self.window.get_palette()
-    }
-    fn get_end_state(&self) -> crate::core::command::CommandId {
-        self.window.get_end_state()
-    }
-    fn set_end_state(&mut self, cmd: crate::core::command::CommandId) {
-        self.window.set_end_state(cmd);
+    fn group_mut(&mut self) -> &mut Group {
+        self.window.group_mut()
     }
 }
+
+impl WindowLike for LogWindow {
+    fn window(&self) -> &Window {
+        &self.window
+    }
+    fn window_mut(&mut self) -> &mut Window {
+        &mut self.window
+    }
+}
+
+crate::impl_view_for_window!(LogWindow {
+    fn draw(&mut self, terminal: &mut Terminal) {
+        self.drain_logs();
+        self.window_draw(terminal);
+    }
+});
 
 /// Builder for creating a LogWindow with tracing integration.
 pub struct LogWindowBuilder {

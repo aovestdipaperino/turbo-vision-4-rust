@@ -16,6 +16,7 @@
 use super::button::Button;
 use super::dialog::Dialog;
 use super::dir_listbox::DirListBox;
+use super::group::{Group, GroupLike};
 use super::history::History;
 use super::input_line::InputLine;
 use super::label::Label;
@@ -23,6 +24,7 @@ use super::list_viewer::ListViewer;
 use super::msgbox::message_box_error;
 use super::scrollbar::ScrollBar;
 use super::shared::Shared;
+use super::window::{Window, WindowLike};
 use super::{View, ViewCore, ViewId};
 use crate::app::Application;
 use crate::core::command::{CM_OK, CommandId};
@@ -30,7 +32,6 @@ use crate::core::event::{Event, EventType};
 use crate::core::geometry::{Point, Rect};
 use crate::core::history::HistoryManager;
 use crate::terminal::Terminal;
-use crate::views::group::GroupLike;
 use std::cell::RefCell;
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -451,37 +452,37 @@ impl ChDirDialog {
     }
 }
 
-impl View for ChDirDialog {
-    fn core(&self) -> &ViewCore {
-        self.dialog.core()
+impl GroupLike for ChDirDialog {
+    fn group(&self) -> &Group {
+        self.dialog.group()
     }
-
-    fn core_mut(&mut self) -> &mut ViewCore {
-        self.dialog.core_mut()
+    fn group_mut(&mut self) -> &mut Group {
+        self.dialog.group_mut()
     }
+}
 
-    fn set_bounds(&mut self, bounds: Rect) {
-        // Forwarded explicitly: the inner view's `set_bounds` cascades to its
-        // children, which the `ViewCore` default would bypass.
-        self.dialog.set_bounds(bounds);
+impl WindowLike for ChDirDialog {
+    fn window(&self) -> &Window {
+        self.dialog.window()
     }
-
-    fn draw(&mut self, terminal: &mut Terminal) {
-        self.dialog.draw(terminal);
+    fn window_mut(&mut self) -> &mut Window {
+        self.dialog.window_mut()
     }
+}
 
+crate::impl_view_for_window!(ChDirDialog {
     fn handle_event(&mut self, event: &mut Event) {
         self.dialog.handle_event(event);
-    }
-
-    fn can_focus(&self) -> bool {
-        true
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
         self.dialog.get_palette()
     }
-}
+
+    fn valid(&mut self, command: crate::core::command::CommandId) -> bool {
+        self.dialog.valid(command)
+    }
+});
 
 /// Builder for creating change directory dialogs with a fluent API.
 pub struct ChDirDialogBuilder {

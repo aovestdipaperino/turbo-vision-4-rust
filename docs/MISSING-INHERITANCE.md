@@ -1340,29 +1340,29 @@ git commit -m "refactor(views): Dialog implements WindowLike; overrides are disp
 - Types wrapping a `Window` implement `GroupLike` and `WindowLike` exactly as `Dialog` does in Task 6.
 - Types wrapping a `Dialog` (`FileDialog`, `ChDirDialog`, `ColorDialog`) implement `WindowLike` with `fn window(&self) -> &Window { self.dialog.window() }` and forward the dialog behaviour explicitly: `fn handle_event(&mut self, e) { WindowLike::handle_event(&mut self.dialog, e) }`, `fn valid(..) { WindowLike::valid(&mut self.dialog, c) }`, `fn get_palette(..) { WindowLike::get_palette(&self.dialog) }`. This keeps `Dialog`'s overrides in the chain. For this to work `Dialog` needs `pub(crate) fn window(&self) -> &Window` which `WindowLike` already provides.
 
-- [ ] **Step 1: Convert `EditWindow`**
+- [x] **Step 1: Convert `EditWindow`**
 
 Replace `impl View for EditWindow` with `impl GroupLike`, `impl WindowLike` (override `set_bounds` with today's body, calling `self.window_set_bounds(bounds)` first, then the three `update_frame_child` calls), and `crate::impl_view_for_window!(EditWindow);`. Delete the forwarding one-liners. Run `cargo test --lib views::edit_window`. Expected: `editor_follows_window_resize` passes.
 
-- [ ] **Step 2: Convert `HelpWindow`, `LogWindow`, `HistoryWindow`**
+- [x] **Step 2: Convert `HelpWindow`, `LogWindow`, `HistoryWindow`**
 
 Same recipe. Each file's `handle_event` override keeps its body and starts with `self.window_handle_event(event)` where it previously called `self.window.handle_event(event)`. Run `cargo test --lib views::help_window views::log_window views::history_window`.
 
-- [ ] **Step 3: Convert `FileDialog`, `ChDirDialog`, `ColorDialog`**
+- [x] **Step 3: Convert `FileDialog`, `ChDirDialog`, `ColorDialog`**
 
 Use the dialog-wrapping recipe from Interfaces. Delete the Task 3 forwarding block; the macro replaces it. The Task 3 test `file_dialog_reports_the_inner_dialogs_state_and_end_state` must still pass. Run `cargo test --lib views::file_dialog views::chdir_dialog views::color_dialog`.
 
-- [ ] **Step 4: Confirm no hand-written forwarding remains**
+- [x] **Step 4: Confirm no hand-written forwarding remains**
 
 Run: `grep -rn "self\.window\.\(bounds\|state\|options\|draw\|handle_event\)(" src/views | grep -v "window_"`
 Expected: no output. Anything listed is a leftover forward to delete.
 
-- [ ] **Step 5: Run the suite and the examples build**
+- [x] **Step 5: Run the suite and the examples build**
 
 Run: `cargo test && cargo build --examples && cargo clippy --all-targets -- -D warnings`
 Expected: green.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/views

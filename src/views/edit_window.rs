@@ -9,15 +9,15 @@
 // Provides a ready-to-use editor window for text editing.
 
 use super::editor::EditorWindow;
+use super::group::{Group, GroupLike};
 use super::indicator::Indicator;
 use super::scrollbar::ScrollBar;
 use super::shared::Shared;
-use super::view::{View, ViewCore};
-use super::window::Window;
+use super::view::View;
+use super::window::{Window, WindowLike};
 use crate::core::event::{Event, EventType};
 use crate::core::geometry::{Point, Rect};
 use crate::terminal::Terminal;
-use crate::views::group::GroupLike;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -191,18 +191,28 @@ impl EditWindow {
     }
 }
 
-impl View for EditWindow {
-    fn core(&self) -> &ViewCore {
-        self.window.core()
+impl GroupLike for EditWindow {
+    fn group(&self) -> &Group {
+        self.window.group()
     }
-
-    fn core_mut(&mut self) -> &mut ViewCore {
-        self.window.core_mut()
+    fn group_mut(&mut self) -> &mut Group {
+        self.window.group_mut()
     }
+}
 
+impl WindowLike for EditWindow {
+    fn window(&self) -> &Window {
+        &self.window
+    }
+    fn window_mut(&mut self) -> &mut Window {
+        &mut self.window
+    }
+}
+
+crate::impl_view_for_window!(EditWindow {
     fn set_bounds(&mut self, bounds: Rect) {
         // Window handles updating all children (including scrollbars, indicator, and editor)
-        self.window.set_bounds(bounds);
+        self.window_set_bounds(bounds);
 
         // Recalculate scrollbar positions based on NEW window size
         let window_width = bounds.width();
@@ -246,8 +256,8 @@ impl View for EditWindow {
         // EditWindow bypasses Window::draw() for conditional scrollbar rendering,
         // so it must propagate the palette chain to children itself.
         let my_chain_node = crate::core::palette_chain::PaletteChainNode::new(
-            self.window.get_palette(),
-            self.window.get_palette_chain().cloned(),
+            self.get_palette(),
+            self.get_palette_chain().cloned(),
         );
 
         // Draw frame and interior with palette chain
@@ -287,8 +297,8 @@ impl View for EditWindow {
         }
 
         // Draw shadow if enabled
-        if self.window.has_shadow() {
-            self.window.draw_shadow(terminal);
+        if self.has_shadow() {
+            self.draw_shadow(terminal);
         }
     }
 
@@ -338,7 +348,7 @@ impl View for EditWindow {
         }
 
         // Let Window handle the event (drag, resize, etc.)
-        self.window.handle_event(event);
+        self.window_handle_event(event);
 
         // Check if bounds changed (resize or move)
         let new_bounds = self.window.bounds();
@@ -368,23 +378,7 @@ impl View for EditWindow {
             // No need to update them here - this prevents duplicate work
         }
     }
-
-    fn can_focus(&self) -> bool {
-        true
-    }
-
-    fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        self.window.get_palette()
-    }
-
-    fn get_end_state(&self) -> crate::core::command::CommandId {
-        self.window.get_end_state()
-    }
-
-    fn set_end_state(&mut self, command: crate::core::command::CommandId) {
-        self.window.set_end_state(command);
-    }
-}
+});
 
 #[cfg(test)]
 mod tests {

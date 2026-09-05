@@ -20,7 +20,8 @@ use crate::terminal::Terminal;
 
 use super::edit_window::EditWindow;
 use super::editor_traits::{Editor, ExternalState, FileEditor, confirm_save_on_close};
-use super::view::{View, ViewCore};
+use super::group::{Group, GroupLike};
+use super::window::{Window, WindowLike};
 
 pub struct FileEditorWindow {
     edit_window: EditWindow,
@@ -203,15 +204,25 @@ impl FileEditor for FileEditorWindow {
     }
 }
 
-impl View for FileEditorWindow {
-    fn core(&self) -> &ViewCore {
-        self.edit_window.core()
+impl GroupLike for FileEditorWindow {
+    fn group(&self) -> &Group {
+        self.edit_window.group()
     }
-
-    fn core_mut(&mut self) -> &mut ViewCore {
-        self.edit_window.core_mut()
+    fn group_mut(&mut self) -> &mut Group {
+        self.edit_window.group_mut()
     }
+}
 
+impl WindowLike for FileEditorWindow {
+    fn window(&self) -> &Window {
+        self.edit_window.window()
+    }
+    fn window_mut(&mut self) -> &mut Window {
+        self.edit_window.window_mut()
+    }
+}
+
+crate::impl_view_for_window!(FileEditorWindow {
     fn set_bounds(&mut self, bounds: Rect) {
         // Forwarded explicitly: the inner view's `set_bounds` cascades to its
         // children, which the `ViewCore` default would bypass.
@@ -226,14 +237,10 @@ impl View for FileEditorWindow {
         self.edit_window.handle_event(event);
     }
 
-    fn can_focus(&self) -> bool {
-        self.edit_window.can_focus()
-    }
-
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
         self.edit_window.get_palette()
     }
-}
+});
 
 /// Builder for creating file editors with a fluent API.
 pub struct FileEditorBuilder {

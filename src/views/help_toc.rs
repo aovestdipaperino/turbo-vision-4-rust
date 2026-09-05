@@ -8,15 +8,15 @@
 
 use super::button::Button;
 use super::dialog::Dialog;
+use super::group::{Group, GroupLike};
 use super::help_file::HelpFile;
 use super::outline::{Node, OutlineViewer};
 use super::static_text::StaticText;
-use super::{View, ViewCore, ViewId};
+use super::window::{Window, WindowLike};
+use super::ViewId;
 use crate::core::command::{CM_CANCEL, CM_OK};
 use crate::core::event::Event;
 use crate::core::geometry::Rect;
-use crate::terminal::Terminal;
-use crate::views::group::GroupLike;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -116,37 +116,37 @@ impl HelpToc {
     }
 }
 
-impl View for HelpToc {
-    fn core(&self) -> &ViewCore {
-        self.dialog.core()
+impl GroupLike for HelpToc {
+    fn group(&self) -> &Group {
+        self.dialog.group()
     }
-
-    fn core_mut(&mut self) -> &mut ViewCore {
-        self.dialog.core_mut()
+    fn group_mut(&mut self) -> &mut Group {
+        self.dialog.group_mut()
     }
+}
 
-    fn set_bounds(&mut self, bounds: Rect) {
-        // Forwarded explicitly: the inner view's `set_bounds` cascades to its
-        // children, which the `ViewCore` default would bypass.
-        self.dialog.set_bounds(bounds);
+impl WindowLike for HelpToc {
+    fn window(&self) -> &Window {
+        self.dialog.window()
     }
-
-    fn draw(&mut self, terminal: &mut Terminal) {
-        self.dialog.draw(terminal);
+    fn window_mut(&mut self) -> &mut Window {
+        self.dialog.window_mut()
     }
+}
 
+crate::impl_view_for_window!(HelpToc {
     fn handle_event(&mut self, event: &mut Event) {
         self.dialog.handle_event(event);
-    }
-
-    fn can_focus(&self) -> bool {
-        true
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
         self.dialog.get_palette()
     }
-}
+
+    fn valid(&mut self, command: crate::core::command::CommandId) -> bool {
+        self.dialog.valid(command)
+    }
+});
 
 /// Builder for creating help TOC dialogs with a fluent API.
 pub struct HelpTocBuilder {

@@ -55,11 +55,6 @@
 //! performance, but could alternatively use direct child access if needed for more
 //! complex scenarios.
 
-use super::button::Button;
-use super::dialog::Dialog;
-use super::input_line::InputLine;
-use super::label::Label;
-use super::listbox::ListBox;
 /// FileDialog - A file selection dialog for opening/saving files
 ///
 /// ## Usage
@@ -106,12 +101,18 @@ use super::listbox::ListBox;
 /// - Any other text: `"~C~ustom"`
 ///
 /// The `~` character indicates the hotkey underline in the button text.
-use super::{View, ViewCore};
+use super::View;
+use super::button::Button;
+use super::dialog::Dialog;
+use super::group::{Group, GroupLike};
+use super::input_line::InputLine;
+use super::label::Label;
+use super::listbox::ListBox;
+use super::window::{Window, WindowLike};
 use crate::core::command::{CM_CANCEL, CM_FILE_FOCUSED, CM_OK, CommandId};
 use crate::core::event::{Event, EventType};
 use crate::core::geometry::Rect;
 use crate::terminal::Terminal;
-use crate::views::group::GroupLike;
 use std::cell::RefCell;
 use std::fs;
 use std::path::PathBuf;
@@ -789,25 +790,25 @@ impl FileDialog {
     }
 }
 
-impl View for FileDialog {
-    fn core(&self) -> &ViewCore {
-        self.dialog.core()
+impl GroupLike for FileDialog {
+    fn group(&self) -> &Group {
+        self.dialog.group()
     }
-
-    fn core_mut(&mut self) -> &mut ViewCore {
-        self.dialog.core_mut()
+    fn group_mut(&mut self) -> &mut Group {
+        self.dialog.group_mut()
     }
+}
 
-    fn set_bounds(&mut self, bounds: Rect) {
-        // Forwarded explicitly: the inner view's `set_bounds` cascades to its
-        // children, which the `ViewCore` default would bypass.
-        self.dialog.set_bounds(bounds);
+impl WindowLike for FileDialog {
+    fn window(&self) -> &Window {
+        self.dialog.window()
     }
-
-    fn draw(&mut self, terminal: &mut Terminal) {
-        self.dialog.draw(terminal);
+    fn window_mut(&mut self) -> &mut Window {
+        self.dialog.window_mut()
     }
+}
 
+crate::impl_view_for_window!(FileDialog {
     fn handle_event(&mut self, event: &mut Event) {
         self.dialog.handle_event(event);
     }
@@ -816,46 +817,10 @@ impl View for FileDialog {
         self.dialog.get_palette()
     }
 
-    fn can_focus(&self) -> bool {
-        self.dialog.can_focus()
-    }
-
-    fn set_focus(&mut self, focused: bool) {
-        self.dialog.set_focus(focused);
-    }
-
-    fn update_cursor(&self, terminal: &mut Terminal) {
-        self.dialog.update_cursor(terminal);
-    }
-
     fn valid(&mut self, command: CommandId) -> bool {
         self.dialog.valid(command)
     }
-
-    fn get_end_state(&self) -> CommandId {
-        View::get_end_state(&self.dialog)
-    }
-
-    fn set_end_state(&mut self, command: CommandId) {
-        View::set_end_state(&mut self.dialog, command);
-    }
-
-    fn init_after_add(&mut self) {
-        self.dialog.init_after_add();
-    }
-
-    fn constrain_to_parent_bounds(&mut self) {
-        self.dialog.constrain_to_parent_bounds();
-    }
-
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-        self
-    }
-}
+});
 
 #[cfg(test)]
 mod forwarding_tests {

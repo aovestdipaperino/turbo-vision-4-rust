@@ -7,19 +7,17 @@
 //
 // A window containing a HelpViewer with navigation and topic selection.
 
+use super::group::{Group, GroupLike};
 use super::help_file::HelpFile;
 use super::help_viewer::HelpViewer;
 use super::shared::Shared;
-use super::view::{View, ViewCore};
-use super::window::Window;
+use super::window::{Window, WindowLike};
 use crate::core::command::{CM_CANCEL, CommandId};
 use crate::core::event::{
     Event, EventType, KB_ALT_F1, KB_BACKSPACE, KB_ENTER, KB_ESC, MB_LEFT_BUTTON,
 };
 use crate::core::geometry::{Point, Rect};
 use crate::core::state::StateFlags;
-use crate::terminal::Terminal;
-use crate::views::group::GroupLike;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -209,17 +207,27 @@ impl HelpWindow {
     }
 }
 
-impl View for HelpWindow {
-    fn core(&self) -> &ViewCore {
-        self.window.core()
+impl GroupLike for HelpWindow {
+    fn group(&self) -> &Group {
+        self.window.group()
     }
-
-    fn core_mut(&mut self) -> &mut ViewCore {
-        self.window.core_mut()
+    fn group_mut(&mut self) -> &mut Group {
+        self.window.group_mut()
     }
+}
 
+impl WindowLike for HelpWindow {
+    fn window(&self) -> &Window {
+        &self.window
+    }
+    fn window_mut(&mut self) -> &mut Window {
+        &mut self.window
+    }
+}
+
+crate::impl_view_for_window!(HelpWindow {
     fn set_bounds(&mut self, bounds: Rect) {
-        self.window.set_bounds(bounds);
+        self.window_set_bounds(bounds);
         // Update viewer bounds to match window interior (ABSOLUTE coordinates)
         // The viewer needs absolute screen coordinates, not relative to window
         let viewer_bounds = Rect::new(
@@ -231,18 +239,13 @@ impl View for HelpWindow {
         self.viewer.borrow_mut().set_bounds(viewer_bounds);
     }
 
-    fn draw(&mut self, terminal: &mut Terminal) {
-        // Window draws itself and all children (including viewer)
-        self.window.draw(terminal);
-    }
-
     fn handle_event(&mut self, event: &mut Event) {
         match event.what {
             EventType::Keyboard => {
                 match event.key_code {
                     KB_ESC => {
                         // ESC closes the help window
-                        self.window.end_modal(CM_CANCEL);
+                        self.end_modal(CM_CANCEL);
                         event.clear();
                         return;
                     }
@@ -274,7 +277,7 @@ impl View for HelpWindow {
             EventType::MouseDown => {
                 if event.mouse.buttons & MB_LEFT_BUTTON != 0 {
                     // Let the window (and viewer) handle the click first
-                    self.window.handle_event(event);
+                    self.window_handle_event(event);
 
                     // If a link was clicked, follow it
                     let target = self
@@ -301,30 +304,14 @@ impl View for HelpWindow {
         }
 
         // Window handles events and dispatches to children (including viewer)
-        self.window.handle_event(event);
-    }
-
-    fn can_focus(&self) -> bool {
-        true
+        self.window_handle_event(event);
     }
 
     fn set_state(&mut self, state: StateFlags) {
         self.window.set_state(state);
         self.viewer.borrow_mut().set_state(state);
     }
-
-    fn get_palette(&self) -> Option<crate::core::palette::Palette> {
-        self.window.get_palette()
-    }
-
-    fn get_end_state(&self) -> crate::core::command::CommandId {
-        self.window.get_end_state()
-    }
-
-    fn set_end_state(&mut self, command: crate::core::command::CommandId) {
-        self.window.set_end_state(command);
-    }
-}
+});
 
 #[cfg(test)]
 mod tests {
