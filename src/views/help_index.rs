@@ -52,12 +52,7 @@ impl HelpIndex {
         let search_label = Label::new(Rect::new(2, 4, 10, 5), "Search:");
         dialog.add(Box::new(search_label));
 
-        let search_data = Rc::new(RefCell::new(String::new()));
-        let search_input = InputLine::new(
-            Rect::new(10, 4, bounds.width() - 4, 5),
-            100,
-            search_data.clone(),
-        );
+        let search_input = InputLine::new(Rect::new(10, 4, bounds.width() - 4, 5), 100);
         let search_input_id = dialog.add(Box::new(search_input));
 
         // Topic list

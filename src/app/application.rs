@@ -559,11 +559,9 @@ impl Application {
         }
     }
 
-    /// Open the history popup a `CM_SHOW_HISTORY` command asked for and hand
-    /// the selection back to `view`'s children as a `CM_HISTORY_SELECTED`
-    /// broadcast.
+    /// Open the history popup a `CM_SHOW_HISTORY` command asked for and copy
+    /// the selection into the input linked to the button that asked.
     fn show_history_popup_for<V: WindowLike + ?Sized>(&mut self, view: &mut V, event: &mut Event) {
-        use crate::core::command::CM_HISTORY_SELECTED;
         use crate::core::geometry::Point;
         use crate::core::history::HistoryManager;
         use crate::views::history_window::HistoryWindow;
@@ -574,10 +572,10 @@ impl Application {
         let pos = Point::new((event.mouse.pos.x - 20).max(0), event.mouse.pos.y + 1);
         let mut window = HistoryWindow::new(pos, history_id, 30);
         if let Some(selected) = window.execute(&mut self.terminal) {
-            // Move the selection to the front so History views can find it.
-            HistoryManager::add(history_id, selected);
-            let mut sel = Event::broadcast_with_info(CM_HISTORY_SELECTED, history_id);
-            view.handle_event(&mut sel);
+            // Move the selection to the front of the list, then fill the input
+            // the History button is linked to (the owner resolves the link).
+            HistoryManager::add(history_id, selected.clone());
+            crate::views::history::apply_history_selection(view.group_mut(), history_id, &selected);
         }
         event.clear();
     }
@@ -793,9 +791,9 @@ impl Application {
                     event.clear();
                 }
                 crate::core::command::CM_SHOW_HISTORY => {
-                    // A History button was clicked in a dialog running under
+                    // A History button was clicked in a window running under
                     // exec_view()/run(); open the popup here where we have
-                    // terminal access, then broadcast the selection back.
+                    // terminal access, then fill the linked input.
                     use crate::core::geometry::Point;
                     use crate::core::history::HistoryManager;
 
@@ -804,12 +802,14 @@ impl Application {
                     let mut window =
                         crate::views::history_window::HistoryWindow::new(pos, history_id, 30);
                     if let Some(selected) = window.execute(&mut self.terminal) {
-                        HistoryManager::add(history_id, selected);
-                        let mut sel = Event::broadcast_with_info(
-                            crate::core::command::CM_HISTORY_SELECTED,
+                        HistoryManager::add(history_id, selected.clone());
+                        // The button lives in one of the desktop's windows;
+                        // the search recurses into them.
+                        crate::views::history::apply_history_selection(
+                            self.desktop.children_mut(),
                             history_id,
+                            &selected,
                         );
-                        self.desktop.handle_event(&mut sel);
                     }
                     event.clear();
                 }

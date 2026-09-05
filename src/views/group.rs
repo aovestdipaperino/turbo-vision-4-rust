@@ -828,6 +828,30 @@ pub trait GroupLike: View {
     fn broadcast(&mut self, event: &mut Event, owner_index: Option<usize>) {
         self.group_mut().broadcast(event, owner_index);
     }
+
+    // ---- typed child access (Borland: a typed `TView*` to a child) ----
+    // `where Self: Sized` keeps the trait usable as `dyn GroupLike`.
+
+    fn add_typed<T: View + 'static>(&mut self, view: T) -> super::handle::Handle<T>
+    where
+        Self: Sized,
+    {
+        super::handle::Handle::from_id(self.add(Box::new(view)))
+    }
+    fn get<T: View + 'static>(&self, handle: super::handle::Handle<T>) -> Option<&T>
+    where
+        Self: Sized,
+    {
+        self.child_by_id(handle.id())?.as_any().downcast_ref::<T>()
+    }
+    fn get_mut<T: View + 'static>(&mut self, handle: super::handle::Handle<T>) -> Option<&mut T>
+    where
+        Self: Sized,
+    {
+        self.child_by_id_mut(handle.id())?
+            .as_any_mut()
+            .downcast_mut::<T>()
+    }
 }
 
 impl GroupLike for Group {

@@ -19,7 +19,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the outer type's `handle_event`, so a `FileDialog` no longer needs its own
   copy of the loop to react to its children.
 
+- **Typed child handles.** `GroupLike::add_typed` returns a `Handle<T>`;
+  `get` / `get_mut` give the concrete child back. `Desktop` has the same
+  three methods for its windows.
+
 ### Changed (breaking)
+- **`InputLine` owns its text.** `InputLine::new(bounds, max_length)` and
+  `with_validator(bounds, max_length, validator)` drop the
+  `Rc<RefCell<String>>` parameter; `InputLineBuilder::text(..)` replaces
+  `data(..)`; read the value back with `text()` through a `Handle<InputLine>`
+  after `execute`. `History::new` takes the `Handle<InputLine>` it is linked
+  to, and the owning dialog records and fills the input (Borland's `link`
+  pointer resolved by the owner), so the `CM_RECORD_HISTORY` and
+  `CM_HISTORY_SELECTED` broadcasts are no longer handled by `History`.
+- `EditWindow::editor()` / `editor_mut()` and `HelpWindow::viewer()` /
+  `viewer_mut()` replace `editor_rc()` / `viewer_rc()`, which are deprecated.
 - **`Desktop::remove_closed_windows` returns `Vec<ViewId>`** (the windows it
   removed) instead of `bool`.
 - `FileDialog::handle_selection` no longer takes a `&mut Terminal`.

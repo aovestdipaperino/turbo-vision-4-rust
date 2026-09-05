@@ -536,13 +536,9 @@ fn main() -> turbo_vision::core::error::Result<()> {
     let desk = app.get_tile_rect();
     let edit_window = EditWindow::new(Rect::new(0, 0, desk.width(), desk.height()), "Untitled.pas");
     edit_window
-        .editor_rc()
-        .borrow_mut()
+        .editor_mut()
         .set_highlighter(Box::new(PascalHighlighter::new()));
-    edit_window
-        .editor_rc()
-        .borrow_mut()
-        .set_text(SAMPLE_PROGRAM);
+    edit_window.editor_mut().set_text(SAMPLE_PROGRAM);
     app.desktop.add(Box::new(edit_window));
 
     // Splash-style about box: no buttons, closes itself after 3 seconds.

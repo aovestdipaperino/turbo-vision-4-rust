@@ -1,7 +1,5 @@
 // (C) 2025 - Enzo Lombardi
 // Non-interactive test for clipping
-use std::cell::RefCell;
-use std::rc::Rc;
 use turbo_vision::prelude::*;
 use turbo_vision::terminal::Terminal;
 use turbo_vision::views::{
@@ -24,8 +22,8 @@ fn main() -> turbo_vision::core::error::Result<()> {
     dialog.add(Box::new(text));
 
     // Add an input field
-    let input_data = Rc::new(RefCell::new("Sample Input Text".to_string()));
-    let input = InputLine::new(Rect::new(1, 4, 39, 5), 50, input_data);
+    let mut input = InputLine::new(Rect::new(1, 4, 39, 5), 50);
+    input.set_text("Sample Input Text");
     dialog.add(Box::new(input));
 
     // Add checkboxes

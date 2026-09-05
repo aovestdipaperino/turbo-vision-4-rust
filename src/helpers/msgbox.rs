@@ -12,8 +12,6 @@ use crate::views::dialog::Dialog;
 use crate::views::group::GroupLike;
 use crate::views::input_line::InputLine;
 use crate::views::static_text::StaticText;
-use std::cell::RefCell;
-use std::rc::Rc;
 use std::time::Duration;
 
 // Message box type flags (matches Borland: mfWarning, mfError, etc.)
@@ -216,9 +214,6 @@ pub fn input_box_rect(
 ) -> (CommandId, String) {
     let mut dialog = Dialog::new(bounds, title);
 
-    // Create shared data for the input line
-    let input_data = Rc::new(RefCell::new(default.to_string()));
-
     // Add label (if provided)
     if !label.is_empty() {
         let label_bounds = Rect::new(2, 2, 2 + label.len() as i16 + 1, 3);
@@ -232,8 +227,9 @@ pub fn input_box_rect(
         3
     };
     let input_bounds = Rect::new(input_x, 2, bounds.width() - 3, 3);
-    let input = InputLine::new(input_bounds, limit, Rc::clone(&input_data));
-    dialog.add(Box::new(input));
+    let mut input = InputLine::new(input_bounds, limit);
+    input.set_text(default);
+    let input = dialog.add_typed(input);
 
     // Add OK button
     let ok_button = Button::new(
@@ -266,8 +262,11 @@ pub fn input_box_rect(
     dialog.set_initial_focus();
     let result = dialog.execute(app);
 
-    // Get the input text from the shared data
-    let text = input_data.borrow().clone();
+    // Read the input text back through its handle
+    let text = dialog
+        .get(input)
+        .map(|f| f.text().to_string())
+        .unwrap_or_default();
 
     (result, text)
 }

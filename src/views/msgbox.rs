@@ -11,8 +11,6 @@ use crate::app::Application;
 use crate::core::command::{CM_CANCEL, CM_NO, CM_OK, CM_YES, CommandId};
 use crate::core::geometry::Rect;
 use crate::views::group::GroupLike;
-use std::cell::RefCell;
-use std::rc::Rc;
 use std::time::Duration;
 
 // Message box types
@@ -353,9 +351,6 @@ pub fn input_box_rect(
 ) -> Option<String> {
     let mut dialog = Dialog::new(bounds, title);
 
-    // Create shared data for input line
-    let data = Rc::new(RefCell::new(initial.to_string()));
-
     // Add label
     let label_x = 2;
     let label_width = label.len() as i16;
@@ -366,11 +361,9 @@ pub fn input_box_rect(
     let input_x = label_x + label_width + 1;
     let input_width = (bounds.width() - input_x - 3).min(max_length as i16 + 2);
     let input_bounds = Rect::new(input_x, 2, input_x + input_width, 3);
-    dialog.add(Box::new(InputLine::new(
-        input_bounds,
-        max_length,
-        data.clone(),
-    )));
+    let mut input = InputLine::new(input_bounds, max_length);
+    input.set_text(initial);
+    let input = dialog.add_typed(input);
 
     // Add OK button
     let button_y = bounds.height() - 4;
@@ -393,7 +386,7 @@ pub fn input_box_rect(
     let result = dialog.execute(app);
 
     if result == CM_OK {
-        Some(data.borrow().clone())
+        dialog.get(input).map(|f| f.text().to_string())
     } else {
         None
     }
@@ -425,16 +418,13 @@ pub fn search_box(app: &mut Application, title: &str) -> Option<String> {
 
     let mut dialog = Dialog::new(bounds, title);
 
-    // Create shared data for input line
-    let data = Rc::new(RefCell::new(String::new()));
-
     // Add label
     let label_bounds = Rect::new(2, 2, 20, 3);
     dialog.add(Box::new(Label::new(label_bounds, "~F~ind:")));
 
     // Add input line
     let input_bounds = Rect::new(2, 3, width - 4, 4);
-    dialog.add(Box::new(InputLine::new(input_bounds, 100, data.clone())));
+    let input = dialog.add_typed(InputLine::new(input_bounds, 100));
 
     // Add OK button
     let ok_bounds = Rect::new(15, 5, 25, 7);
@@ -454,7 +444,10 @@ pub fn search_box(app: &mut Application, title: &str) -> Option<String> {
     let result = dialog.execute(app);
 
     if result == CM_OK {
-        let text = data.borrow().clone();
+        let text = dialog
+            .get(input)
+            .map(|f| f.text().to_string())
+            .unwrap_or_default();
         if !text.is_empty() { Some(text) } else { None }
     } else {
         None
@@ -487,21 +480,13 @@ pub fn search_replace_box(app: &mut Application, title: &str) -> Option<(String,
 
     let mut dialog = Dialog::new(bounds, title);
 
-    // Create shared data for input lines
-    let find_data = Rc::new(RefCell::new(String::new()));
-    let replace_data = Rc::new(RefCell::new(String::new()));
-
     // Add find label
     let label1_bounds = Rect::new(2, 2, 20, 3);
     dialog.add(Box::new(Label::new(label1_bounds, "~F~ind:")));
 
     // Add find input line
     let input1_bounds = Rect::new(2, 3, width - 4, 4);
-    dialog.add(Box::new(InputLine::new(
-        input1_bounds,
-        100,
-        find_data.clone(),
-    )));
+    let find_input = dialog.add_typed(InputLine::new(input1_bounds, 100));
 
     // Add replace label
     let label2_bounds = Rect::new(2, 5, 20, 6);
@@ -509,11 +494,7 @@ pub fn search_replace_box(app: &mut Application, title: &str) -> Option<(String,
 
     // Add replace input line
     let input2_bounds = Rect::new(2, 6, width - 4, 7);
-    dialog.add(Box::new(InputLine::new(
-        input2_bounds,
-        100,
-        replace_data.clone(),
-    )));
+    let replace_input = dialog.add_typed(InputLine::new(input2_bounds, 100));
 
     // Add OK button
     let ok_bounds = Rect::new(15, 9, 25, 11);
@@ -533,9 +514,15 @@ pub fn search_replace_box(app: &mut Application, title: &str) -> Option<(String,
     let result = dialog.execute(app);
 
     if result == CM_OK {
-        let find_text = find_data.borrow().clone();
+        let text_of = |h| {
+            dialog
+                .get(h)
+                .map(|f: &InputLine| f.text().to_string())
+                .unwrap_or_default()
+        };
+        let find_text = text_of(find_input);
         if !find_text.is_empty() {
-            let replace_text = replace_data.borrow().clone();
+            let replace_text = text_of(replace_input);
             Some((find_text, replace_text))
         } else {
             None
@@ -571,16 +558,13 @@ pub fn goto_line_box(app: &mut Application, title: &str) -> Option<usize> {
 
     let mut dialog = Dialog::new(bounds, title);
 
-    // Create shared data for input line
-    let data = Rc::new(RefCell::new(String::new()));
-
     // Add label
     let label_bounds = Rect::new(2, 2, 20, 3);
     dialog.add(Box::new(Label::new(label_bounds, " ~L~ine number:")));
 
     // Add input line
     let input_bounds = Rect::new(2, 3, width - 4, 4);
-    dialog.add(Box::new(InputLine::new(input_bounds, 10, data.clone())));
+    let input = dialog.add_typed(InputLine::new(input_bounds, 10));
 
     // Add OK button
     let ok_bounds = Rect::new(10, 5, 20, 7);
@@ -600,8 +584,9 @@ pub fn goto_line_box(app: &mut Application, title: &str) -> Option<usize> {
     let result = dialog.execute(app);
 
     if result == CM_OK {
-        let text = data.borrow().clone();
-        text.parse::<usize>().ok()
+        dialog
+            .get(input)
+            .and_then(|f| f.text().parse::<usize>().ok())
     } else {
         None
     }

@@ -3,8 +3,6 @@
 
 // Win11: links do NOT work in VSCode integrated Terminal. Use an external terminal instead
 
-use std::cell::RefCell;
-use std::rc::Rc;
 use turbo_vision::app::Application;
 use turbo_vision::core::command::{CM_CANCEL, CM_OK};
 use turbo_vision::core::geometry::Rect;
@@ -12,7 +10,7 @@ use turbo_vision::helpers::msgbox::{MF_INFORMATION, MF_OK_BUTTON, message_box};
 use turbo_vision::views::GroupLike;
 use turbo_vision::views::button::ButtonBuilder;
 use turbo_vision::views::dialog::DialogBuilder;
-use turbo_vision::views::input_line::InputLineBuilder;
+use turbo_vision::views::input_line::{InputLine, InputLineBuilder};
 use turbo_vision::views::label::LabelBuilder;
 
 fn main() -> turbo_vision::core::error::Result<()> {
@@ -33,54 +31,45 @@ fn main() -> turbo_vision::core::error::Result<()> {
     ));
 
     // First Name field with linked label
-    let first_name_data = Rc::new(RefCell::new(String::new()));
     let mut first_name_label = LabelBuilder::new()
         .bounds(Rect::new(2, 4, 15, 4))
         .text("~F~irst Name:")
         .build();
-    first_name_label.set_link(
-        dialog.add(Box::new(
-            InputLineBuilder::new()
-                .bounds(Rect::new(15, 4, 35, 4))
-                .max_length(20)
-                .data(Rc::clone(&first_name_data))
-                .build(),
-        )),
+    let first_name = dialog.add_typed(
+        InputLineBuilder::new()
+            .bounds(Rect::new(15, 4, 35, 4))
+            .max_length(20)
+            .build(),
     );
+    first_name_label.set_link(first_name.id());
     dialog.add(Box::new(first_name_label));
 
     // Last Name field with linked label
-    let last_name_data = Rc::new(RefCell::new(String::new()));
     let mut last_name_label = LabelBuilder::new()
         .bounds(Rect::new(2, 6, 15, 6))
         .text("~L~ast Name:")
         .build();
-    last_name_label.set_link(
-        dialog.add(Box::new(
-            InputLineBuilder::new()
-                .bounds(Rect::new(15, 6, 35, 6))
-                .max_length(20)
-                .data(Rc::clone(&last_name_data))
-                .build(),
-        )),
+    let last_name = dialog.add_typed(
+        InputLineBuilder::new()
+            .bounds(Rect::new(15, 6, 35, 6))
+            .max_length(20)
+            .build(),
     );
+    last_name_label.set_link(last_name.id());
     dialog.add(Box::new(last_name_label));
 
     // Email field with linked label
-    let email_data = Rc::new(RefCell::new(String::new()));
     let mut email_label = LabelBuilder::new()
         .bounds(Rect::new(2, 8, 15, 8))
         .text("~E~mail:")
         .build();
-    email_label.set_link(
-        dialog.add(Box::new(
-            InputLineBuilder::new()
-                .bounds(Rect::new(15, 8, 35, 8))
-                .max_length(20)
-                .data(Rc::clone(&email_data))
-                .build(),
-        )),
+    let email = dialog.add_typed(
+        InputLineBuilder::new()
+            .bounds(Rect::new(15, 8, 35, 8))
+            .max_length(20)
+            .build(),
     );
+    email_label.set_link(email.id());
     dialog.add(Box::new(email_label));
 
     // Buttons
@@ -105,11 +94,17 @@ fn main() -> turbo_vision::core::error::Result<()> {
     let result = dialog.execute(&mut app);
 
     // Show information box with user's choices if they clicked OK
-    if result == CM_OK {
-        let first = first_name_data.borrow();
-        let last = last_name_data.borrow();
-        let email = email_data.borrow();
+    let text_of = |h| {
+        dialog
+            .get(h)
+            .map(|f: &InputLine| f.text().to_string())
+            .unwrap_or_default()
+    };
+    let first = text_of(first_name);
+    let last = text_of(last_name);
+    let email = text_of(email);
 
+    if result == CM_OK {
         let message = format!(
             "You entered:\n\nFirst Name: {}\nLast Name: {}\nEmail: {}",
             if first.is_empty() { "(none)" } else { &first },
@@ -121,9 +116,9 @@ fn main() -> turbo_vision::core::error::Result<()> {
     }
 
     println!("Dialog result: {result}");
-    println!("First Name: {}", first_name_data.borrow());
-    println!("Last Name: {}", last_name_data.borrow());
-    println!("Email: {}", email_data.borrow());
+    println!("First Name: {first}");
+    println!("Last Name: {last}");
+    println!("Email: {email}");
 
     Ok(())
 }

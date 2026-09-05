@@ -133,7 +133,20 @@ impl EditWindow {
         self.editor.borrow().is_modified()
     }
 
+    /// Shared access to the editor (Borland: `TEditWindow::editor`).
+    ///
+    /// The editor is also a child of the window's group, so it lives behind a
+    /// `RefCell`; hold the guard only for the call you need.
+    pub fn editor(&self) -> std::cell::Ref<'_, EditorWindow> {
+        self.editor.borrow()
+    }
+
+    pub fn editor_mut(&self) -> std::cell::RefMut<'_, EditorWindow> {
+        self.editor.borrow_mut()
+    }
+
     /// Get a cloned Rc to the editor for advanced access
+    #[deprecated(since = "3.0.0", note = "use `editor()` / `editor_mut()`")]
     pub fn editor_rc(&self) -> Rc<RefCell<EditorWindow>> {
         Rc::clone(&self.editor)
     }
@@ -425,10 +438,9 @@ mod tests {
         let bounds = Rect::new(0, 0, 80, 25);
         let window = EditWindow::new(bounds, "Test EditorWindow");
 
-        // Test access via Rc
-        let editor = window.editor_rc();
-        editor.borrow_mut().set_text("Hello, World!");
-        assert_eq!(editor.borrow().get_text(), "Hello, World!");
+        // Test shared access through the accessors
+        window.editor_mut().set_text("Hello, World!");
+        assert_eq!(window.editor().get_text(), "Hello, World!");
     }
 }
 
@@ -487,14 +499,14 @@ mod resize_tests {
         let mut w = EditWindow::new(Rect::new(0, 0, 80, 22), "t");
         let interior_of = |b: Rect| Rect::new(b.a.x + 1, b.a.y + 1, b.b.x - 1, b.b.y - 1);
 
-        assert_eq!(w.editor_rc().borrow().bounds(), interior_of(w.bounds()));
+        assert_eq!(w.editor().bounds(), interior_of(w.bounds()));
 
         let smaller = Rect::new(0, 1, 70, 20);
         w.set_bounds(smaller);
-        assert_eq!(w.editor_rc().borrow().bounds(), interior_of(smaller));
+        assert_eq!(w.editor().bounds(), interior_of(smaller));
 
         let bigger = Rect::new(0, 1, 100, 40);
         w.set_bounds(bigger);
-        assert_eq!(w.editor_rc().borrow().bounds(), interior_of(bigger));
+        assert_eq!(w.editor().bounds(), interior_of(bigger));
     }
 }

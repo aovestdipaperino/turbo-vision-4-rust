@@ -12,8 +12,6 @@ use crate::core::event::{
 use crate::core::geometry::Rect;
 use crate::core::palette::{INPUT_ARROWS, INPUT_FOCUSED, INPUT_NORMAL, INPUT_SELECTED};
 use crate::terminal::Terminal;
-use std::cell::RefCell;
-use std::rc::Rc;
 
 // Control key codes
 const KB_CTRL_A: u16 = 0x0001; // Ctrl+A - Select All
@@ -35,7 +33,7 @@ fn char_len(text: &str) -> usize {
 
 pub struct InputLine {
     core: ViewCore,
-    data: Rc<RefCell<String>>,
+    text: String,
     cursor_pos: usize,               // Cursor position in characters (not bytes)
     max_length: usize,               // Maximum length in characters
     sel_start: usize,                // Selection start position (characters)
@@ -46,8 +44,7 @@ pub struct InputLine {
 }
 
 impl InputLine {
-    pub fn new(bounds: Rect, max_length: usize, data: Rc<RefCell<String>>) -> Self {
-        let cursor_pos = char_len(&data.borrow());
+    pub fn new(bounds: Rect, max_length: usize) -> Self {
         Self {
             core: ViewCore {
                 bounds,
@@ -55,8 +52,8 @@ impl InputLine {
                 palette_chain: None,
                 ..ViewCore::default()
             },
-            data,
-            cursor_pos,
+            text: String::new(),
+            cursor_pos: 0,
             max_length,
             sel_start: 0,
             sel_end: 0,
@@ -68,13 +65,8 @@ impl InputLine {
 
     /// Create an InputLine with a validator
     /// Matches Borland's TInputLine with validator attachment pattern
-    pub fn with_validator(
-        bounds: Rect,
-        max_length: usize,
-        data: Rc<RefCell<String>>,
-        validator: ValidatorRef,
-    ) -> Self {
-        let mut input_line = Self::new(bounds, max_length, data);
+    pub fn with_validator(bounds: Rect, max_length: usize, validator: ValidatorRef) -> Self {
+        let mut input_line = Self::new(bounds, max_length);
         input_line.validator = Some(validator);
         input_line
     }
@@ -88,29 +80,35 @@ impl InputLine {
     /// Returns true if valid or no validator is set
     pub fn validate(&self) -> bool {
         if let Some(ref validator) = self.validator {
-            validator.borrow().valid(&self.data.borrow())
+            validator.borrow().valid(&self.text)
         } else {
             true
         }
     }
 
-    pub fn set_text(&mut self, text: String) {
-        *self.data.borrow_mut() = text;
-        self.cursor_pos = char_len(&self.data.borrow());
+    /// Replace the text; the cursor moves to the end and any selection clears.
+    pub fn set_text(&mut self, text: impl Into<String>) {
+        self.text = text.into();
+        self.cursor_pos = char_len(&self.text);
         self.sel_start = 0;
         self.sel_end = 0;
         self.first_pos = 0;
     }
 
     pub fn get_text(&self) -> String {
-        self.data.borrow().clone()
+        self.text.clone()
+    }
+
+    /// The current text (Borland: `TInputLine::data`).
+    pub fn text(&self) -> &str {
+        &self.text
     }
 
     // set_focused() removed - use set_focus() from View trait instead
 
     /// Select all text
     pub fn select_all(&mut self) {
-        let len = char_len(&self.data.borrow());
+        let len = char_len(&self.text);
         self.sel_start = 0;
         self.sel_end = len;
         self.cursor_pos = len;
@@ -126,7 +124,7 @@ impl InputLine {
         if !self.has_selection() {
             return None;
         }
-        let text = self.data.borrow();
+        let text = &self.text;
         let start = byte_offset(&text, self.sel_start.min(self.sel_end));
         let end = byte_offset(&text, self.sel_start.max(self.sel_end));
         Some(text[start..end].to_string())
@@ -140,11 +138,10 @@ impl InputLine {
         let start = self.sel_start.min(self.sel_end);
         let end = self.sel_start.max(self.sel_end);
 
-        let mut text = self.data.borrow_mut();
+        let text = &mut self.text;
         let byte_start = byte_offset(&text, start);
         let byte_end = byte_offset(&text, end);
         text.replace_range(byte_start..byte_end, "");
-        drop(text);
 
         self.cursor_pos = start;
         self.sel_start = 0;
@@ -200,7 +197,7 @@ impl View for InputLine {
         buf.move_char(0, ' ', attr, width);
 
         // Get text and calculate visible portion (all positions in characters)
-        let text = self.data.borrow();
+        let text = &self.text;
         let text_len = char_len(&text);
 
         // Calculate visible range
@@ -259,7 +256,7 @@ impl View for InputLine {
                 if !self.is_focused() {
                     // The data has already been updated by FileDialog
                     // Just need to update our cursor position and clear selection
-                    self.cursor_pos = char_len(&self.data.borrow());
+                    self.cursor_pos = char_len(&self.text);
                     self.sel_start = 0;
                     self.sel_end = 0;
                     self.first_pos = 0;
@@ -282,7 +279,7 @@ impl View for InputLine {
                         event.clear();
                     } else if self.cursor_pos > 0 {
                         {
-                            let mut text = self.data.borrow_mut();
+                            let text = &mut self.text;
                             let at = byte_offset(&text, self.cursor_pos - 1);
                             text.remove(at);
                         }
@@ -296,8 +293,8 @@ impl View for InputLine {
                         self.delete_selection();
                         self.make_cursor_visible();
                         event.clear();
-                    } else if self.cursor_pos < char_len(&self.data.borrow()) {
-                        let mut text = self.data.borrow_mut();
+                    } else if self.cursor_pos < char_len(&self.text) {
+                        let text = &mut self.text;
                         let at = byte_offset(&text, self.cursor_pos);
                         text.remove(at);
                         event.clear();
@@ -332,7 +329,7 @@ impl View for InputLine {
                     let shift = event
                         .key_modifiers
                         .contains(crossterm::event::KeyModifiers::SHIFT);
-                    if self.cursor_pos < char_len(&self.data.borrow()) {
+                    if self.cursor_pos < char_len(&self.text) {
                         if shift {
                             if !self.has_selection() {
                                 self.sel_start = self.cursor_pos;
@@ -365,7 +362,7 @@ impl View for InputLine {
                     event.clear();
                 }
                 KB_END => {
-                    self.cursor_pos = char_len(&self.data.borrow());
+                    self.cursor_pos = char_len(&self.text);
                     self.sel_start = 0;
                     self.sel_end = 0;
                     self.make_cursor_visible();
@@ -407,7 +404,7 @@ impl View for InputLine {
                         // Insert clipboard text at cursor position (truncated to fit,
                         // counting characters so multibyte input can't split)
                         {
-                            let mut text = self.data.borrow_mut();
+                            let text = &mut self.text;
                             let remaining_space = self.max_length.saturating_sub(char_len(&text));
                             let cut = byte_offset(&clipboard_text, remaining_space);
                             let insert_text = &clipboard_text[..cut];
@@ -428,7 +425,7 @@ impl View for InputLine {
                             self.delete_selection();
                         }
 
-                        let text_len = char_len(&self.data.borrow());
+                        let text_len = char_len(&self.text);
                         if text_len < self.max_length {
                             let ch = key_code as u8 as char;
 
@@ -436,7 +433,7 @@ impl View for InputLine {
                             // Matches Borland's TValidator::IsValidInput() pattern
                             if let Some(ref validator) = self.validator {
                                 // Create test string with new character
-                                let mut test_text = self.data.borrow().clone();
+                                let mut test_text = self.text.clone();
                                 let at = byte_offset(&test_text, self.cursor_pos);
                                 test_text.insert(at, ch);
 
@@ -451,7 +448,7 @@ impl View for InputLine {
                             // Character is valid, insert it (overwrite mode
                             // replaces the character under the cursor)
                             {
-                                let mut text = self.data.borrow_mut();
+                                let text = &mut self.text;
                                 let at = byte_offset(&text, self.cursor_pos);
                                 if !self.insert_mode && self.cursor_pos < char_len(&text) {
                                     text.remove(at);
@@ -467,11 +464,11 @@ impl View for InputLine {
                             // ("12" + mask "##/##" -> "12/") and force
                             // uppercase for `&`/`!` positions.
                             if let Some(ref validator) = self.validator {
-                                let filled = validator.borrow().complete(&self.data.borrow());
+                                let filled = validator.borrow().complete(&self.text);
                                 if let Some(filled) = filled {
                                     let filled_len = char_len(&filled);
-                                    let old_len = char_len(&self.data.borrow());
-                                    *self.data.borrow_mut() = filled;
+                                    let old_len = char_len(&self.text);
+                                    self.text = filled;
                                     if filled_len > old_len {
                                         // Literals were appended: move the
                                         // char-based cursor past the fill.
@@ -582,7 +579,7 @@ impl View for InputLine {
 /// ```
 pub struct InputLineBuilder {
     bounds: Option<Rect>,
-    data: Option<Rc<RefCell<String>>>,
+    text: String,
     max_length: usize,
     validator: Option<ValidatorRef>,
 }
@@ -592,7 +589,7 @@ impl InputLineBuilder {
     pub fn new() -> Self {
         Self {
             bounds: None,
-            data: None,
+            text: String::new(),
             max_length: 255,
             validator: None,
         }
@@ -605,10 +602,10 @@ impl InputLineBuilder {
         self
     }
 
-    /// Sets the shared data reference (required).
+    /// Sets the initial text.
     #[must_use]
-    pub fn data(mut self, data: Rc<RefCell<String>>) -> Self {
-        self.data = Some(data);
+    pub fn text(mut self, text: impl Into<String>) -> Self {
+        self.text = text.into();
         self
     }
 
@@ -630,12 +627,12 @@ impl InputLineBuilder {
     ///
     /// # Panics
     ///
-    /// Panics if required fields (bounds, data) are not set.
+    /// Panics if `bounds` was not set.
     pub fn build(self) -> InputLine {
         let bounds = self.bounds.expect("InputLine bounds must be set");
-        let data = self.data.expect("InputLine data must be set");
 
-        let mut input_line = InputLine::new(bounds, self.max_length, data);
+        let mut input_line = InputLine::new(bounds, self.max_length);
+        input_line.set_text(self.text);
         if let Some(validator) = self.validator {
             input_line.validator = Some(validator);
         }
@@ -658,54 +655,50 @@ impl Default for InputLineBuilder {
 mod tests {
     use super::*;
     use crate::core::event::{KB_BACKSPACE, KB_DEL, KB_LEFT};
+    use std::rc::Rc;
 
-    fn make(text: &str) -> (InputLine, Rc<RefCell<String>>) {
-        let data = Rc::new(RefCell::new(text.to_string()));
-        let mut input = InputLine::new(Rect::new(0, 0, 20, 1), 10, data.clone());
+    fn make(text: &str) -> InputLine {
+        let mut input = InputLine::new(Rect::new(0, 0, 20, 1), 10);
+        input.set_text(text);
         input.set_focus(true);
-        (input, data)
+        input
     }
 
     #[test]
     fn multibyte_backspace_and_delete_do_not_panic() {
         // Regression: cursor positions were byte offsets, panicking on "é"
-        let (mut input, data) = make("héllo");
+        let mut input = make("héllo");
         let mut ev = Event::keyboard(KB_LEFT);
         input.handle_event(&mut ev);
         let mut ev = Event::keyboard(KB_BACKSPACE);
         input.handle_event(&mut ev);
-        assert_eq!(*data.borrow(), "hélo");
+        assert_eq!(input.text(), "hélo");
 
         let mut ev = Event::keyboard(KB_LEFT);
         input.handle_event(&mut ev);
         let mut ev = Event::keyboard(KB_DEL);
         input.handle_event(&mut ev);
-        assert_eq!(*data.borrow(), "héo");
+        assert_eq!(input.text(), "héo");
     }
 
     #[test]
     fn multibyte_selection_and_typing() {
-        let (mut input, data) = make("héé");
+        let mut input = make("héé");
         input.select_all();
         assert_eq!(input.get_selection().as_deref(), Some("héé"));
 
         // Typing over the selection replaces it, at char boundaries
         let mut ev = Event::keyboard('x' as u16);
         input.handle_event(&mut ev);
-        assert_eq!(*data.borrow(), "x");
+        assert_eq!(input.text(), "x");
     }
 
     #[test]
     fn picture_validator_auto_fills_literals_while_typing() {
         use crate::views::picture_validator::picture_validator;
 
-        let data = Rc::new(RefCell::new(String::new()));
-        let mut input = InputLine::with_validator(
-            Rect::new(0, 0, 20, 1),
-            10,
-            data.clone(),
-            picture_validator("##/##"),
-        );
+        let mut input =
+            InputLine::with_validator(Rect::new(0, 0, 20, 1), 10, picture_validator("##/##"));
         input.set_focus(true);
 
         for ch in ['1', '2'] {
@@ -713,14 +706,14 @@ mod tests {
             input.handle_event(&mut ev);
         }
         // The '/' literal is auto-inserted and the cursor moves past it
-        assert_eq!(*data.borrow(), "12/");
+        assert_eq!(input.text(), "12/");
         assert_eq!(input.cursor_pos, 3);
 
         for ch in ['3', '4'] {
             let mut ev = Event::keyboard(ch as u16);
             input.handle_event(&mut ev);
         }
-        assert_eq!(*data.borrow(), "12/34");
+        assert_eq!(input.text(), "12/34");
     }
 
     #[test]
@@ -728,20 +721,15 @@ mod tests {
         use crate::views::picture_validator::picture_validator;
 
         // `!` = any char uppercased, `&` = letter uppercased
-        let data = Rc::new(RefCell::new(String::new()));
-        let mut input = InputLine::with_validator(
-            Rect::new(0, 0, 20, 1),
-            10,
-            data.clone(),
-            picture_validator("!&"),
-        );
+        let mut input =
+            InputLine::with_validator(Rect::new(0, 0, 20, 1), 10, picture_validator("!&"));
         input.set_focus(true);
 
         for ch in ['a', 'b'] {
             let mut ev = Event::keyboard(ch as u16);
             input.handle_event(&mut ev);
         }
-        assert_eq!(*data.borrow(), "AB");
+        assert_eq!(input.text(), "AB");
         assert_eq!(input.cursor_pos, 2);
     }
 
@@ -749,30 +737,25 @@ mod tests {
     fn picture_validator_rejects_invalid_chars() {
         use crate::views::picture_validator::picture_validator;
 
-        let data = Rc::new(RefCell::new(String::new()));
-        let mut input = InputLine::with_validator(
-            Rect::new(0, 0, 20, 1),
-            10,
-            data.clone(),
-            picture_validator("###"),
-        );
+        let mut input =
+            InputLine::with_validator(Rect::new(0, 0, 20, 1), 10, picture_validator("###"));
         input.set_focus(true);
 
         let mut ev = Event::keyboard('x' as u16);
         input.handle_event(&mut ev);
-        assert_eq!(*data.borrow(), "");
+        assert_eq!(input.text(), "");
     }
 
     #[test]
     fn paste_truncates_by_characters() {
         // max_length 10; pasting 12 chars of multibyte text must cut at a
         // char boundary, not mid-code-point
-        let (mut input, data) = make("");
+        let mut input = make("");
         crate::core::clipboard::set_clipboard("éééééééééééé");
         let mut ev = Event::keyboard(0x0016); // Ctrl+V
         input.handle_event(&mut ev);
-        assert_eq!(data.borrow().chars().count(), 10);
-        assert!(data.borrow().chars().all(|c| c == 'é'));
+        assert_eq!(input.text().chars().count(), 10);
+        assert!(input.text().chars().all(|c| c == 'é'));
     }
 
     #[test]
@@ -791,13 +774,9 @@ mod tests {
             fn error(&self) {}
         }
 
-        let data = Rc::new(RefCell::new("anything".to_string()));
-        let mut input = InputLine::with_validator(
-            Rect::new(0, 0, 10, 1),
-            10,
-            data,
-            Rc::new(RC::new(RejectAll)),
-        );
+        let mut input =
+            InputLine::with_validator(Rect::new(0, 0, 10, 1), 10, Rc::new(RC::new(RejectAll)));
+        input.set_text("anything");
         use crate::core::command::{CM_CANCEL, CM_OK};
         assert!(!View::valid(&mut input, CM_OK));
         assert!(View::valid(&mut input, CM_CANCEL));
@@ -805,14 +784,14 @@ mod tests {
 
     #[test]
     fn focus_selects_all_and_typing_replaces() {
-        let data = Rc::new(RefCell::new("hello".to_string()));
-        let mut input = InputLine::new(Rect::new(0, 0, 20, 1), 10, data.clone());
+        let mut input = InputLine::new(Rect::new(0, 0, 20, 1), 10);
+        input.set_text("hello");
         input.set_focus(true);
         assert_eq!(input.get_selection().as_deref(), Some("hello"));
 
         let mut ev = Event::keyboard('x' as u16);
         input.handle_event(&mut ev);
-        assert_eq!(*data.borrow(), "x");
+        assert_eq!(input.text(), "x");
 
         // Losing focus collapses any selection
         input.select_all();
@@ -824,7 +803,7 @@ mod tests {
     fn shift_arrows_extend_selection() {
         use crossterm::event::KeyModifiers;
 
-        let (mut input, _data) = make("abcd");
+        let mut input = make("abcd");
         // Collapse the focus-selection and put the cursor at the end
         let mut ev = Event::keyboard(KB_RIGHT);
         input.handle_event(&mut ev);
@@ -845,7 +824,7 @@ mod tests {
 
     #[test]
     fn ins_toggles_overwrite_mode() {
-        let (mut input, data) = make("abc");
+        let mut input = make("abc");
         // Move cursor to start (collapse focus selection first)
         let mut ev = Event::keyboard(crate::core::event::KB_HOME);
         input.handle_event(&mut ev);
@@ -854,13 +833,13 @@ mod tests {
         input.handle_event(&mut ev);
         let mut ev = Event::keyboard('X' as u16);
         input.handle_event(&mut ev);
-        assert_eq!(*data.borrow(), "Xbc");
+        assert_eq!(input.text(), "Xbc");
 
         // Back to insert mode
         let mut ev = Event::keyboard(crate::core::event::KB_INS);
         input.handle_event(&mut ev);
         let mut ev = Event::keyboard('Y' as u16);
         input.handle_event(&mut ev);
-        assert_eq!(*data.borrow(), "XYbc");
+        assert_eq!(input.text(), "XYbc");
     }
 }

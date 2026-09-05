@@ -92,7 +92,17 @@ impl HelpWindow {
         self.viewer.borrow().current_topic().map(|s| s.to_string())
     }
 
+    /// Shared access to the viewer (Borland: `THelpWindow`'s viewer child).
+    pub fn viewer(&self) -> std::cell::Ref<'_, HelpViewer> {
+        self.viewer.borrow()
+    }
+
+    pub fn viewer_mut(&self) -> std::cell::RefMut<'_, HelpViewer> {
+        self.viewer.borrow_mut()
+    }
+
     /// Get a cloned Rc to the viewer for advanced access
+    #[deprecated(since = "3.0.0", note = "use `viewer()` / `viewer_mut()`")]
     pub fn viewer_rc(&self) -> Rc<RefCell<HelpViewer>> {
         Rc::clone(&self.viewer)
     }

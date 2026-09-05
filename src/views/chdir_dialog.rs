@@ -17,6 +17,7 @@ use super::button::Button;
 use super::dialog::Dialog;
 use super::dir_listbox::DirListBox;
 use super::group::{Group, GroupLike};
+use super::handle::Handle;
 use super::history::History;
 use super::input_line::InputLine;
 use super::label::Label;
@@ -27,6 +28,7 @@ use super::shared::Shared;
 use super::window::{Window, WindowLike};
 use super::{View, ViewCore, ViewId};
 use crate::app::Application;
+use crate::app::ModalTick;
 use crate::core::command::{CM_OK, CommandId};
 use crate::core::event::{Event, EventType};
 use crate::core::geometry::{Point, Rect};
@@ -51,7 +53,9 @@ struct SharedDirListBox {
     inner: Rc<RefCell<DirListBox>>,
     /// Mirror of the inner list box's base fields (see `Shared<T>`).
     core: ViewCore,
-    dir_input_data: Rc<RefCell<String>>,
+    /// A path the list wants shown in the directory input; the owning
+    /// `ChDirDialog` copies it into the `InputLine` after each event.
+    pending_input: Option<String>,
     last_focused_path: Option<PathBuf>,
     v_scrollbar: Rc<RefCell<ScrollBar>>,
     h_scrollbar: Rc<RefCell<ScrollBar>>,
@@ -60,7 +64,6 @@ struct SharedDirListBox {
 impl SharedDirListBox {
     fn new(
         inner: Rc<RefCell<DirListBox>>,
-        dir_input_data: Rc<RefCell<String>>,
         v_scrollbar: Rc<RefCell<ScrollBar>>,
         h_scrollbar: Rc<RefCell<ScrollBar>>,
     ) -> Self {
@@ -70,11 +73,16 @@ impl SharedDirListBox {
         Self {
             inner,
             core,
-            dir_input_data,
+            pending_input: None,
             last_focused_path,
             v_scrollbar,
             h_scrollbar,
         }
+    }
+
+    /// The path the owner should copy into the directory input, if any.
+    fn take_pending_input(&mut self) -> Option<String> {
+        self.pending_input.take()
     }
 
     /// Update scrollbar positions based on listbox state
@@ -192,7 +200,7 @@ impl View for SharedDirListBox {
             // Focused entry changed - update input data
             // Matches Borland: message(owner, evBroadcast, cmFileFocused, this)
             if let Some(ref new_path) = path_after {
-                *self.dir_input_data.borrow_mut() = new_path.to_string_lossy().to_string();
+                self.pending_input = Some(new_path.to_string_lossy().to_string());
             }
 
             self.last_focused_path = path_after;
@@ -215,8 +223,7 @@ impl View for SharedDirListBox {
                         // Update listbox to show the new directory
                         if self.inner.borrow_mut().change_dir(&new_path).is_ok() {
                             // Update input line with the new path
-                            *self.dir_input_data.borrow_mut() =
-                                new_path.to_string_lossy().to_string();
+                            self.pending_input = Some(new_path.to_string_lossy().to_string());
                             // Update scrollbars after directory change
                             self.update_scrollbars();
                         }
@@ -227,8 +234,7 @@ impl View for SharedDirListBox {
                     // Revert to current working directory
                     // Matches Borland: resets dialog to show current directory
                     if let Ok(current_dir) = std::env::current_dir() {
-                        *self.dir_input_data.borrow_mut() =
-                            current_dir.to_string_lossy().to_string();
+                        self.pending_input = Some(current_dir.to_string_lossy().to_string());
                         // Update dir listbox to show current directory
                         let _ = self.inner.borrow_mut().change_dir(&current_dir);
                         // Update scrollbars after directory change
@@ -280,12 +286,9 @@ impl View for SharedDirListBox {
 /// directory tree and allows navigation through directories.
 pub struct ChDirDialog {
     dialog: Dialog,
-    dir_input_data: Rc<RefCell<String>>,
     history_id: u16,
-    #[allow(dead_code)] // Will be used for navigation implementation
     dir_list_id: ViewId,
-    #[allow(dead_code)] // Will be used for input updates
-    dir_input_id: ViewId,
+    dir_input: Handle<InputLine>,
     #[allow(dead_code)] // Will be used for button state management
     ok_button_id: ViewId,
     #[allow(dead_code)] // Will be used for button state management
@@ -326,12 +329,11 @@ impl ChDirDialog {
             .unwrap_or_else(|_| PathBuf::from("/"))
             .to_string_lossy()
             .to_string();
-        let dir_input_data = Rc::new(RefCell::new(current_dir.clone()));
-
         // Directory name input line - widened: TRect( 3, 3, 48, 4 )
         let input_bounds = Rect::new(3, 3, 48, 4);
-        let dir_input = InputLine::new(input_bounds, 255, Rc::clone(&dir_input_data));
-        let dir_input_id = dialog.add(Box::new(dir_input));
+        let mut dir_input = InputLine::new(input_bounds, 255);
+        dir_input.set_text(current_dir.clone());
+        let dir_input = dialog.add_typed(dir_input);
 
         // Label "Directory name" - Borland: (2, 2)
         let label_bounds = Rect::new(2, 2, 20, 2);
@@ -340,8 +342,7 @@ impl ChDirDialog {
 
         // History button - adjusted: TRect( 48, 3, 51, 4 )
         // Shows a dropdown button (▼) that displays previous directories
-        let history_button =
-            History::new(Point::new(48, 3), history_id, Rc::clone(&dir_input_data));
+        let history_button = History::new(Point::new(48, 3), history_id, dir_input);
         dialog.add(Box::new(history_button));
 
         // Vertical scrollbar - adjusted: TRect( 50, 6, 51, 16 )
@@ -363,7 +364,6 @@ impl ChDirDialog {
         let dir_listbox = Rc::new(RefCell::new(dir_list));
         let shared_listbox = SharedDirListBox::new(
             Rc::clone(&dir_listbox),
-            Rc::clone(&dir_input_data),
             Rc::clone(&v_scrollbar_rc),
             Rc::clone(&h_scrollbar_rc),
         );
@@ -399,10 +399,9 @@ impl ChDirDialog {
 
         Self {
             dialog,
-            dir_input_data,
             history_id,
             dir_list_id,
-            dir_input_id,
+            dir_input,
             ok_button_id,
             chdir_button_id,
             selected_directory: None,
@@ -415,14 +414,38 @@ impl ChDirDialog {
     ///
     /// Matches Borland: user interacts with dialog, OK/Cancel to exit
     /// The valid() method validates the directory before closing
+    /// Copy the path the directory list wants shown into the input line
+    /// (Borland: `message(owner, evBroadcast, cmFileFocused, this)` answered by
+    /// the input; here the owner resolves the link).
+    fn sync_input_from_list(&mut self) {
+        let pending = self
+            .dialog
+            .child_by_id_mut(self.dir_list_id)
+            .and_then(|v| v.as_any_mut().downcast_mut::<SharedDirListBox>())
+            .and_then(SharedDirListBox::take_pending_input);
+        if let Some(path) = pending {
+            if let Some(input) = self.dialog.get_mut(self.dir_input) {
+                input.set_text(path);
+            }
+        }
+    }
+
     /// History is automatically updated on success
     pub fn execute(&mut self, app: &mut Application) -> Option<PathBuf> {
         loop {
-            let end_state = self.dialog.execute(app);
+            // Run the loop on this type, not on the inner Dialog, so
+            // ChDirDialog::handle_event sees every event and can mirror the
+            // list's focused entry into the input.
+            self.dialog.prepare_modal(app);
+            let end_state = app.execute_modal(self, |_, _| ModalTick::Continue);
 
             if end_state == CM_OK {
                 // Validate the directory path from the input line
-                let dir_path = self.dir_input_data.borrow().clone();
+                let dir_path = self
+                    .dialog
+                    .get(self.dir_input)
+                    .map(|input| input.text().to_string())
+                    .unwrap_or_default();
                 let path = PathBuf::from(&dir_path);
 
                 // Try to change directory (validates that it exists and is accessible)
@@ -481,6 +504,7 @@ impl WindowLike for ChDirDialog {
 crate::impl_view_for_window!(ChDirDialog {
     fn handle_event(&mut self, event: &mut Event) {
         self.dialog.handle_event(event);
+        self.sync_input_from_list();
     }
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {

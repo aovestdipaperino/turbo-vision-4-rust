@@ -297,5 +297,5 @@ pub mod prelude {
     };
 
     pub use crate::app::{AppHandler, Application, ModalTick};
-    pub use crate::views::{GroupLike, View, ViewCore, WindowLike};
+    pub use crate::views::{GroupLike, Handle, View, ViewCore, WindowLike};
 }

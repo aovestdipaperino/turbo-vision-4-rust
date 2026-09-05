@@ -47,7 +47,7 @@ impl FileEditorWindow {
     }
 
     pub fn set_text(&mut self, text: &str) {
-        self.edit_window.editor_rc().borrow_mut().set_text(text);
+        self.edit_window.editor_mut().set_text(text);
     }
 
     pub fn edit_window(&self) -> &EditWindow {
@@ -65,43 +65,43 @@ impl Editor for FileEditorWindow {
     }
 
     fn undo(&mut self) {
-        self.edit_window.editor_rc().borrow_mut().undo();
+        self.edit_window.editor_mut().undo();
     }
 
     fn redo(&mut self) {
-        self.edit_window.editor_rc().borrow_mut().redo();
+        self.edit_window.editor_mut().redo();
     }
 
     fn can_undo(&self) -> bool {
-        self.edit_window.editor_rc().borrow().can_undo()
+        self.edit_window.editor().can_undo()
     }
 
     fn can_redo(&self) -> bool {
-        self.edit_window.editor_rc().borrow().can_redo()
+        self.edit_window.editor().can_redo()
     }
 
     fn cut(&mut self) -> bool {
-        self.edit_window.editor_rc().borrow_mut().clip_cut()
+        self.edit_window.editor_mut().clip_cut()
     }
 
     fn copy(&mut self) -> bool {
-        self.edit_window.editor_rc().borrow_mut().clip_copy()
+        self.edit_window.editor_mut().clip_copy()
     }
 
     fn paste(&mut self) -> bool {
-        self.edit_window.editor_rc().borrow_mut().clip_paste()
+        self.edit_window.editor_mut().clip_paste()
     }
 
     fn select_all(&mut self) {
-        self.edit_window.editor_rc().borrow_mut().select_all();
+        self.edit_window.editor_mut().select_all();
     }
 
     fn clear_selection(&mut self) {
-        self.edit_window.editor_rc().borrow_mut().delete_selection();
+        self.edit_window.editor_mut().delete_selection();
     }
 
     fn has_selection(&self) -> bool {
-        self.edit_window.editor_rc().borrow().has_selection()
+        self.edit_window.editor().has_selection()
     }
 }
 
@@ -147,8 +147,8 @@ impl FileEditor for FileEditorWindow {
     }
 
     fn new_buffer(&mut self) {
-        self.edit_window.editor_rc().borrow_mut().set_text("");
-        self.edit_window.editor_rc().borrow_mut().clear_modified();
+        self.edit_window.editor_mut().set_text("");
+        self.edit_window.editor_mut().clear_modified();
         self.filename = None;
         self.last_mtime = None;
     }

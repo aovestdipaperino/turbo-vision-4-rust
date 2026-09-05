@@ -94,7 +94,11 @@ impl Dialog {
     ///
     /// Both patterns work identically. Pattern 1 is simpler for standalone use.
     /// Pattern 2 matches Borland's TProgram::execView() architecture.
-    pub fn execute(&mut self, app: &mut crate::app::Application) -> CommandId {
+    /// Put the dialog into its modal state: `SF_MODAL`, drag limits from the
+    /// desktop, position constrained to it, first focusable child focused.
+    /// `execute` does this before entering the loop; a type wrapping a `Dialog`
+    /// that runs `Application::execute_modal` on itself calls it directly.
+    pub(crate) fn prepare_modal(&mut self, app: &mut crate::app::Application) {
         use crate::core::state::SF_MODAL;
 
         self.result = CM_CANCEL;
@@ -111,14 +115,16 @@ impl Dialog {
         self.window.set_drag_limits(desktop_bounds);
 
         // Constrain dialog position to desktop bounds (including shadow)
-        // This ensures dialog is positioned within valid area when execute() is called
         // Matches Borland: TView::locate() constrains position to owner bounds
         self.window.constrain_to_limits();
 
         // Set initial focus to the first focusable child
         // Matches Borland: TView::setState(sfVisible) calls owner->resetCurrent()
-        // which selects the first visible, selectable child when views are added
         self.set_initial_focus();
+    }
+
+    pub fn execute(&mut self, app: &mut crate::app::Application) -> CommandId {
+        self.prepare_modal(app);
 
         // The loop itself is Application::execute_modal (Borland:
         // TGroup::execute); the closure is the only dialog-specific part.
@@ -256,9 +262,7 @@ crate::impl_view_for_window!(Dialog {
                         // Matches Borland: TButton::press() message(owner, evBroadcast,
                         // cmRecordHistory, 0) before emitting the command.
                         if event.command == CM_OK || event.command == CM_YES {
-                            let mut record =
-                                Event::broadcast(crate::core::command::CM_RECORD_HISTORY);
-                            self.window_handle_event(&mut record);
+                            crate::views::history::record_history_in(self.group());
                         }
                         // End the modal loop with the command
                         // Matches Borland: endModal(command)
@@ -688,18 +692,19 @@ mod tests {
         use crate::core::geometry::Point;
         use crate::core::history::HistoryManager;
         use crate::views::history::History;
-        use std::cell::RefCell;
-        use std::rc::Rc;
+        use crate::views::input_line::InputLine;
 
         let _guard = crate::core::history::test_lock();
         HistoryManager::clear_all();
 
         let make_dialog = |text: &str| {
-            let data = Rc::new(RefCell::new(text.to_string()));
             let mut dialog = Dialog::new(Rect::new(0, 0, 40, 10), "Test");
             let state = dialog.state();
             dialog.set_state(state | SF_MODAL);
-            dialog.add(Box::new(History::new(Point::new(30, 2), 42, data)));
+            let mut input = InputLine::new(Rect::new(2, 2, 28, 3), 32);
+            input.set_text(text);
+            let input = dialog.add_typed(input);
+            dialog.add(Box::new(History::new(Point::new(30, 2), 42, input)));
             dialog
         };
 

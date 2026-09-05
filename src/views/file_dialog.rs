@@ -105,6 +105,7 @@ use super::View;
 use super::button::Button;
 use super::dialog::Dialog;
 use super::group::{Group, GroupLike};
+use super::handle::Handle;
 use super::input_line::InputLine;
 use super::label::Label;
 use super::listbox::ListBox;
@@ -113,10 +114,8 @@ use crate::app::ModalTick;
 use crate::core::command::{CM_CANCEL, CM_FILE_FOCUSED, CM_OK, CommandId};
 use crate::core::event::{Event, EventType};
 use crate::core::geometry::Rect;
-use std::cell::RefCell;
 use std::fs;
 use std::path::PathBuf;
-use std::rc::Rc;
 
 const CMD_FILE_SELECTED: u16 = 1000;
 
@@ -213,7 +212,8 @@ pub struct FileDialog {
     dialog: Dialog,
     current_path: PathBuf,
     wildcard: String,
-    file_name_data: Rc<RefCell<String>>,
+    /// The file-name input, once `build` has added it.
+    file_name: Option<Handle<InputLine>>,
     files: Vec<String>,
     selected_file_index: usize, // Track ListBox selection
     title: String,              // Store title for rebuilds
@@ -234,19 +234,32 @@ impl FileDialog {
         let current_path = initial_dir
             .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
 
-        let file_name_data = Rc::new(RefCell::new(String::new()));
-
         Self {
             dialog,
             current_path,
             wildcard: wildcard.to_string(),
-            file_name_data,
+            file_name: None,
             files: Vec::new(),
             selected_file_index: 0,
             title: title.to_string(),
             button_label: "~O~pen".to_string(), // Default to "Open"
             selected: None,
             needs_full_redraw: false,
+        }
+    }
+
+    /// The text in the file-name input (empty before `build`).
+    fn file_name_text(&self) -> String {
+        self.file_name
+            .and_then(|h| self.dialog.get(h))
+            .map(|input| input.text().to_string())
+            .unwrap_or_default()
+    }
+
+    /// Replace the text in the file-name input (Borland: `fileName->setData`).
+    fn set_file_name_text(&mut self, text: String) {
+        if let Some(input) = self.file_name.and_then(|h| self.dialog.get_mut(h)) {
+            input.set_text(text);
         }
     }
 
@@ -268,12 +281,8 @@ impl FileDialog {
         self.dialog.add(Box::new(name_label));
 
         // File name input line
-        let file_input = InputLine::new(
-            Rect::new(12, 1, content_width, 2),
-            255,
-            self.file_name_data.clone(),
-        );
-        self.dialog.add(Box::new(file_input));
+        let file_input = InputLine::new(Rect::new(12, 1, content_width, 2), 255);
+        self.file_name = Some(self.dialog.add_typed(file_input));
 
         // Current path label
         let path_str = format!(" {}", self.current_path.display());
@@ -297,7 +306,7 @@ impl FileDialog {
         file_list.set_items(self.files.clone());
         self.dialog.add(Box::new(file_list));
 
-        // Mirror the initial listbox selection into file_name_data so the input
+        // Mirror the initial listbox selection into the file-name input so it
         // field and OK button reflect a real selection on first frame, instead
         // of waiting for the user to click an item.
         if let Some(first_item) = self.files.first() {
@@ -307,7 +316,7 @@ impl FileDialog {
             } else {
                 first_item.clone()
             };
-            *self.file_name_data.borrow_mut() = display_text;
+            self.set_file_name_text(display_text);
         }
 
         // Buttons on the right side (vertically stacked)
@@ -416,7 +425,7 @@ impl FileDialog {
                 CM_OK => {
                     // User clicked OK button or pressed Enter (while not in listbox)
                     // Matches Borland: TFileDialog::valid(cmFileOpen) (tfiledia.cc:251-302)
-                    let file_name = self.file_name_data.borrow().clone();
+                    let file_name = self.file_name_text();
                     if !file_name.is_empty() {
                         // Check if input contains wildcards (*.txt, *.rs, etc)
                         if self.contains_wildcards(&file_name) {
@@ -436,7 +445,7 @@ impl FileDialog {
                             }
 
                             // Update input field to show the wildcard pattern
-                            *self.file_name_data.borrow_mut() = self.wildcard.clone();
+                            self.set_file_name_text(self.wildcard.clone());
 
                             // Reset selection tracking
                             self.selected_file_index = 0;
@@ -481,7 +490,7 @@ impl FileDialog {
                     // User double-clicked or pressed Enter on an item in the listbox
                     // The input field has ALREADY been updated by sync_inputline_with_listbox()
                     // So we just read what's already there and handle it
-                    let file_name = self.file_name_data.borrow().clone();
+                    let file_name = self.file_name_text();
 
                     if !file_name.is_empty() {
                         // Handle the selection (navigate into folder or return file)
@@ -543,7 +552,7 @@ impl FileDialog {
 
                 // Update the shared data field directly (Borland pattern)
                 // InputLine will observe this change via its broadcast handler
-                *self.file_name_data.borrow_mut() = display_text;
+                self.set_file_name_text(display_text);
 
                 // Broadcast to notify InputLine to update its display
                 // Matches Borland: message(owner, evBroadcast, cmFileFocused, this)
@@ -597,7 +606,7 @@ impl FileDialog {
                     .file_name()
                     .map(|n| n.to_string_lossy().to_string())
                     .unwrap_or_else(|| file_name.to_string());
-                *self.file_name_data.borrow_mut() = name;
+                self.set_file_name_text(name);
                 Some(path)
             }
         }
@@ -606,7 +615,7 @@ impl FileDialog {
     fn update_ok_button_state(&mut self) {
         use crate::core::state::SF_DISABLED;
 
-        let file_name = self.file_name_data.borrow().clone();
+        let file_name = self.file_name_text();
 
         // OK button is enabled whenever the input is non-empty. The CM_OK handler
         // routes the action: handle_selection navigates into directories and `..`,
@@ -689,7 +698,7 @@ impl FileDialog {
             };
 
             // Update the shared data field
-            *self.file_name_data.borrow_mut() = display_text;
+            self.set_file_name_text(display_text);
 
             // Broadcast to notify InputLine to update its display
             let mut broadcast = Event::broadcast(CM_FILE_FOCUSED);
@@ -697,9 +706,9 @@ impl FileDialog {
         } else {
             // No files - show the wildcard pattern if one was applied
             if self.wildcard.contains('*') || self.wildcard.contains('?') {
-                *self.file_name_data.borrow_mut() = self.wildcard.clone();
+                self.set_file_name_text(self.wildcard.clone());
             } else {
-                *self.file_name_data.borrow_mut() = String::new();
+                self.set_file_name_text(String::new());
             }
         }
     }
@@ -756,7 +765,7 @@ impl FileDialog {
     }
 
     pub fn get_selected_file(&self) -> Option<PathBuf> {
-        let file_name = self.file_name_data.borrow().clone();
+        let file_name = self.file_name_text();
         if !file_name.is_empty() {
             Some(self.current_path.join(file_name))
         } else {
@@ -1063,7 +1072,7 @@ mod tests {
         let result = dialog.handle_selection("sub/file.txt");
         assert_eq!(result, Some(sub.join("file.txt")));
         assert_eq!(dialog.get_current_directory(), sub);
-        assert_eq!(*dialog.file_name_data.borrow(), "file.txt");
+        assert_eq!(dialog.file_name_text(), "file.txt");
 
         let _ = std::fs::remove_dir_all(&tmp);
     }

@@ -14,12 +14,13 @@ use turbo_vision::core::menu_data::{Menu, MenuItem};
 use turbo_vision::core::palette::{Attr, TvColor, colors};
 use turbo_vision::core::state::SF_VISIBLE;
 use turbo_vision::terminal::Terminal;
-use turbo_vision::views::GroupLike;
 use turbo_vision::views::dialog::DialogBuilder;
+use turbo_vision::views::input_line::InputLine;
 use turbo_vision::views::menu_bar::{MenuBar, SubMenu};
 use turbo_vision::views::status_line::{StatusItem, StatusLine};
 use turbo_vision::views::validator::Validator;
 use turbo_vision::views::view::write_line_to_terminal;
+use turbo_vision::views::{GroupLike, Handle};
 use turbo_vision::views::{View, ViewCore};
 
 // Custom commands
@@ -375,9 +376,9 @@ fn create_biorhythm_dialog(
     birth_date: Option<&NaiveDate>,
 ) -> (
     turbo_vision::views::dialog::Dialog,
-    Rc<RefCell<String>>,
-    Rc<RefCell<String>>,
-    Rc<RefCell<String>>,
+    Handle<InputLine>,
+    Handle<InputLine>,
+    Handle<InputLine>,
 ) {
     use turbo_vision::views::{
         button::ButtonBuilder, input_line::InputLineBuilder, static_text::StaticTextBuilder,
@@ -438,40 +439,35 @@ fn create_biorhythm_dialog(
         (String::new(), String::new(), String::new())
     };
 
-    // Create shared data for input fields with initial values
-    let day_data = Rc::new(RefCell::new(prev_day));
-    let month_data = Rc::new(RefCell::new(prev_month));
-    let year_data = Rc::new(RefCell::new(prev_year));
-
     // Input fields with validators - Day: [1-31]
     let day_validator = Rc::new(RefCell::new(DateFieldValidator::new(1, 31)));
     let mut day_input = InputLineBuilder::new()
         .bounds(Rect::new(12, 4, 17, 5))
         .max_length(2)
-        .data(Rc::clone(&day_data))
+        .text(prev_day)
         .build();
     day_input.set_validator(day_validator);
-    dialog.add(Box::new(day_input));
+    let day_field = dialog.add_typed(day_input);
 
     // Month: [1-12]
     let month_validator = Rc::new(RefCell::new(DateFieldValidator::new(1, 12)));
     let mut month_input = InputLineBuilder::new()
         .bounds(Rect::new(12, 5, 17, 6))
         .max_length(2)
-        .data(Rc::clone(&month_data))
+        .text(prev_month)
         .build();
     month_input.set_validator(month_validator);
-    dialog.add(Box::new(month_input));
+    let month_field = dialog.add_typed(month_input);
 
     // Year: [1900-2100]
     let year_validator = Rc::new(RefCell::new(DateFieldValidator::new(1900, 2100)));
     let mut year_input = InputLineBuilder::new()
         .bounds(Rect::new(12, 6, 17, 7))
         .max_length(4)
-        .data(Rc::clone(&year_data))
+        .text(prev_year)
         .build();
     year_input.set_validator(year_validator);
-    dialog.add(Box::new(year_input));
+    let year_field = dialog.add_typed(year_input);
 
     // Buttons
     dialog.add(Box::new(
@@ -492,7 +488,7 @@ fn create_biorhythm_dialog(
     ));
 
     dialog.set_initial_focus();
-    (dialog, day_data, month_data, year_data)
+    (dialog, day_field, month_field, year_field)
 }
 
 /// Validate that birth date is not in the future and year is >= 1900
@@ -543,7 +539,7 @@ fn run_modal_birth_date_dialog(
 
     // Loop until user cancels or provides valid input
     loop {
-        let (mut dialog, day_data, month_data, year_data) = create_biorhythm_dialog(birth_date);
+        let (mut dialog, day_field, month_field, year_field) = create_biorhythm_dialog(birth_date);
 
         // Center the dialog manually since it's not added to desktop
         // (execute() draws dialog on top of desktop without adding it)
@@ -572,9 +568,15 @@ fn run_modal_birth_date_dialog(
         }
 
         // User clicked OK - validate the input
-        let day_str = day_data.borrow();
-        let month_str = month_data.borrow();
-        let year_str = year_data.borrow();
+        let text_of = |h| {
+            dialog
+                .get(h)
+                .map(|f: &InputLine| f.text().to_string())
+                .unwrap_or_default()
+        };
+        let day_str = text_of(day_field);
+        let month_str = text_of(month_field);
+        let year_str = text_of(year_field);
 
         // Try to parse the date
         match parse_birth_date(&day_str, &month_str, &year_str) {

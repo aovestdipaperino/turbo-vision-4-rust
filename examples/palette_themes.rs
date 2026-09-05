@@ -21,8 +21,6 @@
 //!
 //! Click the numbered buttons (1-4) to switch between themes, or Q to quit.
 
-use std::cell::RefCell;
-use std::rc::Rc;
 use turbo_vision::app::Application;
 use turbo_vision::core::command::CM_QUIT;
 use turbo_vision::core::geometry::Rect;
@@ -85,11 +83,9 @@ fn create_theme_dialog(title: &str) -> Dialog {
         .build();
     dialog.add(Box::new(label1));
 
-    let input_data = Rc::new(RefCell::new(String::new()));
     let input = InputLineBuilder::new()
         .bounds(Rect::new(2, 3, 59, 4))
         .max_length(55)
-        .data(input_data)
         .build();
     dialog.add(Box::new(input));
 

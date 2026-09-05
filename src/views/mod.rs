@@ -84,6 +84,7 @@ pub mod file_editor;
 pub mod file_list;
 pub mod frame;
 pub mod group;
+pub mod handle;
 pub mod help_context;
 pub mod help_file;
 pub mod help_index;
@@ -137,6 +138,7 @@ pub use cluster_group::{CheckBoxes, RadioButtons};
 pub use combo_box::{ComboBox, ComboState};
 #[doc(inline)]
 pub use group::GroupLike;
+pub use handle::Handle;
 pub use label::Label;
 #[doc(inline)]
 pub use list_viewer::{ListViewer, ListViewerState};

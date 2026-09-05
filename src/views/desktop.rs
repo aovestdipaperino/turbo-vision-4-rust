@@ -171,6 +171,35 @@ impl Desktop {
         self.children.child_by_id(view_id)
     }
 
+    /// Add a window and get a typed handle to it back; see `GroupLike::add_typed`.
+    pub fn add_typed<T: View + 'static>(&mut self, view: T) -> super::handle::Handle<T> {
+        super::handle::Handle::from_id(self.add(Box::new(view)))
+    }
+
+    /// The window behind a typed handle, if it is still on the desktop.
+    pub fn get<T: View + 'static>(&self, handle: super::handle::Handle<T>) -> Option<&T> {
+        self.children
+            .child_by_id(handle.id())?
+            .as_any()
+            .downcast_ref::<T>()
+    }
+
+    pub fn get_mut<T: View + 'static>(
+        &mut self,
+        handle: super::handle::Handle<T>,
+    ) -> Option<&mut T> {
+        self.children
+            .child_by_id_mut(handle.id())?
+            .as_any_mut()
+            .downcast_mut::<T>()
+    }
+
+    /// The desktop's child list as a group, for owner-side bookkeeping such
+    /// as delivering a history selection to the linked input.
+    pub(crate) fn children_mut(&mut self) -> &mut Group {
+        &mut self.children
+    }
+
     /// Remove a child view by its `ViewId`. Returns true if it was present.
     pub fn remove_child_by_id(&mut self, view_id: ViewId) -> bool {
         self.children.remove_by_id(view_id)

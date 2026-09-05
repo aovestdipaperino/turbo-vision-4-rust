@@ -11,7 +11,9 @@ use std::rc::Rc;
 use turbo_vision::app::Application;
 use turbo_vision::core::command::{CM_CANCEL, CM_OK};
 use turbo_vision::core::geometry::Rect;
-use turbo_vision::views::GroupLike;
+use turbo_vision::views::dialog::Dialog;
+use turbo_vision::views::input_line::InputLine;
+use turbo_vision::views::{GroupLike, Handle};
 use turbo_vision::views::{
     button::ButtonBuilder,
     dialog::DialogBuilder,
@@ -29,6 +31,14 @@ fn main() -> turbo_vision::core::error::Result<()> {
     demo_all_validators(&mut app);
 
     Ok(())
+}
+
+/// The text of an input field, read back through its handle.
+fn text_of(dialog: &Dialog, field: Handle<InputLine>) -> String {
+    dialog
+        .get(field)
+        .map(|f| f.text().to_string())
+        .unwrap_or_default()
 }
 
 fn demo_all_validators(app: &mut Application) {
@@ -75,15 +85,14 @@ fn demo_all_validators(app: &mut Application) {
     dialog.add(Box::new(label1));
     y += 1;
 
-    let field1_data = Rc::new(RefCell::new(String::from("12345")));
     let field1_validator = Rc::new(RefCell::new(FilterValidator::new("0123456789")));
     let input1 = InputLineBuilder::new()
         .bounds(Rect::new(2, y, dialog_width - 4, y + 1))
         .max_length(20)
-        .data(field1_data.clone())
+        .text("12345")
         .validator(field1_validator.clone())
         .build();
-    dialog.add(Box::new(input1));
+    let field1 = dialog.add_typed(input1);
     y += 2;
 
     // Field 2: Range 0-100 (RangeValidator)
@@ -94,15 +103,14 @@ fn demo_all_validators(app: &mut Application) {
     dialog.add(Box::new(label2));
     y += 1;
 
-    let field2_data = Rc::new(RefCell::new(String::from("50")));
     let field2_validator = Rc::new(RefCell::new(RangeValidator::new(0, 100)));
     let input2 = InputLineBuilder::new()
         .bounds(Rect::new(2, y, dialog_width - 4, y + 1))
         .max_length(20)
-        .data(field2_data.clone())
+        .text("50")
         .validator(field2_validator.clone())
         .build();
-    dialog.add(Box::new(input2));
+    let field2 = dialog.add_typed(input2);
     y += 2;
 
     // Field 3: Range -50 to 50 (negative numbers allowed)
@@ -113,15 +121,14 @@ fn demo_all_validators(app: &mut Application) {
     dialog.add(Box::new(label3));
     y += 1;
 
-    let field3_data = Rc::new(RefCell::new(String::from("-25")));
     let field3_validator = Rc::new(RefCell::new(RangeValidator::new(-50, 50)));
     let input3 = InputLineBuilder::new()
         .bounds(Rect::new(2, y, dialog_width - 4, y + 1))
         .max_length(20)
-        .data(field3_data.clone())
+        .text("-25")
         .validator(field3_validator.clone())
         .build();
-    dialog.add(Box::new(input3));
+    let field3 = dialog.add_typed(input3);
     y += 2;
 
     // Field 4: Hex numbers 0x00-0xFF (RangeValidator with hex support)
@@ -132,15 +139,14 @@ fn demo_all_validators(app: &mut Application) {
     dialog.add(Box::new(label4));
     y += 1;
 
-    let field4_data = Rc::new(RefCell::new(String::from("0xAB")));
     let field4_validator = Rc::new(RefCell::new(RangeValidator::new(0, 255)));
     let input4 = InputLineBuilder::new()
         .bounds(Rect::new(2, y, dialog_width - 4, y + 1))
         .max_length(20)
-        .data(field4_data.clone())
+        .text("0xAB")
         .validator(field4_validator.clone())
         .build();
-    dialog.add(Box::new(input4));
+    let field4 = dialog.add_typed(input4);
     y += 3;
 
     // Section 2: Picture Mask Validators
@@ -158,16 +164,14 @@ fn demo_all_validators(app: &mut Application) {
         .build();
     dialog.add(Box::new(phone_label));
 
-    let phone_data = Rc::new(RefCell::new(String::new()));
     let mut phone_input = InputLineBuilder::new()
         .bounds(Rect::new(18, y, 35, y + 1))
         .max_length(20)
-        .data(phone_data.clone())
         .build();
     phone_input.set_validator(Rc::new(RefCell::new(PictureValidator::new(
         "(###) ###-####",
     ))));
-    dialog.add(Box::new(phone_input));
+    let phone = dialog.add_typed(phone_input);
 
     let phone_hint = StaticTextBuilder::new()
         .bounds(Rect::new(36, y, 51, y + 1))
@@ -183,14 +187,12 @@ fn demo_all_validators(app: &mut Application) {
         .build();
     dialog.add(Box::new(date_label));
 
-    let date_data = Rc::new(RefCell::new(String::new()));
     let mut date_input = InputLineBuilder::new()
         .bounds(Rect::new(18, y, 30, y + 1))
         .max_length(10)
-        .data(date_data.clone())
         .build();
     date_input.set_validator(Rc::new(RefCell::new(PictureValidator::new("##/##/####"))));
-    dialog.add(Box::new(date_input));
+    let date = dialog.add_typed(date_input);
 
     let date_hint = StaticTextBuilder::new()
         .bounds(Rect::new(31, y, 51, y + 1))
@@ -206,14 +208,12 @@ fn demo_all_validators(app: &mut Application) {
         .build();
     dialog.add(Box::new(code_label));
 
-    let code_data = Rc::new(RefCell::new(String::new()));
     let mut code_input = InputLineBuilder::new()
         .bounds(Rect::new(18, y, 31, y + 1))
         .max_length(9)
-        .data(code_data.clone())
         .build();
     code_input.set_validator(Rc::new(RefCell::new(PictureValidator::new("@@@@-####"))));
-    dialog.add(Box::new(code_input));
+    let code = dialog.add_typed(code_input);
 
     let code_hint = StaticTextBuilder::new()
         .bounds(Rect::new(32, y, 51, y + 1))
@@ -259,7 +259,7 @@ fn demo_all_validators(app: &mut Application) {
         println!("==================");
 
         // Filter/Range validators
-        let field1_text = field1_data.borrow().clone();
+        let field1_text = text_of(&dialog, field1);
         let field1_valid = field1_validator.borrow().is_valid(&field1_text);
         println!(
             "Field 1 (Digits only): \"{}\" - {}",
@@ -268,7 +268,7 @@ fn demo_all_validators(app: &mut Application) {
         );
         all_valid &= field1_valid;
 
-        let field2_text = field2_data.borrow().clone();
+        let field2_text = text_of(&dialog, field2);
         let field2_valid = field2_validator.borrow().is_valid(&field2_text);
         println!(
             "Field 2 (0-100): \"{}\" - {}",
@@ -277,7 +277,7 @@ fn demo_all_validators(app: &mut Application) {
         );
         all_valid &= field2_valid;
 
-        let field3_text = field3_data.borrow().clone();
+        let field3_text = text_of(&dialog, field3);
         let field3_valid = field3_validator.borrow().is_valid(&field3_text);
         println!(
             "Field 3 (-50 to 50): \"{}\" - {}",
@@ -286,7 +286,7 @@ fn demo_all_validators(app: &mut Application) {
         );
         all_valid &= field3_valid;
 
-        let field4_text = field4_data.borrow().clone();
+        let field4_text = text_of(&dialog, field4);
         let field4_valid = field4_validator.borrow().is_valid(&field4_text);
         println!(
             "Field 4 (0x00-0xFF): \"{}\" - {}",
@@ -297,9 +297,9 @@ fn demo_all_validators(app: &mut Application) {
 
         // Picture mask validators
         println!("\nFormatted Data Entered:");
-        println!("Phone: {}", phone_data.borrow());
-        println!("Date: {}", date_data.borrow());
-        println!("Code: {}", code_data.borrow());
+        println!("Phone: {}", text_of(&dialog, phone));
+        println!("Date: {}", text_of(&dialog, date));
+        println!("Code: {}", text_of(&dialog, code));
 
         println!(
             "\nOverall: {}",
