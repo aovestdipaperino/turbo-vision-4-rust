@@ -13,7 +13,7 @@ use turbo_vision::views::dialog::Dialog;
 use turbo_vision::views::static_text::StaticTextBuilder;
 
 // Custom command IDs for this example
-const CM_UPDATE_TITLE: u16 = 100;
+const CM_UPDATE_TITLE: u16 = 200;
 
 fn main() -> turbo_vision::core::error::Result<()> {
     let mut app = Application::new()?;

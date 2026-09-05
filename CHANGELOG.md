@@ -32,6 +32,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   A command from any other child (a list box, say) is left for the caller
   whatever its number, so commands no longer need to be numbered above 1000
   to pass through.
+- **Command numbers have owners.** `0..=99` are Borland's standard commands
+  (the `editors.h` file set `CM_NEW`..`CM_CLOSE_FILE` moves to 30..35),
+  `100..=199` are this crate's internal commands and broadcasts
+  (`CM_REDRAW`, `CM_SHOW_HISTORY`, `CM_SCREENSHOT` and friends are
+  renumbered into that band), and applications start at `CM_USER` (200).
+  The demo-application commands (`CM_ABOUT`, `CM_BIRTHDATE`,
+  `CM_TEXT_VIEWER`, `CM_CONTROLS_DEMO`, `CM_FIND_IN_FILES`, `CM_ZOOM_IN`,
+  `CM_ZOOM_OUT`, `CM_TOGGLE_SIDEBAR`, `CM_TOGGLE_STATUSBAR`,
+  `CM_KEYBOARD_REF`, `CM_LISTBOX_DEMO`, `CM_LISTBOX_SELECT`, `CM_MEMO_DEMO`)
+  leave the library; define them in your program.
 - **`add` takes any view.** `GroupLike::add`, `Desktop::add`,
   `Application::exec_view` and `add_overlay_widget` accept `impl View`
   (`impl IdleView` for overlays); `Box<dyn View>` still works because a boxed

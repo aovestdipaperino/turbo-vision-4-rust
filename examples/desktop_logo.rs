@@ -25,9 +25,9 @@ use turbo_vision::views::{
 };
 
 // Custom commands
-const CM_ABOUT: u16 = 100;
-const CM_LOAD_FILE: u16 = 101;
-const CM_LOAD_ASCII: u16 = 102;
+const CM_ABOUT: u16 = 200;
+const CM_LOAD_FILE: u16 = 201;
+const CM_LOAD_ASCII: u16 = 202;
 
 // Animated Crab Widget for Status Bar
 struct CrabWidget {

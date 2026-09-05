@@ -15,7 +15,7 @@ use turbo_vision::views::status_line::{StatusItem, StatusLine};
 
 use std::time::{Duration, Instant};
 
-const CM_BURST: u16 = 100;
+const CM_BURST: u16 = 200;
 
 fn main() -> turbo_vision::core::error::Result<()> {
     let mut app = Application::new()?;

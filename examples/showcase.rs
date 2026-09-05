@@ -33,15 +33,15 @@ use turbo_vision::views::{
 };
 
 // Custom commands
-const CM_ABOUT: u16 = 100;
-const CM_ASCII_TABLE: u16 = 101;
-const CM_CALCULATOR: u16 = 102;
-const CM_CALENDAR: u16 = 103;
-const CM_PUZZLE: u16 = 104;
-const CM_OPEN: u16 = 105;
-const CM_CHDIR: u16 = 106;
-const CM_START_CRAB: u16 = 107;
-const CM_PAUSE_CRAB: u16 = 108;
+const CM_ABOUT: u16 = 200;
+const CM_ASCII_TABLE: u16 = 201;
+const CM_CALCULATOR: u16 = 202;
+const CM_CALENDAR: u16 = 203;
+const CM_PUZZLE: u16 = 204;
+const CM_OPEN: u16 = 205;
+const CM_CHDIR: u16 = 206;
+const CM_START_CRAB: u16 = 207;
+const CM_PAUSE_CRAB: u16 = 208;
 
 // Calculator button commands
 #[allow(dead_code)]

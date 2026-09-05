@@ -10,6 +10,16 @@
 /// Command identifiers
 pub type CommandId = u16;
 
+/// Command number ownership:
+///
+/// * `0..=99`: Borland's standard commands, including the `editors.h` file
+///   set (`CM_NEW`, `CM_OPEN`, `CM_SAVE`, `CM_SAVE_AS`, `CM_SAVE_ALL`,
+///   `CM_CLOSE_FILE`).
+/// * `100..=199`: reserved for this crate's internal views and broadcasts
+///   (history, file dialog, redraw, editor commands).
+/// * `200..`: free for applications. Start your own numbering at `CM_USER`.
+pub const CM_USER: CommandId = 200;
+
 // Modal dialog control
 pub const CM_CONTINUE: CommandId = 0; // Modal dialog continues (returned by get_end_state when no end command received)
 
@@ -50,29 +60,25 @@ pub const CM_FILE_FOCUSED: CommandId = 102; // Borland: cmFileFocused - file dia
 pub const CM_FILE_DOUBLE_CLICKED: CommandId = 103; // Borland: cmFileDoubleClicked - file double-clicked in list
 
 // Port-specific commands (no Borland equivalent; live in the 30-49 and 63-99 gaps)
-pub const CM_SCREENSHOT: CommandId = 31; // Save a PNG screenshot (also bound to Ctrl+F12)
-pub const CM_REDRAW: CommandId = 63; // Full screen redraw needed (terminal resize, palette change, etc.)
-pub const CM_FOCUS_LINK: CommandId = 66; // Label hotkey: focus the linked control (ViewId stored in key_code)
-pub const CM_RADIO_SELECTED: CommandId = 67; // Broadcast: radio button selected (group id in event.info)
-pub const CM_SHOW_HISTORY: CommandId = 69; // Command: open the history popup for a History button (history id in event.info)
-pub const CM_HISTORY_SELECTED: CommandId = 70; // Broadcast: a history item was selected (history id in event.info; item is at front of HistoryManager list)
-pub const CM_SHOW_DROPDOWN: CommandId = 71; // Command: open a ComboBox drop-down list (combo id in event.info)
-pub const CM_MOUSE_AUTO_REPEAT: CommandId = 72; // Broadcast while a mouse button is held, so views can auto-repeat
-pub const CM_IDLE_TICK: CommandId = 73; // Broadcast from Application::idle so views can run timers (hover delays, animation)
+pub const CM_SCREENSHOT: CommandId = 104; // Save a PNG screenshot (also bound to Ctrl+F12)
+pub const CM_REDRAW: CommandId = 105; // Full screen redraw needed (terminal resize, palette change, etc.)
+pub const CM_FOCUS_LINK: CommandId = 106; // Label hotkey: focus the linked control (ViewId stored in key_code)
+pub const CM_RADIO_SELECTED: CommandId = 107; // Broadcast: radio button selected (group id in event.info)
+pub const CM_SHOW_HISTORY: CommandId = 108; // Command: open the history popup for a History button (history id in event.info)
+pub const CM_HISTORY_SELECTED: CommandId = 109; // Broadcast: a history item was selected (history id in event.info; item is at front of HistoryManager list)
+pub const CM_SHOW_DROPDOWN: CommandId = 110; // Command: open a ComboBox drop-down list (combo id in event.info)
+pub const CM_MOUSE_AUTO_REPEAT: CommandId = 122; // Broadcast while a mouse button is held, so views can auto-repeat
+pub const CM_IDLE_TICK: CommandId = 123; // Broadcast from Application::idle so views can run timers (hover delays, animation)
 
 // Custom commands (user defined)
-pub const CM_ABOUT: CommandId = 100;
-pub const CM_BIRTHDATE: CommandId = 101;
-pub const CM_TEXT_VIEWER: CommandId = 108;
-pub const CM_CONTROLS_DEMO: CommandId = 109;
 
 // File menu commands (moved out of 102-107 to avoid Borland's cmFileFocused range)
-pub const CM_NEW: CommandId = 300;
-pub const CM_OPEN: CommandId = 301;
-pub const CM_SAVE: CommandId = 302;
-pub const CM_SAVE_AS: CommandId = 303;
-pub const CM_SAVE_ALL: CommandId = 304;
-pub const CM_CLOSE_FILE: CommandId = 305;
+pub const CM_NEW: CommandId = 30;
+pub const CM_OPEN: CommandId = 31;
+pub const CM_SAVE: CommandId = 32;
+pub const CM_SAVE_AS: CommandId = 33;
+pub const CM_SAVE_ALL: CommandId = 34;
+pub const CM_CLOSE_FILE: CommandId = 35;
 
 // Edit menu commands (CUT/COPY/PASTE/UNDO are the Borland standards above)
 pub const CM_REDO: CommandId = 111;
@@ -83,20 +89,46 @@ pub const CM_SEARCH_AGAIN: CommandId = 118; // Borland: cmSearchAgain (F3) - fin
 pub const CM_TOGGLE_BLOCK_MODE: CommandId = 119; // Toggle the global block-edit mode (rectangular selections)
 
 // Search menu commands
-pub const CM_FIND_IN_FILES: CommandId = 120;
 pub const CM_GOTO_LINE: CommandId = 121;
 
 // View menu commands
-pub const CM_ZOOM_IN: CommandId = 130;
-pub const CM_ZOOM_OUT: CommandId = 131;
-pub const CM_TOGGLE_SIDEBAR: CommandId = 132;
-pub const CM_TOGGLE_STATUSBAR: CommandId = 133;
 
 // Help menu commands
 pub const CM_HELP_INDEX: CommandId = 140;
-pub const CM_KEYBOARD_REF: CommandId = 141;
 
 // Demo commands
-pub const CM_LISTBOX_DEMO: CommandId = 150;
-pub const CM_LISTBOX_SELECT: CommandId = 151;
-pub const CM_MEMO_DEMO: CommandId = 152;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn internal_commands_stay_inside_the_reserved_band() {
+        for c in [
+            CM_REDRAW,
+            CM_FOCUS_LINK,
+            CM_RADIO_SELECTED,
+            CM_SHOW_HISTORY,
+            CM_HISTORY_SELECTED,
+            CM_SHOW_DROPDOWN,
+            CM_SCREENSHOT,
+            CM_FILE_FOCUSED,
+            CM_FILE_DOUBLE_CLICKED,
+            CM_MOUSE_AUTO_REPEAT,
+            CM_IDLE_TICK,
+            CM_HELP_INDEX,
+        ] {
+            assert!((100..CM_USER).contains(&c), "{c} must be in 100..200");
+        }
+        for c in [
+            CM_NEW,
+            CM_OPEN,
+            CM_SAVE,
+            CM_SAVE_AS,
+            CM_SAVE_ALL,
+            CM_CLOSE_FILE,
+        ] {
+            assert!(c < 100, "{c} is a Borland standard command");
+        }
+    }
+}

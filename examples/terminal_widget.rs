@@ -24,9 +24,9 @@ use turbo_vision::views::status_line::{StatusItem, StatusLine};
 use turbo_vision::views::terminal_widget::TerminalWidget;
 use turbo_vision::views::view::ViewId;
 
-const CM_START_LOG: u16 = 100;
-const CM_STOP_LOG: u16 = 101;
-const CM_CLEAR_LOG: u16 = 102;
+const CM_START_LOG: u16 = 200;
+const CM_STOP_LOG: u16 = 201;
+const CM_CLEAR_LOG: u16 = 202;
 
 // Simulated build log entries
 const BUILD_LOG: &[(&str, u8)] = &[

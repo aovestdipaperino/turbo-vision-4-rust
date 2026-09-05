@@ -241,29 +241,21 @@ pub mod prelude {
     // Explicit command re-exports (no glob imports)
     pub use crate::core::command::{
         // Application commands
-        CM_ABOUT,
-        CM_BIRTHDATE,
         CM_CANCEL,
         CM_CLOSE,
         CM_CLOSE_FILE,
         CM_COMMAND_SET_CHANGED,
-        CM_CONTROLS_DEMO,
         CM_COPY,
         CM_CUT,
         CM_DEFAULT,
         CM_FILE_DOUBLE_CLICKED,
         CM_FILE_FOCUSED,
         CM_FIND,
-        CM_FIND_IN_FILES,
         CM_GOTO_LINE,
         CM_GRAB_DEFAULT,
         // Help commands
         CM_HELP_INDEX,
-        CM_KEYBOARD_REF,
         // Demo commands
-        CM_LISTBOX_DEMO,
-        CM_LISTBOX_SELECT,
-        CM_MEMO_DEMO,
         // File operations
         CM_NEW,
         CM_NO,
@@ -284,15 +276,11 @@ pub mod prelude {
         CM_SAVE_AS,
         CM_SEARCH_AGAIN,
         CM_SELECT_ALL,
-        CM_TEXT_VIEWER,
-        CM_TOGGLE_SIDEBAR,
-        CM_TOGGLE_STATUSBAR,
         // Edit operations
         CM_UNDO,
+        CM_USER,
         CM_YES,
         // View commands
-        CM_ZOOM_IN,
-        CM_ZOOM_OUT,
         CommandId,
     };
 

@@ -39,8 +39,8 @@ use std::path::PathBuf;
 use std::rc::Rc;
 
 // Custom commands for ChDirDialog
-const CM_CHANGE_DIR: CommandId = 200;
-const CM_REVERT: CommandId = 201;
+const CM_CHANGE_DIR: CommandId = 124;
+const CM_REVERT: CommandId = 125;
 
 // History ID for directory paths
 // Matches Borland: histId parameter in TChDirDialog constructor

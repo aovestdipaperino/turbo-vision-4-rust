@@ -24,8 +24,8 @@ use turbo_vision::views::{GroupLike, Handle};
 use turbo_vision::views::{View, ViewCore};
 
 // Custom commands
-const CM_BIORHYTHM: u16 = 100;
-const CM_ABOUT: u16 = 101;
+const CM_BIORHYTHM: u16 = 200;
+const CM_ABOUT: u16 = 201;
 
 /// DateFieldValidator - validates numeric date field input (day, month, year)
 /// Checks values during typing, not just characters
