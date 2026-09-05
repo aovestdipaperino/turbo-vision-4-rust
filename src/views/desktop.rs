@@ -565,6 +565,12 @@ impl View for Desktop {
     fn set_bounds(&mut self, bounds: Rect) {
         self.bounds = bounds;
         self.children.set_bounds(bounds);
+        // A terminal resize changes what "zoomed" and "as far as you may drag"
+        // mean, so tell the windows about the new extent. `add` does this once;
+        // without it here they would keep the size the desktop had at startup.
+        for i in 0..self.children.len() {
+            self.children.child_at_mut(i).set_parent_bounds(bounds);
+        }
     }
 
     fn draw(&mut self, terminal: &mut Terminal) {

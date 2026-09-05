@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.1] - 2026-09-05
+
+### Fixed
+- **The frame's zoom triangle went stale.** It was written only by the zoom
+  command, so anything else that resized a window left the wrong glyph on the
+  title bar until the next zoom toggle: after Tile or Cascade shrank a zoomed
+  window, it still read as `\u{25BC}`. The state is now derived at draw time from
+  the window's bounds against the extent a zoom would fill, so it cannot
+  disagree with what the window looks like, whatever moved it. `Desktop` also
+  pushes the new extent to its windows when the terminal is resized, which keeps
+  both the triangle and the drag limits right across a resize.
+
+### Added
+- `Window::is_zoomed` and `Frame::set_max_bounds`, the accessor and the hook the
+  derived state needs.
+
+### Deprecated
+- `Frame::set_zoomed`. The zoom state is derived from the bounds now; the setter
+  is still honoured for a bare `Frame` that was never told its maximum extent,
+  and ignored for any window inside a desktop.
+
 ## [2.4.0] - 2026-09-05
 
 ### Added

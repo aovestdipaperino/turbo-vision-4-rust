@@ -248,6 +248,14 @@ impl Window {
         self.frame.set_zoomable(zoomable);
     }
 
+    /// Whether the window fills the extent a zoom would take it to.
+    ///
+    /// Derived from the current bounds, so it is right however the window came
+    /// to its size: a zoom, a tile, a cascade, or a drag of the resize corner.
+    pub fn is_zoomed(&self) -> bool {
+        self.frame.is_zoomed()
+    }
+
     pub fn set_resizable(&mut self, resizable: bool) {
         self.frame.set_resizable(resizable);
     }
@@ -845,12 +853,11 @@ impl View for Window {
             self.bounds = self.zoom_rect;
         }
 
-        // Update frame and interior
+        // Update frame and interior. The frame works its own zoom glyph out
+        // from these bounds against the extent below, so nothing has to
+        // remember whether this call zoomed or restored.
+        self.frame.set_max_bounds(max_bounds);
         self.frame.set_bounds(self.bounds);
-        // The frame draws a different zoom glyph once the window is zoomed:
-        // an up arrow while it can still grow, both ways once it can only be
-        // restored.
-        self.frame.set_zoomed(self.bounds == max_bounds);
         let mut interior_bounds = self.bounds;
         interior_bounds.grow(-1, -1);
         self.interior.set_bounds(interior_bounds);
@@ -865,6 +872,9 @@ impl View for Window {
 
     fn set_parent_bounds(&mut self, bounds: crate::core::geometry::Rect) {
         self.explicit_drag_limits = Some(bounds);
+        // The same rect is what a zoom fills, so the frame can derive its
+        // triangle from it however the window came to be its current size.
+        self.frame.set_max_bounds(bounds);
     }
 
     fn set_palette_chain(&mut self, node: Option<crate::core::palette_chain::PaletteChainNode>) {
