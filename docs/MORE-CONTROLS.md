@@ -58,16 +58,20 @@ Ordered by benefit-to-effort. Each one composes existing views wherever it can.
       horizontal, draggable, with a minimum size per half; F8 moves focus between
       them. Keyboard divider movement is left to the host through `grow_first`
       and `shrink_first`, rather than stealing a key from the panes.
-- [ ] **Tooltip / hint popup** — transient hover text. Borland pushed this to the
-      status line; a real popup suits mouse-driven use better.
+- [x] **Tooltip / hint popup** — done, `src/views/tooltip.rs`. One tooltip serves
+      a whole dialog: register a rect and a line of text per control, and the
+      pointer resting on one raises the hint beside it. Add it last, since it
+      draws over its neighbours. The hover delay runs off the new `CM_IDLE_TICK`
+      broadcast.
 
 ## Completing existing controls
 
-- [ ] **`CheckBoxes` / `RadioButtons` as true clusters** — Borland's versions hold
-      a list of items in one focusable control with a bitmask value. Here
-      `CheckBox` holds a single label and grouping is emulated with a
-      `CM_RADIO_SELECTED` broadcast on a group id. Works, but diverges from the
-      reference and is verbose for multi-item groups.
+- [x] **`CheckBoxes` / `RadioButtons` as true clusters** — done,
+      `src/views/cluster_group.rs`. Each holds its items in one focusable control
+      with a single bitmask value, as Borland does. Arrows move within the
+      cluster, Space toggles or selects, Tab leaves it, and a tilde-marked letter
+      is an item's Alt hotkey; items can be disabled individually. The existing
+      one-label `CheckBox` and `RadioButton` are untouched and still supported.
 - [x] **Multi-select in `ListBox`** — done. `set_multi_select` adds marks that
       are independent of the focus: Space marks the focused item, Shift+click
       marks a run from the anchor, and `marked_items` / `marked_text` report them
@@ -79,14 +83,27 @@ Ordered by benefit-to-effort. Each one composes existing views wherever it can.
       idle pass; the scrollbar repeats the press it is holding after a 400 ms
       delay, every 80 ms, and stops at the end of the range. Nothing is sent
       while no button is down, so an idle app stays idle.
-- [ ] **Frame zoom-icon rendering** — the zoom command dispatches but the icon is
-      never drawn. Also recorded in `TO-DO.md`.
+- [x] **Frame zoom-icon rendering** — done. A resizable window's title bar now
+      carries `[\u{25B2}]` beside the close box, turning into `[\u{25BC}]` once
+      zoomed. It tracks press and release like the close box, so a press that
+      slides off cancels. Dialogs show none, since Borland pairs wfZoom with
+      wfGrow and a dialog has neither.
 
 ## Demo
 
 `examples/new_controls.rs` runs all five new controls in one dialog. A tabbed
 pane holds two pages: the first wires three combo boxes and a spinner to a
 progress bar, the second is a table.
+
+## What is left
+
+Nothing on this list. Two things worth knowing about what shipped:
+
+- `CM_IDLE_TICK`, added for the tooltip's hover delay, is a general timer any
+  view can use. `Application::idle` broadcasts it whenever the event poll times
+  out. Views must not consume it, since a broadcast stops travelling once it is.
+- The clusters take their colours from `CP_CLUSTER`, so they look exactly like
+  the existing one-label `CheckBox` and `RadioButton`.
 
 ## Notes
 

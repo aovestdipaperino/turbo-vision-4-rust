@@ -70,8 +70,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`examples/new_controls.rs`.** One dialog running all five new controls: a
   tabbed pane over two pages, the first wiring three combo boxes and a spinner to
   a progress bar, the second a table.
+- **`CheckBoxes` and `RadioButtons`.** The Borland shape the port was missing:
+  each holds its items in one focusable control with a single bitmask value.
+  Arrows move within the cluster, Space toggles a box or selects a button, Tab
+  leaves it, and a tilde-marked letter is an item's Alt hotkey; items can be
+  disabled individually and draw dimmed. Radio clusters keep exactly one bit set,
+  so pressing Space on the selected button does not turn it off. The existing
+  one-label `CheckBox` and `RadioButton` are untouched and still supported.
+- **`Tooltip` view.** Hover hints for a whole dialog: register a rect and a line
+  of text per control, and the pointer resting on one raises the hint beside it,
+  flipping above the control when there is no room below. Add it last, since it
+  draws over its neighbours. Any click or keypress takes the hint down.
+- **Frame zoom triangle.** A resizable window's title bar now carries `[\u{25B2}]`
+  beside the close box, turning into `[\u{25BC}]` once zoomed. It tracks press and
+  release like the close box, so a press that slides off cancels rather than
+  zooming. Dialogs show none: Borland pairs wfZoom with wfGrow, and a dialog has
+  neither. Closes the last "visual polish only" note in `TO-DO.md`.
+- **`CM_IDLE_TICK`.** Broadcast from `Application::idle` whenever the event poll
+  times out, so views can run timers of their own. The tooltip's hover delay is
+  the first user; animation is the obvious second. Views must not consume it,
+  since a broadcast stops travelling once it is.
+- **`examples/cluster_tooltip.rs`.** The three above in one dialog.
 - **`docs/MORE-CONTROLS.md`.** Gap analysis of the widget set against Borland
-  Turbo Vision and modern text-UI expectations, with a checklist roadmap.
+  Turbo Vision and modern text-UI expectations, with a checklist roadmap. Every
+  item on it is now done.
 
 ### Changed
 - **Focus is visible on the new controls.** Borland's input palette gives

@@ -51,7 +51,7 @@ From the 2026-07-02 review of `turbo-vision-4-rust` v1.3.1 vs the kloczek/tvisio
 - [x] Memo passes Tab through for dialog focus (Borland TMemo)
 - [x] FileEditor: opt-in `.bak` backups; saves preserve CRLF and trailing-newline style
 - [x] Indicator shows Borland `line:col` (1-based)
-- [x] `put_event` slot, Alt+1-9 window selection with frame-drawn numbers, CM_ZOOM dispatch + double-click-title zoom, CM_RESIZE keyboard move/resize, StatusDef switching driven from idle (zoom ICON drawing still not rendered — visual polish only)
+- [x] `put_event` slot, Alt+1-9 window selection with frame-drawn numbers, CM_ZOOM dispatch + double-click-title zoom, CM_RESIZE keyboard move/resize, StatusDef switching driven from idle (zoom icon now drawn as [\u{25B2}]/[\u{25BC}] with press-release tracking)
 - [ ] Status line sees events last instead of first; app hard-codes Alt+X/F1/F12 — deliberate for now (reordering risks shadowing regressions); revisit if user-defined status hotkeys are needed
 - [x] Focus chain skips SF_DISABLED children and never drops focus when no other candidate exists (SF_VISIBLE unused in this port)
 - [x] Broadcasts delivered to all children; focus re-established after removing the focused child

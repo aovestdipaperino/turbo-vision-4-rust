@@ -278,8 +278,7 @@ Currently implements:
 - ✅ Scroller base class for scrollable views
 - ✅ Indicator (position display)
 - ✅ Text viewer with scrolling
-- ✅ CheckBoxes
-- ✅ RadioButtons
+- ✅ CheckBoxes and RadioButtons (single, or multi-item clusters with one bitmask value)
 - ✅ ListBoxes (single selection, or multi-select with Space and Shift+click)
 - ✅ Memo (multi-line text editor)
 - ✅ ProgressBar (determinate and marquee, three glyph styles)
@@ -288,6 +287,7 @@ Currently implements:
 - ✅ Table (grid with header row, sized columns, cell focus)
 - ✅ TabbedPane (enclosed tabs over a stack of pages)
 - ✅ SplitPane (two panes with a draggable divider)
+- ✅ Tooltip (hover hints for a dialog's controls)
 - ✅ Mouse support (buttons, menus, status bar, close buttons, hover effects, listbox clicks, scroll wheel, double-click detection)
 - ✅ Window dragging and resizing (drag by title bar, resize from bottom-right corner with minimum size constraints)
 - ✅ Window closing (non-modal windows close with close button, modal dialogs convert to cancel)

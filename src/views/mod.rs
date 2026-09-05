@@ -22,6 +22,8 @@
 //! - [`Button`](button::Button) - Clickable button that emits commands
 //! - [`CheckBox`](checkbox::CheckBox) - Binary on/off checkbox
 //! - [`RadioButton`](radiobutton::RadioButton) - Mutually exclusive radio buttons
+//! - [`CheckBoxes`](cluster_group::CheckBoxes) - Several check boxes in one control
+//! - [`RadioButtons`](cluster_group::RadioButtons) - Several radio buttons in one control
 //! - [`ComboBox`](combo_box::ComboBox) - Field with a drop-down list of choices
 //! - [`Spinner`](spinner::Spinner) - Numeric field with up and down steppers
 //!
@@ -34,6 +36,7 @@
 //! - [`Table`](table::Table) - Scrollable grid with a header row and sized columns
 //! - [`TabbedPane`](tabbed_pane::TabbedPane) - Tab strip over a stack of pages
 //! - [`SplitPane`](split_pane::SplitPane) - Two panes divided by a draggable splitter
+//! - [`Tooltip`](tooltip::Tooltip) - Hover hints for a dialog's controls
 //!
 //! ## Menus and Status
 //! - [`MenuBar`](menu_bar::MenuBar) - Top menu bar with pull-down menus
@@ -65,6 +68,7 @@ pub mod button;
 pub mod chdir_dialog;
 pub mod checkbox;
 pub mod cluster;
+pub mod cluster_group;
 pub mod color_dialog;
 pub mod color_selector;
 pub mod combo_box;
@@ -118,12 +122,15 @@ pub mod tabbed_pane;
 pub mod table;
 pub mod terminal_widget;
 pub mod text_viewer;
+pub mod tooltip;
 pub mod validator;
 pub mod view;
 pub mod window;
 
 #[doc(inline)]
 pub use cluster::{Cluster, ClusterState};
+#[doc(inline)]
+pub use cluster_group::{CheckBoxes, RadioButtons};
 #[doc(inline)]
 pub use combo_box::{ComboBox, ComboState};
 #[doc(inline)]
@@ -144,5 +151,7 @@ pub use split_pane::{Orientation, SplitPane};
 pub use tabbed_pane::TabbedPane;
 #[doc(inline)]
 pub use table::{Align, Column, Table};
+#[doc(inline)]
+pub use tooltip::Tooltip;
 #[doc(inline)]
 pub use view::{IdleView, View, ViewId};

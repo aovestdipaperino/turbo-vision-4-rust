@@ -1,6 +1,6 @@
 // (C) 2025 - Enzo Lombardi
 
-//! Frame view - window border with title and close button.
+//! Frame view - window border with title, close button and zoom triangle.
 
 use super::view::{View, write_line_to_terminal};
 use crate::core::command::CM_CLOSE;
@@ -29,6 +29,13 @@ pub struct Frame {
     /// CM_CLOSE only fires when the matching MouseUp is also over the icon
     /// (matches Borland: TFrame tracks press-release on the close icon).
     close_pressed: bool,
+    /// Whether the zoom icon is drawn at all (Borland: wfZoom). Defaults to
+    /// `resizable`, since a fixed-size window has nothing to zoom to.
+    zoomable: bool,
+    /// Whether the window is currently zoomed, which picks the icon's glyph.
+    zoomed: bool,
+    /// The zoom icon's equivalent of `close_pressed`.
+    zoom_pressed: bool,
     palette_chain: Option<crate::core::palette_chain::PaletteChainNode>,
 }
 
@@ -60,6 +67,11 @@ impl Frame {
             state: SF_ACTIVE,
             resizable,
             close_pressed: false,
+            // Borland pairs wfGrow with wfZoom: a window that cannot be
+            // resized has nothing to zoom to, and a dialog has neither.
+            zoomable: resizable,
+            zoomed: false,
+            zoom_pressed: false,
             palette_chain: None,
         }
     }
@@ -70,9 +82,47 @@ impl Frame {
         pos.y == self.bounds.a.y && pos.x >= self.bounds.a.x + 2 && pos.x <= self.bounds.a.x + 4
     }
 
+    /// Leftmost column of the zoom icon `[\u{25B2}]`, three cells wide, sitting
+    /// just inside the top-right corner.
+    ///
+    /// `None` when the frame is not zoomable or is too narrow to hold both
+    /// icons and a title. Matches Borland TFrame::draw, which places the zoom
+    /// icon at `width - 5`.
+    fn zoom_icon_x(&self) -> Option<i16> {
+        let width = self.bounds.width();
+        if !self.zoomable || width <= 10 {
+            return None;
+        }
+        Some(self.bounds.a.x + width - 5)
+    }
+
+    /// True if the given position is over the zoom icon on the top frame row.
+    fn is_on_zoom_icon(&self, pos: crate::core::geometry::Point) -> bool {
+        let Some(x) = self.zoom_icon_x() else {
+            return false;
+        };
+        pos.y == self.bounds.a.y && pos.x >= x && pos.x <= x + 2
+    }
+
     /// Set whether the frame is resizable (matches Borland's wfGrow flag).
     pub fn set_resizable(&mut self, resizable: bool) {
         self.resizable = resizable;
+    }
+
+    /// Set whether the zoom icon is drawn (matches Borland's wfZoom flag).
+    pub fn set_zoomable(&mut self, zoomable: bool) {
+        self.zoomable = zoomable;
+    }
+
+    /// Tell the frame whether its window is zoomed, which flips the triangle
+    /// between "grow" (up) and "restore" (down).
+    pub fn set_zoomed(&mut self, zoomed: bool) {
+        self.zoomed = zoomed;
+    }
+
+    /// Whether the frame believes its window is zoomed.
+    pub fn is_zoomed(&self) -> bool {
+        self.zoomed
     }
 
     /// Set the frame title
@@ -165,6 +215,18 @@ impl View for Frame {
             buf.put_char(4, ']', frame_attr);
         }
 
+        // Zoom icon just inside the top-right corner, mirroring the close
+        // icon's bracket-and-glyph shape. The triangle points up while the
+        // window can still grow, and down once it is zoomed and the click will
+        // restore it. Matches Borland: zoomIcon at width - 5.
+        if let Some(x) = self.zoom_icon_x() {
+            let at = (x - self.bounds.a.x) as usize;
+            let glyph = if self.zoomed { '\u{25BC}' } else { '\u{25B2}' };
+            buf.put_char(at, '[', frame_attr);
+            buf.put_char(at + 1, glyph, close_icon_attr);
+            buf.put_char(at + 2, ']', frame_attr);
+        }
+
         // Add title after close button
         // Centered title, clamped clear of the close icon (left) and the
         // zoom/number area (right) — matches Borland TFrame::draw:
@@ -255,6 +317,7 @@ impl View for Frame {
             && event.mouse.double_click
             && event.mouse.pos.y == self.bounds.a.y
             && !self.is_on_close_icon(event.mouse.pos)
+            && !self.is_on_zoom_icon(event.mouse.pos)
         {
             *event = crate::core::event::Event::command(crate::core::command::CM_ZOOM);
             return;
@@ -263,9 +326,10 @@ impl View for Frame {
         if event.what == EventType::MouseDown && (event.mouse.buttons & MB_LEFT_BUTTON) != 0 {
             let mouse_pos = event.mouse.pos;
 
-            // Any new press resets close-icon tracking; it is re-armed below
-            // only when the press lands on the icon itself.
+            // Any new press resets icon tracking; each is re-armed below only
+            // when the press lands on that icon.
             self.close_pressed = false;
+            self.zoom_pressed = false;
 
             // Check if click is on the resize corner (bottom-right, matching Borland tframe.cc:214)
             // Borland: mouse.x >= size.x - 2 && mouse.y >= size.y - 1
@@ -288,6 +352,14 @@ impl View for Frame {
                     // drag, and consume the press so it doesn't leak to other
                     // views. Close fires only on the matching MouseUp.
                     self.close_pressed = true;
+                    event.clear();
+                    return;
+                }
+
+                // The zoom icon works the same way: arm the press, and fire
+                // CM_ZOOM only if the release lands on it too.
+                if self.is_on_zoom_icon(mouse_pos) {
+                    self.zoom_pressed = true;
                     event.clear();
                     return;
                 }
@@ -318,6 +390,17 @@ impl View for Frame {
                     event.clear();
                 }
                 // Also clear drag/resize state if set
+                self.state &= !(SF_DRAGGING | SF_RESIZING);
+                return;
+            }
+
+            if self.zoom_pressed {
+                self.zoom_pressed = false;
+                if self.is_on_zoom_icon(mouse_pos) {
+                    *event = Event::command(crate::core::command::CM_ZOOM);
+                } else {
+                    event.clear();
+                }
                 self.state &= !(SF_DRAGGING | SF_RESIZING);
                 return;
             }
@@ -524,5 +607,111 @@ mod tests {
         let mut up = mouse(EventType::MouseUp, 3, 0);
         f.handle_event(&mut up);
         assert_ne!(up.what, EventType::Command);
+    }
+
+    // --- Zoom icon -------------------------------------------------------
+
+    fn zoomable_frame() -> Frame {
+        Frame::new(Rect::new(0, 0, 40, 10), "Title", true)
+    }
+
+    fn press_at(frame: &mut Frame, x: i16, y: i16) -> Event {
+        let mut e = Event::nothing();
+        e.what = EventType::MouseDown;
+        e.mouse.buttons = MB_LEFT_BUTTON;
+        e.mouse.pos = crate::core::geometry::Point::new(x, y);
+        frame.handle_event(&mut e);
+        e
+    }
+
+    fn release_at(frame: &mut Frame, x: i16, y: i16) -> Event {
+        let mut e = Event::nothing();
+        e.what = EventType::MouseUp;
+        e.mouse.pos = crate::core::geometry::Point::new(x, y);
+        frame.handle_event(&mut e);
+        e
+    }
+
+    #[test]
+    fn the_zoom_icon_sits_five_cells_from_the_right_edge() {
+        let frame = zoomable_frame();
+        assert_eq!(frame.zoom_icon_x(), Some(35));
+        assert!(frame.is_on_zoom_icon(crate::core::geometry::Point::new(36, 0)));
+        assert!(!frame.is_on_zoom_icon(crate::core::geometry::Point::new(36, 1)));
+    }
+
+    #[test]
+    fn a_fixed_size_frame_shows_no_zoom_icon() {
+        // Borland pairs wfZoom with wfGrow, and a dialog has neither.
+        let frame = Frame::new(Rect::new(0, 0, 40, 10), "Title", false);
+        assert_eq!(frame.zoom_icon_x(), None);
+    }
+
+    #[test]
+    fn a_narrow_frame_shows_no_zoom_icon() {
+        let frame = Frame::new(Rect::new(0, 0, 10, 5), "T", true);
+        assert_eq!(frame.zoom_icon_x(), None, "no room beside the close icon");
+    }
+
+    #[test]
+    fn press_and_release_on_the_zoom_icon_zooms() {
+        let mut frame = zoomable_frame();
+        let down = press_at(&mut frame, 36, 0);
+        assert_eq!(down.what, EventType::Nothing, "the press is consumed");
+        let up = release_at(&mut frame, 36, 0);
+        assert_eq!(up.what, EventType::Command);
+        assert_eq!(up.command, crate::core::command::CM_ZOOM);
+    }
+
+    #[test]
+    fn releasing_off_the_zoom_icon_cancels() {
+        let mut frame = zoomable_frame();
+        press_at(&mut frame, 36, 0);
+        let up = release_at(&mut frame, 20, 0);
+        assert_ne!(up.what, EventType::Command, "dragged off the icon");
+    }
+
+    #[test]
+    fn a_press_on_the_zoom_icon_does_not_start_a_drag() {
+        let mut frame = zoomable_frame();
+        press_at(&mut frame, 36, 0);
+        assert_eq!(
+            frame.state & SF_DRAGGING,
+            0,
+            "the title bar drag must not begin on an icon"
+        );
+    }
+
+    #[test]
+    fn double_clicking_the_zoom_icon_is_left_to_the_press_tracking() {
+        // A double-click anywhere else on the title bar zooms directly; on the
+        // icon itself the press/release pair already does it, so the shortcut
+        // must not fire twice.
+        let mut frame = zoomable_frame();
+        let mut e = Event::nothing();
+        e.what = EventType::MouseDown;
+        e.mouse.buttons = MB_LEFT_BUTTON;
+        e.mouse.double_click = true;
+        e.mouse.pos = crate::core::geometry::Point::new(36, 0);
+        frame.handle_event(&mut e);
+        assert_ne!(e.what, EventType::Command);
+    }
+
+    #[test]
+    fn the_triangle_follows_the_zoomed_state() {
+        let mut frame = zoomable_frame();
+        assert!(!frame.is_zoomed());
+        frame.set_zoomed(true);
+        assert!(frame.is_zoomed());
+    }
+
+    #[test]
+    fn hiding_the_zoom_icon_also_stops_its_clicks() {
+        let mut frame = zoomable_frame();
+        frame.set_zoomable(false);
+        assert_eq!(frame.zoom_icon_x(), None);
+        press_at(&mut frame, 36, 0);
+        let up = release_at(&mut frame, 36, 0);
+        assert_ne!(up.command, crate::core::command::CM_ZOOM);
     }
 }

@@ -929,6 +929,14 @@ impl Application {
             self.desktop.handle_event(&mut repeat);
         }
 
+        // A plain tick for views that need a timer of their own: a tooltip's
+        // hover delay, an animation. `idle` only runs when the event poll times
+        // out, so this fires a few times a second while the user is not typing,
+        // and not at all while they are. Views must not clear it, since a
+        // broadcast stops travelling once it is consumed.
+        let mut tick = Event::broadcast(crate::core::command::CM_IDLE_TICK);
+        self.desktop.handle_event(&mut tick);
+
         // Update tile/cascade command states based on desktop state
         // Matches Borland: TVDemo::idle() checks deskTop->firstThat(isTileable, 0)
         if self.desktop.has_tileable_windows() {

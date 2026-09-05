@@ -243,6 +243,11 @@ impl Window {
 
     /// Set whether the window is resizable.
     /// Resizable windows show single-line bottom corners and a resize handle.
+    /// Show or hide the frame's zoom icon (Borland: wfZoom).
+    pub fn set_zoomable(&mut self, zoomable: bool) {
+        self.frame.set_zoomable(zoomable);
+    }
+
     pub fn set_resizable(&mut self, resizable: bool) {
         self.frame.set_resizable(resizable);
     }
@@ -842,6 +847,10 @@ impl View for Window {
 
         // Update frame and interior
         self.frame.set_bounds(self.bounds);
+        // The frame draws a different zoom glyph once the window is zoomed:
+        // an up arrow while it can still grow, both ways once it can only be
+        // restored.
+        self.frame.set_zoomed(self.bounds == max_bounds);
         let mut interior_bounds = self.bounds;
         interior_bounds.grow(-1, -1);
         self.interior.set_bounds(interior_bounds);
