@@ -619,6 +619,11 @@ impl Application {
                     }
                     event.clear();
                 }
+                crate::core::command::CM_SHOW_DROPDOWN => {
+                    // A ComboBox on a plain window asked to drop its list down;
+                    // open it here, where the terminal is reachable.
+                    crate::views::dialog::show_dropdown_popup(event, &mut self.terminal);
+                }
                 _ => {}
             }
         }

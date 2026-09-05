@@ -22,12 +22,15 @@
 //! - [`Button`](button::Button) - Clickable button that emits commands
 //! - [`CheckBox`](checkbox::CheckBox) - Binary on/off checkbox
 //! - [`RadioButton`](radiobutton::RadioButton) - Mutually exclusive radio buttons
+//! - [`ComboBox`](combo_box::ComboBox) - Field with a drop-down list of choices
+//! - [`Spinner`](spinner::Spinner) - Numeric field with up and down steppers
 //!
 //! ## Display Widgets
 //! - [`StaticText`](static_text::StaticText) - Non-interactive text label
 //! - [`TextViewer`](text_viewer::TextViewer) - Scrollable read-only text viewer
 //! - [`ListBox`](listbox::ListBox) - Scrollable list of selectable items
 //! - [`Memo`](memo::Memo) - Multi-line read-only text display
+//! - [`ProgressBar`](progress_bar::ProgressBar) - Determinate or marquee progress indicator
 //!
 //! ## Menus and Status
 //! - [`MenuBar`](menu_bar::MenuBar) - Top menu bar with pull-down menus
@@ -61,6 +64,7 @@ pub mod checkbox;
 pub mod cluster;
 pub mod color_dialog;
 pub mod color_selector;
+pub mod combo_box;
 pub mod desktop;
 pub mod dialog;
 pub mod dir_listbox;
@@ -97,10 +101,12 @@ pub mod msgbox;
 pub mod outline;
 pub mod paramtext;
 pub mod picture_validator;
+pub mod progress_bar;
 pub mod radiobutton;
 pub mod scrollbar;
 pub mod scroller;
 pub mod sorted_listbox;
+pub mod spinner;
 pub mod static_text;
 pub mod status_line;
 pub mod syntax;
@@ -113,6 +119,8 @@ pub mod window;
 #[doc(inline)]
 pub use cluster::{Cluster, ClusterState};
 #[doc(inline)]
+pub use combo_box::{ComboBox, ComboState};
+#[doc(inline)]
 pub use label::Label;
 #[doc(inline)]
 pub use list_viewer::{ListViewer, ListViewerState};
@@ -120,5 +128,9 @@ pub use list_viewer::{ListViewer, ListViewerState};
 pub use menu_box::MenuBox;
 #[doc(inline)]
 pub use menu_viewer::{MenuViewer, MenuViewerState};
+#[doc(inline)]
+pub use progress_bar::{ProgressBar, ProgressMode, ProgressStyle};
+#[doc(inline)]
+pub use spinner::Spinner;
 #[doc(inline)]
 pub use view::{IdleView, View, ViewId};

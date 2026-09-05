@@ -5,6 +5,45 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **`ProgressBar` view.** A determinate or marquee progress indicator, the
+  first item from the new `docs/MORE-CONTROLS.md` roadmap. Determinate bars
+  fill in proportion to `value / max`; marquee bars sweep a block for work of
+  unknown duration and animate themselves through `IdleView`, so adding one as
+  an overlay widget is enough. Three glyph styles: `Smooth` (default, partial
+  block glyphs give eighth-of-a-cell resolution), `Blocks`, and `Ascii` for
+  terminals without box-drawing characters. The centred overlay is the
+  truncated percentage by default and can be switched off with
+  `set_show_percent(false)` / `ProgressBarBuilder::show_percent(false)`, or
+  replaced with fixed text via `set_caption`. New `CP_PROGRESS_BAR` palette
+  reuses the scrollbar gauge colours, so a bar drops into an existing dialog
+  or window unchanged. See `examples/progress_bar.rs`.
+- **`ComboBox` view.** A read-only field showing one choice, with a drop-down
+  list. F4, Alt+Down or a click opens the list; Up and Down cycle the choice
+  without opening it. Opening is a two-step the way the history button already
+  works: the control emits `CM_SHOW_DROPDOWN`, and the `Dialog` modal loop or
+  `Application` runs the popup, since a control cannot reach the terminal from
+  `handle_event`. The popup draws its own thin frame, flips above the field when
+  there is no room below, scrolls past eight items and writes the choice back
+  into the shared `ComboState`.
+- **`Spinner` view.** A numeric field with up and down steppers, holding one
+  integer inside a range. Typed input is clamped rather than rejected, and the
+  first digit of a focus session replaces the value instead of extending it.
+  Arrows step, PgUp and PgDn step ten times as far, Home and End jump to the
+  range ends, Backspace drops a digit. Optional wrap-around and unit suffix.
+- **`examples/new_controls.rs`.** One dialog running all three new controls
+  wired together.
+- **`docs/MORE-CONTROLS.md`.** Gap analysis of the widget set against Borland
+  Turbo Vision and modern text-UI expectations, with a checklist roadmap.
+
+### Changed
+- **Focus is visible on the new controls.** Borland's input palette gives
+  "normal" and "focused" the same colour because a `TInputLine` shows focus with
+  its cursor. `ComboBox` and `Spinner` draw no cursor, so they use the
+  selected-text colour when focused.
+
 ## [2.3.1] - 2026-09-05
 
 ### Added

@@ -878,6 +878,14 @@ pub mod palettes {
         22, 23,  // 1-2: Normal button, Arrow icon
     ];
 
+    // ProgressBar palette - not a Borland control.
+    // Dialog-relative indices reusing the scrollbar gauge colours, so a bar
+    // drops into a dialog or window without new app-palette entries.
+    #[rustfmt::skip]
+    pub const CP_PROGRESS_BAR: &[u8] = &[
+        5, 4,  // 1-2: Filled portion (scrollbar indicator), empty track (scrollbar page)
+    ];
+
     // Background palette (TBackground)
     // Borland: cpBackground = "\x01" (1)
     #[rustfmt::skip]
@@ -994,7 +1002,10 @@ mod tests {
         let round = Attr::from_u8(a.to_u8());
         assert_eq!(round.fg, TvColor::White);
         assert_eq!(round.bg, TvColor::Blue);
-        assert!(round.style.is_empty(), "style is not representable in the color byte");
+        assert!(
+            round.style.is_empty(),
+            "style is not representable in the color byte"
+        );
     }
 
     #[test]
