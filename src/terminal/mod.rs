@@ -118,6 +118,14 @@ fn attr_to_sgr(attr: Attr) -> String {
 /// The Terminal provides a high-level interface for TUI applications,
 /// managing double-buffered rendering, clipping regions, and event handling.
 /// Low-level I/O is delegated to a [`Backend`] implementation.
+/// The diff-buffer cell that matches no real content, so every screen cell
+/// is resent on the next flush.
+///
+/// It must not be the default empty cell (`' '` at `0x07`): a view that
+/// fills with LightGray-on-Black spaces would compare equal to it and be
+/// silently skipped, leaving whatever was on the terminal underneath.
+const FORCE_REDRAW_CELL: Cell = Cell::new('\0', Attr::from_u8(0xFF));
+
 pub struct Terminal {
     backend: Box<dyn Backend>,
     buffer: Vec<Vec<Cell>>,
@@ -207,7 +215,13 @@ impl Terminal {
         let (width, height) = backend.size()?;
         let empty_cell = Cell::new(' ', Attr::from_u8(0x07));
         let buffer = vec![vec![empty_cell; width as usize]; height as usize];
-        let prev_buffer = vec![vec![empty_cell; width as usize]; height as usize];
+        // The diff buffer starts on a cell that matches no real content, so
+        // the first flush paints the whole screen. Filling it with
+        // `empty_cell` instead would make every LightGray-on-Black space a
+        // view draws compare equal and be skipped, leaving the host
+        // terminal's own background showing through — the same trap
+        // `force_full_redraw` and `resize` already avoid.
+        let prev_buffer = vec![vec![FORCE_REDRAW_CELL; width as usize]; height as usize];
 
         Ok(Self {
             backend,
@@ -346,8 +360,7 @@ impl Terminal {
         self.buffer = vec![vec![empty_cell; new_width as usize]; new_height as usize];
 
         // Use a different cell for prev_buffer to force complete redraw
-        let force_redraw_cell = Cell::new('\0', Attr::from_u8(0xFF));
-        self.prev_buffer = vec![vec![force_redraw_cell; new_width as usize]; new_height as usize];
+        self.prev_buffer = vec![vec![FORCE_REDRAW_CELL; new_width as usize]; new_height as usize];
 
         // Clear the screen
         let _ = self.backend.clear_screen();
@@ -375,15 +388,8 @@ impl Terminal {
     /// This clears the internal prev_buffer, forcing all cells to be resent
     /// to the terminal on the next [`flush()`](Self::flush) call.
     pub fn force_full_redraw(&mut self) {
-        // Use a cell that will never match any real content, forcing every
-        // cell to be resent on the next flush. Must NOT use 0x07 (the default
-        // empty cell) because views that fill with LightGray-on-Black spaces
-        // would match and be silently skipped by the diff.
-        let force_cell = Cell::new('\0', Attr::from_u8(0xFF));
         for row in &mut self.prev_buffer {
-            for cell in row {
-                *cell = force_cell;
-            }
+            row.fill(FORCE_REDRAW_CELL);
         }
     }
 
@@ -419,9 +425,9 @@ impl Terminal {
 
     /// The accumulated origin: where the current local `(0, 0)` is on screen.
     pub fn origin(&self) -> Point {
-        self.origin_stack
-            .iter()
-            .fold(Point::new(0, 0), |acc, p| Point::new(acc.x + p.x, acc.y + p.y))
+        self.origin_stack.iter().fold(Point::new(0, 0), |acc, p| {
+            Point::new(acc.x + p.x, acc.y + p.y)
+        })
     }
 
     /// Pop a clipping region from the stack.
@@ -858,6 +864,88 @@ impl Drop for Terminal {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A backend that keeps every byte the terminal writes, so a test can
+    /// see what the diff actually emitted.
+    struct RecordingBackend {
+        written: std::sync::Arc<std::sync::Mutex<Vec<u8>>>,
+    }
+
+    impl Backend for RecordingBackend {
+        fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+            self
+        }
+        fn init(&mut self) -> io::Result<()> {
+            Ok(())
+        }
+        fn cleanup(&mut self) -> io::Result<()> {
+            Ok(())
+        }
+        fn size(&self) -> io::Result<(u16, u16)> {
+            Ok((4, 1))
+        }
+        fn poll_event(&mut self, _timeout: std::time::Duration) -> io::Result<Option<Event>> {
+            Ok(None)
+        }
+        fn write_raw(&mut self, data: &[u8]) -> io::Result<()> {
+            self.written
+                .lock()
+                .expect("no test holds this lock")
+                .extend_from_slice(data);
+            Ok(())
+        }
+        fn flush(&mut self) -> io::Result<()> {
+            Ok(())
+        }
+        fn show_cursor(&mut self, _x: u16, _y: u16) -> io::Result<()> {
+            Ok(())
+        }
+        fn hide_cursor(&mut self) -> io::Result<()> {
+            Ok(())
+        }
+    }
+
+    /// The first flush must paint the screen even where a view drew spaces
+    /// in the attribute the empty cell happens to use (LightGray on Black,
+    /// `0x07`). Before the diff buffer was seeded with a cell that matches
+    /// nothing, those cells compared equal and were dropped, leaving the
+    /// host terminal's own background showing through.
+    #[test]
+    fn the_first_flush_paints_light_gray_spaces() {
+        let written = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        let mut terminal = Terminal::with_backend(Box::new(RecordingBackend {
+            written: std::sync::Arc::clone(&written),
+        }))
+        .expect("the recording backend never fails to initialise");
+
+        let cells = vec![Cell::new(' ', Attr::from_u8(0x07)); 4];
+        terminal.write_line(0, 0, &cells);
+        terminal.flush().expect("flush writes to the recorder");
+
+        let output =
+            String::from_utf8(written.lock().expect("lock").clone()).expect("utf-8 output");
+        assert!(
+            output.contains("    "),
+            "the four spaces should have been emitted: {output:?}"
+        );
+    }
+
+    #[test]
+    fn an_unchanged_screen_emits_nothing_on_the_second_flush() {
+        let written = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        let mut terminal = Terminal::with_backend(Box::new(RecordingBackend {
+            written: std::sync::Arc::clone(&written),
+        }))
+        .expect("the recording backend never fails to initialise");
+
+        terminal.flush().expect("first flush");
+        written.lock().expect("lock").clear();
+        terminal.flush().expect("second flush");
+        assert!(
+            written.lock().expect("lock").is_empty(),
+            "nothing changed, so nothing is resent"
+        );
+    }
 
     #[test]
     fn test_attr_to_sgr_bold_and_reset() {

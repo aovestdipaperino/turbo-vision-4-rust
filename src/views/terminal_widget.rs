@@ -27,19 +27,60 @@ use crate::core::palette::Attr;
 use crate::core::state::State;
 use crate::terminal::Terminal;
 
+/// A run of text within a line, with its own optional colour.
+///
+/// Spans are how a single line carries more than one attribute — an
+/// identifier in one colour beside a keyword in another, a dim prefix in
+/// front of bright content. A span with no attribute takes the line's.
+#[derive(Clone, Debug)]
+pub struct Span {
+    /// The text of this run.
+    pub text: String,
+    /// Its colour; `None` takes the line's own attribute.
+    pub attr: Option<Attr>,
+}
+
+impl Span {
+    /// A run that takes the line's colour.
+    pub fn new(text: impl Into<String>) -> Self {
+        Self {
+            text: text.into(),
+            attr: None,
+        }
+    }
+
+    /// A run in its own colour.
+    pub fn with_attr(text: impl Into<String>, attr: Attr) -> Self {
+        Self {
+            text: text.into(),
+            attr: Some(attr),
+        }
+    }
+}
+
 /// A line of output with optional color attributes
 #[derive(Clone, Debug)]
 pub struct OutputLine {
-    /// The text content
+    /// The text content. When the line is built from spans this is their
+    /// text joined, so measuring and searching a line needs no knowledge of
+    /// how it is coloured.
     pub text: String,
     /// Optional color attribute (if None, uses default)
     pub attr: Option<Attr>,
+    /// The coloured runs the line is drawn from. Empty means the whole line
+    /// is drawn from `text` in `attr`, which is what the single-attribute
+    /// constructors produce.
+    pub spans: Vec<Span>,
 }
 
 impl OutputLine {
     /// Create a new output line with default color
     pub fn new(text: String) -> Self {
-        Self { text, attr: None }
+        Self {
+            text,
+            attr: None,
+            spans: Vec::new(),
+        }
     }
 
     /// Create a new output line with specific color
@@ -47,8 +88,41 @@ impl OutputLine {
         Self {
             text,
             attr: Some(attr),
+            spans: Vec::new(),
         }
     }
+
+    /// A line made of coloured runs, drawn left to right.
+    pub fn with_spans(spans: Vec<Span>) -> Self {
+        let text = spans.iter().map(|s| s.text.as_str()).collect();
+        Self {
+            text,
+            attr: None,
+            spans,
+        }
+    }
+}
+
+/// The longest prefix of `text` that fits `width` columns, and the columns
+/// it takes.
+///
+/// Measured in display columns: a wide glyph (CJK, emoji) counts as two and
+/// is dropped rather than half-drawn, and a zero-width mark rides along with
+/// the character it follows, matching how `DrawBuffer::move_str` lays them
+/// out.
+fn truncate_to_width(text: &str, width: usize) -> (String, usize) {
+    use unicode_width::UnicodeWidthChar;
+    let mut out = String::with_capacity(text.len());
+    let mut used = 0;
+    for ch in text.chars() {
+        let w = ch.width().unwrap_or(0);
+        if used + w > width {
+            break;
+        }
+        out.push(ch);
+        used += w;
+    }
+    (out, used)
 }
 
 /// Terminal Widget - scrolling output viewer
@@ -123,6 +197,18 @@ impl TerminalWidget {
     /// Append a line with specific color
     pub fn append_line_colored(&mut self, text: String, attr: Attr) {
         self.lines.push(OutputLine::with_attr(text, attr));
+        self.trim_buffer();
+
+        if self.auto_scroll {
+            self.scroll_to_bottom();
+        }
+
+        self.update_scrollbar();
+    }
+
+    /// Append a line made of coloured runs.
+    pub fn append_line_spans(&mut self, spans: Vec<Span>) {
+        self.lines.push(OutputLine::with_spans(spans));
         self.trim_buffer();
 
         if self.auto_scroll {
@@ -337,27 +423,33 @@ impl View for TerminalWidget {
                 let line = &self.lines[line_idx];
                 let color = line.attr.unwrap_or(default_color);
 
-                // Truncate or pad line to fit width (character-wise for multibyte safety)
-                let text: String = line.text.chars().take(visible_width).collect();
-                let text_len = text.chars().count();
+                // Paint the whole row first, so a line shorter than the view
+                // is padded in its own colour rather than left as it was.
+                buf.move_char(0, ' ', color, visible_width);
 
-                buf.move_str(0, &text, color);
-
-                // Fill rest with spaces
-                if text_len < visible_width {
-                    buf.move_char(text_len, ' ', color, visible_width - text_len);
+                if line.spans.is_empty() {
+                    let (text, _) = truncate_to_width(&line.text, visible_width);
+                    buf.move_str(0, &text, color);
+                } else {
+                    // Each run starts where the previous one ended, measured
+                    // in columns rather than characters so a wide glyph does
+                    // not push the rest of the line out of step.
+                    let mut col = 0;
+                    for span in &line.spans {
+                        if col >= visible_width {
+                            break;
+                        }
+                        let (text, width) = truncate_to_width(&span.text, visible_width - col);
+                        buf.move_str(col, &text, span.attr.unwrap_or(color));
+                        col += width;
+                    }
                 }
             } else {
                 // Empty line
                 buf.move_char(0, ' ', default_color, visible_width);
             }
 
-            write_line_to_terminal(
-                terminal,
-                0,
-                i as i16,
-                &buf,
-            );
+            write_line_to_terminal(terminal, 0, i as i16, &buf);
         }
 
         // Draw scrollbar if present
@@ -494,5 +586,108 @@ impl TerminalWidgetBuilder {
 impl Default for TerminalWidgetBuilder {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Span, TerminalWidget, truncate_to_width};
+    use crate::core::geometry::Rect;
+    use crate::core::palette::{Attr, TvColor};
+    use crate::test_util::test_terminal;
+    use crate::views::View;
+
+    const RED: Attr = Attr::new(TvColor::LightRed, TvColor::Black);
+    const GREEN: Attr = Attr::new(TvColor::LightGreen, TvColor::Black);
+
+    /// The characters and attributes of one drawn row.
+    fn row(widget: &mut TerminalWidget, y: i16, width: u16) -> (String, Vec<Attr>) {
+        let mut terminal = test_terminal(width, 4);
+        let width = i16::try_from(width).expect("test widths are small");
+        widget.draw(&mut terminal);
+        let cells: Vec<_> = (0..width)
+            .map(|x| terminal.read_cell(x, y).expect("cell in bounds"))
+            .collect();
+        (
+            cells.iter().map(|c| c.ch).collect(),
+            cells.iter().map(|c| c.attr).collect(),
+        )
+    }
+
+    #[test]
+    fn a_single_attribute_line_still_draws_in_one_colour() {
+        let mut widget = TerminalWidget::new(Rect::new(0, 0, 8, 2));
+        widget.append_line_colored("hi".to_string(), RED);
+        let (text, attrs) = row(&mut widget, 0, 8);
+        assert_eq!(text, "hi      ");
+        // The padding takes the line's colour too.
+        assert!(attrs.iter().all(|a| *a == RED), "{attrs:?}");
+    }
+
+    #[test]
+    fn spans_each_keep_their_own_colour() {
+        let mut widget = TerminalWidget::new(Rect::new(0, 0, 8, 2));
+        widget.append_line_spans(vec![
+            Span::with_attr("ab", RED),
+            Span::with_attr("cd", GREEN),
+        ]);
+        let (text, attrs) = row(&mut widget, 0, 8);
+        assert_eq!(text, "abcd    ");
+        assert_eq!(attrs[0], RED);
+        assert_eq!(attrs[1], RED);
+        assert_eq!(attrs[2], GREEN);
+        assert_eq!(attrs[3], GREEN);
+    }
+
+    #[test]
+    fn a_span_without_a_colour_takes_the_lines_own() {
+        let mut widget = TerminalWidget::new(Rect::new(0, 0, 6, 2));
+        let mut line =
+            super::OutputLine::with_spans(vec![Span::new("ab"), Span::with_attr("cd", GREEN)]);
+        line.attr = Some(RED);
+        widget.lines.push(line);
+        let (_, attrs) = row(&mut widget, 0, 6);
+        assert_eq!(attrs[0], RED);
+        assert_eq!(attrs[2], GREEN);
+    }
+
+    #[test]
+    fn spans_are_clipped_at_the_right_edge() {
+        let mut widget = TerminalWidget::new(Rect::new(0, 0, 3, 2));
+        widget.append_line_spans(vec![
+            Span::with_attr("ab", RED),
+            Span::with_attr("cdef", GREEN),
+        ]);
+        let (text, attrs) = row(&mut widget, 0, 3);
+        assert_eq!(text, "abc");
+        assert_eq!(attrs[2], GREEN);
+    }
+
+    #[test]
+    fn a_spanned_lines_text_is_its_runs_joined() {
+        let line = super::OutputLine::with_spans(vec![Span::new("ab"), Span::new("cd")]);
+        assert_eq!(line.text, "abcd");
+    }
+
+    #[test]
+    fn a_wide_glyph_keeps_later_spans_in_step() {
+        let mut widget = TerminalWidget::new(Rect::new(0, 0, 6, 2));
+        widget.append_line_spans(vec![
+            Span::with_attr("漢", RED),
+            Span::with_attr("ab", GREEN),
+        ]);
+        let (_, attrs) = row(&mut widget, 0, 6);
+        // The glyph takes two columns, so the second run starts at column 2.
+        assert_eq!(attrs[0], RED);
+        assert_eq!(attrs[2], GREEN);
+        assert_eq!(attrs[3], GREEN);
+    }
+
+    #[test]
+    fn truncation_measures_columns_not_characters() {
+        assert_eq!(truncate_to_width("abc", 2), ("ab".to_string(), 2));
+        // A wide glyph that does not fit is dropped whole.
+        assert_eq!(truncate_to_width("漢", 1), (String::new(), 0));
+        assert_eq!(truncate_to_width("漢", 2), ("漢".to_string(), 2));
     }
 }

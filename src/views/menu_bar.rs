@@ -122,6 +122,17 @@ impl MenuBar {
         self.menu_positions.push(0); // Will be updated during draw
     }
 
+    /// Whether a submenu is dropped down.
+    ///
+    /// An application whose own `pre_event` claims keys the menu also uses
+    /// — `Enter` to send a message, `Esc` to cancel — has to know when the
+    /// menu is taking them, or those keys never reach the open menu and it
+    /// cannot be driven by keyboard.
+    #[must_use]
+    pub fn is_open(&self) -> bool {
+        self.active_menu_idx.is_some()
+    }
+
     /// Open a specific submenu by index
     fn open_menu(&mut self, menu_idx: usize) {
         if menu_idx < self.submenus.len() {
@@ -847,6 +858,17 @@ mod tests {
         let mut bar = MenuBar::new(Rect::new(0, 0, 80, 1));
         bar.add_submenu(SubMenu::new("~F~ile", menu));
         bar
+    }
+
+    /// The flag an application's `pre_event` gates `Enter` and `Esc` on.
+    #[test]
+    fn is_open_follows_the_dropped_down_menu() {
+        let mut bar = make_menu_bar();
+        assert!(!bar.is_open(), "nothing is open to start with");
+        bar.open_menu(0);
+        assert!(bar.is_open());
+        bar.close_menu();
+        assert!(!bar.is_open());
     }
 
     #[test]

@@ -176,6 +176,16 @@ impl Application {
         Ok(app)
     }
 
+    /// Whether the menu bar has a submenu dropped down.
+    ///
+    /// A handler's `pre_event` sees keys before the menu bar does, so one
+    /// that claims `Enter` or `Esc` for itself must check this first or the
+    /// open menu never gets them.
+    #[must_use]
+    pub fn menu_is_open(&self) -> bool {
+        self.menu_bar.as_ref().is_some_and(MenuBar::is_open)
+    }
+
     pub fn set_menu_bar(&mut self, menu_bar: MenuBar) {
         self.menu_bar = Some(menu_bar);
         // Update Desktop bounds to exclude menu bar
@@ -1250,10 +1260,17 @@ mod resize_tests {
         let (mut app, _) = desktop_window_button();
         app.draw();
         // desktop (0,1) + window (10,3) + interior (1,1) + button (2,1) = (13,6)
-        assert!(row_text(&app, 6, 13, 23).contains("OK"), "{:?}", row_text(&app, 6, 13, 23));
+        assert!(
+            row_text(&app, 6, 13, 23).contains("OK"),
+            "{:?}",
+            row_text(&app, 6, 13, 23)
+        );
         // and the button never learned where that was
         let w = window_mut(&mut app);
-        assert_eq!(w.interior_mut().child_at(0).bounds(), Rect::new(2, 1, 12, 3));
+        assert_eq!(
+            w.interior_mut().child_at(0).bounds(),
+            Rect::new(2, 1, 12, 3)
+        );
     }
 
     #[test]
@@ -1261,10 +1278,17 @@ mod resize_tests {
         let (mut app, _) = desktop_window_button();
         window_mut(&mut app).set_bounds(Rect::new(20, 5, 60, 15));
         app.draw();
-        assert!(row_text(&app, 8, 23, 33).contains("OK"), "{:?}", row_text(&app, 8, 23, 33));
+        assert!(
+            row_text(&app, 8, 23, 33).contains("OK"),
+            "{:?}",
+            row_text(&app, 8, 23, 33)
+        );
         assert!(!row_text(&app, 6, 13, 23).contains("OK"));
         let w = window_mut(&mut app);
-        assert_eq!(w.interior_mut().child_at(0).bounds(), Rect::new(2, 1, 12, 3));
+        assert_eq!(
+            w.interior_mut().child_at(0).bounds(),
+            Rect::new(2, 1, 12, 3)
+        );
     }
 
     #[test]
@@ -1290,14 +1314,29 @@ mod resize_tests {
         use crate::core::event::MB_LEFT_BUTTON;
         let (mut app, _) = desktop_window_button();
         // title row of the window: desktop y 1 + window y 3 = screen row 4
-        let mut down = Event::mouse(EventType::MouseDown, Point::new(25, 4), MB_LEFT_BUTTON, false);
+        let mut down = Event::mouse(
+            EventType::MouseDown,
+            Point::new(25, 4),
+            MB_LEFT_BUTTON,
+            false,
+        );
         app.handle_event(&mut down);
-        let mut mv = Event::mouse(EventType::MouseMove, Point::new(40, 10), MB_LEFT_BUTTON, false);
+        let mut mv = Event::mouse(
+            EventType::MouseMove,
+            Point::new(40, 10),
+            MB_LEFT_BUTTON,
+            false,
+        );
         app.handle_event(&mut mv);
         assert_eq!(window_mut(&mut app).bounds(), Rect::new(25, 9, 65, 19));
         // jump far outside the window's new extent: still delivered to the
         // dragging window, and clamped to the desktop's left edge
-        let mut mv = Event::mouse(EventType::MouseMove, Point::new(12, 6), MB_LEFT_BUTTON, false);
+        let mut mv = Event::mouse(
+            EventType::MouseMove,
+            Point::new(12, 6),
+            MB_LEFT_BUTTON,
+            false,
+        );
         app.handle_event(&mut mv);
         assert_eq!(window_mut(&mut app).bounds(), Rect::new(0, 5, 40, 15));
     }

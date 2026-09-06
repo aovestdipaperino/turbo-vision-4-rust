@@ -308,7 +308,7 @@ impl TvColor {
         best_color
     }
 
-    pub fn from_u8(n: u8) -> Self {
+    pub const fn from_u8(n: u8) -> Self {
         match n & 0x0F {
             0 => TvColor::Black,
             1 => TvColor::Blue,
@@ -462,7 +462,7 @@ impl Attr {
         self.add_style(Style::STRIKETHROUGH)
     }
 
-    pub fn from_u8(byte: u8) -> Self {
+    pub const fn from_u8(byte: u8) -> Self {
         Self {
             fg: TvColor::from_u8(byte & 0x0F),
             bg: TvColor::from_u8((byte >> 4) & 0x0F),
