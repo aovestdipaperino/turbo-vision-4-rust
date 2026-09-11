@@ -622,14 +622,49 @@ impl Terminal {
             return Ok(Some(event));
         }
 
-        // Then any event injected by the remote-input listener.
+        // Then any event injected by the remote-input listener. The capture
+        // chords are served here rather than in the application's command
+        // handling, so that an example driving its own event loop can still be
+        // captured by automation.
         if let Some(rx) = &self.injected_rx {
             if let Ok(event) = rx.try_recv() {
-                return Ok(Some(event));
+                match event.key_code {
+                    crate::core::event::KB_CTRL_F12 => {
+                        self.capture_injected(true);
+                        return Ok(None);
+                    }
+                    crate::core::event::KB_F12 => {
+                        self.capture_injected(false);
+                        return Ok(None);
+                    }
+                    _ => return Ok(Some(event)),
+                }
             }
         }
 
         self.backend.poll_event(timeout)
+    }
+
+    /// Save a timestamped capture of the screen in the working directory.
+    ///
+    /// Serves the `CTRL+F12` (PNG) and `F12` (ANSI dump) chords arriving over
+    /// the remote-input listener; failures are logged and otherwise ignored,
+    /// since a capture is never essential to the running application.
+    fn capture_injected(&self, png: bool) {
+        let stamp = chrono::Local::now().format("%Y%m%d-%H%M%S");
+        let (name, result) = if png {
+            let name = format!("screenshot-{stamp}.png");
+            let r = self.save_screenshot_png(&name);
+            (name, r)
+        } else {
+            let name = format!("screen-{stamp}.ans");
+            let r = self.dump_screen(&name);
+            (name, r)
+        };
+        match result {
+            Ok(()) => log::info!("Remote input: capture saved to {name}"),
+            Err(e) => log::warn!("Remote input: capture failed: {e}"),
+        }
     }
 
     /// Read an event (blocking).

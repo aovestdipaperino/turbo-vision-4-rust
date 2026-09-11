@@ -14,6 +14,12 @@ CLAUDE.md
 !screenshots/
 !screenshots/*.png
 
+# Allow the documentation site's own artwork: the blanket *.png/*.jpg rules
+# above are what kept these out of the repository and left the site with
+# broken images.
+!website/docs/assets/**/*.png
+!website/docs/assets/**/*.jpg
+
 # IDE files
 .vscode/
 .idea/
