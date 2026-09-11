@@ -22,7 +22,7 @@ cargo build --examples           # build all 48
 | `dialogs` | 64 | The three standard library dialogs. |
 | `showcase` | 1785 | The broad demo: calculator, calendar, ASCII table and puzzle windows, overlapping with shadows and z-order. |
 
-![Three windows open at once in the showcase demo, overlapping with shadows](../assets/shots/showcase.png)
+![Three windows open at once in the showcase demo, overlapping with shadows](../assets/captures/showcase.png)
 
 ## By subject
 
@@ -34,7 +34,7 @@ cargo build --examples           # build all 48
 - **`desktop_logo`** &mdash; a custom desktop background, ported from Borland's `desklogo` example.
 - **`dynamic_title`** &mdash; changing a window title while the application runs.
 
-![The File menu open over the desktop, its items showing their key chords](../assets/shots/menu_status.png)
+![The File menu open over the desktop, its items showing their key chords](../assets/captures/menu_status.png)
 
 ### Windows and layout
 
@@ -54,19 +54,19 @@ cargo build --examples           # build all 48
 - **`label_link`** &mdash; labels that focus the input field they are linked to.
 - **`validator`** &mdash; every validator type in one dialog: filter, range and picture.
 
-![Check box and radio clusters side by side, over a window with a zoom icon](../assets/shots/cluster_tooltip.png)
+![Check box and radio clusters side by side, over a window with a zoom icon](../assets/captures/cluster_tooltip.png)
 
-![A list box of items beside the instructions pane of the list components demo](../assets/shots/list_components.png)
+![A list box of items beside the instructions pane of the list components demo](../assets/captures/list_components.png)
 
 ### Files and the editor
 
 - **`file_dialog`** &mdash; the open and save dialogs.
 - **`file_browser`** &mdash; a directory tree beside a file list.
 
-![The Open File dialog listing a directory, with Open and Cancel buttons](../assets/shots/file_dialog.png)
+![The Open File dialog listing a directory, with Open and Cancel buttons](../assets/captures/file_dialog.png)
 - **`pascal_ide`** &mdash; the editor from the Bruto-Pascal project, with a breakpoint gutter and Pascal syntax highlighting. The most complex example in the tree.
 
-![The Pascal IDE example with a highlighted source file and a breakpoint gutter](../assets/shots/pascal_ide.png)
+![The Pascal IDE example with a highlighted source file and a breakpoint gutter](../assets/captures/pascal_ide.png)
 
 ### Colour and text
 
@@ -74,7 +74,7 @@ cargo build --examples           # build all 48
 - **`text_styling`** &mdash; a table of every text style the terminal layer can emit.
 - **`kitty_image`**, **`kitty_background`**, **`kitty_biorhythm`** &mdash; real images in the terminal through the Kitty graphics protocol.
 
-![The palette themes demo after switching to the Solarized theme, every control recoloured](../assets/shots/palette_themes.png)
+![The palette themes demo after switching to the Solarized theme, every control recoloured](../assets/captures/palette_themes.png)
 
 ### Terminal and plumbing
 
@@ -91,7 +91,7 @@ cargo build --examples           # build all 48
 - **`biorhythm`** &mdash; the calculator built in [the tutorial](../tutorials/biorhythm.md): a validated date form and a custom chart view.
 - **`ui_features`** &mdash; beeps, dynamic titles and message boxes together.
 
-![The biorhythm calculator showing three coloured sine curves and a marker for today](../assets/shots/biorhythm.png)
+![The biorhythm calculator showing three coloured sine curves and a marker for today](../assets/captures/biorhythm.png)
 
 ## Reading an example
 

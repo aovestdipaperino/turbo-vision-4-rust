@@ -34,7 +34,7 @@ desktop; the program is just a sequence of modal boxes.
 
 ## `validator`: fields that refuse bad data
 
-![The validator demo: fields for digits, ranges and picture masks, with OK and Cancel](../assets/shots/validator.png)
+![The validator demo: fields for digits, ranges and picture masks, with OK and Cancel](../assets/captures/validator.png)
 
 This is the example to copy when you build a form.
 
@@ -71,7 +71,7 @@ is checked, the borrow is short, and nothing outlives the dialog.
 
 ## `tree_view`: a custom event loop
 
-![An expanded file system tree inside a dialog, one entry highlighted](../assets/shots/tree_view.png)
+![An expanded file system tree inside a dialog, one entry highlighted](../assets/captures/tree_view.png)
 
 Most programs should implement `AppHandler` and call `run_with`. This example writes the loop out
 instead, which makes the three steps visible.

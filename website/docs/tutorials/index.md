@@ -19,7 +19,7 @@ per chapter, a tutorial carries a single program from an empty `main` to somethi
 
 </div>
 
-![The finished biorhythm calculator, three curves plotted in coloured cells](../assets/shots/biorhythm.png)
+![The finished biorhythm calculator, three curves plotted in coloured cells](../assets/captures/biorhythm.png)
 
 ## Suggested order
 

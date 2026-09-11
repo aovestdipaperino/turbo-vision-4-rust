@@ -36,7 +36,7 @@ Work through these in order. Each chapter starts from where the last one finishe
 
 </div>
 
-![Three windows on the desktop, overlapping with shadows and a z-order](../assets/shots/showcase.png)
+![Three windows on the desktop, overlapping with shadows and a z-order](../assets/captures/showcase.png)
 
 ## How the framework works
 
@@ -44,7 +44,7 @@ Work through these in order. Each chapter starts from where the last one finishe
 - **[8. Views and groups](chapter-08.md)** &mdash; the `View` trait, `GroupLike`, `WindowLike`, and owner-relative coordinates.
 - **[9. Event-driven programming](chapter-09.md)** &mdash; the three-phase dispatch, focus, broadcasts and how a handler consumes an event.
 
-![A dialog holding check box and radio clusters, buttons and a framed window behind it](../assets/shots/cluster_tooltip.png)
+![A dialog holding check box and radio clusters, buttons and a framed window behind it](../assets/captures/cluster_tooltip.png)
 
 ## Object reference
 

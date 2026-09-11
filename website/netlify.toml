@@ -9,16 +9,19 @@
 [build.environment]
   PYTHON_VERSION = "3.12"
 
-# Screenshots and the box photo never change under the same name.
+# Screenshots and the box photo rarely change under the same name, but a
+# header rule also stamps the 404 served when one is missing: `immutable`
+# here once pinned a year-long "this image does not exist" into every visitor's
+# cache. A week is long enough to be worth caching and short enough to recover.
 [[headers]]
-  for = "/assets/shots/*"
+  for = "/assets/captures/*"
   [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
+    Cache-Control = "public, max-age=604800"
 
 [[headers]]
   for = "/assets/images/*"
   [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
+    Cache-Control = "public, max-age=604800"
 
 # Stylesheets and scripts must be revalidated, or a redeploy never reaches
 # browsers that already hold a copy.

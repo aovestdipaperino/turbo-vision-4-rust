@@ -39,7 +39,7 @@ COPIES: dict[str, str] = {
 }
 
 IMAGES = ["logo.png"]
-IMAGE_DIRS: list[str] = []  # captures live in docs/assets/shots
+IMAGE_DIRS: list[str] = []  # captures live in docs/assets/captures
 
 # Links that point at repository paths and must be rewritten for the site.
 LINK_REWRITES = [

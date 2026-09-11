@@ -22,7 +22,7 @@ works, because `CM_QUIT` is handled by the loop itself.
 
 This is Borland's `TApplication` with no `initMenuBar` and no `initStatusLine` override.
 
-![The bare desktop an empty application draws, with only a menu bar and a status line](../assets/shots/desktop_logo.png)
+![The bare desktop an empty application draws, with only a menu bar and a status line](../assets/captures/desktop_logo.png)
 
 ## Step 1: a status line
 
@@ -82,7 +82,7 @@ exactly how the original framework behaved.
 Custom commands are declared as constants. This example uses 100, but in 3.0.0 application
 commands should start at `CM_USER`, which is 200; the range from 100 to 199 belongs to the library.
 
-![A menu dropped open with items, separators and their key chords](../assets/shots/menu_status.png)
+![A menu dropped open with items, separators and their key chords](../assets/captures/menu_status.png)
 
 ## Step 4: commands that do something
 

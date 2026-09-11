@@ -28,7 +28,7 @@ validators, editors and palettes, drawn in a terminal, on a desktop that still l
 
 </div>
 
-![The showcase demo: a calendar, a calculator and an ASCII table overlapping on the desktop, with shadows and z-order](assets/shots/showcase.png)
+![The showcase demo: a calendar, a calculator and an ASCII table overlapping on the desktop, with shadows and z-order](assets/captures/showcase.png)
 
 ## What it gives you
 
@@ -114,13 +114,13 @@ fn main() -> turbo_vision::core::error::Result<()> {
 
 <div class="grid" markdown>
 
-![A Pascal source file open in the editor, with syntax highlighting and a breakpoint gutter](assets/shots/pascal_ide.png)
+![A Pascal source file open in the editor, with syntax highlighting and a breakpoint gutter](assets/captures/pascal_ide.png)
 
-![A dialog of validated input fields: digits only, numeric ranges and picture masks](assets/shots/validator.png)
+![A dialog of validated input fields: digits only, numeric ranges and picture masks](assets/captures/validator.png)
 
-![Tabbed pages of new controls, with combo boxes, a spinner and a progress bar](assets/shots/new_controls.png)
+![Tabbed pages of new controls, with combo boxes, a spinner and a progress bar](assets/captures/new_controls.png)
 
-![A biorhythm chart drawn in coloured text cells](assets/shots/biorhythm.png)
+![A biorhythm chart drawn in coloured text cells](assets/captures/biorhythm.png)
 
 </div>
 

@@ -23,7 +23,7 @@ around safely.
 
 </div>
 
-![A Turbo Vision application in a terminal: menu bar, framed windows with shadows, status line](../assets/shots/showcase.png)
+![A Turbo Vision application in a terminal: menu bar, framed windows with shadows, status line](../assets/captures/showcase.png)
 
 ## The short version
 

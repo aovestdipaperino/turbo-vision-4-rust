@@ -38,7 +38,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
 That gives you the blue desktop and nothing else. `Application::new` claims the terminal, puts it
 in raw mode and installs the desktop; `run` is the event loop. Press Alt+X to leave.
 
-![The Turbo Vision desktop with a menu bar and a status line](assets/shots/desktop_logo.png)
+![The Turbo Vision desktop with a menu bar and a status line](assets/captures/desktop_logo.png)
 
 ## Adding a status line
 
@@ -135,7 +135,7 @@ cargo run --example pascal_ide    # the editor, with syntax highlighting
 cargo build --examples            # build them all
 ```
 
-![The File menu dropped open, showing items with their keyboard chords](assets/shots/menu_status.png)
+![The File menu dropped open, showing items with their keyboard chords](assets/captures/menu_status.png)
 
 !!! warning "Leave the application before closing the terminal"
     Quit with Alt+X. Killing the terminal while an example is running leaves it in raw mode.
