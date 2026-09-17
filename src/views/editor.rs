@@ -587,7 +587,7 @@ impl EditorWindow {
     fn get_content_area(&self) -> Rect {
         // In the Borland-style architecture, scrollbars are siblings (not children)
         // So the editor's bounds already exclude scrollbar space - just return full bounds
-        self.core.bounds
+        self.extent()
     }
 
     /// Convert mouse position to cursor position (line, column)
@@ -2086,6 +2086,40 @@ impl View for EditorWindow {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Regression for 3.0.1: `get_content_area` returned the owner-relative
+    /// bounds, so text and hit-testing were shifted by the origin a second
+    /// time whenever the editor did not sit at (0, 0) of its owner.
+    #[test]
+    fn draws_and_hit_tests_in_its_own_space() {
+        use crate::core::event::{Event, EventType, MB_LEFT_BUTTON};
+        use crate::core::geometry::Point;
+        use crate::views::view::{dispatch_to_child, draw_child};
+        let mut terminal = crate::test_util::test_terminal(60, 20);
+        let mut editor = EditorWindow::new(Rect::new(5, 3, 45, 13));
+        editor.set_text("hello");
+        editor.set_focus(true);
+        draw_child(&mut terminal, &mut editor);
+        assert_eq!(
+            terminal.read_cell(5, 3).map(|c| c.ch),
+            Some('h'),
+            "text starts at the editor's own origin"
+        );
+        assert_ne!(
+            terminal.read_cell(10, 3).map(|c| c.ch),
+            Some('h'),
+            "text must not be shifted by the origin twice"
+        );
+        // A click on the editor's third column (owner x = 7) is column 2.
+        let mut click = Event::mouse(
+            EventType::MouseDown,
+            Point::new(7, 3),
+            MB_LEFT_BUTTON,
+            false,
+        );
+        dispatch_to_child(&mut editor, &mut click);
+        assert_eq!(editor.cursor().x, 2);
+    }
     use std::io::Write;
     use tempfile::NamedTempFile;
 
@@ -2553,7 +2587,9 @@ mod tests {
     /// clears it again when the guard drops.
     /// Holds the block-mode test lock for the life of a test. The guard is
     /// never read; it exists so the lock is released on drop.
-    struct BlockModeGuard(#[allow(dead_code, reason = "held for Drop")] std::sync::MutexGuard<'static, ()>);
+    struct BlockModeGuard(
+        #[allow(dead_code, reason = "held for Drop")] std::sync::MutexGuard<'static, ()>,
+    );
 
     impl BlockModeGuard {
         fn on() -> Self {
