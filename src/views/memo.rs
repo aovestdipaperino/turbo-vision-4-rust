@@ -139,7 +139,7 @@ impl Memo {
 
     /// Get the visible content area
     fn get_content_area(&self) -> Rect {
-        let mut area = self.core.bounds;
+        let mut area = self.extent();
         if self.v_scrollbar.is_some() {
             area.b.x -= 1;
         }
@@ -843,6 +843,25 @@ impl View for Memo {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Regression for 3.0.1: the content area must be the memo's own extent,
+    /// not its owner-relative bounds.
+    #[test]
+    fn draws_in_its_own_space() {
+        use crate::views::view::draw_child;
+        let mut terminal = crate::test_util::test_terminal(60, 20);
+        let mut memo = Memo::new(Rect::new(5, 3, 45, 13));
+        memo.set_text("hello");
+        draw_child(&mut terminal, &mut memo);
+        let row: String = (0..60)
+            .filter_map(|x| terminal.read_cell(x, 3).map(|c| c.ch))
+            .collect();
+        let first = row.find('h').expect("memo text drawn");
+        assert!(
+            first < 8,
+            "text starts near the memo's origin (x=5), got column {first}: {row:?}"
+        );
+    }
 
     #[test]
     fn test_memo_creation() {

@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.1] - 2026-09-17
+
+### Fixed
+- **Editors, memos and text viewers drew and hit-tested in the wrong place
+  when not at their owner's origin.** `EditorWindow`, `Memo` and
+  `TextViewer` built their content area from the owner-relative `bounds()`
+  instead of `extent()`, so under the 3.0 coordinate model text was shifted
+  right and down by the view's origin a second time, and mouse clicks
+  landed the same distance off. A view at `(0, 0)` of its owner was
+  unaffected, which is why `EditWindow` hid it; any layout that puts a
+  column beside the editor (a breakpoint gutter, a profile column) made it
+  visible. The content area is now the view's own extent.
+
 ## [3.0.0] - 2026-09-05
 
 A major release: the `View` trait changes for every downstream crate, so the

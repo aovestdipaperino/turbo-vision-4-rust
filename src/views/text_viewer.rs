@@ -111,7 +111,7 @@ impl TextViewer {
 
     /// Get the visible area (excluding scrollbars and indicator)
     fn get_content_area(&self) -> Rect {
-        let mut area = self.core.bounds;
+        let mut area = self.extent();
 
         // Account for indicator at top
         if self.indicator.is_some() {
@@ -448,5 +448,29 @@ impl TextViewerBuilder {
 impl Default for TextViewerBuilder {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Regression for 3.0.1: the content area must be the viewer's own
+    /// extent, not its owner-relative bounds.
+    #[test]
+    fn draws_in_its_own_space() {
+        use crate::views::view::draw_child;
+        let mut terminal = crate::test_util::test_terminal(60, 20);
+        let mut viewer = TextViewer::new(Rect::new(5, 3, 45, 13));
+        viewer.set_text("hello");
+        draw_child(&mut terminal, &mut viewer);
+        let row: String = (0..60)
+            .filter_map(|x| terminal.read_cell(x, 3).map(|c| c.ch))
+            .collect();
+        let first = row.find('h').expect("viewer text drawn");
+        assert!(
+            first < 8,
+            "text starts near the viewer's origin (x=5), got column {first}: {row:?}"
+        );
     }
 }
