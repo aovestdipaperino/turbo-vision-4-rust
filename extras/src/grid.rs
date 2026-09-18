@@ -281,12 +281,7 @@ impl View for GridView {
                     }
                 }
             }
-            write_line_to_terminal(
-                terminal,
-                0,
-                1 + screen_row as i16,
-                &buf,
-            );
+            write_line_to_terminal(terminal, 0, 1 + screen_row as i16, &buf);
         }
     }
 

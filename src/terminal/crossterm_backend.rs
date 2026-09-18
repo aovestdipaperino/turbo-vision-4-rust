@@ -7,6 +7,7 @@
 //! used when running turbo-vision applications locally.
 
 use std::io::{self, Write, stdout};
+use std::sync::Once;
 use std::time::{Duration, Instant};
 
 use crossterm::{
@@ -21,6 +22,51 @@ use crate::core::event::{
     EscSequenceTracker, Event, EventType, MB_LEFT_BUTTON, MB_MIDDLE_BUTTON, MB_RIGHT_BUTTON,
 };
 use crate::core::geometry::Point;
+
+/// Escape sequences that take the terminal out of every mouse reporting mode
+/// this crate can turn on, newest protocol first.
+///
+/// Emitting all of them is deliberate: a terminal that never had a given mode
+/// enabled ignores the matching reset, while a terminal left in an older mode
+/// (because it silently declined SGR) still gets switched off.
+const MOUSE_OFF: &[u8] = b"\x1b[?1006l\x1b[?1015l\x1b[?1003l\x1b[?1002l\x1b[?1000l";
+
+/// Restore the terminal from anywhere, without needing a [`CrosstermBackend`].
+///
+/// Writes the mouse-reporting resets *before* leaving the alternate screen and
+/// *before* dropping out of raw mode, so no report can reach the shell that
+/// inherits the terminal afterwards. Every step is attempted even if an earlier
+/// one fails, which is what makes this usable from a panic hook.
+pub fn restore_terminal() {
+    let mut stdout = stdout();
+
+    // Mouse first: while still in raw mode and on the alternate screen, so a
+    // report generated mid-teardown is swallowed by the TUI, not the shell.
+    let _ = stdout.write_all(MOUSE_OFF);
+    // Re-enable autowrap (DECAWM) and show the cursor.
+    let _ = stdout.write_all(b"\x1b[?7h\x1b[?25h");
+    let _ = stdout.flush();
+
+    let _ = execute!(stdout, terminal::LeaveAlternateScreen);
+    let _ = terminal::disable_raw_mode();
+    let _ = stdout.flush();
+}
+
+static PANIC_HOOK: Once = Once::new();
+
+/// Install a panic hook that restores the terminal before the normal hook
+/// prints its message, so the backtrace lands on a usable screen and the shell
+/// is not left reporting mouse movement. Installing it more than once is a
+/// no-op.
+fn install_panic_hook() {
+    PANIC_HOOK.call_once(|| {
+        let previous = std::panic::take_hook();
+        std::panic::set_hook(Box::new(move |info| {
+            restore_terminal();
+            previous(info);
+        }));
+    });
+}
 
 /// Crossterm-based terminal backend for local terminal I/O.
 ///
@@ -160,6 +206,7 @@ impl Backend for CrosstermBackend {
     }
 
     fn init(&mut self) -> io::Result<()> {
+        install_panic_hook();
         terminal::enable_raw_mode()?;
         let mut stdout = stdout();
         execute!(
@@ -177,18 +224,7 @@ impl Backend for CrosstermBackend {
     }
 
     fn cleanup(&mut self) -> io::Result<()> {
-        let mut stdout = stdout();
-
-        // Re-enable autowrap (DECAWM) before leaving
-        write!(stdout, "\x1b[?7h")?;
-
-        execute!(
-            stdout,
-            event::DisableMouseCapture,
-            cursor::Show,
-            terminal::LeaveAlternateScreen
-        )?;
-        terminal::disable_raw_mode()?;
+        restore_terminal();
         Ok(())
     }
 
@@ -261,18 +297,7 @@ impl Backend for CrosstermBackend {
     }
 
     fn suspend(&mut self) -> io::Result<()> {
-        let mut stdout = stdout();
-
-        // Re-enable autowrap before suspending
-        write!(stdout, "\x1b[?7h")?;
-
-        execute!(
-            stdout,
-            event::DisableMouseCapture,
-            cursor::Show,
-            terminal::LeaveAlternateScreen
-        )?;
-        terminal::disable_raw_mode()?;
+        restore_terminal();
         Ok(())
     }
 
@@ -315,5 +340,34 @@ impl Backend for CrosstermBackend {
 impl Default for CrosstermBackend {
     fn default() -> Self {
         Self::new().expect("Failed to create CrosstermBackend")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::MOUSE_OFF;
+
+    /// Every mouse mode the local and SSH backends can enable must have a
+    /// matching reset here, or the shell inherits a terminal that keeps
+    /// reporting (issue #109).
+    #[test]
+    fn mouse_off_resets_every_mode_we_enable() {
+        for mode in ["1000", "1002", "1003", "1006", "1015"] {
+            let reset = format!("\x1b[?{mode}l");
+            assert!(
+                MOUSE_OFF
+                    .windows(reset.len())
+                    .any(|w| w == reset.as_bytes()),
+                "mouse reset for mode {mode} is missing"
+            );
+        }
+    }
+
+    /// SGR must be reset before the older modes: a terminal still in SGR would
+    /// otherwise answer the X10 reset with an SGR-encoded report.
+    #[test]
+    fn mouse_off_resets_sgr_first() {
+        let seq = String::from_utf8(MOUSE_OFF.to_vec()).expect("ASCII escapes");
+        assert!(seq.find("1006l").unwrap() < seq.find("1000l").unwrap());
     }
 }

@@ -622,7 +622,10 @@ pub trait GroupLike: View {
                 if event.what == EventType::Nothing {
                     break; // Event was handled
                 }
-                if self.group().children[i].options().contains(Options::PRE_PROCESS) {
+                if self.group().children[i]
+                    .options()
+                    .contains(Options::PRE_PROCESS)
+                {
                     self.dispatch_to_child(i, event);
                 }
             }
@@ -643,7 +646,10 @@ pub trait GroupLike: View {
                     if event.what == EventType::Nothing {
                         break; // Event was handled
                     }
-                    if self.group().children[i].options().contains(Options::POST_PROCESS) {
+                    if self.group().children[i]
+                        .options()
+                        .contains(Options::POST_PROCESS)
+                    {
                         self.dispatch_to_child(i, event);
                     }
                 }
@@ -1020,7 +1026,10 @@ mod tests {
 
         // A 10x3 group holding a child twice its width and a row too tall.
         let mut group = Group::new(Rect::new(5, 1, 15, 4));
-        group.add(StaticText::new(Rect::new(0, 0, 20, 4), "XXXXXXXXXXXXXXXXXXXX"));
+        group.add(StaticText::new(
+            Rect::new(0, 0, 20, 4),
+            "XXXXXXXXXXXXXXXXXXXX",
+        ));
         terminal.draw_view(&mut group);
 
         assert_eq!(
@@ -1057,7 +1066,10 @@ mod tests {
 
         let mut group = Group::new(Rect::new(5, 1, 15, 4));
         group.set_child_overhang(Point::new(2, 1));
-        group.add(StaticText::new(Rect::new(0, 0, 20, 4), "XXXXXXXXXXXXXXXXXXXX"));
+        group.add(StaticText::new(
+            Rect::new(0, 0, 20, 4),
+            "XXXXXXXXXXXXXXXXXXXX",
+        ));
         terminal.draw_view(&mut group);
 
         assert_eq!(
@@ -1504,7 +1516,12 @@ mod tests {
         let mut group = Group::new(Rect::new(10, 2, 40, 12));
         let (p, clicks) = probe(Rect::new(4, 3, 14, 6), 'X');
         group.add(p);
-        let mut event = Event::mouse(EventType::MouseDown, Point::new(6, 4), MB_LEFT_BUTTON, false);
+        let mut event = Event::mouse(
+            EventType::MouseDown,
+            Point::new(6, 4),
+            MB_LEFT_BUTTON,
+            false,
+        );
         group.handle_event(&mut event);
         assert_eq!(clicks.borrow().as_slice(), &[Point::new(2, 1)]);
         assert_eq!(event.what, EventType::Nothing);
@@ -1538,7 +1555,12 @@ mod tests {
         }
         let mut group = Group::new(Rect::new(0, 0, 40, 12));
         group.add(ToCommand(ViewCore::new(Rect::new(4, 3, 14, 6))));
-        let mut event = Event::mouse(EventType::MouseDown, Point::new(6, 4), MB_LEFT_BUTTON, false);
+        let mut event = Event::mouse(
+            EventType::MouseDown,
+            Point::new(6, 4),
+            MB_LEFT_BUTTON,
+            false,
+        );
         group.handle_event(&mut event);
         assert_eq!(event.what, EventType::Command);
         assert_eq!(event.mouse.pos, Point::new(6, 4));

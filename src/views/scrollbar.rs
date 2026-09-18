@@ -492,12 +492,7 @@ impl View for ScrollBar {
 
                 let attr = if in_thumb { indicator_attr } else { page_attr };
                 buf.put_char(0, ch, attr);
-                write_line_to_terminal(
-                    terminal,
-                    0,
-                    y,
-                    &buf,
-                );
+                write_line_to_terminal(terminal, 0, y, &buf);
             }
         } else {
             let width = self.core.bounds.width();

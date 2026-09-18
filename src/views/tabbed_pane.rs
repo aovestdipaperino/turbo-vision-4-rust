@@ -178,12 +178,7 @@ impl TabbedPane {
     ///
     /// Build each page's [`Group`] with this, so pages line up with the pane.
     pub fn page_area(&self) -> Rect {
-        Rect::new(
-            1,
-            HEADER_ROWS,
-            self.extent().b.x - 1,
-            self.extent().b.y - 1,
-        )
+        Rect::new(1, HEADER_ROWS, self.extent().b.x - 1, self.extent().b.y - 1)
     }
 
     /// Add a page under `title`.

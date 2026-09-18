@@ -118,12 +118,7 @@ impl View for ColorSelector {
                 }
             }
 
-            write_line_to_terminal(
-                terminal,
-                0,
-                row as i16,
-                &buf,
-            );
+            write_line_to_terminal(terminal, 0, row as i16, &buf);
         }
 
         // Draw color labels row
@@ -136,12 +131,7 @@ impl View for ColorSelector {
                 self.get_selected_color()
             );
             label_buf.move_str(0, &text, label_attr);
-            write_line_to_terminal(
-                terminal,
-                0,
-                2,
-                &label_buf,
-            );
+            write_line_to_terminal(terminal, 0, 2, &label_buf);
         }
     }
 

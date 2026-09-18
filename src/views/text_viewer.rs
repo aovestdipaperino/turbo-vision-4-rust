@@ -71,12 +71,7 @@ impl TextViewer {
     /// Create a TextViewer with indicator
     pub fn with_indicator(mut self, add_indicator: bool) -> Self {
         if add_indicator {
-            let indicator_bounds = Rect::new(
-                0,
-                0,
-                self.extent().b.x,
-                1,
-            );
+            let indicator_bounds = Rect::new(0, 0, self.extent().b.x, 1);
             self.indicator = Some(Box::new(Indicator::new(indicator_bounds)));
         }
         self

@@ -508,12 +508,7 @@ impl DropdownWindow {
         bottom.move_char(0, horiz, normal, outer);
         bottom.put_char(0, bl, normal);
         bottom.put_char(outer - 1, br, normal);
-        write_line_to_terminal(
-            terminal,
-            0,
-            self.extent().b.y - 1,
-            &bottom,
-        );
+        write_line_to_terminal(terminal, 0, self.extent().b.y - 1, &bottom);
 
         let state = self.state.borrow();
         for row in 0..self.visible_rows() {

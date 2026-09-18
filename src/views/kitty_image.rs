@@ -303,12 +303,7 @@ impl View for KittyImage {
         for row in 0..height {
             let mut buf = DrawBuffer::new(width);
             buf.move_char(0, ' ', self.background_attr, width);
-            write_line_to_terminal(
-                terminal,
-                0,
-                row as i16,
-                &buf,
-            );
+            write_line_to_terminal(terminal, 0, row as i16, &buf);
         }
 
         // Check if we have image data
@@ -338,12 +333,7 @@ impl View for KittyImage {
             }
 
             // Display the image at the view position
-            let display_seq = self.build_display_sequence(
-                0 as u16,
-                0 as u16,
-                cols,
-                rows,
-            );
+            let display_seq = self.build_display_sequence(0 as u16, 0 as u16, cols, rows);
             let _ = terminal.write_kitty_graphics(&display_seq);
 
             // Remember bounds for next draw

@@ -98,12 +98,7 @@ impl ComboBox {
 
     /// Screen rectangle of the open drop-down.
     fn drop_bounds(&self) -> Rect {
-        Rect::new(
-            0,
-            1,
-            self.extent().b.x,
-            1 + self.drop_rows() as i16,
-        )
+        Rect::new(0, 1, self.extent().b.x, 1 + self.drop_rows() as i16)
     }
 
     fn open_list(&mut self) {
@@ -182,12 +177,7 @@ impl View for ComboBox {
                     let text: String = item.chars().take(width).collect();
                     buf.move_str(0, &text, attr);
                 }
-                write_line_to_terminal(
-                    terminal,
-                    0,
-                    1 + row as i16,
-                    &buf,
-                );
+                write_line_to_terminal(terminal, 0, 1 + row as i16, &buf);
             }
         }
     }

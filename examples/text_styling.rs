@@ -48,8 +48,14 @@ fn main() -> io::Result<()> {
             "italic + underline + strike",
             sample.with_style(Style::ITALIC | Style::UNDERLINE | Style::STRIKETHROUGH),
         ),
-        ("bold yellow", Attr::new(TvColor::Yellow, TvColor::Black).bold()),
-        ("underline cyan", Attr::new(TvColor::Cyan, TvColor::Black).underline()),
+        (
+            "bold yellow",
+            Attr::new(TvColor::Yellow, TvColor::Black).bold(),
+        ),
+        (
+            "underline cyan",
+            Attr::new(TvColor::Cyan, TvColor::Black).underline(),
+        ),
     ];
 
     let mut buffer: Vec<Vec<Cell>> = Vec::new();

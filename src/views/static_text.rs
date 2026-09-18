@@ -82,12 +82,7 @@ impl View for StaticText {
 
             // For now, use same color for shortcuts (no separate shortcut color in StaticText palette)
             buf.move_str_with_shortcut(start_pos, line, text_attr, text_attr);
-            write_line_to_terminal(
-                terminal,
-                0,
-                i as i16,
-                &buf,
-            );
+            write_line_to_terminal(terminal, 0, i as i16, &buf);
         }
     }
 

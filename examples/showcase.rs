@@ -474,12 +474,7 @@ impl View for AsciiTable {
                 }
             }
 
-            write_line_to_terminal(
-                terminal,
-                0,
-                row as i16,
-                &buf,
-            );
+            write_line_to_terminal(terminal, 0, row as i16, &buf);
         }
     }
 
@@ -1034,12 +1029,7 @@ impl View for CalendarView {
         let mut buf = DrawBuffer::new(width);
         buf.move_char(0, ' ', color, width);
         buf.move_str(0, "Su Mo Tu We Th Fr Sa", color);
-        write_line_to_terminal(
-            terminal,
-            0,
-            1,
-            &buf,
-        );
+        write_line_to_terminal(terminal, 0, 1, &buf);
 
         // Calculate starting day
         let first_day_of_week = Self::day_of_week(1, self.month, self.year);
@@ -1074,12 +1064,7 @@ impl View for CalendarView {
                 current += 1;
             }
 
-            write_line_to_terminal(
-                terminal,
-                0,
-                2 + week as i16,
-                &buf,
-            );
+            write_line_to_terminal(terminal, 0, 2 + week as i16, &buf);
         }
     }
 
@@ -1384,12 +1369,7 @@ impl View for PuzzleView {
                 buf.move_str(j * 3, &tile_str, color);
             }
 
-            write_line_to_terminal(
-                terminal,
-                0,
-                i as i16,
-                &buf,
-            );
+            write_line_to_terminal(terminal, 0, i as i16, &buf);
         }
     }
 
