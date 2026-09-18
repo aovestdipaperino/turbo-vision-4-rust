@@ -118,10 +118,7 @@ impl Button {
     ///
     /// Excludes the shadow row/column at the bottom/right of the bounds.
     fn mouse_in_button(&self, pos: crate::core::geometry::Point) -> bool {
-        pos.x >= 0
-            && pos.x < self.extent().b.x
-            && pos.y >= 0
-            && pos.y < self.extent().b.y - 1
+        pos.x >= 0 && pos.x < self.extent().b.x && pos.y >= 0 && pos.y < self.extent().b.y - 1
     }
 }
 
@@ -207,24 +204,14 @@ impl View for Button {
                 buf.move_str_with_shortcut(start, &self.title, button_attr, shortcut_attr);
             }
 
-            write_line_to_terminal(
-                terminal,
-                0,
-                y as i16,
-                &buf,
-            );
+            write_line_to_terminal(terminal, 0, y as i16, &buf);
         }
 
         // Draw bottom shadow line (1 char shorter, offset 1 to the right)
         let mut bottom_buf = DrawBuffer::new(width - 1);
         // Bottom shadow character across width-1
         bottom_buf.move_char(0, SHADOW_BOTTOM, shadow_attr, width - 1);
-        write_line_to_terminal(
-            terminal,
-            1,
-            (height - 1) as i16,
-            &bottom_buf,
-        );
+        write_line_to_terminal(terminal, 1, (height - 1) as i16, &bottom_buf);
     }
 
     fn handle_event(&mut self, event: &mut Event) {

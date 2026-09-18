@@ -329,12 +329,7 @@ impl View for BiorhythmChart {
                     line.move_str(59, ":Today", colors::DIALOG_NORMAL);
                 }
 
-                write_line_to_terminal(
-                    terminal,
-                    0,
-                    y as i16,
-                    &line,
-                );
+                write_line_to_terminal(terminal, 0, y as i16, &line);
             }
         } else {
             // No data - show prompt
@@ -348,12 +343,7 @@ impl View for BiorhythmChart {
                     buf.move_str(msg_x, msg, colors::DIALOG_NORMAL);
                 }
 
-                write_line_to_terminal(
-                    terminal,
-                    0,
-                    y as i16,
-                    &buf,
-                );
+                write_line_to_terminal(terminal, 0, y as i16, &buf);
             }
         }
     }

@@ -28,8 +28,8 @@ use crate::core::event::Event;
 use crate::core::geometry::{Point, Rect};
 use crate::core::palette::Attr;
 use crate::terminal::{Backend, Terminal};
-use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicU16, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 /// A headless [`Backend`] whose reported size can be changed mid-test,

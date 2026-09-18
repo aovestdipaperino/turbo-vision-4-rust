@@ -127,24 +127,14 @@ impl View for ParamText {
             let display_text: String = line.chars().take(width).collect();
 
             buf.move_str(0, &display_text, normal_attr);
-            write_line_to_terminal(
-                terminal,
-                0,
-                i as i16,
-                &buf,
-            );
+            write_line_to_terminal(terminal, 0, i as i16, &buf);
         }
 
         // Fill remaining lines with spaces
         for i in lines.len()..height {
             let mut buf = DrawBuffer::new(width);
             buf.move_char(0, ' ', normal_attr, width);
-            write_line_to_terminal(
-                terminal,
-                0,
-                i as i16,
-                &buf,
-            );
+            write_line_to_terminal(terminal, 0, i as i16, &buf);
         }
     }
 

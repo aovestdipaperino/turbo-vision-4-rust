@@ -87,12 +87,7 @@ impl View for BroadcastButton {
                 buf.move_str(0, &text, colors::MENU_NORMAL);
             }
 
-            turbo_vision::views::view::write_line_to_terminal(
-                terminal,
-                0,
-                y as i16,
-                &buf,
-            );
+            turbo_vision::views::view::write_line_to_terminal(terminal, 0, y as i16, &buf);
         }
     }
 

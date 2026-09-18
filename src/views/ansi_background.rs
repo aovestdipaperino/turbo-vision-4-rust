@@ -195,12 +195,7 @@ impl View for AnsiBackground {
                 }
             }
 
-            write_line_to_terminal(
-                terminal,
-                0,
-                row as i16,
-                &buf,
-            );
+            write_line_to_terminal(terminal, 0, row as i16, &buf);
         }
     }
 

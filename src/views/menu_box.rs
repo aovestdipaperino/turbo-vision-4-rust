@@ -309,12 +309,7 @@ impl View for MenuBox {
                 }
             }
 
-            write_line_to_terminal(
-                terminal,
-                0,
-                y as i16,
-                &buf,
-            );
+            write_line_to_terminal(terminal, 0, y as i16, &buf);
             y += 1;
         }
 
@@ -325,12 +320,7 @@ impl View for MenuBox {
             buf.put_char(i, '─', normal_attr);
         }
         buf.put_char(width - 1, '┘', normal_attr);
-        write_line_to_terminal(
-            terminal,
-            0,
-            y as i16,
-            &buf,
-        );
+        write_line_to_terminal(terminal, 0, y as i16, &buf);
 
         // Draw shadow
         if self.core.state.contains(State::SHADOW) {

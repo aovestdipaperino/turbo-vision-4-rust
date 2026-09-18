@@ -202,12 +202,7 @@ impl View for LogoBackground {
                 }
             }
 
-            write_line_to_terminal(
-                terminal,
-                0,
-                i as i16,
-                &buf,
-            );
+            write_line_to_terminal(terminal, 0, i as i16, &buf);
         }
     }
 

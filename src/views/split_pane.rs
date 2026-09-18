@@ -222,18 +222,8 @@ impl SplitPane {
     /// The rect the first half occupies.
     pub fn first_area(&self) -> Rect {
         match self.orientation {
-            Orientation::Vertical => Rect::new(
-                0,
-                0,
-                self.position,
-                self.extent().b.y,
-            ),
-            Orientation::Horizontal => Rect::new(
-                0,
-                0,
-                self.extent().b.x,
-                self.position,
-            ),
+            Orientation::Vertical => Rect::new(0, 0, self.position, self.extent().b.y),
+            Orientation::Horizontal => Rect::new(0, 0, self.extent().b.x, self.position),
         }
     }
 

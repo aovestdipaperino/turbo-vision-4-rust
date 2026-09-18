@@ -74,12 +74,7 @@ impl Notebook {
 
     /// Screen area of the pages (bounds minus the tab row).
     fn page_bounds(&self) -> Rect {
-        Rect::new(
-            0,
-            1,
-            self.extent().b.x,
-            self.extent().b.y,
-        )
+        Rect::new(0, 1, self.extent().b.x, self.extent().b.y)
     }
 
     /// Append a page and return its index.

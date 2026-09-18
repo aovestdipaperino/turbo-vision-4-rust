@@ -295,11 +295,7 @@ impl View for FileList {
             let padded = format!("{:width$}", text, width = width);
 
             for (x, ch) in padded.chars().take(width).enumerate() {
-                terminal.write_cell(
-                    x as i16,
-                    y as i16,
-                    crate::core::draw::Cell::new(ch, color),
-                );
+                terminal.write_cell(x as i16, y as i16, crate::core::draw::Cell::new(ch, color));
             }
         }
     }

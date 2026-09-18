@@ -465,12 +465,7 @@ impl View for HelpViewer {
                 }
             }
 
-            write_line_to_terminal(
-                terminal,
-                0,
-                row,
-                &buf,
-            );
+            write_line_to_terminal(terminal, 0, row, &buf);
         }
 
         // Draw scrollbar if present
@@ -570,8 +565,7 @@ impl View for HelpViewer {
                 // Matches Borland: THelpViewer::handleEvent() evMouseDown case (help.cc:122-155)
                 let mouse_pos = event.mouse.pos;
 
-                if self.extent().contains(mouse_pos) && event.mouse.buttons & MB_LEFT_BUTTON != 0
-                {
+                if self.extent().contains(mouse_pos) && event.mouse.buttons & MB_LEFT_BUTTON != 0 {
                     // Check if click is on a cross-reference link
                     let hit_ref = self.get_cross_ref_at(mouse_pos.x, mouse_pos.y);
 

@@ -1361,9 +1361,8 @@ mod tests {
         use crate::views::scrollbar::ScrollBar;
 
         let mut window = Window::new(Rect::new(0, 0, 40, 10), "Test");
-        let idx = window.add_frame_child(Box::new(ScrollBar::new_vertical(Rect::new(
-            39, 1, 40, 9,
-        ))));
+        let idx =
+            window.add_frame_child(Box::new(ScrollBar::new_vertical(Rect::new(39, 1, 40, 9))));
 
         window.set_bounds(Rect::new(0, 0, 30, 14));
 

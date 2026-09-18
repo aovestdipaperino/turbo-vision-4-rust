@@ -339,11 +339,7 @@ impl View for DirListBox {
             let padded = format!("{:width$}", text, width = width);
 
             for (x, ch) in padded.chars().take(width).enumerate() {
-                terminal.write_cell(
-                    x as i16,
-                    y as i16,
-                    crate::core::draw::Cell::new(ch, color),
-                );
+                terminal.write_cell(x as i16, y as i16, crate::core::draw::Cell::new(ch, color));
             }
         }
     }
@@ -352,8 +348,7 @@ impl View for DirListBox {
         // Handle double-click BEFORE focus check (to allow clicking to focus AND navigate)
         if event.what == EventType::MouseDown {
             use crate::core::event::MB_LEFT_BUTTON;
-            if self.extent().contains(event.mouse.pos)
-                && event.mouse.buttons & MB_LEFT_BUTTON != 0
+            if self.extent().contains(event.mouse.pos) && event.mouse.buttons & MB_LEFT_BUTTON != 0
             {
                 if event.mouse.double_click && self.is_focused() {
                     // Double-click navigates into directory (only when already focused)

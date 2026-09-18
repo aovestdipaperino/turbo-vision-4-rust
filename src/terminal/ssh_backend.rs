@@ -157,16 +157,23 @@ impl Backend for SshBackend {
             return Ok(());
         }
 
+        // Mouse reporting first, and every mode we could have enabled: the
+        // client must stop sending reports before the alternate screen goes
+        // away, or they surface as garbage in whatever inherits the terminal.
+        // Disable SGR mouse mode
+        self.output_buffer.extend_from_slice(b"\x1b[?1006l");
+        // Disable urxvt extended mode
+        self.output_buffer.extend_from_slice(b"\x1b[?1015l");
+        // Disable any-motion tracking
+        self.output_buffer.extend_from_slice(b"\x1b[?1003l");
+        // Disable mouse motion events
+        self.output_buffer.extend_from_slice(b"\x1b[?1002l");
+        // Disable mouse tracking
+        self.output_buffer.extend_from_slice(b"\x1b[?1000l");
         // Show cursor
         self.output_buffer.extend_from_slice(b"\x1b[?25h");
         // Re-enable line wrapping
         self.output_buffer.extend_from_slice(b"\x1b[?7h");
-        // Disable mouse motion events
-        self.output_buffer.extend_from_slice(b"\x1b[?1002l");
-        // Disable SGR mouse mode
-        self.output_buffer.extend_from_slice(b"\x1b[?1006l");
-        // Disable mouse tracking
-        self.output_buffer.extend_from_slice(b"\x1b[?1000l");
         // Leave alternate screen
         self.output_buffer.extend_from_slice(b"\x1b[?1049l");
         // Reset attributes

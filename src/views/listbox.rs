@@ -296,12 +296,7 @@ impl View for ListBox {
                 buf.move_char(0, ' ', color_normal, width);
             }
 
-            write_line_to_terminal(
-                terminal,
-                0,
-                i as i16,
-                &buf,
-            );
+            write_line_to_terminal(terminal, 0, i as i16, &buf);
         }
     }
 

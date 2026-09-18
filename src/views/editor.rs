@@ -2553,7 +2553,9 @@ mod tests {
     /// clears it again when the guard drops.
     /// Holds the block-mode test lock for the life of a test. The guard is
     /// never read; it exists so the lock is released on drop.
-    struct BlockModeGuard(#[allow(dead_code, reason = "held for Drop")] std::sync::MutexGuard<'static, ()>);
+    struct BlockModeGuard(
+        #[allow(dead_code, reason = "held for Drop")] std::sync::MutexGuard<'static, ()>,
+    );
 
     impl BlockModeGuard {
         fn on() -> Self {

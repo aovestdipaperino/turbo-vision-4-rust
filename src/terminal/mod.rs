@@ -62,7 +62,7 @@ mod input_parser;
 mod ssh_backend;
 
 pub use backend::{Backend, Capabilities};
-pub use crossterm_backend::CrosstermBackend;
+pub use crossterm_backend::{CrosstermBackend, restore_terminal};
 
 #[cfg(feature = "ssh")]
 pub use input_parser::InputParser;

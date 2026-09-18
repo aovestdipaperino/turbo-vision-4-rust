@@ -157,12 +157,7 @@ impl View for VirtualListBox {
                 let text: String = self.provider.item(idx).chars().take(width).collect();
                 buf.move_str(0, &text, attr);
             }
-            write_line_to_terminal(
-                terminal,
-                0,
-                row as i16,
-                &buf,
-            );
+            write_line_to_terminal(terminal, 0, row as i16, &buf);
         }
     }
 
