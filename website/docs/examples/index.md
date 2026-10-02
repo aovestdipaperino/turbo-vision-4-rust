@@ -45,6 +45,7 @@ cargo build --examples           # build all 39
 ### Controls
 
 - **`new_controls`** &mdash; the widgets added beyond the Borland set, on two tabbed pages.
+- **`table_frozen`** &mdash; a `Table` with frozen panes: a Region column and a totals row stay put while thirty regions by twelve months scroll both ways. The table grows with its window, and Enter on a cell shows its details through the table's `on_select` command and an `AppHandler`.
 - **`cluster_tooltip`** &mdash; multi-item check box and radio clusters, tooltips, and the frame zoom triangle.
 - **`list_components`** &mdash; the list viewer family end to end.
 - **`sorted_listbox`** &mdash; a sorted list with binary search and type-ahead.

@@ -699,6 +699,8 @@ sized columns; focus is a cell, not a row.
 - `set_selected_row(&mut self, row: usize)` / `set_selected_col(&mut self, col: usize)` - Move focus, clamped to range
 - `set_show_header(&mut self, show: bool)` - Show or hide the header row (on by default)
 - `set_separators(&mut self, on: bool)` / `separators(&self) -> bool` - Draw `SEPARATOR` between visible columns (off by default)
+- `set_frozen_cols(&mut self, count: usize)` / `frozen_cols(&self) -> usize` - Keep the first `count` columns at the left while the rest scroll sideways, followed by `FROZEN_SEPARATOR` (none by default)
+- `set_frozen_rows(&mut self, count: usize)` / `frozen_rows(&self) -> usize` - Keep the first `count` rows under the header while the rest scroll, the last one underlined (none by default)
 - `set_on_select(&mut self, command: CommandId)` - Command emitted by Enter or a double-click
 - Implements View trait
 
@@ -709,11 +711,12 @@ sized columns; focus is a cell, not a row.
 
 #### TableBuilder Struct
 **Public Methods:**
-- `new() -> Self`, fluent `bounds`, `columns`, `rows`, `show_header`, `separators`, `on_select`
+- `new() -> Self`, fluent `bounds`, `columns`, `rows`, `show_header`, `separators`, `frozen_cols`, `frozen_rows`, `on_select`
 - `build(self) -> Table`
 
 #### Constants
 - `SEPARATOR: char` - The `│` drawn between visible columns when separators are on
+- `FROZEN_SEPARATOR: char` - The `║` drawn after the last frozen column, separators on or not
 
 ---
 

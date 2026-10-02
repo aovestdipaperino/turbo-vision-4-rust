@@ -117,6 +117,14 @@ Ordered by benefit-to-effort. Each one composes existing views wherever it can.
       one-cell gap between each pair of visible columns, in each line's own
       colour. Off by default; columns stay where they are, so a click lands
       on the same cell either way.
+- [x] **Table frozen panes** — done. `Table::set_frozen_cols` /
+      `TableBuilder::frozen_cols` keep the first columns at the left while
+      the rest scroll sideways, marked by `table::FROZEN_SEPARATOR` (`║`)
+      whether separators are on or not; `Table::set_frozen_rows` /
+      `TableBuilder::frozen_rows` keep the first rows under the header while
+      the rest scroll, the last one underlined. Focusing a frozen cell
+      scrolls nothing. `examples/table_frozen.rs` freezes a region column
+      and a totals row.
 - [x] **Lazy rows and items** — done. `table::RowProvider` (`rows()`,
       `cell(row, col)`) and `listbox::ListProvider` (`len()`, `item(index)`,
       a default `is_empty`) let a `Table` or `ListBox` read its content only

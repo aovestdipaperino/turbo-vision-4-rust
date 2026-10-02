@@ -50,7 +50,7 @@ know most of this library.
     Input lines, buttons, check boxes, radio buttons, list boxes, combo boxes, scroll bars,
     trees, tables, split panes, progress bars, sliders, tooltips and history dropdowns. Tables
     and list boxes can also read their rows from a lazy source instead of holding them all in
-    memory.
+    memory, and tables can freeze their first rows and columns like a spreadsheet.
 
 -   :material-check-decagram: **Validators**
 

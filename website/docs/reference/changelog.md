@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- Frozen panes for `Table`, like a spreadsheet's.
+  `Table::set_frozen_cols` / `TableBuilder::frozen_cols` keep the first
+  columns at the left while the others scroll sideways, with a
+  `table::FROZEN_SEPARATOR` (`║`) after them in every line.
+  `Table::set_frozen_rows` / `TableBuilder::frozen_rows` keep the first
+  rows under the header while the others scroll, the last of them
+  underlined. Both default to zero, which keeps the old behaviour. Frozen
+  columns take the header colour, as row labels; frozen rows stay ordinary,
+  focusable rows and work with a `RowProvider`. Example: `table_frozen`.
+
 ## [4.0.2] - 2026-10-02
 
 ### Added

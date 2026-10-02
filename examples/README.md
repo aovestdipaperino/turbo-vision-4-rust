@@ -25,6 +25,7 @@ own header comment.
 |---|---|---|
 | `cluster_tooltip.rs` | CheckBoxes and RadioButtons clusters, a per-dialog Tooltip, and the frame zoom icon | `cargo run --example cluster_tooltip` |
 | `new_controls.rs` | The widgets added beyond the Borland set: TabbedPane, ComboBox, Spinner, ProgressBar and Table | `cargo run --example new_controls` |
+| `table_frozen.rs` | Table with frozen panes: a frozen Region column and a frozen totals row while the rest scrolls both ways; Enter or a double-click shows a cell's region, month and sales via `on_select` and an `AppHandler` | `cargo run --example table_frozen` |
 | `progress_bar.rs` | ProgressBar: determinate, marquee, and the percentage toggle | `cargo run --example progress_bar` |
 | `list_components.rs` | ListBox with the ListViewer trait, MenuBar with MenuViewer, a MenuBox popup, MenuBuilder | `cargo run --example list_components` |
 | `sorted_listbox.rs` | SortedListBox: automatic sorting, binary and prefix search, case-sensitive or not | `cargo run --example sorted_listbox` |

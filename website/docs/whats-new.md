@@ -5,6 +5,18 @@ in prose, newest first. If you are moving a project onto 4.0.0, work through
 [the 4.0 upgrade guide](reference/upgrading-4.0.md) instead: it is the same ground as an ordered
 checklist. Moving from 3.0.0 instead uses [the 3.0 upgrade guide](reference/upgrading.md).
 
+## Unreleased
+
+Not in a release yet &mdash; coming in the next release. The crate on crates.io is still 4.0.2.
+
+`Table` can freeze panes, like a spreadsheet. `set_frozen_cols(n)` keeps the first `n` columns
+at the left edge while the others scroll sideways, with a `║` marking the edge in every line;
+`set_frozen_rows(n)` keeps the first `n` rows under the header while the others scroll, the
+last of them underlined. Frozen columns read as row labels, in the header's colour; frozen rows
+stay ordinary rows you can focus and select, and they work with a lazy `RowProvider`. Both
+default to zero, so existing tables are unchanged. The `table_frozen` example freezes a region
+column and a totals row over thirty regions by twelve months.
+
 ## 4.0.2 &mdash; October 2026
 
 The text cursor no longer shows through menus, combo-box drop-downs and history lists: a popup hides
