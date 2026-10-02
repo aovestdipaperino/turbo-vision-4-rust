@@ -39,6 +39,16 @@ impl Label {
         self.link = Some(view_id);
     }
 
+    /// The label text, including any `~` hotkey markers.
+    pub fn text(&self) -> &str {
+        &self.text
+    }
+
+    /// Replace the label text.
+    pub fn set_text(&mut self, text: &str) {
+        self.text = text.to_string();
+    }
+
     /// Extract the hotkey character from the label text
     /// Returns the uppercase character following the first '~', or None if no hotkey
     /// Matches Borland: hotKey() function
