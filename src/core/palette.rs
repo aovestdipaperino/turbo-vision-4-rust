@@ -757,6 +757,15 @@ pub mod palettes {
         16, 17, 18, 18, 31,  // 1-5: Normal, selected, shortcut, shortcut selected, disabled
     ];
 
+    // Embedded cluster palette: a CheckBox / RadioButton drawn on the
+    // dialog's own background instead of the cyan cluster box, borrowing
+    // the label entries (focused text in the label's light colour, so focus
+    // stays visible). Same five slots as CP_CLUSTER.
+    #[rustfmt::skip]
+    pub const CP_CLUSTER_EMBEDDED: &[u8] = &[
+        7, 8, 9, 9, 13,  // 1-5: Normal, selected, shortcut, shortcut selected, disabled
+    ];
+
     // StatusLine palette
     #[rustfmt::skip]
     pub const CP_STATUSLINE: &[u8] = &[
@@ -897,6 +906,16 @@ mod tests {
         for (i, &idx) in CP_BLUE_DIALOG.iter().enumerate() {
             assert_eq!(app(idx), borland[i], "blue dialog entry {}", i + 1);
         }
+    }
+
+    #[test]
+    fn embedded_cluster_uses_the_label_entries() {
+        // Every slot must resolve to the same dialog entry a Label uses, so
+        // the background is the dialog's.
+        assert_eq!(CP_CLUSTER_EMBEDDED[0], CP_LABEL[0]); // normal
+        assert_eq!(CP_CLUSTER_EMBEDDED[1], CP_LABEL[1]); // focused = selected label
+        assert_eq!(CP_CLUSTER_EMBEDDED[2], CP_LABEL[2]); // shortcut
+        assert_eq!(CP_CLUSTER_EMBEDDED[4], CP_LABEL[4]); // disabled
     }
 
     #[test]

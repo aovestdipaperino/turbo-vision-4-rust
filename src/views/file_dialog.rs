@@ -35,6 +35,11 @@
 //!
 //! **Note**: Directories are always shown regardless of the wildcard pattern.
 //!
+//! Hidden entries (names starting with `.`, the Unix convention) are left
+//! out of the list unless `show_hidden` is set. `hidden_toggle` adds a
+//! "Show hidden" checkbox so the user can flip that while browsing. A
+//! hidden name typed into the input still opens or navigates normally.
+//!
 //! ## Implementation Notes
 //!
 //! The FileDialog tracks ListBox selection state by intercepting keyboard and mouse
@@ -103,6 +108,7 @@
 /// The `~` character indicates the hotkey underline in the button text.
 use super::View;
 use super::button::Button;
+use super::checkbox::CheckBox;
 use super::dialog::Dialog;
 use super::group::{Group, GroupLike};
 use super::handle::Handle;
@@ -225,6 +231,12 @@ pub struct FileDialog {
     /// Set when the list contents changed under the double buffer; the
     /// modal tick turns it into `Terminal::force_full_redraw`.
     needs_full_redraw: bool,
+    /// List dot-entries (`.git`, `.env`, ...). Off by default.
+    show_hidden: bool,
+    /// Add a "Show hidden" checkbox bound to `show_hidden`.
+    hidden_toggle: bool,
+    /// The "Show hidden" checkbox, once `build` has added it.
+    hidden_checkbox: Option<Handle<CheckBox>>,
 }
 
 impl FileDialog {
@@ -246,6 +258,9 @@ impl FileDialog {
             button_label: "~O~pen".to_string(), // Default to "Open"
             selected: None,
             needs_full_redraw: false,
+            show_hidden: false,
+            hidden_toggle: false,
+            hidden_checkbox: None,
         }
     }
 
@@ -267,6 +282,19 @@ impl FileDialog {
     /// Set the button label (e.g., "~S~ave" for save dialogs)
     pub fn with_button_label(mut self, label: &str) -> Self {
         self.button_label = label.to_string();
+        self
+    }
+
+    /// List hidden (dot-prefixed) entries from the start.
+    pub fn with_show_hidden(mut self, show: bool) -> Self {
+        self.show_hidden = show;
+        self
+    }
+
+    /// Add a "Show hidden" checkbox next to the file list label so the
+    /// user can reveal or hide dot-prefixed entries while browsing.
+    pub fn with_hidden_toggle(mut self, toggle: bool) -> Self {
+        self.hidden_toggle = toggle;
         self
     }
 
@@ -310,14 +338,8 @@ impl FileDialog {
         // Mirror the initial listbox selection into the file-name input so it
         // field and OK button reflect a real selection on first frame, instead
         // of waiting for the user to click an item.
-        if let Some(first_item) = self.files.first() {
-            let display_text = if first_item.starts_with('[') && first_item.ends_with(']') {
-                let dir_name = &first_item[1..first_item.len() - 1];
-                format!("{}/{}", dir_name, self.wildcard)
-            } else {
-                first_item.clone()
-            };
-            self.set_file_name_text(display_text);
+        if let Some(text) = self.first_item_input_text() {
+            self.set_file_name_text(text);
         }
 
         // Buttons on the right side (vertically stacked)
@@ -343,6 +365,17 @@ impl FileDialog {
             false,
         );
         self.dialog.add(cancel_button);
+
+        // Added after the buttons so CHILD_LISTBOX / CHILD_OK_BUTTON keep
+        // their indices. Sits on the "Files:" label row, right of the label.
+        if self.hidden_toggle {
+            // Exactly as wide as "[ ] Show hidden"; embedded so it sits on
+            // the dialog's background like the labels around it.
+            let mut checkbox = CheckBox::new(Rect::new(14, 5, 29, 6), "Show ~h~idden");
+            checkbox.set_embedded(true);
+            checkbox.set_checked(self.show_hidden);
+            self.hidden_checkbox = Some(self.dialog.add_typed(checkbox));
+        }
 
         // Set focus to the listbox by default (better UX for file selection)
         self.dialog.set_initial_focus();
@@ -406,6 +439,7 @@ impl FileDialog {
         // Matches Borland: TFileList::focusItem() broadcasts cmFileFocused when selection changes
         // We read the ListBox selection after it has processed navigation events
         self.sync_inputline_with_listbox();
+        self.apply_hidden_toggle();
 
         // Effective command: Dialog::handle_event clears `event` for CM_OK/
         // CM_CANCEL/CM_YES/CM_NO and stashes the command in end_state, so we
@@ -634,6 +668,7 @@ impl FileDialog {
         let old_title = self.title.clone();
         let old_button_label = self.button_label.clone();
 
+        let (show_hidden, hidden_toggle) = (self.show_hidden, self.hidden_toggle);
         *self = Self::new(
             old_bounds,
             &old_title,
@@ -641,6 +676,8 @@ impl FileDialog {
             Some(self.current_path.clone()),
         )
         .with_button_label(&old_button_label)
+        .with_show_hidden(show_hidden)
+        .with_hidden_toggle(hidden_toggle)
         .build();
 
         // Reset focus to listbox after directory navigation
@@ -726,6 +763,9 @@ impl FileDialog {
             for entry in entries.flatten() {
                 if let Ok(metadata) = entry.metadata() {
                     let name = entry.file_name().to_string_lossy().to_string();
+                    if !self.show_hidden && name.starts_with('.') {
+                        continue;
+                    }
 
                     if metadata.is_dir() {
                         dirs.push(format!("[{}]", name));
@@ -741,6 +781,52 @@ impl FileDialog {
             self.files.extend(dirs);
             self.files.extend(regular_files);
         }
+    }
+
+    /// Input-field text for the first list entry: `dir/<wildcard>` for a
+    /// directory, the name itself otherwise. `None` for an empty list.
+    fn first_item_input_text(&self) -> Option<String> {
+        let first_item = self.files.first()?;
+        Some(
+            if first_item.starts_with('[') && first_item.ends_with(']') {
+                let dir_name = &first_item[1..first_item.len() - 1];
+                format!("{}/{}", dir_name, self.wildcard)
+            } else {
+                first_item.clone()
+            },
+        )
+    }
+
+    /// Re-read the directory in place when the "Show hidden" checkbox no
+    /// longer matches `show_hidden`. Unlike `rebuild_and_redraw` this keeps
+    /// the dialog (and the checkbox's focus) intact, so Space can flip it
+    /// back straight away.
+    fn apply_hidden_toggle(&mut self) {
+        let Some(checked) = self
+            .hidden_checkbox
+            .and_then(|h| self.dialog.get(h))
+            .map(CheckBox::is_checked)
+        else {
+            return;
+        };
+        if checked == self.show_hidden {
+            return;
+        }
+        self.show_hidden = checked;
+        self.read_directory();
+        if CHILD_LISTBOX < self.dialog.child_count()
+            && let Some(listbox) = self
+                .dialog
+                .child_at_mut(CHILD_LISTBOX)
+                .as_any_mut()
+                .downcast_mut::<ListBox>()
+        {
+            listbox.set_items(self.files.clone());
+            listbox.set_selection(0);
+        }
+        self.selected_file_index = 0;
+        self.set_file_name_text(self.first_item_input_text().unwrap_or_default());
+        self.needs_full_redraw = true;
     }
 
     fn contains_wildcards(&self, name: &str) -> bool {
@@ -862,6 +948,8 @@ pub struct FileDialogBuilder {
     initial_dir: Option<PathBuf>,
     button_label: String,
     resizable: bool,
+    show_hidden: bool,
+    hidden_toggle: bool,
 }
 
 impl FileDialogBuilder {
@@ -874,6 +962,8 @@ impl FileDialogBuilder {
             initial_dir: None,
             button_label: "~O~pen".to_string(),
             resizable: true, // Resizable by default
+            show_hidden: false,
+            hidden_toggle: false,
         }
     }
 
@@ -923,6 +1013,21 @@ impl FileDialogBuilder {
         self
     }
 
+    /// Lists hidden (dot-prefixed) entries from the start (default: false).
+    #[must_use]
+    pub fn show_hidden(mut self, show: bool) -> Self {
+        self.show_hidden = show;
+        self
+    }
+
+    /// Adds a "Show hidden" checkbox the user can toggle to reveal or hide
+    /// dot-prefixed entries (default: false).
+    #[must_use]
+    pub fn hidden_toggle(mut self, toggle: bool) -> Self {
+        self.hidden_toggle = toggle;
+        self
+    }
+
     /// Builds the FileDialog.
     ///
     /// # Panics
@@ -933,6 +1038,8 @@ impl FileDialogBuilder {
         let title = self.title.expect("FileDialog title must be set");
         let mut fd = FileDialog::new(bounds, &title, &self.wildcard, self.initial_dir)
             .with_button_label(&self.button_label)
+            .with_show_hidden(self.show_hidden)
+            .with_hidden_toggle(self.hidden_toggle)
             .build();
         fd.dialog.set_resizable(self.resizable);
         fd
@@ -1071,5 +1178,95 @@ mod tests {
         assert_eq!(dialog.file_name_text(), "file.txt");
 
         let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    /// A temp dir holding `src/`, `.git/`, `main.rs` and `.env`.
+    fn hidden_fixture() -> tempfile::TempDir {
+        let dir = tempfile::tempdir().unwrap();
+        fs::create_dir(dir.path().join("src")).unwrap();
+        fs::create_dir(dir.path().join(".git")).unwrap();
+        fs::write(dir.path().join("main.rs"), "").unwrap();
+        fs::write(dir.path().join(".env"), "").unwrap();
+        dir
+    }
+
+    fn listed(fd: &FileDialog) -> Vec<&str> {
+        fd.files
+            .iter()
+            .map(String::as_str)
+            .filter(|f| *f != "..")
+            .collect()
+    }
+
+    #[test]
+    fn hidden_entries_are_left_out_by_default() {
+        let dir = hidden_fixture();
+        let fd = FileDialogBuilder::new()
+            .bounds(Rect::new(0, 0, 60, 20))
+            .title("Open")
+            .initial_dir(dir.path().to_path_buf())
+            .build();
+        assert_eq!(listed(&fd), vec!["[src]", "main.rs"]);
+        assert!(fd.hidden_checkbox.is_none(), "no checkbox unless asked for");
+    }
+
+    #[test]
+    fn show_hidden_lists_dot_entries() {
+        let dir = hidden_fixture();
+        let fd = FileDialogBuilder::new()
+            .bounds(Rect::new(0, 0, 60, 20))
+            .title("Open")
+            .initial_dir(dir.path().to_path_buf())
+            .show_hidden(true)
+            .build();
+        assert_eq!(listed(&fd), vec!["[.git]", "[src]", ".env", "main.rs"]);
+    }
+
+    #[test]
+    fn hidden_checkbox_toggles_the_listing_in_place() {
+        let dir = hidden_fixture();
+        let mut fd = FileDialogBuilder::new()
+            .bounds(Rect::new(0, 0, 60, 20))
+            .title("Open")
+            .initial_dir(dir.path().to_path_buf())
+            .hidden_toggle(true)
+            .build();
+        let handle = fd.hidden_checkbox.expect("checkbox added");
+        assert!(!fd.dialog.get(handle).unwrap().is_checked());
+        let children = fd.dialog.child_count();
+
+        fd.dialog.get_mut(handle).unwrap().set_checked(true);
+        fd.apply_hidden_toggle();
+        assert_eq!(listed(&fd), vec!["[.git]", "[src]", ".env", "main.rs"]);
+        let items = fd
+            .dialog
+            .child_at(CHILD_LISTBOX)
+            .as_any()
+            .downcast_ref::<ListBox>()
+            .unwrap()
+            .item_count();
+        assert_eq!(items, fd.files.len(), "list box shows the new listing");
+        assert_eq!(fd.dialog.child_count(), children, "dialog not rebuilt");
+
+        fd.dialog.get_mut(handle).unwrap().set_checked(false);
+        fd.apply_hidden_toggle();
+        assert_eq!(listed(&fd), vec!["[src]", "main.rs"]);
+    }
+
+    #[test]
+    fn hidden_setting_survives_directory_navigation() {
+        let dir = hidden_fixture();
+        fs::create_dir(dir.path().join("src/.cache")).unwrap();
+        let mut fd = FileDialogBuilder::new()
+            .bounds(Rect::new(0, 0, 60, 20))
+            .title("Open")
+            .initial_dir(dir.path().to_path_buf())
+            .hidden_toggle(true)
+            .show_hidden(true)
+            .build();
+        fd.handle_selection("src");
+        assert_eq!(listed(&fd), vec!["[.cache]"]);
+        let handle = fd.hidden_checkbox.expect("checkbox kept after navigation");
+        assert!(fd.dialog.get(handle).unwrap().is_checked());
     }
 }

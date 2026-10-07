@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.3] - 2026-10-07
+
+### Added
+- **`FileDialog` hides hidden entries and can toggle them.** Names starting
+  with `.` (the Unix hidden convention, files and folders alike) are no
+  longer listed by default; `..` still is, and a hidden name typed into the
+  input still opens or navigates. `FileDialogBuilder::show_hidden(true)`
+  lists them from the start, and `FileDialogBuilder::hidden_toggle(true)`
+  adds a "Show hidden" checkbox on the Files row that re-reads the folder
+  in place when flipped. Both settings survive directory navigation.
+- **Embedded checkboxes.** `CheckBox::set_embedded(true)` draws the box on
+  the owner's background with label colours (focus shown as light text)
+  instead of the classic cyan cluster box, via the new
+  `palettes::CP_CLUSTER_EMBEDDED`. The file dialog's "Show hidden"
+  checkbox uses it.
+
+### Changed
+- **`FileDialog` no longer lists dot-entries by default.** Callers that
+  relied on seeing them should pass `.show_hidden(true)`.
+
 ## [4.0.2] - 2026-10-02
 
 ### Added

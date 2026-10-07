@@ -36,6 +36,8 @@ pub struct CheckBox {
     core: ViewCore,
     label: String,
     cluster_state: ClusterState,
+    /// Draw on the owner's background instead of the cyan cluster box.
+    embedded: bool,
 }
 
 impl CheckBox {
@@ -50,7 +52,15 @@ impl CheckBox {
             },
             label: label.to_string(),
             cluster_state: ClusterState::new(),
+            embedded: false,
         }
+    }
+
+    /// Draw on the dialog's own background (label colours, focus shown as
+    /// light text) instead of the classic cyan cluster box, so a lone
+    /// checkbox looks part of the surrounding form.
+    pub fn set_embedded(&mut self, embedded: bool) {
+        self.embedded = embedded;
     }
 
     /// Set the checked state
@@ -94,7 +104,11 @@ impl View for CheckBox {
 
     fn get_palette(&self) -> Option<crate::core::palette::Palette> {
         use crate::core::palette::{Palette, palettes};
-        Some(Palette::from_slice(palettes::CP_CLUSTER))
+        Some(Palette::from_slice(if self.embedded {
+            palettes::CP_CLUSTER_EMBEDDED
+        } else {
+            palettes::CP_CLUSTER
+        }))
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
