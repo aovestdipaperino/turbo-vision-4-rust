@@ -32,7 +32,10 @@ flags! {
         /// it. The result is the default button's command (OK when present,
         /// otherwise the first button).
         const AUTO_DISMISS = 0x1000;
-        const YES_NO_CANCEL = 0x0E00;
+        /// Yes, No and Cancel. Matches Borland: `mfYesNoCancel`
+        /// (`mfYesButton | mfNoButton | mfCancelButton`).
+        const YES_NO_CANCEL = 0x0B00;
+        /// OK and Cancel. Matches Borland: `mfOKCancel`.
         const OK_CANCEL = 0x0C00;
     }
 }
@@ -544,9 +547,10 @@ pub fn search_replace_box(app: &mut Application, title: &str) -> Option<(String,
 /// }
 /// ```
 pub fn goto_line_box(app: &mut Application, title: &str) -> Option<usize> {
-    // Calculate dialog size
+    // Calculate dialog size: nine rows, like the search box, so the
+    // buttons and their shadow sit above the bottom frame.
     let width = 40;
-    let height = 8;
+    let height = 9;
 
     // Center on screen
     let (screen_w, screen_h) = app.terminal.size();
@@ -589,6 +593,73 @@ pub fn goto_line_box(app: &mut Application, title: &str) -> Option<usize> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::event::{Event, KB_ALT_Y, KB_ESC};
+
+    #[test]
+    fn combinations_are_the_buttons_they_name() {
+        assert_eq!(
+            MsgBox::YES_NO_CANCEL,
+            MsgBox::YES_BUTTON | MsgBox::NO_BUTTON | MsgBox::CANCEL_BUTTON
+        );
+        assert_eq!(MsgBox::OK_CANCEL, MsgBox::OK_BUTTON | MsgBox::CANCEL_BUTTON);
+        assert!(!MsgBox::YES_NO_CANCEL.contains(MsgBox::OK_BUTTON));
+    }
+
+    #[test]
+    fn confirmation_box_offers_yes_no_and_cancel() {
+        // It offered No, OK and Cancel: YES_NO_CANCEL was 0x0E00. With no
+        // Yes button Alt+Y reaches nothing, and the Esc after it gives
+        // CM_CANCEL instead of leaving the box waiting.
+        crate::views::button::set_press_animation(Duration::ZERO);
+        let mut app = Application::with_terminal(crate::test_util::test_terminal(80, 25));
+        let keys = app.terminal.event_injector();
+        keys.send(Event::keyboard(KB_ALT_Y)).unwrap();
+        keys.send(Event::keyboard(KB_ESC)).unwrap();
+        assert_eq!(confirmation_box(&mut app, "Save changes?"), CM_YES);
+        let (width, height) = app.terminal.size();
+        let buttons = (0..height)
+            .map(|y| {
+                (0..width)
+                    .filter_map(|x| app.terminal.read_cell(x, y))
+                    .map(|cell| cell.ch)
+                    .collect::<String>()
+            })
+            .find(|row| row.contains("Yes"))
+            .expect("a row with the Yes button");
+        assert!(
+            buttons.contains("No") && buttons.contains("Cancel"),
+            "{buttons:?}"
+        );
+        assert!(!buttons.contains("OK"), "{buttons:?}");
+    }
+
+    #[test]
+    fn goto_line_buttons_sit_above_the_bottom_frame() {
+        use crate::core::event::{Event, KB_ESC};
+        let mut app = Application::with_terminal(crate::test_util::test_terminal(80, 25));
+        app.terminal
+            .event_injector()
+            .send(Event::keyboard(KB_ESC))
+            .unwrap();
+        assert_eq!(goto_line_box(&mut app, "Go to line"), None);
+        let row = |y| -> String {
+            (0..80)
+                .filter_map(|x| app.terminal.read_cell(x, y))
+                .map(|cell| cell.ch)
+                .collect()
+        };
+        let buttons = (0..25)
+            .find(|&y| row(y).contains("Cancel"))
+            .expect("a row of buttons");
+        let bottom = (0..25)
+            .find(|&y| row(y).contains(['╚', '└']))
+            .expect("the bottom frame");
+        // The button row, then its shadow, then the frame.
+        assert!(
+            bottom >= buttons + 2,
+            "buttons on row {buttons}, frame on {bottom}"
+        );
+    }
 
     #[test]
     fn auto_dismiss_prefers_ok_then_first_button() {
