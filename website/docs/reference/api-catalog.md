@@ -503,6 +503,10 @@ starts in English. With the feature off, messages are read as plain text with
   - `arg(self, name: &'static str, value: impl Into<LazyArg>) -> Self` - Text, a number or another `LazyMessage`; a repeated name replaces its value
   - `id(&self) -> &str`, `resolve(&self) -> String` (also `to_string()`, `String::from(&message)`)
 - `enum LazyArg` - `Value(Arg<'static>)`, `Message(LazyMessage)`; `From` everything `Arg` takes, and `LazyMessage`.
+- `check_translation(reference: &str, translation: &str) -> TranslationReport` (`src/i18n/check.rs`) - Compare a translation with the English file: syntax, missing and extra ids, placeholders the reference lacks, badly marked hot keys. For an application's tests.
+- `struct TranslationReport { syntax, missing, extra, placeholders, hot_keys }` - Each a `Vec<String>`, one line per problem; `is_ok()`, `problems() -> Vec<String>`, `Display` (one problem per line).
+- `check_hot_key_groups(source: &str, groups: &[&[&str]]) -> Vec<String>` - Two messages of a group (one dialog or menu) that mark the same letter, and group ids the file lacks.
+- `built_in_source(locale: &str) -> Option<&'static str>` - The Fluent source of Turbo Vision's own messages in a shipped locale.
 - `tr_lazy!(id)`, `tr_lazy!(id, name = value, ...)` - Like `tr!`, but makes a `LazyMessage` (exported at the crate root).
 - `has_message(id: &str) -> bool`
 - `set_locale(tag: &str) -> String` - Choose the locale (`"ca"`, `"es-MX"`, `"ca_ES.UTF-8"`); returns the locale used first.

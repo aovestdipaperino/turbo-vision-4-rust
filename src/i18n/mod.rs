@@ -42,10 +42,15 @@
 //! [`tr_lazy!`](crate::tr_lazy)): an id and its arguments, translated when
 //! it is displayed, in the locale of the thread that displays it.
 //!
+//! [`check_translation`] and [`check_hot_key_groups`] check translation
+//! files from a test: the same ids as the English, valid Fluent, known
+//! placeholders, and hot keys that are well marked and do not clash.
+//!
 //! With the `i18n` cargo feature off there is no Fluent: each message is
 //! taken as plain text with `{ $name }` placeholders, which is enough for
 //! the built-in English messages. Selectors and functions need the feature.
 
+mod check;
 #[cfg(feature = "i18n")]
 mod fluent_backend;
 #[cfg(test)]
@@ -53,6 +58,7 @@ mod layout_check;
 mod lazy;
 mod simple;
 
+pub use check::{TranslationReport, check_hot_key_groups, check_translation};
 pub use lazy::{LazyArg, LazyMessage};
 
 #[cfg(feature = "i18n")]
@@ -75,9 +81,23 @@ const BUILT_IN: &[(&str, &str)] = &[
     ("ca", include_str!("../../locales/ca/turbo-vision.ftl")),
 ];
 
-/// The built-in Fluent source of `locale`, for tests elsewhere in the crate.
-#[cfg(test)]
-pub(crate) fn built_in_source(locale: &str) -> Option<&'static str> {
+/// The Fluent source of Turbo Vision's own messages in `locale` (`"en"`,
+/// `"es"`, `"ca"`), or `None` for a language the crate does not ship.
+///
+/// An application that ships its own translation of these messages checks
+/// it against the English of the crate version it is built with, so a
+/// message added by an upgrade shows up as missing:
+///
+/// ```
+/// use turbo_vision::i18n::{built_in_source, check_translation};
+///
+/// let english = built_in_source("en").unwrap();
+/// // In the application: include_str!("../locales/ca/turbo-vision.ftl").
+/// let catalan = built_in_source("ca").unwrap();
+/// assert!(check_translation(english, catalan).is_ok());
+/// ```
+#[must_use]
+pub fn built_in_source(locale: &str) -> Option<&'static str> {
     BUILT_IN
         .iter()
         .find(|(tag, _)| *tag == locale)
@@ -598,26 +618,14 @@ mod tests {
         set_locale("en");
     }
 
-    /// The ids of each built-in locale, in file order.
-    fn built_in_ids() -> Vec<(&'static str, Vec<String>)> {
-        BUILT_IN
-            .iter()
-            .map(|(locale, source)| {
-                let messages = simple::parse(source).unwrap_or_else(|p| panic!("{locale}: {p:?}"));
-                (*locale, messages.into_iter().map(|(id, _)| id).collect())
-            })
-            .collect()
-    }
-
     #[test]
-    fn every_built_in_locale_has_exactly_the_english_ids() {
-        let locales = built_in_ids();
-        let (_, english) = &locales[0];
-        for (locale, ids) in &locales[1..] {
-            let missing: Vec<_> = english.iter().filter(|id| !ids.contains(id)).collect();
-            let extra: Vec<_> = ids.iter().filter(|id| !english.contains(id)).collect();
-            assert!(missing.is_empty(), "{locale}.ftl lacks {missing:?}");
-            assert!(extra.is_empty(), "{locale}.ftl has unknown ids {extra:?}");
+    fn every_built_in_locale_checks_out_against_english() {
+        // The same check an application runs on its files: the English ids
+        // exactly, valid Fluent, known placeholders, well-marked hot keys.
+        let english = built_in_source("en").unwrap();
+        for (locale, source) in BUILT_IN {
+            let report = check_translation(english, source);
+            assert!(report.is_ok(), "{locale}.ftl:\n{report}");
         }
     }
 
@@ -652,30 +660,11 @@ mod tests {
         &["button-ok", "button-cancel"],
     ];
 
-    /// The hot key of `text`: the letter between the `~`, lowercased.
-    fn hot_key(text: &str) -> Option<String> {
-        let start = text.find('~')? + 1;
-        let end = start + text[start..].find('~')?;
-        Some(text[start..end].to_lowercase())
-    }
-
     #[test]
     fn hot_keys_are_unique_within_each_dialog_in_every_locale() {
         for (locale, source) in BUILT_IN {
-            let messages: HashMap<String, String> =
-                simple::parse(source).unwrap().into_iter().collect();
-            for group in HOT_KEY_GROUPS {
-                let mut seen: Vec<(String, &str)> = Vec::new();
-                for id in *group {
-                    let Some(key) = hot_key(&messages[*id]) else {
-                        continue;
-                    };
-                    if let Some((_, other)) = seen.iter().find(|(k, _)| *k == key) {
-                        panic!("{locale}: '{id}' and '{other}' both use Alt+{key}");
-                    }
-                    seen.push((key, id));
-                }
-            }
+            let clashes = check_hot_key_groups(source, HOT_KEY_GROUPS);
+            assert!(clashes.is_empty(), "{locale}: {clashes:?}");
         }
     }
 
@@ -767,36 +756,6 @@ mod tests {
             }
         }
         assert!(too_wide.is_empty(), "{}", too_wide.join("\n"));
-    }
-
-    #[test]
-    fn every_hot_key_can_be_pressed_with_alt() {
-        // Alt+letter exists for A-Z only: a hot key on `Á` or `Ç` could be
-        // typed, but never reached with Alt from an input line.
-        for (locale, source) in BUILT_IN {
-            for (id, text) in simple::parse(source).unwrap() {
-                if let Some(key) = hot_key(&text) {
-                    let letter = key.chars().next().unwrap_or(' ');
-                    assert!(
-                        key.chars().count() == 1 && crate::core::event::alt_code(letter).is_some(),
-                        "{locale}: '{id}' marks {key:?}, which has no Alt key"
-                    );
-                }
-            }
-        }
-    }
-
-    #[test]
-    fn every_hot_key_message_has_one_marked_letter() {
-        for (locale, source) in BUILT_IN {
-            for (id, text) in simple::parse(source).unwrap() {
-                let tildes = text.matches('~').count();
-                assert!(
-                    tildes == 0 || tildes == 2,
-                    "{locale}: '{id}' has {tildes} '~'"
-                );
-            }
-        }
     }
 
     #[test]
