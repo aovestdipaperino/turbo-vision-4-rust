@@ -50,6 +50,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   translated messages.
 
 ### Fixed
+- The file dialog's buttons no longer cover the file list when their text is
+  longer than in English. In Catalan, "Cancel·la" widened both buttons
+  leftwards over the list's last column; the list and the name field now end
+  one column before the buttons, however wide they grow.
+- A test builds every built-in dialog in each built-in language, and in a
+  made-up one whose messages are half as long again, and fails when a
+  control overlaps another or the frame.
 - `TextViewer` no longer panics on a line wider than the viewer that holds
   multi-byte characters (`é`, `ñ`, `−`, `€`): it cut each visible line by
   byte offset, which could fall inside a character. Lines are now cut, and

@@ -13,6 +13,7 @@ use crate::core::geometry::Rect;
 use crate::core::state::{deprecated_aliases, flags};
 use crate::i18n::tr;
 use crate::views::group::GroupLike;
+use crate::views::handle::Handle;
 use std::time::Duration;
 
 flags! {
@@ -59,7 +60,14 @@ pub const MESSAGE_BOX_AUTO_DISMISS_TIMEOUT: Duration = Duration::from_secs(3);
 /// dialog stays at a fixed 60-column max width; long messages grow
 /// the dialog vertically instead.
 pub fn message_box(app: &mut Application, message: &str, options: MsgBox) -> CommandId {
-    let (screen_w, screen_h) = app.terminal.size();
+    let (bounds, wrapped) = message_box_bounds(app.terminal.size(), message, options);
+    message_box_rect(app, bounds, &wrapped, options)
+}
+
+/// Where [`message_box`] puts its box on a `screen` of that size, and the
+/// message wrapped to fit it.
+fn message_box_bounds(screen: (i16, i16), message: &str, options: MsgBox) -> (Rect, String) {
+    let (screen_w, screen_h) = screen;
 
     // Fixed dialog width — keep modal dialogs neat and consistent.
     let target_w = 60usize;
@@ -93,8 +101,7 @@ pub fn message_box(app: &mut Application, message: &str, options: MsgBox) -> Com
     let y = (screen_h - height as i16) / 2;
 
     let bounds = Rect::new(x, y, x + width as i16, y + height as i16);
-
-    message_box_rect(app, bounds, &wrapped, options)
+    (bounds, wrapped)
 }
 
 /// Word-wrap `message` so every line is at most `max_width` characters
@@ -183,6 +190,11 @@ pub fn message_box_rect(
     message: &str,
     options: MsgBox,
 ) -> CommandId {
+    message_box_dialog(bounds, message, options).execute(app)
+}
+
+/// The message box [`message_box_rect`] shows, ready to execute.
+fn message_box_dialog(bounds: Rect, message: &str, options: MsgBox) -> Dialog {
     // Determine title based on message type
     let title = match options & MSGBOX_TYPE_MASK {
         MsgBox::WARNING => format!("\u{26A0} {}", tr("msgbox-warning")),
@@ -232,7 +244,7 @@ pub fn message_box_rect(
     }
 
     dialog.set_initial_focus();
-    dialog.execute(app)
+    dialog
 }
 
 /// The buttons `options` asks for, as (label, command), in display order.
@@ -392,18 +404,8 @@ pub fn input_box(
     initial: &str,
     max_length: usize,
 ) -> Option<String> {
-    // Calculate dialog size
-    let label_len = label.chars().count();
-    let width = (label_len + max_length + 12).clamp(30, 60);
-    let height = 8;
-
-    // Center on screen
-    let (screen_w, screen_h) = app.terminal.size();
-    let x = (screen_w - width as i16) / 2;
-    let y = (screen_h - height as i16) / 2;
-
-    let bounds = Rect::new(x, y, x + width as i16, y + height as i16);
-
+    let (width, height) = input_box_size(label, max_length);
+    let bounds = centered(app, width, height);
     input_box_rect(app, bounds, title, label, initial, max_length)
 }
 
@@ -416,6 +418,22 @@ pub fn input_box_rect(
     initial: &str,
     max_length: usize,
 ) -> Option<String> {
+    let (mut dialog, input) = input_dialog(bounds, title, label, initial, max_length);
+    if dialog.execute(app) == CM_OK {
+        dialog.get(input).map(|f| f.text().to_string())
+    } else {
+        None
+    }
+}
+
+/// The dialog of [`input_box_rect`] and its input line.
+fn input_dialog(
+    bounds: Rect,
+    title: &str,
+    label: &str,
+    initial: &str,
+    max_length: usize,
+) -> (Dialog, Handle<InputLine>) {
     let mut dialog = Dialog::new(bounds, title);
 
     // Add label
@@ -441,14 +459,29 @@ pub fn input_box_rect(
     );
 
     dialog.set_initial_focus();
+    (dialog, input)
+}
 
-    let result = dialog.execute(app);
+/// The size of [`input_box`]: room for the label and the text, 30 to 60
+/// columns wide.
+fn input_box_size(label: &str, max_length: usize) -> (i16, i16) {
+    let width = (label.chars().count() + max_length + 12).clamp(30, 60);
+    (i16::try_from(width).unwrap_or(60), 8)
+}
 
-    if result == CM_OK {
-        dialog.get(input).map(|f| f.text().to_string())
-    } else {
-        None
-    }
+/// The size of [`search_box`].
+const SEARCH_BOX_SIZE: (i16, i16) = (50, 9);
+/// The size of [`search_replace_box`].
+const REPLACE_BOX_SIZE: (i16, i16) = (50, 13);
+/// The size of [`goto_line_box`].
+const GOTO_LINE_BOX_SIZE: (i16, i16) = (40, 8);
+
+/// `width` by `height` bounds in the middle of the screen.
+fn centered(app: &Application, width: i16, height: i16) -> Rect {
+    let (screen_w, screen_h) = app.terminal.size();
+    let x = (screen_w - width) / 2;
+    let y = (screen_h - height) / 2;
+    Rect::new(x, y, x + width, y + height)
 }
 
 /// Display a search dialog that prompts the user for search text
@@ -464,17 +497,22 @@ pub fn input_box_rect(
 /// }
 /// ```
 pub fn search_box(app: &mut Application, title: &str) -> Option<String> {
-    // Calculate dialog size
-    let width = 50;
-    let height = 9;
+    let (mut dialog, input) =
+        search_dialog(centered(app, SEARCH_BOX_SIZE.0, SEARCH_BOX_SIZE.1), title);
+    if dialog.execute(app) == CM_OK {
+        let text = dialog
+            .get(input)
+            .map(|f| f.text().to_string())
+            .unwrap_or_default();
+        (!text.is_empty()).then_some(text)
+    } else {
+        None
+    }
+}
 
-    // Center on screen
-    let (screen_w, screen_h) = app.terminal.size();
-    let x = (screen_w - width) / 2;
-    let y = (screen_h - height) / 2;
-
-    let bounds = Rect::new(x, y, x + width, y + height);
-
+/// The dialog of [`search_box`] and its input line.
+fn search_dialog(bounds: Rect, title: &str) -> (Dialog, Handle<InputLine>) {
+    let width = bounds.width();
     let mut dialog = Dialog::new(bounds, title);
 
     // Add label
@@ -489,18 +527,7 @@ pub fn search_box(app: &mut Application, title: &str) -> Option<String> {
     add_button_row(&mut dialog, 15, 5, &ok_cancel());
 
     dialog.set_initial_focus();
-
-    let result = dialog.execute(app);
-
-    if result == CM_OK {
-        let text = dialog
-            .get(input)
-            .map(|f| f.text().to_string())
-            .unwrap_or_default();
-        (!text.is_empty()).then_some(text)
-    } else {
-        None
-    }
+    (dialog, input)
 }
 
 /// Display a search and replace dialog that prompts for find and replace text
@@ -516,17 +543,31 @@ pub fn search_box(app: &mut Application, title: &str) -> Option<String> {
 /// }
 /// ```
 pub fn search_replace_box(app: &mut Application, title: &str) -> Option<(String, String)> {
-    // Calculate dialog size
-    let width = 50;
-    let height = 13;
+    let (mut dialog, find_input, replace_input) =
+        search_replace_dialog(centered(app, REPLACE_BOX_SIZE.0, REPLACE_BOX_SIZE.1), title);
+    if dialog.execute(app) == CM_OK {
+        let text_of = |h| {
+            dialog
+                .get(h)
+                .map(|f: &InputLine| f.text().to_string())
+                .unwrap_or_default()
+        };
+        let find_text = text_of(find_input);
+        (!find_text.is_empty()).then(|| {
+            let replace_text = text_of(replace_input);
+            (find_text, replace_text)
+        })
+    } else {
+        None
+    }
+}
 
-    // Center on screen
-    let (screen_w, screen_h) = app.terminal.size();
-    let x = (screen_w - width) / 2;
-    let y = (screen_h - height) / 2;
-
-    let bounds = Rect::new(x, y, x + width, y + height);
-
+/// The dialog of [`search_replace_box`] and its find and replace lines.
+fn search_replace_dialog(
+    bounds: Rect,
+    title: &str,
+) -> (Dialog, Handle<InputLine>, Handle<InputLine>) {
+    let width = bounds.width();
     let mut dialog = Dialog::new(bounds, title);
 
     // Add find label
@@ -549,24 +590,7 @@ pub fn search_replace_box(app: &mut Application, title: &str) -> Option<(String,
     add_button_row(&mut dialog, 15, 9, &ok_cancel());
 
     dialog.set_initial_focus();
-
-    let result = dialog.execute(app);
-
-    if result == CM_OK {
-        let text_of = |h| {
-            dialog
-                .get(h)
-                .map(|f: &InputLine| f.text().to_string())
-                .unwrap_or_default()
-        };
-        let find_text = text_of(find_input);
-        (!find_text.is_empty()).then(|| {
-            let replace_text = text_of(replace_input);
-            (find_text, replace_text)
-        })
-    } else {
-        None
-    }
+    (dialog, find_input, replace_input)
 }
 
 /// Display a goto line dialog that prompts for a line number
@@ -582,17 +606,20 @@ pub fn search_replace_box(app: &mut Application, title: &str) -> Option<(String,
 /// }
 /// ```
 pub fn goto_line_box(app: &mut Application, title: &str) -> Option<usize> {
-    // Calculate dialog size
-    let width = 40;
-    let height = 8;
+    let (width, height) = GOTO_LINE_BOX_SIZE;
+    let (mut dialog, input) = goto_line_dialog(centered(app, width, height), title);
+    if dialog.execute(app) == CM_OK {
+        dialog
+            .get(input)
+            .and_then(|f| f.text().parse::<usize>().ok())
+    } else {
+        None
+    }
+}
 
-    // Center on screen
-    let (screen_w, screen_h) = app.terminal.size();
-    let x = (screen_w - width) / 2;
-    let y = (screen_h - height) / 2;
-
-    let bounds = Rect::new(x, y, x + width, y + height);
-
+/// The dialog of [`goto_line_box`] and its input line.
+fn goto_line_dialog(bounds: Rect, title: &str) -> (Dialog, Handle<InputLine>) {
+    let width = bounds.width();
     let mut dialog = Dialog::new(bounds, title);
 
     // Add label
@@ -607,16 +634,32 @@ pub fn goto_line_box(app: &mut Application, title: &str) -> Option<usize> {
     add_button_row(&mut dialog, 10, 5, &ok_cancel());
 
     dialog.set_initial_focus();
+    (dialog, input)
+}
 
-    let result = dialog.execute(app);
+/// The built-in dialogs, built but not shown, for the layout tests.
+#[cfg(test)]
+pub(crate) fn built_message_box(screen: (i16, i16), message: &str, options: MsgBox) -> Dialog {
+    let (bounds, wrapped) = message_box_bounds(screen, message, options);
+    message_box_dialog(bounds, &wrapped, options)
+}
 
-    if result == CM_OK {
-        dialog
-            .get(input)
-            .and_then(|f| f.text().parse::<usize>().ok())
-    } else {
-        None
-    }
+#[cfg(test)]
+pub(crate) fn built_input_box(label: &str, max: usize) -> Dialog {
+    let (width, height) = input_box_size(label, max);
+    input_dialog(Rect::new(0, 0, width, height), "Input", label, "", max).0
+}
+
+#[cfg(test)]
+pub(crate) fn built_search_box() -> Dialog {
+    let (width, height) = SEARCH_BOX_SIZE;
+    search_dialog(Rect::new(0, 0, width, height), "Find").0
+}
+
+#[cfg(test)]
+pub(crate) fn built_replace_box() -> Dialog {
+    let (width, height) = REPLACE_BOX_SIZE;
+    search_replace_dialog(Rect::new(0, 0, width, height), "Replace").0
 }
 
 #[cfg(test)]

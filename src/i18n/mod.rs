@@ -44,6 +44,8 @@
 
 #[cfg(feature = "i18n")]
 mod fluent_backend;
+#[cfg(test)]
+mod layout_check;
 mod simple;
 
 #[cfg(feature = "i18n")]
@@ -65,6 +67,19 @@ const BUILT_IN: &[(&str, &str)] = &[
     ("es", include_str!("../../locales/es/turbo-vision.ftl")),
     ("ca", include_str!("../../locales/ca/turbo-vision.ftl")),
 ];
+
+/// The built-in Fluent source of `locale`, for tests elsewhere in the crate.
+#[cfg(test)]
+pub(crate) fn built_in_source(locale: &str) -> Option<&'static str> {
+    BUILT_IN
+        .iter()
+        .find(|(tag, _)| *tag == locale)
+        .map(|(_, source)| *source)
+}
+
+/// The messages of a plain Fluent `source`, for tests elsewhere in the crate.
+#[cfg(test)]
+pub(crate) use simple::parse as parse_plain;
 
 /// A value for a message's `{ $name }` placeholder.
 ///
