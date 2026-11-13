@@ -547,9 +547,10 @@ pub fn search_replace_box(app: &mut Application, title: &str) -> Option<(String,
 /// }
 /// ```
 pub fn goto_line_box(app: &mut Application, title: &str) -> Option<usize> {
-    // Calculate dialog size
+    // Calculate dialog size: nine rows, like the search box, so the
+    // buttons and their shadow sit above the bottom frame.
     let width = 40;
-    let height = 8;
+    let height = 9;
 
     // Center on screen
     let (screen_w, screen_h) = app.terminal.size();
@@ -630,6 +631,34 @@ mod tests {
             "{buttons:?}"
         );
         assert!(!buttons.contains("OK"), "{buttons:?}");
+    }
+
+    #[test]
+    fn goto_line_buttons_sit_above_the_bottom_frame() {
+        use crate::core::event::{Event, KB_ESC};
+        let mut app = Application::with_terminal(crate::test_util::test_terminal(80, 25));
+        app.terminal
+            .event_injector()
+            .send(Event::keyboard(KB_ESC))
+            .unwrap();
+        assert_eq!(goto_line_box(&mut app, "Go to line"), None);
+        let row = |y| -> String {
+            (0..80)
+                .filter_map(|x| app.terminal.read_cell(x, y))
+                .map(|cell| cell.ch)
+                .collect()
+        };
+        let buttons = (0..25)
+            .find(|&y| row(y).contains("Cancel"))
+            .expect("a row of buttons");
+        let bottom = (0..25)
+            .find(|&y| row(y).contains(['╚', '└']))
+            .expect("the bottom frame");
+        // The button row, then its shadow, then the frame.
+        assert!(
+            bottom >= buttons + 2,
+            "buttons on row {buttons}, frame on {bottom}"
+        );
     }
 
     #[test]
