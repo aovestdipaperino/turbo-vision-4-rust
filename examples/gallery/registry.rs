@@ -327,6 +327,15 @@ pub const DEMOS: &[Demo] = &[
         handle: Some(demos::help::handle),
     },
     Demo {
+        name: "Languages",
+        group: Group::Dialogs,
+        module: "i18n",
+        source: include_str!("demos/languages.rs"),
+        height: 5,
+        build: demos::languages::build,
+        handle: Some(demos::languages::handle),
+    },
+    Demo {
         name: "Message boxes",
         group: Group::Dialogs,
         module: "views::msgbox",

@@ -23,14 +23,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   isolation marks, which a terminal would show as junk. With the feature
   off, the messages are read as plain text with `{ $name }` placeholders.
 - `Application::set_help_file` loads the current locale's version of the
-  file (`manual.ca.md` for `manual.md`) when it exists; `i18n::localized_path`
-  does the lookup.
+  file when it exists: `manual.ca-ES.md`, then `manual.ca.md`, for
+  `manual.md`. `i18n::localized_path` does the lookup.
 - `button::width_for_title`: the width a button needs for a title. The
-  message boxes, the input, Find, Replace and Go to line boxes and the file
-  dialog size their buttons, labels and the "Show hidden" check box from
-  the translated text. English layouts are unchanged.
+  message boxes, the input, Find, Replace and Go to line boxes, and the file,
+  change-directory, colour and help dialogs size their buttons, labels and
+  the "Show hidden" check box from the translated text. English layouts are
+  unchanged. Tests check, in every built-in language, that the texts in
+  fixed-size areas fit and that every hot key is a letter with an Alt key.
 - `examples/i18n.rs`: an application in English, Spanish and Catalan,
-  switching language while it runs.
+  switching language while it runs. The gallery has a Languages demo.
+- Chapter 19 of the user guide, Localization: translating an application,
+  Fluent messages, choosing and changing the language, hot keys and room in
+  other languages, testing, and adding a language to the crate. Its code is
+  compiled as doctests.
 - `Table` rows, columns and single cells can be formatted: `CellFormat`
   (text colour, background colour, style flags such as bold or underline) with
   `set_row_format`, `set_column_format`, `set_cell_format` and `clear_formats`.

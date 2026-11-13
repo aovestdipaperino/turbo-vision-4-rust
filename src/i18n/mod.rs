@@ -318,9 +318,11 @@ pub fn system_locale() -> Option<String> {
         .and_then(|value| normalize_tag(&value))
 }
 
-/// The version of a file for the current locale: for `help/manual.md` and the
-/// chain `ca-ES, ca, en`, the first of `help/manual.ca-ES.md`,
-/// `help/manual.ca.md` and `help/manual.en.md` that exists, else `path`.
+/// The version of a file for the current locale: with `ca-ES` asked for,
+/// the first of `help/manual.ca-ES.md`, `help/manual.ca.md` and
+/// `help/manual.en.md` that exists, else `path` itself. The requested tag and
+/// its shorter forms are tried even when no translations exist for them, so
+/// a help file can be regional while the messages are not.
 #[must_use]
 pub fn localized_path(path: impl AsRef<Path>) -> PathBuf {
     let path = path.as_ref();
@@ -328,7 +330,21 @@ pub fn localized_path(path: impl AsRef<Path>) -> PathBuf {
         return path.to_path_buf();
     };
     let extension = path.extension();
-    locale_chain()
+    let mut locales: Vec<String> = Vec::new();
+    let mut prefix = requested_locale();
+    loop {
+        locales.push(prefix.clone());
+        match prefix.rfind('-') {
+            Some(cut) => prefix.truncate(cut),
+            None => break,
+        }
+    }
+    for locale in locale_chain() {
+        if !locales.contains(&locale) {
+            locales.push(locale);
+        }
+    }
+    locales
         .iter()
         .map(|locale| {
             let mut name = stem.to_os_string();
@@ -547,6 +563,11 @@ mod tests {
         assert_eq!(localized_path(&base), dir.path().join("manual.ca.md"));
         set_locale("es");
         assert_eq!(localized_path(&base), base);
+        // A regional file counts even with no ca-ES translations.
+        std::fs::write(dir.path().join("manual.ca-ES.md"), "ca-ES").unwrap();
+        set_locale("ca_ES.UTF-8");
+        assert_eq!(localized_path(&base), dir.path().join("manual.ca-ES.md"));
+        set_locale("en");
     }
 
     /// The ids of each built-in locale, in file order.
@@ -625,6 +646,113 @@ mod tests {
                         panic!("{locale}: '{id}' and '{other}' both use Alt+{key}");
                     }
                     seen.push((key, id));
+                }
+            }
+        }
+    }
+
+    /// Messages shown in a space of fixed width, with the most columns
+    /// (widest line, `~` markers left out) each may take. The other
+    /// messages sit in views sized from their text.
+    const FIXED_SLOTS: &[(&str, usize, &str)] = &[
+        // Help index: "Search:" label 8 wide before its input, "Topics:" 10.
+        ("help-index-search", 7, "help_index.rs: Label (2, 4, 10, 5)"),
+        ("help-index-topics", 9, "help_index.rs: Label (2, 6, 12, 7)"),
+        // Colour dialog, as laid out in a 52-column dialog (the gallery's).
+        (
+            "color-dialog-prompt",
+            46,
+            "color_dialog.rs: StaticText (2, 2, w - 4)",
+        ),
+        (
+            "color-dialog-foreground",
+            18,
+            "color_dialog.rs: StaticText (2, 4, 20, 5)",
+        ),
+        (
+            "color-dialog-background",
+            18,
+            "color_dialog.rs: StaticText (2, 9, 20, 10)",
+        ),
+        (
+            "color-dialog-preview",
+            20,
+            "color_dialog.rs: StaticText (28, 5, w - 4)",
+        ),
+        (
+            "color-dialog-sample",
+            20,
+            "color_dialog.rs: StaticText (28, 6, w - 4)",
+        ),
+        (
+            "color-selector-selected",
+            24,
+            "color_dialog.rs: ColorSelector (2, 5, 26, 8)",
+        ),
+        // Change directory: the buttons grow up to 14 columns, 10 of text.
+        ("button-ok", 10, "chdir_dialog.rs: buttons at x 53..67"),
+        ("chdir-chdir", 10, "chdir_dialog.rs: buttons at x 53..67"),
+        ("chdir-revert", 10, "chdir_dialog.rs: buttons at x 53..67"),
+        // Frame titles: the message box is at least 30 wide; its title has
+        // an icon, the close box and the frame around it.
+        ("msgbox-warning", 18, "msgbox.rs: title of a 30-column box"),
+        ("msgbox-error", 18, "msgbox.rs: title of a 30-column box"),
+        (
+            "msgbox-information",
+            18,
+            "msgbox.rs: title of a 30-column box",
+        ),
+        ("msgbox-confirm", 18, "msgbox.rs: title of a 30-column box"),
+        ("msgbox-about", 18, "msgbox.rs: title of a 30-column box"),
+        ("msgbox-message", 18, "msgbox.rs: title of a 30-column box"),
+        ("history-title", 20, "history_window.rs: 30-column window"),
+        // The "Show hidden" box starts at column 14 or later and must end
+        // before the buttons of a 60-column file dialog (column 45).
+        (
+            "file-dialog-show-hidden",
+            27,
+            "file_dialog.rs: CheckBox (14, 5, ..)",
+        ),
+    ];
+
+    #[test]
+    fn translations_fit_their_fixed_slots() {
+        use unicode_width::UnicodeWidthStr;
+        // The widest values the placeholders take in those slots.
+        let args = [
+            ("color", Arg::from(15)),
+            ("hex", Arg::from("0x0F")),
+            ("name", Arg::from("Untitled")),
+        ];
+        let mut too_wide = Vec::new();
+        for (locale, source) in BUILT_IN {
+            let messages: HashMap<String, String> =
+                simple::parse(source).unwrap().into_iter().collect();
+            for (id, max, slot) in FIXED_SLOTS {
+                let text = simple::substitute(&messages[*id], &args).replace('~', "");
+                let width = text.lines().map(UnicodeWidthStr::width).max().unwrap_or(0);
+                if width > *max {
+                    too_wide.push(format!(
+                        "{locale}: '{id}' is {width} > {max} ({slot}): {text:?}"
+                    ));
+                }
+            }
+        }
+        assert!(too_wide.is_empty(), "{}", too_wide.join("\n"));
+    }
+
+    #[test]
+    fn every_hot_key_can_be_pressed_with_alt() {
+        // Alt+letter exists for A-Z only: a hot key on `Á` or `Ç` could be
+        // typed, but never reached with Alt from an input line.
+        for (locale, source) in BUILT_IN {
+            for (id, text) in simple::parse(source).unwrap() {
+                if let Some(key) = hot_key(&text) {
+                    let letter = key.chars().next().unwrap_or(' ');
+                    assert!(
+                        key.chars().count() == 1 && crate::core::event::alt_code(letter).is_some(),
+                        "{locale}: '{id}' marks {key:?}, which has no Alt key"
+                    );
                 }
             }
         }

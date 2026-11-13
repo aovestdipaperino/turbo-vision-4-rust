@@ -633,7 +633,8 @@ fn main() -> turbo_vision::core::error::Result<()> {
 - `add_translations` can also replace a built-in message, for example
   `button-ok = ~A~ccept`. The ids are in `locales/en/turbo-vision.ftl`.
 - `cargo run --example i18n` shows the language switching while the program
-  runs.
+  runs. The whole story, including adding a language to the crate, is in
+  [Chapter 19](docs/user-guide/Chapter-19-Localization.md) of the user guide.
 
 ### Test a screen without a terminal
 
@@ -752,7 +753,8 @@ fn enter_presses_ok() {
 | Document | What it covers |
 |----------|----------------|
 | [`docs/RUST-API-CATALOG.md`](docs/RUST-API-CATALOG.md) | Every public type and method, by module. |
-| [`docs/user-guide/`](docs/user-guide/) | The 18-chapter user guide (Borland's, ported): application, events, views, windows, dialogs, controls, validation, editors, help, palettes. |
+| [`docs/user-guide/`](docs/user-guide/) | The 19-chapter user guide (Borland's, ported, plus localization): application, events, views, windows, dialogs, controls, validation, editors, help, palettes, translations. |
+| [`docs/user-guide/Chapter-19-Localization.md`](docs/user-guide/Chapter-19-Localization.md) | Translating an application with Fluent, changing the language at run time, hot keys and room in other languages, adding a language to the crate. |
 | [`docs/OWNER-COORDINATES.md`](docs/OWNER-COORDINATES.md) | How owner-relative coordinates work. |
 | [`docs/PALETTE-SYSTEM.md`](docs/PALETTE-SYSTEM.md) | How colours are looked up by role. |
 | [`docs/MORE-CONTROLS.md`](docs/MORE-CONTROLS.md) | What was added beyond Borland, and the roadmap. |
