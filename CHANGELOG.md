@@ -50,6 +50,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   translated messages.
 
 ### Fixed
+- The file dialog's buttons no longer cover the file list when their text is
+  longer than in English. In Catalan, "Cancel·la" widened both buttons
+  leftwards over the list's last column; the list and the name field now end
+  one column before the buttons, however wide they grow.
+- A test builds every built-in dialog in each built-in language, and in a
+  made-up one whose messages are half as long again, and fails when a
+  control overlaps another or the frame.
 - `MsgBox::YES_NO_CANCEL` is Yes, No and Cancel (`0x0B00`, Borland's
   `mfYesNoCancel`). It was `0x0E00`, which is No, OK and Cancel, so
   `confirmation_box` had no Yes button. In an editor's "has been modified.

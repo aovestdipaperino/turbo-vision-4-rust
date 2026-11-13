@@ -306,8 +306,16 @@ impl FileDialog {
         let bounds = self.dialog.bounds();
         let dialog_width = bounds.width();
 
-        // Reserve space for buttons on the right
-        let content_width = dialog_width - 15;
+        // The buttons on the right: 11 wide, or wider for a long
+        // translation, their right edge 3 columns in from the frame.
+        let button_text = format!("  {}  ", self.button_label);
+        let cancel_text = format!(" {} ", tr("button-cancel"));
+        let button_width = width_for_title(&button_text, 11).max(width_for_title(&cancel_text, 11));
+        let button_x = dialog_width - 3 - button_width;
+
+        // The fields end one column before the buttons (column 45 of a
+        // 60-wide dialog in English), so wider buttons never cover them.
+        let content_width = button_x - 1;
 
         // Label for file name input; the input starts after it, at column
         // 12 unless the translated label is longer.
@@ -351,17 +359,9 @@ impl FileDialog {
             self.set_file_name_text(text);
         }
 
-        // Buttons on the right side (vertically stacked)
-        let button_x = dialog_width - 14; // 15 = 12 (button width) + 2 (right margin) + 1 (end space)
+        // Buttons on the right side (vertically stacked): Open (or Save)
+        // and Cancel.
         let mut button_y = 6;
-
-        // Create button with appropriate label (Open, Save, etc.)
-        // Pad the button label to maintain consistent button width
-        let button_text = format!("  {}  ", self.button_label);
-        let cancel_text = format!(" {} ", tr("button-cancel"));
-        // 11 wide, or wider for a long translation; the right edge stays.
-        let button_width = width_for_title(&button_text, 11).max(width_for_title(&cancel_text, 11));
-        let button_x = button_x + 11 - button_width;
         let open_button = Button::new(
             Rect::new(button_x, button_y, button_x + button_width, button_y + 2),
             &button_text,
