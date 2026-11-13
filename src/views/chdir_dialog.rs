@@ -387,20 +387,31 @@ impl ChDirDialog {
         dialog.add(tree_label);
 
         // OK button - adjusted: TRect( 53, 6, 63, 8 )
-        let ok_bounds = Rect::new(53, 6, 63, 8);
-        let ok_button = Button::new(ok_bounds, &tr("button-ok"), CM_OK, true);
+        // The three buttons share one width: 10, or up to the frame (14)
+        // for a long translation.
+        let ok_text = tr("button-ok");
+        let chdir_text = tr("chdir-chdir");
+        let revert_text = tr("chdir-revert");
+        let button_width = [&ok_text, &chdir_text, &revert_text]
+            .iter()
+            .map(|title| width_for_title(title, 10))
+            .max()
+            .unwrap_or(10)
+            .min(14);
+        let ok_bounds = Rect::new(53, 6, 53 + button_width, 8);
+        let ok_button = Button::new(ok_bounds, &ok_text, CM_OK, true);
         let ok_button_id = dialog.add(ok_button);
 
         // Chdir button - adjusted: TRect( 53, 9, 63, 11 )
-        let chdir_bounds = Rect::new(53, 9, 63, 11);
-        let mut chdir_button = Button::new(chdir_bounds, &tr("chdir-chdir"), CM_CHANGE_DIR, false);
+        let chdir_bounds = Rect::new(53, 9, 53 + button_width, 11);
+        let mut chdir_button = Button::new(chdir_bounds, &chdir_text, CM_CHANGE_DIR, false);
         chdir_button.set_broadcast(true); // Broadcast instead of ending dialog
         chdir_button.set_selectable(false); // Not part of focus cycle
         let chdir_button_id = dialog.add(chdir_button);
 
         // Revert button - adjusted: TRect( 53, 12, 63, 14 )
-        let revert_bounds = Rect::new(53, 12, 63, 14);
-        let mut revert_button = Button::new(revert_bounds, &tr("chdir-revert"), CM_REVERT, false);
+        let revert_bounds = Rect::new(53, 12, 53 + button_width, 14);
+        let mut revert_button = Button::new(revert_bounds, &revert_text, CM_REVERT, false);
         revert_button.set_broadcast(true); // Broadcast instead of ending dialog
         revert_button.set_selectable(false); // Not part of focus cycle
         dialog.add(revert_button);

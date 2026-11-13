@@ -7,7 +7,7 @@
 //! Provides a searchable list of all help topics with filtering capability.
 
 use super::ViewId;
-use super::button::Button;
+use super::button::{Button, row_from_right};
 use super::dialog::Dialog;
 use super::group::{Group, GroupLike};
 use super::help_file::HelpFile;
@@ -69,30 +69,18 @@ impl HelpIndex {
         );
         let topic_list_id = dialog.add(topic_list);
 
-        // Buttons
-        dialog.add(Button::new(
-            Rect::new(
-                bounds.width() - 24,
-                bounds.height() - 4,
-                bounds.width() - 14,
-                bounds.height() - 2,
-            ),
-            &tr("help-view"),
-            CM_OK,
-            true,
-        ));
-
-        dialog.add(Button::new(
-            Rect::new(
-                bounds.width() - 12,
-                bounds.height() - 4,
-                bounds.width() - 2,
-                bounds.height() - 2,
-            ),
-            &tr("help-close"),
-            CM_CANCEL,
-            false,
-        ));
+        // Buttons: 10 wide, or wider for a long translation
+        let view = tr("help-view");
+        let close = tr("help-close");
+        let rects = row_from_right(
+            &[&view, &close],
+            bounds.width() - 2,
+            bounds.height() - 4,
+            10,
+            2,
+        );
+        dialog.add(Button::new(rects[0], &view, CM_OK, true));
+        dialog.add(Button::new(rects[1], &close, CM_CANCEL, false));
 
         // Get all topics from help file
         let help = help_file.borrow();

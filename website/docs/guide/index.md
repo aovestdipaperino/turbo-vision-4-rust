@@ -1,6 +1,6 @@
 # User guide
 
-Eighteen chapters, adapted from the Borland Turbo Vision guide and rewritten against the Rust API.
+Nineteen chapters, adapted from the Borland Turbo Vision guide and rewritten against the Rust API.
 The first six build one application from nothing. The next three explain how the framework works
 underneath. The rest are reference chapters, one per object family.
 
@@ -59,3 +59,4 @@ Work through these in order. Each chapter starts from where the last one finishe
 | [16. Collections and streams](chapter-16.md) | Collections, sorted collections, iteration |
 | [17. Streams and persistence](chapter-17.md) | Serialising a view tree and reading it back |
 | [18. Resources](chapter-18.md) | Resource files and string tables |
+| [19. Localization](chapter-19.md) | Translations with Fluent, choosing the language, hot keys and room in other languages, adding a language |

@@ -228,6 +228,11 @@ mod unicode_tests;
 #[doc = include_str!("../AGENTS.md")]
 pub struct AgentsGuide;
 
+// Its plural examples need Fluent.
+#[cfg(all(doctest, feature = "i18n"))]
+#[doc = include_str!("../docs/user-guide/Chapter-19-Localization.md")]
+pub struct LocalizationGuide;
+
 // Re-export commonly used types
 pub mod prelude {
     pub use crate::core::event::{Event, EventType, KeyCode};

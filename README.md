@@ -270,7 +270,7 @@ docs/
 ├── CLASS-DIAGRAM.md                    # Mermaid class diagram of the core types
 ├── HOW-TO-BUILD-AND-DEPLOY-WEBSITE.md  # Building and deploying the MkDocs site
 ├── SERIALIZATION-PERSISTENCE.md         # Saving/loading data
-└── user-guide/                         # 18-chapter comprehensive guide
+└── user-guide/                         # 19-chapter comprehensive guide
     ├── Chapter-01-Stepping-into-Turbo-Vision.md
     ├── Chapter-02-Responding-to-Commands.md
     ├── ... (Chapters 3-17)

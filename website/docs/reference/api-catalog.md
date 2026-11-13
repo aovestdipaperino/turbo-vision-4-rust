@@ -13,9 +13,10 @@ Comprehensive catalog of all public structs, traits, and their public methods in
 ## Table of Contents
 
 1. [Core Module](#core-module)
-2. [Terminal Module](#terminal-module)
-3. [Views Module](#views-module)
-4. [Application Module](#application-module)
+2. [I18n Module](#i18n-module)
+3. [Terminal Module](#terminal-module)
+4. [Views Module](#views-module)
+5. [Application Module](#application-module)
 
 ---
 
@@ -483,6 +484,33 @@ Screenshot rendering: turn the terminal cell buffer into a PNG image.
 
 ---
 
+## I18N MODULE
+
+### Translations (`src/i18n/`, feature `i18n`)
+
+The text Turbo Vision and the application show, in the user's language, with
+Project Fluent. The crate's messages live in `locales/<locale>/turbo-vision.ftl`
+(`en`, `es`, `ca`), embedded in the binary. The catalogue is per thread and
+starts in English. With the feature off, messages are read as plain text with
+`{ $name }` placeholders, and Fluent selectors are not available.
+
+- `tr(id: &str) -> String` - The message in the current locale, falling back along the chain to `en`, then to `id` itself.
+- `tr_args(id: &str, args: &[(&str, Arg)]) -> String` - The same, with placeholder values.
+- `tr!(id)`, `tr!(id, name = value, ...)` - Macro form of `tr` / `tr_args` (exported at the crate root).
+- `enum Arg<'a>` - `Text(Cow<str>)`, `Int(i64)`, `Float(f64)`; `From` text and the number types.
+- `has_message(id: &str) -> bool`
+- `set_locale(tag: &str) -> String` - Choose the locale (`"ca"`, `"es-MX"`, `"ca_ES.UTF-8"`); returns the locale used first.
+- `set_locale_from_env() -> String` - Choose the user's locale (`LC_ALL`, `LC_MESSAGES`, `LANG`), or English.
+- `system_locale() -> Option<String>` - The user's locale, normalised (`ca-ES`); `None` for unset, `C` or `POSIX`.
+- `requested_locale() -> String`, `locale_chain() -> Vec<String>`, `available_locales() -> Vec<String>`
+- `add_translations(locale: &str, source: &str) -> Result<(), TranslationError>` - Add Fluent messages; a later message with the same id replaces the earlier one, including a built-in message.
+- `add_translations_file(locale: &str, path) -> Result<(), Box<dyn Error>>`
+- `localized_path(path) -> PathBuf` - `manual.ca.md` for `manual.md` when that file exists for a locale of the chain.
+- `struct TranslationError { locale, problems }`
+- `const DEFAULT_LOCALE: &str = "en"`
+
+---
+
 ## TERMINAL MODULE
 
 ### Terminal Struct (`src/terminal/mod.rs`)
@@ -617,6 +645,7 @@ A titled single-line box drawn around related controls; it only draws (never foc
 - `Application::execute_modal(&mut view: impl WindowLike, tick: FnMut(&mut Application, &mut V) -> ModalTick) -> CommandId` - The single modal loop; `ModalTick::Continue` / `ModalTick::End(CommandId)`
 - `Dialog::prepare_modal(&mut self, app: &mut Application)` - What `execute` does before its loop (modal state, centring, drag limits, first child focused); call it before `Application::execute_modal` when running the loop yourself
 - `Application::add_overlay_widget(impl View)`, `Application::exec_view(impl View) -> CommandId`
+- `Application::set_locale(&mut self, tag: &str) -> String`, `set_locale_from_env(&mut self) -> String`, `add_translations(&mut self, locale, source) -> Result<(), TranslationError>` - The `i18n` functions, with a redraw; `set_help_file` loads the locale's version of the file when it exists
 
 ---
 
@@ -689,6 +718,7 @@ Button view - clickable button with keyboard shortcuts and command dispatch.
 
 - `set_press_animation(duration: Duration)` - Set how long a button pressed with Enter, Space or its hotkey stays pushed in before it sends its command.
 - `press_animation() -> Duration` - How long a key-pressed button stays pushed in (see [`set_press_animation`]).
+- `width_for_title(title: &str, min: i16) -> i16` - The width a button needs for `title` (without its `~` markers and surrounding spaces), at least `min`. Use it for translated titles.
 - `struct Button`
 
 **Button**

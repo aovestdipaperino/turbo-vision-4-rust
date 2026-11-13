@@ -7,7 +7,7 @@
 //! Provides a dialog for interactive color selection with live preview.
 
 use super::ViewId;
-use super::button::Button;
+use super::button::{Button, row_from_right};
 use super::color_selector::ColorSelector;
 use super::dialog::Dialog;
 use super::group::{Group, GroupLike};
@@ -81,30 +81,19 @@ impl ColorDialog {
             &tr("color-dialog-sample"),
         ));
 
-        // Buttons, one column in from the frame so the shadow clears it
-        dialog.add(Button::new(
-            Rect::new(
-                bounds.width() - 25,
-                bounds.height() - 4,
-                bounds.width() - 15,
-                bounds.height() - 2,
-            ),
-            &tr("button-ok"),
-            CM_OK,
-            true,
-        ));
-
-        dialog.add(Button::new(
-            Rect::new(
-                bounds.width() - 13,
-                bounds.height() - 4,
-                bounds.width() - 3,
-                bounds.height() - 2,
-            ),
-            &tr("button-cancel"),
-            CM_CANCEL,
-            false,
-        ));
+        // Buttons, one column in from the frame so the shadow clears it;
+        // 10 wide, or wider for a long translation.
+        let ok = tr("button-ok");
+        let cancel = tr("button-cancel");
+        let rects = row_from_right(
+            &[&ok, &cancel],
+            bounds.width() - 3,
+            bounds.height() - 4,
+            10,
+            2,
+        );
+        dialog.add(Button::new(rects[0], &ok, CM_OK, true));
+        dialog.add(Button::new(rects[1], &cancel, CM_CANCEL, false));
 
         Self {
             dialog,
