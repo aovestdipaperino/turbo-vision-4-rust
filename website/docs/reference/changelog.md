@@ -37,6 +37,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Fluent messages, choosing and changing the language, hot keys and room in
   other languages, testing, and adding a language to the crate. Its code is
   compiled as doctests.
+- Chapter 19 explains adding a language in both ways: shipping a
+  translation of Turbo Vision's messages in an application, for a language
+  the crate does not have yet, and adding it to the crate. The layout check
+  runs in every language of `BUILT_IN`, so a new one needs no test changes.
 - `Table` rows, columns and single cells can be formatted: `CellFormat`
   (text colour, background colour, style flags such as bold or underline) with
   `set_row_format`, `set_column_format`, `set_cell_format` and `clear_formats`.
