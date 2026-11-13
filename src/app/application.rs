@@ -1104,6 +1104,41 @@ impl Application {
         }
     }
 
+    // Localisation
+
+    /// Show Turbo Vision's messages, and those added with
+    /// [`add_translations`](Self::add_translations), in the locale `tag`
+    /// (`"ca"`, `"es-ES"`); returns the locale used first. Call it before
+    /// building menus and dialogs: views keep the text they were made with.
+    /// See [`crate::i18n`].
+    pub fn set_locale(&mut self, tag: &str) -> String {
+        let used = crate::i18n::set_locale(tag);
+        self.needs_redraw();
+        used
+    }
+
+    /// Use the user's locale (`LC_ALL`, `LC_MESSAGES`, `LANG`), or English;
+    /// returns the locale used first. See [`set_locale`](Self::set_locale).
+    pub fn set_locale_from_env(&mut self) -> String {
+        let used = crate::i18n::set_locale_from_env();
+        self.needs_redraw();
+        used
+    }
+
+    /// Add the application's Fluent messages for `locale`, for
+    /// [`crate::i18n::tr`] and the [`tr!`](crate::tr) macro.
+    ///
+    /// # Errors
+    ///
+    /// When `locale` is not a language tag or `source` does not parse.
+    pub fn add_translations(
+        &mut self,
+        locale: &str,
+        source: &str,
+    ) -> std::result::Result<(), crate::i18n::TranslationError> {
+        crate::i18n::add_translations(locale, source)
+    }
+
     // Help System Methods
     // Matches Borland: TProgram help support (tprogram.cc)
 
@@ -1120,8 +1155,12 @@ impl Application {
     /// ```ignore
     /// app.set_help_file("help/manual.md")?;
     /// ```
+    ///
+    /// The version for the current locale wins when it exists: with Catalan
+    /// chosen, `help/manual.ca.md` is loaded instead of `help/manual.md`
+    /// (see [`crate::i18n::localized_path`]).
     pub fn set_help_file(&mut self, path: &str) -> std::io::Result<()> {
-        let help_file = HelpFile::new(path)?;
+        let help_file = HelpFile::new(crate::i18n::localized_path(path))?;
         self.help_file = Some(Rc::new(RefCell::new(help_file)));
         Ok(())
     }
@@ -1152,7 +1191,8 @@ impl Application {
             let y = (height - help_height) / 2;
 
             let bounds = Rect::new(x, y, x + help_width, y + help_height);
-            let mut help_window = HelpWindow::new(bounds, "Help", Rc::clone(help_file));
+            let mut help_window =
+                HelpWindow::new(bounds, &crate::i18n::tr("help-title"), Rc::clone(help_file));
             help_window.show_topic(topic_id);
 
             // Set State::MODAL flag so exec_view runs the modal loop

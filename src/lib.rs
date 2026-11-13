@@ -208,6 +208,7 @@
 pub mod app;
 pub mod core;
 pub mod helpers;
+pub mod i18n;
 pub mod terminal;
 pub mod views;
 

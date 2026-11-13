@@ -48,7 +48,7 @@ impl HistoryWindow {
         // The viewer sits one cell inside the frame, in the window's own space
         let viewer_bounds = Rect::new(1, 1, width - 1, 1 + viewer_height);
 
-        let window = Window::new(window_bounds, "History");
+        let window = Window::new(window_bounds, &crate::i18n::tr("history-title"));
         let mut viewer = HistoryViewer::new(viewer_bounds, history_id);
 
         // Focus the viewer

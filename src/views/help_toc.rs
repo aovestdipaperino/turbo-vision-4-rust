@@ -17,6 +17,7 @@ use super::window::{Window, WindowLike};
 use crate::core::command::{CM_CANCEL, CM_OK};
 use crate::core::event::Event;
 use crate::core::geometry::Rect;
+use crate::i18n::tr;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -37,7 +38,7 @@ impl HelpToc {
         // Instructions
         dialog.add(StaticText::new(
             Rect::new(2, 2, bounds.width() - 4, 3),
-            "Browse help topics:",
+            &tr("help-toc-prompt"),
         ));
 
         // Create outline viewer with topic tree
@@ -70,7 +71,7 @@ impl HelpToc {
                 bounds.width() - 14,
                 bounds.height() - 2,
             ),
-            "View",
+            &tr("help-view"),
             CM_OK,
             true,
         ));
@@ -82,7 +83,7 @@ impl HelpToc {
                 bounds.width() - 2,
                 bounds.height() - 2,
             ),
-            "Close",
+            &tr("help-close"),
             CM_CANCEL,
             false,
         ));

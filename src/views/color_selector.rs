@@ -121,10 +121,11 @@ impl View for ColorSelector {
         if self.core.bounds.height() > 2 {
             let mut label_buf = DrawBuffer::new(width);
             let label_attr = Attr::from_u8(0x07); // Normal text
-            let text = format!(
-                "Selected: {} (0x{:02X})",
-                self.get_selected_color(),
-                self.get_selected_color()
+            let color = self.get_selected_color();
+            let text = crate::tr!(
+                "color-selector-selected",
+                color = color,
+                hex = format!("0x{color:02X}")
             );
             label_buf.move_str(0, &text, label_attr);
             write_line_to_terminal(terminal, 0, 2, &label_buf);

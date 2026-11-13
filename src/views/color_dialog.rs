@@ -17,6 +17,7 @@ use crate::core::command::{CM_CANCEL, CM_OK};
 use crate::core::event::Event;
 use crate::core::geometry::Rect;
 use crate::core::palette::Attr;
+use crate::i18n::tr;
 
 /// Color Dialog
 /// Matches Borland: `TColorDialog` (simplified implementation)
@@ -43,11 +44,14 @@ impl ColorDialog {
         // Instructions
         dialog.add(StaticText::new(
             Rect::new(2, 2, bounds.width() - 4, 3),
-            "Select foreground and background colors:",
+            &tr("color-dialog-prompt"),
         ));
 
         // Foreground color selector
-        dialog.add(StaticText::new(Rect::new(2, 4, 20, 5), "Foreground:"));
+        dialog.add(StaticText::new(
+            Rect::new(2, 4, 20, 5),
+            &tr("color-dialog-foreground"),
+        ));
 
         let initial_byte = initial_attr.to_u8();
         let fg_color = std::rc::Rc::new(std::cell::RefCell::new(initial_byte & 0x0F));
@@ -58,7 +62,10 @@ impl ColorDialog {
         let fg_selector_id = dialog.add(fg_selector);
 
         // Background color selector
-        dialog.add(StaticText::new(Rect::new(2, 9, 20, 10), "Background:"));
+        dialog.add(StaticText::new(
+            Rect::new(2, 9, 20, 10),
+            &tr("color-dialog-background"),
+        ));
 
         let bg_selector =
             ColorSelector::with_shared(Rect::new(2, 10, 26, 13), std::rc::Rc::clone(&bg_color));
@@ -67,11 +74,11 @@ impl ColorDialog {
         // Preview area (would show the colors in action)
         dialog.add(StaticText::new(
             Rect::new(28, 5, bounds.width() - 4, 6),
-            "Preview:",
+            &tr("color-dialog-preview"),
         ));
         dialog.add(StaticText::new(
             Rect::new(28, 6, bounds.width() - 4, 8),
-            "Sample text with\nselected colors",
+            &tr("color-dialog-sample"),
         ));
 
         // Buttons, one column in from the frame so the shadow clears it
@@ -82,7 +89,7 @@ impl ColorDialog {
                 bounds.width() - 15,
                 bounds.height() - 2,
             ),
-            "OK",
+            &tr("button-ok"),
             CM_OK,
             true,
         ));
@@ -94,7 +101,7 @@ impl ColorDialog {
                 bounds.width() - 3,
                 bounds.height() - 2,
             ),
-            "Cancel",
+            &tr("button-cancel"),
             CM_CANCEL,
             false,
         ));

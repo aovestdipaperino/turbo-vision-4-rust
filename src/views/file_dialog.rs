@@ -107,7 +107,7 @@
 ///
 /// The `~` character indicates the hotkey underline in the button text.
 use super::View;
-use super::button::Button;
+use super::button::{Button, width_for_title};
 use super::checkbox::CheckBox;
 use super::dialog::Dialog;
 use super::group::{Group, GroupLike};
@@ -121,6 +121,7 @@ use crate::core::command::{CM_CANCEL, CM_FILE_FOCUSED, CM_OK, CommandId};
 use crate::core::event::{Event, EventType};
 use crate::core::geometry::Rect;
 use crate::core::state::State;
+use crate::i18n::tr;
 use std::fs;
 use std::path::PathBuf;
 
@@ -258,7 +259,7 @@ impl FileDialog {
             path_label: None,
             files: Vec::new(),
             selected_file_index: 0,
-            button_label: "~O~pen".to_string(), // Default to "Open"
+            button_label: tr("file-dialog-open"), // Default to "Open"
             selected: None,
             needs_full_redraw: false,
             show_hidden: false,
@@ -308,12 +309,15 @@ impl FileDialog {
         // Reserve space for buttons on the right
         let content_width = dialog_width - 15;
 
-        // Label for file name input
-        let name_label = Label::new(Rect::new(2, 1, 12, 1), "~N~ame:");
+        // Label for file name input; the input starts after it, at column
+        // 12 unless the translated label is longer.
+        let name_text = tr("file-dialog-name");
+        let input_x = 12.max(2 + width_for_title(&name_text, 0) - 3);
+        let name_label = Label::new(Rect::new(2, 1, input_x, 1), &name_text);
         self.dialog.add(name_label);
 
         // File name input line
-        let file_input = InputLine::new(Rect::new(12, 1, content_width, 2), 255);
+        let file_input = InputLine::new(Rect::new(input_x, 1, content_width, 2), 255);
         self.file_name = Some(self.dialog.add_typed(file_input));
 
         // Current path label
@@ -322,7 +326,9 @@ impl FileDialog {
         self.path_label = Some(self.dialog.add_typed(path_label));
 
         // Label for files list
-        let files_label = Label::new(Rect::new(2, 5, 12, 5), "~F~iles:");
+        let files_text = tr("file-dialog-files");
+        let files_end = 12.max(2 + width_for_title(&files_text, 0) - 3);
+        let files_label = Label::new(Rect::new(2, 5, files_end, 5), &files_text);
         self.dialog.add(files_label);
 
         // File list box - leave space on right for buttons
@@ -352,8 +358,12 @@ impl FileDialog {
         // Create button with appropriate label (Open, Save, etc.)
         // Pad the button label to maintain consistent button width
         let button_text = format!("  {}  ", self.button_label);
+        let cancel_text = format!(" {} ", tr("button-cancel"));
+        // 11 wide, or wider for a long translation; the right edge stays.
+        let button_width = width_for_title(&button_text, 11).max(width_for_title(&cancel_text, 11));
+        let button_x = button_x + 11 - button_width;
         let open_button = Button::new(
-            Rect::new(button_x, button_y, button_x + 11, button_y + 2),
+            Rect::new(button_x, button_y, button_x + button_width, button_y + 2),
             &button_text,
             CM_OK,
             true,
@@ -362,8 +372,8 @@ impl FileDialog {
         button_y += 3;
 
         let cancel_button = Button::new(
-            Rect::new(button_x, button_y, button_x + 11, button_y + 2),
-            " ~C~ancel ",
+            Rect::new(button_x, button_y, button_x + button_width, button_y + 2),
+            &cancel_text,
             CM_CANCEL,
             false,
         );
@@ -372,9 +382,13 @@ impl FileDialog {
         // Added after the buttons so CHILD_LISTBOX / CHILD_OK_BUTTON keep
         // their indices. Sits on the "Files:" label row, right of the label.
         if self.hidden_toggle {
-            // Exactly as wide as "[ ] Show hidden"; embedded so it sits on
-            // the dialog's background like the labels around it.
-            let mut checkbox = CheckBox::new(Rect::new(14, 5, 29, 6), "Show ~h~idden");
+            // Exactly as wide as "[ ] " and its text, right of the "Files:"
+            // label; embedded so it sits on the dialog's background like the
+            // labels around it.
+            let hidden_text = tr("file-dialog-show-hidden");
+            let x = files_end + 2;
+            let end = (x + width_for_title(&hidden_text, 0)).min(content_width.max(x + 1));
+            let mut checkbox = CheckBox::new(Rect::new(x, 5, end, 6), &hidden_text);
             checkbox.set_embedded(true);
             checkbox.set_checked(self.show_hidden);
             self.hidden_checkbox = Some(self.dialog.add_typed(checkbox));
@@ -968,7 +982,7 @@ impl FileDialogBuilder {
             title: None,
             wildcard: "*".to_string(),
             initial_dir: None,
-            button_label: "~O~pen".to_string(),
+            button_label: tr("file-dialog-open"),
             resizable: true, // Resizable by default
             show_hidden: false,
             hidden_toggle: false,
@@ -1069,6 +1083,65 @@ impl Default for FileDialogBuilder {
 mod tests {
     use super::*;
     use std::path::Path;
+
+    /// The bounds of every child of `fd`'s dialog, relative to the dialog.
+    fn child_rects(fd: &FileDialog) -> Vec<Rect> {
+        let group = fd.dialog.group();
+        let origin = fd.dialog.bounds().a;
+        (0..group.len())
+            .map(|i| {
+                let mut r = group.child_at(i).bounds();
+                r.move_by(-origin.x, -origin.y);
+                r
+            })
+            .collect()
+    }
+
+    #[test]
+    fn english_layout_is_unchanged() {
+        let dir = tempfile::tempdir().unwrap();
+        let fd = FileDialog::new(
+            Rect::new(0, 0, 64, 20),
+            "Open",
+            "*",
+            Some(dir.path().into()),
+        )
+        .with_hidden_toggle(true)
+        .build();
+        let hidden = fd.dialog.get(fd.hidden_checkbox.unwrap()).unwrap().bounds();
+        let origin = fd.dialog.bounds().a;
+        assert_eq!((hidden.a.x - origin.x, hidden.b.x - origin.x), (14, 29));
+        let rects = child_rects(&fd);
+        assert!(
+            rects.contains(&Rect::new(12, 1, 49, 2)),
+            "name input at 12: {rects:?}"
+        );
+        assert!(
+            rects.contains(&Rect::new(50, 6, 61, 8)),
+            "Open button 11 wide: {rects:?}"
+        );
+    }
+
+    #[test]
+    fn catalan_labels_push_the_controls_beside_them() {
+        crate::i18n::set_locale("ca");
+        let dir = tempfile::tempdir().unwrap();
+        let fd = FileDialog::new(
+            Rect::new(0, 0, 64, 20),
+            "Obre",
+            "*",
+            Some(dir.path().into()),
+        )
+        .with_hidden_toggle(true)
+        .build();
+        crate::i18n::set_locale("en");
+        let origin = fd.dialog.bounds().a;
+        let hidden = fd.dialog.get(fd.hidden_checkbox.unwrap()).unwrap().bounds();
+        // "[ ] Mostra els amagats" is 22 columns.
+        assert_eq!(hidden.b.x - hidden.a.x, 22);
+        assert!(hidden.a.x - origin.x >= 2 + "Fitxers:".len() as i16);
+        assert!(hidden.b.x - origin.x <= 64 - 15, "clear of the buttons");
+    }
 
     #[test]
     fn glob_star_matches_prefix_not_substring() {
