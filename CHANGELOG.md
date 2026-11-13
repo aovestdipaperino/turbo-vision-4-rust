@@ -22,6 +22,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   application until it chooses one. Placeholders are not wrapped in Unicode
   isolation marks, which a terminal would show as junk. With the feature
   off, the messages are read as plain text with `{ $name }` placeholders.
+- Lazy translation: `i18n::LazyMessage` and the `tr_lazy!` macro, like
+  Django's `gettext_lazy`. A `LazyMessage` holds a message id and its
+  arguments (text, numbers or other messages) and is translated when it is
+  displayed, in the locale of the thread that displays it. It is `Send`, so
+  a worker thread can report in messages the UI thread translates: the
+  catalogue is per thread, and on a worker `tr!` returns the application's
+  ids untranslated. It also serves text made before the locale is chosen,
+  kept across a change of language, or in a `const` table
+  (`LazyMessage::new` is `const`). Chapter 19 and `AGENTS.md` explain when
+  to use it.
 - `Application::set_help_file` loads the current locale's version of the
   file when it exists: `manual.ca-ES.md`, then `manual.ca.md`, for
   `manual.md`. `i18n::localized_path` does the lookup.

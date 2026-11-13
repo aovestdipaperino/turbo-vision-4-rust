@@ -310,6 +310,7 @@ for, how to create it, and how to use its value. Most views also have a
 | `Terminal` | `terminal` | Drawing target and input. Apps use `app.terminal.size()`. |
 | `test_util` | `test_util` (feature `test-util`) | A terminal without a TTY, for tests. |
 | `tr`, `tr!`, `set_locale`, `add_translations` | `i18n` (feature `i18n`, on by default) | Text in the user's language, with Project Fluent. The crate's own strings come in `en`, `es` and `ca`. |
+| `LazyMessage`, `tr_lazy!` | `i18n` | A message translated when it is shown, not when it is made: from a worker thread, before the locale is chosen, or kept across a change of language. |
 | `width_for_title` | `views::button` | How wide a button must be for a translated title. |
 
 ## 4. Recipes
@@ -630,6 +631,27 @@ fn main() -> turbo_vision::core::error::Result<()> {
   languages.
 - `app.set_help_file("help.md")` loads `help.ca.md` when the locale is
   Catalan and that file exists.
+- **Text made away from the screen is a `LazyMessage`.** `tr!` translates
+  now, with the calling thread's catalogue. A worker thread's catalogue has
+  none of your messages (it returns the id) and is in English. So a worker,
+  or code that runs before the locale is chosen, or a value kept and shown
+  again after a language switch, makes `tr_lazy!("id", name = value)`: the
+  same arguments as `tr!`, translated when the UI thread displays it
+  (`message.to_string()`). Send `LazyMessage`s, not `String`s, from worker
+  threads. An argument can be another `LazyMessage`; `&str` arguments must
+  be `'static` (pass a `String` otherwise).
+
+  ```rust
+  use turbo_vision::i18n::LazyMessage;
+  use turbo_vision::tr_lazy;
+
+  // On the worker: no translation yet.
+  let report: LazyMessage = std::thread::spawn(|| tr_lazy!("button-cancel"))
+      .join()
+      .unwrap();
+  // On the UI thread, when shown: in the current locale.
+  assert_eq!(report.to_string(), "~C~ancel");
+  ```
 - `add_translations` can also replace a built-in message, for example
   `button-ok = ~A~ccept`. The ids are in `locales/en/turbo-vision.ftl`.
 - A language the crate does not ship (German, say) still works: your
@@ -721,6 +743,12 @@ fn enter_presses_ok() {
     again as the English. Size buttons and labels from their text
     (`button::width_for_title`), not from the English width, and choose the
     locale before you build the views.
+16. **Translate on the UI thread, when the text is shown.** The catalogue
+    is per thread: `tr!` on a worker thread gives English and ids. Text made
+    on a worker, before the locale is chosen, or kept across a change of
+    language travels as a `LazyMessage` (`tr_lazy!`) and becomes a `String`
+    on the UI thread. A view keeps the `String` it was given, so after a
+    language switch set its text again from the `LazyMessage`.
 
 ## 6. Working on the crate itself
 
@@ -747,7 +775,9 @@ fn enter_presses_ok() {
   (`es`, `ca`), and add it to the hot-key groups in `src/i18n/mod.rs` when it
   has a `~` letter in a dialog. The tests there check that every locale has
   exactly the English ids and that no dialog's hot keys clash. Log messages,
-  panics and `Debug` output stay in English.
+  panics and `Debug` output stay in English. Text the crate makes before it
+  is shown, or on another thread, is a `LazyMessage`, resolved when drawn
+  or shown.
 - **A new built-in language** is a translated copy of
   `locales/en/turbo-vision.ftl` in `locales/<tag>/` and one line in
   `BUILT_IN` (`src/i18n/mod.rs`). The tests find it there and check its ids,

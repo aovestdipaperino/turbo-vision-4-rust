@@ -36,7 +36,11 @@
 //! assert_eq!(tr!("app-greeting", name = "Maria"), "Hello, Maria!");
 //! ```
 //!
-//! Like the command set, the catalogue is per thread: the UI thread's.
+//! Like the command set, the catalogue is per thread: the UI thread's. Text
+//! made on another thread, before the locale is chosen, or kept and shown
+//! again after a change of language is a [`LazyMessage`] (made with
+//! [`tr_lazy!`](crate::tr_lazy)): an id and its arguments, translated when
+//! it is displayed, in the locale of the thread that displays it.
 //!
 //! With the `i18n` cargo feature off there is no Fluent: each message is
 //! taken as plain text with `{ $name }` placeholders, which is enough for
@@ -46,7 +50,10 @@
 mod fluent_backend;
 #[cfg(test)]
 mod layout_check;
+mod lazy;
 mod simple;
+
+pub use lazy::{LazyArg, LazyMessage};
 
 #[cfg(feature = "i18n")]
 use fluent_backend as backend;
