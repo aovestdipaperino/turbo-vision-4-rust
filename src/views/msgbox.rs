@@ -2,7 +2,7 @@
 
 //! `MsgBox` - message box utilities for displaying alerts and confirmations.
 
-use super::button::Button;
+use super::button::{Button, width_for_title};
 use super::dialog::Dialog;
 use super::input_line::InputLine;
 use super::label::Label;
@@ -11,7 +11,9 @@ use crate::app::Application;
 use crate::core::command::{CM_CANCEL, CM_NO, CM_OK, CM_YES, CommandId};
 use crate::core::geometry::Rect;
 use crate::core::state::{deprecated_aliases, flags};
+use crate::i18n::tr;
 use crate::views::group::GroupLike;
+use crate::views::handle::Handle;
 use std::time::Duration;
 
 flags! {
@@ -58,7 +60,14 @@ pub const MESSAGE_BOX_AUTO_DISMISS_TIMEOUT: Duration = Duration::from_secs(3);
 /// dialog stays at a fixed 60-column max width; long messages grow
 /// the dialog vertically instead.
 pub fn message_box(app: &mut Application, message: &str, options: MsgBox) -> CommandId {
-    let (screen_w, screen_h) = app.terminal.size();
+    let (bounds, wrapped) = message_box_bounds(app.terminal.size(), message, options);
+    message_box_rect(app, bounds, &wrapped, options)
+}
+
+/// Where [`message_box`] puts its box on a `screen` of that size, and the
+/// message wrapped to fit it.
+fn message_box_bounds(screen: (i16, i16), message: &str, options: MsgBox) -> (Rect, String) {
+    let (screen_w, screen_h) = screen;
 
     // Fixed dialog width — keep modal dialogs neat and consistent.
     let target_w = 60usize;
@@ -76,7 +85,11 @@ pub fn message_box(app: &mut Application, message: &str, options: MsgBox) -> Com
         .unwrap_or(20);
     let msg_height = wrapped.lines().count().max(1);
 
-    let width = (msg_width + 6).min(target_w).max(30);
+    // Wide enough for the buttons too, with their translated labels.
+    let width = (msg_width + 6)
+        .min(target_w)
+        .max(30)
+        .max(buttons_width(&message_box_buttons(options)) + 4);
     // Frame, one row of padding above and below the text, and the
     // button row only when there is at least one button to show.
     let chrome_rows = if has_buttons(options) { 6 } else { 4 };
@@ -88,8 +101,7 @@ pub fn message_box(app: &mut Application, message: &str, options: MsgBox) -> Com
     let y = (screen_h - height as i16) / 2;
 
     let bounds = Rect::new(x, y, x + width as i16, y + height as i16);
-
-    message_box_rect(app, bounds, &wrapped, options)
+    (bounds, wrapped)
 }
 
 /// Word-wrap `message` so every line is at most `max_width` characters
@@ -178,17 +190,22 @@ pub fn message_box_rect(
     message: &str,
     options: MsgBox,
 ) -> CommandId {
+    message_box_dialog(bounds, message, options).execute(app)
+}
+
+/// The message box [`message_box_rect`] shows, ready to execute.
+fn message_box_dialog(bounds: Rect, message: &str, options: MsgBox) -> Dialog {
     // Determine title based on message type
     let title = match options & MSGBOX_TYPE_MASK {
-        MsgBox::WARNING => "\u{26A0} Warning",
-        MsgBox::ERROR => "\u{274C} Error",
-        MsgBox::INFORMATION => "\u{2139}\u{FE0F} Information",
-        MsgBox::CONFIRMATION => "\u{2753} Confirm",
-        MsgBox::ABOUT => "\u{2139}\u{FE0F} About",
-        _ => "Message",
+        MsgBox::WARNING => format!("\u{26A0} {}", tr("msgbox-warning")),
+        MsgBox::ERROR => format!("\u{274C} {}", tr("msgbox-error")),
+        MsgBox::INFORMATION => format!("\u{2139}\u{FE0F} {}", tr("msgbox-information")),
+        MsgBox::CONFIRMATION => format!("\u{2753} {}", tr("msgbox-confirm")),
+        MsgBox::ABOUT => format!("\u{2139}\u{FE0F} {}", tr("msgbox-about")),
+        _ => tr("msgbox-message"),
     };
 
-    let mut dialog = Dialog::new(bounds, title);
+    let mut dialog = Dialog::new(bounds, &title);
 
     // Add static text with message (one row higher). Left-align so
     // wrapped lines hang from a consistent left margin instead of
@@ -203,28 +220,11 @@ pub fn message_box_rect(
     let text_bounds = Rect::new(3, 1, bounds.width() - 2, text_bottom);
     dialog.add(StaticText::new(text_bounds, message));
 
-    // Determine which buttons to show
-    let button_configs = [
-        (MsgBox::YES_BUTTON, " ~Y~es", CM_YES),
-        (MsgBox::NO_BUTTON, " ~N~o", CM_NO),
-        (MsgBox::OK_BUTTON, " ~O~K", CM_OK),
-        (MsgBox::CANCEL_BUTTON, " ~C~ancel", CM_CANCEL),
-    ];
-
-    let mut buttons = Vec::new();
-    for (flag, label, cmd) in &button_configs {
-        if options.contains(*flag) {
-            buttons.push((*label, *cmd));
-        }
-    }
+    let buttons = message_box_buttons(options);
 
     // Calculate button positions (one row higher)
     let button_y = bounds.height() - 4;
-    let total_width: usize = buttons
-        .iter()
-        .map(|(label, _)| label.chars().count() + 2)
-        .sum();
-    let mut x = (bounds.width_clamped() as usize - total_width) / 2;
+    let mut x = (bounds.width_clamped() as usize).saturating_sub(buttons_width(&buttons)) / 2;
 
     // Add buttons
     let is_default = buttons.len() == 1 || options.contains(MsgBox::OK_BUTTON);
@@ -244,7 +244,70 @@ pub fn message_box_rect(
     }
 
     dialog.set_initial_focus();
-    dialog.execute(app)
+    dialog
+}
+
+/// The buttons `options` asks for, as (label, command), in display order.
+/// A label is its translated text after one space, and the button is as
+/// wide as the label's characters, `~` included: one column each side.
+fn message_box_buttons(options: MsgBox) -> Vec<(String, CommandId)> {
+    [
+        (MsgBox::YES_BUTTON, "button-yes", CM_YES),
+        (MsgBox::NO_BUTTON, "button-no", CM_NO),
+        (MsgBox::OK_BUTTON, "button-ok", CM_OK),
+        (MsgBox::CANCEL_BUTTON, "button-cancel", CM_CANCEL),
+    ]
+    .into_iter()
+    .filter(|(flag, _, _)| options.contains(*flag))
+    .map(|(_, id, cmd)| (format!(" {}", tr(id)), cmd))
+    .collect()
+}
+
+/// The width of a row of message box buttons, with their gaps.
+fn buttons_width(buttons: &[(String, CommandId)]) -> usize {
+    buttons
+        .iter()
+        .map(|(label, _)| label.chars().count() + 2)
+        .sum()
+}
+
+/// Place `buttons` (title, command, default) on row `y`, each at least 10
+/// wide and wider for a long translation, with two columns between them.
+/// In English they start at `x`; wider buttons spread to both sides of
+/// the same centre.
+fn add_button_row(dialog: &mut Dialog, x: i16, y: i16, buttons: &[(String, CommandId, bool)]) {
+    const LEGACY_WIDTH: i16 = 10;
+    let widths: Vec<i16> = buttons
+        .iter()
+        .map(|(title, _, _)| width_for_title(title, LEGACY_WIDTH))
+        .collect();
+    let extra: i16 = widths.iter().map(|w| w - LEGACY_WIDTH).sum();
+    let mut x = (x - extra / 2).max(1);
+    for ((title, command, default), width) in buttons.iter().zip(widths) {
+        dialog.add(Button::new(
+            Rect::new(x, y, x + width, y + 2),
+            title,
+            *command,
+            *default,
+        ));
+        x += width + 2;
+    }
+}
+
+/// The OK and Cancel buttons of the input dialogs.
+fn ok_cancel() -> [(String, CommandId, bool); 2] {
+    [
+        (format!(" {}", tr("button-ok")), CM_OK, true),
+        (format!(" {}", tr("button-cancel")), CM_CANCEL, false),
+    ]
+}
+
+/// A label's bounds at (`x`, `y`): at least `min` wide, wider for a long
+/// translation.
+fn label_bounds(text: &str, x: i16, y: i16, min: i16) -> Rect {
+    // width_for_title adds 4 for a button's margins; a label needs one.
+    let width = width_for_title(text, min + 3) - 3;
+    Rect::new(x, y, x + width, y + 1)
 }
 
 /// Whether `options` asks for at least one button.
@@ -341,18 +404,8 @@ pub fn input_box(
     initial: &str,
     max_length: usize,
 ) -> Option<String> {
-    // Calculate dialog size
-    let label_len = label.chars().count();
-    let width = (label_len + max_length + 12).clamp(30, 60);
-    let height = 8;
-
-    // Center on screen
-    let (screen_w, screen_h) = app.terminal.size();
-    let x = (screen_w - width as i16) / 2;
-    let y = (screen_h - height as i16) / 2;
-
-    let bounds = Rect::new(x, y, x + width as i16, y + height as i16);
-
+    let (width, height) = input_box_size(label, max_length);
+    let bounds = centered(app, width, height);
     input_box_rect(app, bounds, title, label, initial, max_length)
 }
 
@@ -365,6 +418,22 @@ pub fn input_box_rect(
     initial: &str,
     max_length: usize,
 ) -> Option<String> {
+    let (mut dialog, input) = input_dialog(bounds, title, label, initial, max_length);
+    if dialog.execute(app) == CM_OK {
+        dialog.get(input).map(|f| f.text().to_string())
+    } else {
+        None
+    }
+}
+
+/// The dialog of [`input_box_rect`] and its input line.
+fn input_dialog(
+    bounds: Rect,
+    title: &str,
+    label: &str,
+    initial: &str,
+    max_length: usize,
+) -> (Dialog, Handle<InputLine>) {
     let mut dialog = Dialog::new(bounds, title);
 
     // Add label
@@ -381,26 +450,38 @@ pub fn input_box_rect(
     input.set_text(initial);
     let input = dialog.add_typed(input);
 
-    // Add OK button
-    let button_y = bounds.height() - 4;
-    let ok_x = bounds.width() / 2 - 11;
-    let ok_bounds = Rect::new(ok_x, button_y, ok_x + 10, button_y + 2);
-    dialog.add(Button::new(ok_bounds, " ~O~K", CM_OK, true));
-
-    // Add Cancel button
-    let cancel_x = ok_x + 12;
-    let cancel_bounds = Rect::new(cancel_x, button_y, cancel_x + 10, button_y + 2);
-    dialog.add(Button::new(cancel_bounds, " ~C~ancel", CM_CANCEL, false));
+    // OK and Cancel
+    add_button_row(
+        &mut dialog,
+        bounds.width() / 2 - 11,
+        bounds.height() - 4,
+        &ok_cancel(),
+    );
 
     dialog.set_initial_focus();
+    (dialog, input)
+}
 
-    let result = dialog.execute(app);
+/// The size of [`input_box`]: room for the label and the text, 30 to 60
+/// columns wide.
+fn input_box_size(label: &str, max_length: usize) -> (i16, i16) {
+    let width = (label.chars().count() + max_length + 12).clamp(30, 60);
+    (i16::try_from(width).unwrap_or(60), 8)
+}
 
-    if result == CM_OK {
-        dialog.get(input).map(|f| f.text().to_string())
-    } else {
-        None
-    }
+/// The size of [`search_box`].
+const SEARCH_BOX_SIZE: (i16, i16) = (50, 9);
+/// The size of [`search_replace_box`].
+const REPLACE_BOX_SIZE: (i16, i16) = (50, 13);
+/// The size of [`goto_line_box`].
+const GOTO_LINE_BOX_SIZE: (i16, i16) = (40, 8);
+
+/// `width` by `height` bounds in the middle of the screen.
+fn centered(app: &Application, width: i16, height: i16) -> Rect {
+    let (screen_w, screen_h) = app.terminal.size();
+    let x = (screen_w - width) / 2;
+    let y = (screen_h - height) / 2;
+    Rect::new(x, y, x + width, y + height)
 }
 
 /// Display a search dialog that prompts the user for search text
@@ -416,40 +497,9 @@ pub fn input_box_rect(
 /// }
 /// ```
 pub fn search_box(app: &mut Application, title: &str) -> Option<String> {
-    // Calculate dialog size
-    let width = 50;
-    let height = 9;
-
-    // Center on screen
-    let (screen_w, screen_h) = app.terminal.size();
-    let x = (screen_w - width) / 2;
-    let y = (screen_h - height) / 2;
-
-    let bounds = Rect::new(x, y, x + width, y + height);
-
-    let mut dialog = Dialog::new(bounds, title);
-
-    // Add label
-    let label_bounds = Rect::new(2, 2, 20, 3);
-    dialog.add(Label::new(label_bounds, "~F~ind:"));
-
-    // Add input line
-    let input_bounds = Rect::new(2, 3, width - 4, 4);
-    let input = dialog.add_typed(InputLine::new(input_bounds, 100));
-
-    // Add OK button
-    let ok_bounds = Rect::new(15, 5, 25, 7);
-    dialog.add(Button::new(ok_bounds, " ~O~K", CM_OK, true));
-
-    // Add Cancel button
-    let cancel_bounds = Rect::new(27, 5, 37, 7);
-    dialog.add(Button::new(cancel_bounds, " ~C~ancel", CM_CANCEL, false));
-
-    dialog.set_initial_focus();
-
-    let result = dialog.execute(app);
-
-    if result == CM_OK {
+    let (mut dialog, input) =
+        search_dialog(centered(app, SEARCH_BOX_SIZE.0, SEARCH_BOX_SIZE.1), title);
+    if dialog.execute(app) == CM_OK {
         let text = dialog
             .get(input)
             .map(|f| f.text().to_string())
@@ -458,6 +508,26 @@ pub fn search_box(app: &mut Application, title: &str) -> Option<String> {
     } else {
         None
     }
+}
+
+/// The dialog of [`search_box`] and its input line.
+fn search_dialog(bounds: Rect, title: &str) -> (Dialog, Handle<InputLine>) {
+    let width = bounds.width();
+    let mut dialog = Dialog::new(bounds, title);
+
+    // Add label
+    let find = tr("find-label");
+    dialog.add(Label::new(label_bounds(&find, 2, 2, 18), &find));
+
+    // Add input line
+    let input_bounds = Rect::new(2, 3, width - 4, 4);
+    let input = dialog.add_typed(InputLine::new(input_bounds, 100));
+
+    // OK and Cancel
+    add_button_row(&mut dialog, 15, 5, &ok_cancel());
+
+    dialog.set_initial_focus();
+    (dialog, input)
 }
 
 /// Display a search and replace dialog that prompts for find and replace text
@@ -473,48 +543,9 @@ pub fn search_box(app: &mut Application, title: &str) -> Option<String> {
 /// }
 /// ```
 pub fn search_replace_box(app: &mut Application, title: &str) -> Option<(String, String)> {
-    // Calculate dialog size
-    let width = 50;
-    let height = 13;
-
-    // Center on screen
-    let (screen_w, screen_h) = app.terminal.size();
-    let x = (screen_w - width) / 2;
-    let y = (screen_h - height) / 2;
-
-    let bounds = Rect::new(x, y, x + width, y + height);
-
-    let mut dialog = Dialog::new(bounds, title);
-
-    // Add find label
-    let label1_bounds = Rect::new(2, 2, 20, 3);
-    dialog.add(Label::new(label1_bounds, "~F~ind:"));
-
-    // Add find input line
-    let input1_bounds = Rect::new(2, 3, width - 4, 4);
-    let find_input = dialog.add_typed(InputLine::new(input1_bounds, 100));
-
-    // Add replace label
-    let label2_bounds = Rect::new(2, 5, 20, 6);
-    dialog.add(Label::new(label2_bounds, "~R~eplace with:"));
-
-    // Add replace input line
-    let input2_bounds = Rect::new(2, 6, width - 4, 7);
-    let replace_input = dialog.add_typed(InputLine::new(input2_bounds, 100));
-
-    // Add OK button
-    let ok_bounds = Rect::new(15, 9, 25, 11);
-    dialog.add(Button::new(ok_bounds, " ~O~K", CM_OK, true));
-
-    // Add Cancel button
-    let cancel_bounds = Rect::new(27, 9, 37, 11);
-    dialog.add(Button::new(cancel_bounds, " ~C~ancel", CM_CANCEL, false));
-
-    dialog.set_initial_focus();
-
-    let result = dialog.execute(app);
-
-    if result == CM_OK {
+    let (mut dialog, find_input, replace_input) =
+        search_replace_dialog(centered(app, REPLACE_BOX_SIZE.0, REPLACE_BOX_SIZE.1), title);
+    if dialog.execute(app) == CM_OK {
         let text_of = |h| {
             dialog
                 .get(h)
@@ -531,6 +562,37 @@ pub fn search_replace_box(app: &mut Application, title: &str) -> Option<(String,
     }
 }
 
+/// The dialog of [`search_replace_box`] and its find and replace lines.
+fn search_replace_dialog(
+    bounds: Rect,
+    title: &str,
+) -> (Dialog, Handle<InputLine>, Handle<InputLine>) {
+    let width = bounds.width();
+    let mut dialog = Dialog::new(bounds, title);
+
+    // Add find label
+    let find = tr("find-label");
+    dialog.add(Label::new(label_bounds(&find, 2, 2, 18), &find));
+
+    // Add find input line
+    let input1_bounds = Rect::new(2, 3, width - 4, 4);
+    let find_input = dialog.add_typed(InputLine::new(input1_bounds, 100));
+
+    // Add replace label
+    let replace = tr("replace-label");
+    dialog.add(Label::new(label_bounds(&replace, 2, 5, 18), &replace));
+
+    // Add replace input line
+    let input2_bounds = Rect::new(2, 6, width - 4, 7);
+    let replace_input = dialog.add_typed(InputLine::new(input2_bounds, 100));
+
+    // OK and Cancel
+    add_button_row(&mut dialog, 15, 9, &ok_cancel());
+
+    dialog.set_initial_focus();
+    (dialog, find_input, replace_input)
+}
+
 /// Display a goto line dialog that prompts for a line number
 ///
 /// Returns `Some(line_number)` if OK was pressed, None if cancelled or invalid
@@ -544,40 +606,9 @@ pub fn search_replace_box(app: &mut Application, title: &str) -> Option<(String,
 /// }
 /// ```
 pub fn goto_line_box(app: &mut Application, title: &str) -> Option<usize> {
-    // Calculate dialog size
-    let width = 40;
-    let height = 8;
-
-    // Center on screen
-    let (screen_w, screen_h) = app.terminal.size();
-    let x = (screen_w - width) / 2;
-    let y = (screen_h - height) / 2;
-
-    let bounds = Rect::new(x, y, x + width, y + height);
-
-    let mut dialog = Dialog::new(bounds, title);
-
-    // Add label
-    let label_bounds = Rect::new(2, 2, 20, 3);
-    dialog.add(Label::new(label_bounds, " ~L~ine number:"));
-
-    // Add input line
-    let input_bounds = Rect::new(2, 3, width - 4, 4);
-    let input = dialog.add_typed(InputLine::new(input_bounds, 10));
-
-    // Add OK button
-    let ok_bounds = Rect::new(10, 5, 20, 7);
-    dialog.add(Button::new(ok_bounds, " ~O~K", CM_OK, true));
-
-    // Add Cancel button
-    let cancel_bounds = Rect::new(22, 5, 32, 7);
-    dialog.add(Button::new(cancel_bounds, " ~C~ancel", CM_CANCEL, false));
-
-    dialog.set_initial_focus();
-
-    let result = dialog.execute(app);
-
-    if result == CM_OK {
+    let (width, height) = GOTO_LINE_BOX_SIZE;
+    let (mut dialog, input) = goto_line_dialog(centered(app, width, height), title);
+    if dialog.execute(app) == CM_OK {
         dialog
             .get(input)
             .and_then(|f| f.text().parse::<usize>().ok())
@@ -586,9 +617,176 @@ pub fn goto_line_box(app: &mut Application, title: &str) -> Option<usize> {
     }
 }
 
+/// The dialog of [`goto_line_box`] and its input line.
+fn goto_line_dialog(bounds: Rect, title: &str) -> (Dialog, Handle<InputLine>) {
+    let width = bounds.width();
+    let mut dialog = Dialog::new(bounds, title);
+
+    // Add label
+    let line = format!(" {}", tr("goto-line-label"));
+    dialog.add(Label::new(label_bounds(&line, 2, 2, 18), &line));
+
+    // Add input line
+    let input_bounds = Rect::new(2, 3, width - 4, 4);
+    let input = dialog.add_typed(InputLine::new(input_bounds, 10));
+
+    // OK and Cancel
+    add_button_row(&mut dialog, 10, 5, &ok_cancel());
+
+    dialog.set_initial_focus();
+    (dialog, input)
+}
+
+/// The built-in dialogs, built but not shown, for the layout tests.
+#[cfg(test)]
+pub(crate) fn built_message_box(screen: (i16, i16), message: &str, options: MsgBox) -> Dialog {
+    let (bounds, wrapped) = message_box_bounds(screen, message, options);
+    message_box_dialog(bounds, &wrapped, options)
+}
+
+#[cfg(test)]
+pub(crate) fn built_input_box(label: &str, max: usize) -> Dialog {
+    let (width, height) = input_box_size(label, max);
+    input_dialog(Rect::new(0, 0, width, height), "Input", label, "", max).0
+}
+
+#[cfg(test)]
+pub(crate) fn built_search_box() -> Dialog {
+    let (width, height) = SEARCH_BOX_SIZE;
+    search_dialog(Rect::new(0, 0, width, height), "Find").0
+}
+
+#[cfg(test)]
+pub(crate) fn built_replace_box() -> Dialog {
+    let (width, height) = REPLACE_BOX_SIZE;
+    search_replace_dialog(Rect::new(0, 0, width, height), "Replace").0
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::event::{Event, KB_ESC};
+    use crate::views::View;
+
+    /// The text of screen row `y`.
+    fn screen_row(app: &Application, y: i16) -> String {
+        let (width, _) = app.terminal.size();
+        (0..width)
+            .filter_map(|x| app.terminal.read_cell(x, y))
+            .map(|cell| cell.ch)
+            .collect()
+    }
+
+    fn screen(app: &Application) -> Vec<String> {
+        let (_, height) = app.terminal.size();
+        (0..height).map(|y| screen_row(app, y)).collect()
+    }
+
+    fn test_app() -> Application {
+        Application::with_terminal(crate::test_util::test_terminal(80, 25))
+    }
+
+    #[test]
+    fn a_catalan_confirmation_shows_catalan_buttons_in_order() {
+        crate::i18n::set_locale("ca");
+        let mut app = test_app();
+        app.terminal
+            .event_injector()
+            .send(Event::keyboard(KB_ESC))
+            .unwrap();
+        // The three flags, not YES_NO_CANCEL: that constant is 0x0E00
+        // (No, OK, Cancel) where Borland's mfYesNoCancel is 0x0B00.
+        let yes_no_cancel = MsgBox::YES_BUTTON | MsgBox::NO_BUTTON | MsgBox::CANCEL_BUTTON;
+        let options = MsgBox::CONFIRMATION | yes_no_cancel;
+        assert_eq!(message_box(&mut app, "Voleu desar?", options), CM_CANCEL);
+        let rows = screen(&app);
+        assert!(rows.iter().any(|r| r.contains("Confirmació")), "{rows:#?}");
+        let buttons = rows
+            .iter()
+            .find(|r| r.contains("Sí"))
+            .unwrap_or_else(|| panic!("a row of buttons: {rows:#?}"));
+        let (si, no, cancel) = (
+            buttons.find("Sí").unwrap(),
+            buttons.find(" No ").unwrap(),
+            buttons.find("Cancel·la").unwrap(),
+        );
+        assert!(si < no && no < cancel, "in order, apart: {buttons:?}");
+        crate::i18n::set_locale("en");
+    }
+
+    #[test]
+    fn a_spanish_search_box_fits_its_longer_labels() {
+        crate::i18n::set_locale("es");
+        let mut app = test_app();
+        app.terminal
+            .event_injector()
+            .send(Event::keyboard(KB_ESC))
+            .unwrap();
+        assert_eq!(search_replace_box(&mut app, "Reemplazar"), None);
+        let rows = screen(&app);
+        assert!(
+            rows.iter().any(|r| r.contains("Reemplazar por:")),
+            "{rows:#?}"
+        );
+        let buttons = rows
+            .iter()
+            .find(|r| r.contains("Aceptar"))
+            .expect("buttons");
+        assert!(buttons.contains("Cancelar"), "{buttons:?}");
+        crate::i18n::set_locale("en");
+    }
+
+    #[test]
+    fn button_rows_keep_the_english_layout_and_grow_for_translations() {
+        let mut dialog = Dialog::new(Rect::new(0, 0, 50, 9), "t");
+        let rects = |dialog: &Dialog| -> Vec<Rect> {
+            let group = dialog.group();
+            (0..group.len())
+                .map(|i| group.child_at(i).bounds())
+                .collect()
+        };
+        add_button_row(&mut dialog, 15, 5, &ok_cancel());
+        let english = rects(&dialog);
+        let origin = dialog.bounds().a;
+        let rel = |r: &Rect| (r.a.x - origin.x, r.b.x - origin.x);
+        assert_eq!(
+            english.iter().map(rel).collect::<Vec<_>>(),
+            [(15, 25), (27, 37)]
+        );
+
+        let mut dialog = Dialog::new(Rect::new(0, 0, 50, 9), "t");
+        let long = [
+            (" ~V~ery long OK text".to_string(), CM_OK, true),
+            (" ~C~ancel".to_string(), CM_CANCEL, false),
+        ];
+        add_button_row(&mut dialog, 15, 5, &long);
+        let grown: Vec<_> = rects(&dialog).iter().map(rel).collect();
+        assert_eq!(
+            grown[0].1 - grown[0].0,
+            21,
+            "17 columns of text, 4 of margin and shadow"
+        );
+        assert_eq!(grown[1].0, grown[0].1 + 2, "two columns apart");
+    }
+
+    #[test]
+    fn message_boxes_widen_for_their_buttons() {
+        let options =
+            MsgBox::CONFIRMATION | MsgBox::YES_BUTTON | MsgBox::NO_BUTTON | MsgBox::CANCEL_BUTTON;
+        crate::i18n::set_locale("en");
+        let english = buttons_width(&message_box_buttons(options));
+        crate::i18n::set_locale("ca");
+        let catalan = buttons_width(&message_box_buttons(options));
+        crate::i18n::set_locale("en");
+        assert!(catalan > english);
+        assert_eq!(
+            message_box_buttons(MsgBox::OK_CANCEL),
+            vec![
+                (" ~O~K".to_string(), CM_OK),
+                (" ~C~ancel".to_string(), CM_CANCEL)
+            ]
+        );
+    }
 
     #[test]
     fn auto_dismiss_prefers_ok_then_first_button() {

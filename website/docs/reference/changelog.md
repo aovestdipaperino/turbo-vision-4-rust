@@ -8,6 +8,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Translations with Project Fluent: the `i18n` module and the `tr!` macro
+  (cargo feature `i18n`, on by default). Every string Turbo Vision shows
+  (message box titles and buttons, the Find, Replace and Go to line boxes,
+  the file, change-directory and colour dialogs, the editors' "Untitled" and
+  "Save changes?", help and history) is a message in
+  `locales/<locale>/turbo-vision.ftl`. The crate ships English, Spanish (`es`)
+  and Catalan (`ca`). Applications add their own messages with
+  `i18n::add_translations` (or `Application::add_translations`), which can
+  also replace a built-in one, and choose the locale with `set_locale` or
+  `set_locale_from_env`. A missing message falls back from `ca-ES` to `ca`
+  to English. The locale starts as English, so nothing changes for an
+  application until it chooses one. Placeholders are not wrapped in Unicode
+  isolation marks, which a terminal would show as junk. With the feature
+  off, the messages are read as plain text with `{ $name }` placeholders.
+- Checks for translation files, for an application's tests:
+  `i18n::check_translation(english, translation)` returns a
+  `TranslationReport` of syntax errors, missing and extra ids, placeholders
+  the English lacks, and badly marked hot keys, and
+  `i18n::check_hot_key_groups(source, groups)` reports messages shown
+  together that mark the same letter. Turbo Vision's own tests use them on
+  its files. `i18n::built_in_source(locale)` gives the crate's own messages,
+  so an application that ships a translation of them can check it against
+  the English of the crate version it builds with.
+- Lazy translation: `i18n::LazyMessage` and the `tr_lazy!` macro, like
+  Django's `gettext_lazy`. A `LazyMessage` holds a message id and its
+  arguments (text, numbers or other messages) and is translated when it is
+  displayed, in the locale of the thread that displays it. It is `Send`, so
+  a worker thread can report in messages the UI thread translates: the
+  catalogue is per thread, and on a worker `tr!` returns the application's
+  ids untranslated. It also serves text made before the locale is chosen,
+  kept across a change of language, or in a `const` table
+  (`LazyMessage::new` is `const`). Chapter 19 and `AGENTS.md` explain when
+  to use it.
+- `Application::set_help_file` loads the current locale's version of the
+  file when it exists: `manual.ca-ES.md`, then `manual.ca.md`, for
+  `manual.md`. `i18n::localized_path` does the lookup.
+- `button::width_for_title`: the width a button needs for a title. The
+  message boxes, the input, Find, Replace and Go to line boxes, and the file,
+  change-directory, colour and help dialogs size their buttons, labels and
+  the "Show hidden" check box from the translated text. English layouts are
+  unchanged. Tests check, in every built-in language, that the texts in
+  fixed-size areas fit and that every hot key is a letter with an Alt key.
+- `examples/i18n.rs`: an application in English, Spanish and Catalan,
+  switching language while it runs. The gallery has a Languages demo.
+- Chapter 19 of the user guide, Localization: translating an application,
+  Fluent messages, choosing and changing the language, hot keys and room in
+  other languages, testing, and adding a language to the crate. Its code is
+  compiled as doctests.
+- Chapter 19 explains adding a language in both ways: shipping a
+  translation of Turbo Vision's messages in an application, for a language
+  the crate does not have yet, and adding it to the crate. The layout check
+  runs in every language of `BUILT_IN`, so a new one needs no test changes.
 - `Table` rows, columns and single cells can be formatted: `CellFormat`
   (text colour, background colour, style flags such as bold or underline) with
   `set_row_format`, `set_column_format`, `set_cell_format` and `clear_formats`.
@@ -15,7 +67,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   colours and takes only the style. `set_row_colors` colours the text of
   single rows.
 
+### Changed
+- The colour dialog's OK and Cancel buttons have hot keys (`~O~K`,
+  `~C~ancel`), like the other built-in dialogs, since they share the
+  translated messages.
+
 ### Fixed
+- The file dialog's buttons no longer cover the file list when their text is
+  longer than in English. In Catalan, "Cancel·la" widened both buttons
+  leftwards over the list's last column; the list and the name field now end
+  one column before the buttons, however wide they grow.
+- A test builds every built-in dialog in each built-in language, and in a
+  made-up one whose messages are half as long again, and fails when a
+  control overlaps another or the frame.
 - `TextViewer` no longer panics on a line wider than the viewer that holds
   multi-byte characters (`é`, `ñ`, `−`, `€`): it cut each visible line by
   byte offset, which could fall inside a character. Lines are now cut, and

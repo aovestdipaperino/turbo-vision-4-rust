@@ -208,6 +208,7 @@
 pub mod app;
 pub mod core;
 pub mod helpers;
+pub mod i18n;
 pub mod terminal;
 pub mod views;
 
@@ -226,6 +227,11 @@ mod unicode_tests;
 #[cfg(doctest)]
 #[doc = include_str!("../AGENTS.md")]
 pub struct AgentsGuide;
+
+// Its plural examples need Fluent.
+#[cfg(all(doctest, feature = "i18n"))]
+#[doc = include_str!("../docs/user-guide/Chapter-19-Localization.md")]
+pub struct LocalizationGuide;
 
 // Re-export commonly used types
 pub mod prelude {

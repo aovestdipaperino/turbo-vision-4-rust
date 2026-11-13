@@ -25,6 +25,7 @@ pub mod group_box;
 pub mod help;
 pub mod history;
 pub mod input_line;
+pub mod languages;
 pub mod list_box;
 pub mod memo;
 pub mod menu_bar;
