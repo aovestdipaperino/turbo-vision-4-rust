@@ -8,12 +8,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Translations with Project Fluent: the `i18n` module and the `tr!` macro
+  (cargo feature `i18n`, on by default). Every string Turbo Vision shows
+  (message box titles and buttons, the Find, Replace and Go to line boxes,
+  the file, change-directory and colour dialogs, the editors' "Untitled" and
+  "Save changes?", help and history) is a message in
+  `locales/<locale>/turbo-vision.ftl`. The crate ships English, Spanish (`es`)
+  and Catalan (`ca`). Applications add their own messages with
+  `i18n::add_translations` (or `Application::add_translations`), which can
+  also replace a built-in one, and choose the locale with `set_locale` or
+  `set_locale_from_env`. A missing message falls back from `ca-ES` to `ca`
+  to English. The locale starts as English, so nothing changes for an
+  application until it chooses one. Placeholders are not wrapped in Unicode
+  isolation marks, which a terminal would show as junk. With the feature
+  off, the messages are read as plain text with `{ $name }` placeholders.
+- `Application::set_help_file` loads the current locale's version of the
+  file (`manual.ca.md` for `manual.md`) when it exists; `i18n::localized_path`
+  does the lookup.
+- `button::width_for_title`: the width a button needs for a title. The
+  message boxes, the input, Find, Replace and Go to line boxes and the file
+  dialog size their buttons, labels and the "Show hidden" check box from
+  the translated text. English layouts are unchanged.
+- `examples/i18n.rs`: an application in English, Spanish and Catalan,
+  switching language while it runs.
 - `Table` rows, columns and single cells can be formatted: `CellFormat`
   (text colour, background colour, style flags such as bold or underline) with
   `set_row_format`, `set_column_format`, `set_cell_format` and `clear_formats`.
   Formats stack column, row, cell. The selected row keeps the selection
   colours and takes only the style. `set_row_colors` colours the text of
   single rows.
+
+### Changed
+- The colour dialog's OK and Cancel buttons have hot keys (`~O~K`,
+  `~C~ancel`), like the other built-in dialogs, since they share the
+  translated messages.
 
 ### Fixed
 - `TextViewer` no longer panics on a line wider than the viewer that holds

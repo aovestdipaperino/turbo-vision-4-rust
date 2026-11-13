@@ -19,6 +19,7 @@ use super::window::{Window, WindowLike};
 use crate::core::command::{CM_CANCEL, CM_OK};
 use crate::core::event::{Event, EventType};
 use crate::core::geometry::Rect;
+use crate::i18n::tr;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -48,18 +49,18 @@ impl HelpIndex {
         // Instructions
         dialog.add(StaticText::new(
             Rect::new(2, 2, bounds.width() - 4, 3),
-            "Search for a topic:",
+            &tr("help-index-prompt"),
         ));
 
         // Search input
-        let search_label = Label::new(Rect::new(2, 4, 10, 5), "Search:");
+        let search_label = Label::new(Rect::new(2, 4, 10, 5), &tr("help-index-search"));
         dialog.add(search_label);
 
         let search_input = InputLine::new(Rect::new(10, 4, bounds.width() - 4, 5), 100);
         let search_input_id = dialog.add(search_input);
 
         // Topic list
-        let list_label = Label::new(Rect::new(2, 6, 12, 7), "Topics:");
+        let list_label = Label::new(Rect::new(2, 6, 12, 7), &tr("help-index-topics"));
         dialog.add(list_label);
 
         let topic_list = ListBox::new(
@@ -76,7 +77,7 @@ impl HelpIndex {
                 bounds.width() - 14,
                 bounds.height() - 2,
             ),
-            "View",
+            &tr("help-view"),
             CM_OK,
             true,
         ));
@@ -88,7 +89,7 @@ impl HelpIndex {
                 bounds.width() - 2,
                 bounds.height() - 2,
             ),
-            "Close",
+            &tr("help-close"),
             CM_CANCEL,
             false,
         ));

@@ -13,7 +13,7 @@
 //! - Directory tree listbox in middle
 //! - Buttons (OK, Chdir, Revert) on right side
 
-use super::button::Button;
+use super::button::{Button, width_for_title};
 use super::dialog::Dialog;
 use super::dir_listbox::DirListBox;
 use super::group::{Group, GroupLike};
@@ -33,6 +33,7 @@ use crate::core::command::{CM_OK, CommandId};
 use crate::core::event::{Event, EventType};
 use crate::core::geometry::{Point, Rect};
 use crate::core::history::HistoryManager;
+use crate::i18n::tr;
 use crate::terminal::Terminal;
 use std::cell::RefCell;
 use std::path::PathBuf;
@@ -331,7 +332,7 @@ impl ChDirDialog {
         // Widened dialog bounds: TRect( 5, 2, 75, 21 ) - 70 columns instead of 48
         // This is absolute screen coordinates, will be centered by ofCentered flag
         let dialog_bounds = Rect::new(5, 2, 75, 21);
-        let mut dialog = Dialog::new(dialog_bounds, "Change Directory");
+        let mut dialog = Dialog::new(dialog_bounds, &tr("chdir-title"));
 
         // Get current directory for initial value
         let current_dir = std::env::current_dir()
@@ -345,8 +346,9 @@ impl ChDirDialog {
         let dir_input = dialog.add_typed(dir_input);
 
         // Label "Directory name" - Borland: (2, 2)
-        let label_bounds = Rect::new(2, 2, 20, 2);
-        let dir_label = Label::new(label_bounds, "Directory ~n~ame");
+        let name_text = tr("chdir-name");
+        let label_bounds = Rect::new(2, 2, 2 + 18.max(width_for_title(&name_text, 0) - 3), 2);
+        let dir_label = Label::new(label_bounds, &name_text);
         dialog.add(dir_label);
 
         // History button - adjusted: TRect( 48, 3, 51, 4 )
@@ -379,25 +381,26 @@ impl ChDirDialog {
         let dir_list_id = dialog.add(shared_listbox);
 
         // Label "Directory tree" - Borland: (2, 5)
-        let tree_label_bounds = Rect::new(2, 5, 20, 5);
-        let tree_label = Label::new(tree_label_bounds, "Directory ~t~ree");
+        let tree_text = tr("chdir-tree");
+        let tree_label_bounds = Rect::new(2, 5, 2 + 18.max(width_for_title(&tree_text, 0) - 3), 5);
+        let tree_label = Label::new(tree_label_bounds, &tree_text);
         dialog.add(tree_label);
 
         // OK button - adjusted: TRect( 53, 6, 63, 8 )
         let ok_bounds = Rect::new(53, 6, 63, 8);
-        let ok_button = Button::new(ok_bounds, "~O~K", CM_OK, true);
+        let ok_button = Button::new(ok_bounds, &tr("button-ok"), CM_OK, true);
         let ok_button_id = dialog.add(ok_button);
 
         // Chdir button - adjusted: TRect( 53, 9, 63, 11 )
         let chdir_bounds = Rect::new(53, 9, 63, 11);
-        let mut chdir_button = Button::new(chdir_bounds, "~C~hdir", CM_CHANGE_DIR, false);
+        let mut chdir_button = Button::new(chdir_bounds, &tr("chdir-chdir"), CM_CHANGE_DIR, false);
         chdir_button.set_broadcast(true); // Broadcast instead of ending dialog
         chdir_button.set_selectable(false); // Not part of focus cycle
         let chdir_button_id = dialog.add(chdir_button);
 
         // Revert button - adjusted: TRect( 53, 12, 63, 14 )
         let revert_bounds = Rect::new(53, 12, 63, 14);
-        let mut revert_button = Button::new(revert_bounds, "~R~evert", CM_REVERT, false);
+        let mut revert_button = Button::new(revert_bounds, &tr("chdir-revert"), CM_REVERT, false);
         revert_button.set_broadcast(true); // Broadcast instead of ending dialog
         revert_button.set_selectable(false); // Not part of focus cycle
         dialog.add(revert_button);
@@ -461,7 +464,7 @@ impl ChDirDialog {
                 if let Err(e) = std::env::set_current_dir(&path) {
                     // Invalid directory - show error and re-execute dialog
                     // Matches Borland: valid() returns False, shows error, and keeps dialog open
-                    let error_msg = format!("Invalid directory\n\n{e}");
+                    let error_msg = format!("{}\n\n{e}", tr("chdir-invalid-directory"));
                     message_box_error(app, &error_msg);
 
                     // Re-execute the dialog to let user try again

@@ -35,7 +35,7 @@ name = "turbo_vision"
 path = "src/lib.rs"
 
 [features]
-default = ["native", "screenshot"]
+default = ["native", "screenshot", "i18n"]
 # A real terminal: the crossterm backend and the OS clipboard. Off for an
 # embedder that supplies its own backend, such as a WASM guest.
 native = ["dep:crossterm", "dep:arboard"]
@@ -43,6 +43,9 @@ native = ["dep:crossterm", "dep:arboard"]
 screenshot = []
 # Test utilities for applications using turbo-vision
 test-util = []
+# Translations with Project Fluent (`i18n` module). Off, the built-in
+# English strings are used and simple messages still resolve.
+i18n = ["dep:fluent-bundle", "dep:unic-langid"]
 
 [[bin]]
 name = "key_debug"
@@ -71,6 +74,8 @@ arboard = { version = "3.6", optional = true }
 chrono = "0.4.45"
 qcell = "0.5"
 log = "0.4.33"
+fluent-bundle = { version = "0.16", optional = true }
+unic-langid = { version = "0.9", optional = true }
 
 [dev-dependencies]
 tempfile = "3.27"

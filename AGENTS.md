@@ -309,6 +309,8 @@ for, how to create it, and how to use its value. Most views also have a
 | `Grow`, `Options`, `State` | `core::state` | How a view follows its owner's resize; option and state flags. |
 | `Terminal` | `terminal` | Drawing target and input. Apps use `app.terminal.size()`. |
 | `test_util` | `test_util` (feature `test-util`) | A terminal without a TTY, for tests. |
+| `tr`, `tr!`, `set_locale`, `add_translations` | `i18n` (feature `i18n`, on by default) | Text in the user's language, with Project Fluent. The crate's own strings come in `en`, `es` and `ca`. |
+| `width_for_title` | `views::button` | How wide a button must be for a translated title. |
 
 ## 4. Recipes
 
@@ -568,6 +570,71 @@ impl View for Counter {
 }
 ```
 
+### Translate the application
+
+Write the texts in Fluent (`.ftl`) files, one per language, add them, choose
+the locale, and only then build the menus and dialogs. Views keep the text
+they were built with. Turbo Vision's own buttons and dialogs (OK, Cancel, the
+file dialog, message boxes, help) follow the same locale.
+
+```rust,no_run
+use turbo_vision::app::Application;
+use turbo_vision::core::command::CM_QUIT;
+use turbo_vision::core::menu_data::{Menu, MenuItemBuilder};
+use turbo_vision::core::geometry::Rect;
+use turbo_vision::tr;
+use turbo_vision::views::menu_bar::{MenuBar, SubMenu};
+use turbo_vision::views::msgbox::message_box_ok;
+
+const EN: &str = "
+menu-file = ~F~ile
+menu-exit = E~x~it
+files-saved = { $count ->
+    [one] One file saved.
+   *[other] { $count } files saved.
+}
+";
+const CA: &str = "
+menu-file = ~F~itxer
+menu-exit = ~S~urt
+files-saved = { $count ->
+    [one] S'ha desat un fitxer.
+   *[other] S'han desat { $count } fitxers.
+}
+";
+
+fn main() -> turbo_vision::core::error::Result<()> {
+    let mut app = Application::new()?;
+    app.add_translations("en", EN).expect("valid Fluent");
+    app.add_translations("ca", CA).expect("valid Fluent");
+    app.set_locale_from_env(); // LC_ALL, LC_MESSAGES, LANG; English if unset
+
+    let (width, _) = app.terminal.size();
+    let mut menu_bar = MenuBar::new(Rect::new(0, 0, width, 1));
+    menu_bar.add_submenu(SubMenu::new(
+        &tr!("menu-file"),
+        Menu::from_items(vec![
+            MenuItemBuilder::new().text(tr!("menu-exit")).command(CM_QUIT).key("Alt+X").build(),
+        ]),
+    ));
+    app.set_menu_bar(menu_bar);
+    message_box_ok(&mut app, &tr!("files-saved", count = 3));
+    Ok(())
+}
+```
+
+- A missing message falls back along the chain: `ca-ES` → `ca` → `en`, and
+  last to the id itself, so a half-translated file still works.
+- Fluent's `{ $count -> [one] … *[other] … }` handles plurals. Do not build
+  sentences from pieces with `format!`, because word order differs between
+  languages.
+- `app.set_help_file("help.md")` loads `help.ca.md` when the locale is
+  Catalan and that file exists.
+- `add_translations` can also replace a built-in message, for example
+  `button-ok = ~A~ccept`. The ids are in `locales/en/turbo-vision.ftl`.
+- `cargo run --example i18n` shows the language switching while the program
+  runs.
+
 ### Test a screen without a terminal
 
 With the `test-util` feature (`turbo-vision = { version = "4", features =
@@ -606,7 +673,9 @@ fn enter_presses_ok() {
    crate, and 0–99 are Borland's standard commands.
 3. **One `~` letter per label, menu, status item and button, unique within its
    dialog or menu.** Two views with the same Alt+letter: the first one wins and
-   the other can't be reached by keyboard. Alt+X, F1 and F10 are global.
+   the other can't be reached by keyboard. Alt+X, F1 and F10 are global. This
+   holds in every language: a translator picks the letters again, and they
+   must not clash in the translated dialog either.
 4. **A button's plain letter is typed into a focused input line.** Alt+letter
    always reaches the button.
 5. **A dialog's children are relative to the area inside the frame.** Link each
@@ -643,6 +712,10 @@ fn enter_presses_ok() {
     from it) is rebuilt: compare the desktop's size in `idle` with the size
     you laid out for (recipe "Follow a terminal resize"). Test it: a backend
     whose size you change, then `app.step(&mut handler, None)`.
+15. **Translated text is longer.** German or Catalan text can be half as long
+    again as the English. Size buttons and labels from their text
+    (`button::width_for_title`), not from the English width, and choose the
+    locale before you build the views.
 
 ## 6. Working on the crate itself
 
@@ -664,6 +737,12 @@ fn enter_presses_ok() {
   `Application::with_terminal`, inject keys with
   `app.terminal.event_injector()`, and read cells with
   `terminal.read_cell(x, y)`.
+- **Text the user sees goes through `i18n::tr`.** Give it an id in
+  `locales/en/turbo-vision.ftl`, add the same id to every other locale file
+  (`es`, `ca`), and add it to the hot-key groups in `src/i18n/mod.rs` when it
+  has a `~` letter in a dialog. The tests there check that every locale has
+  exactly the English ids and that no dialog's hot keys clash. Log messages,
+  panics and `Debug` output stay in English.
 - **Record every change** in `CHANGELOG.md` under `[Unreleased]`, and in its
   copy `website/docs/reference/changelog.md`. `python3 website/sync_docs.py`
   copies `docs/` into the website.
