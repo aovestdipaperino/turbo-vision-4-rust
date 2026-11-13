@@ -480,14 +480,82 @@ To check a screen in a language, build it after `set_locale`, run it on the
 test terminal (`AGENTS.md`, "Test a screen without a terminal"), and read
 the cells back.
 
-Three checks catch most translation bugs. The crate runs them on its own
-files in `src/i18n/mod.rs`, and they are worth copying for yours:
+### Checking the files
 
-- **Completeness:** every language has exactly the ids of the English file,
-  no fewer and no more.
-- **Hot keys:** for each dialog or menu, the marked letters of the texts it
-  shows are different, in every language, and each is A to Z.
-- **Room:** each text shown in a fixed area fits it, in every language.
+Most translation bugs never show until someone opens the right dialog in
+the right language: a message the translator missed shows in English, a
+typo in an id hides a translation, a renamed placeholder shows `{$nom}`, and
+two buttons with the same `~` letter leave one out of reach. Two functions
+find them all from a test, the same ones Turbo Vision runs on its own files:
+
+- `i18n::check_translation(english, translation)` compares one translation
+  with the English file. Its `TranslationReport` lists the lines that are
+  not valid Fluent, the ids that are **missing** or **not in the
+  reference**, the **placeholders** the English message does not have, and
+  badly marked **hot keys** (two `~` letters, an unclosed `~`, or a letter
+  with no Alt key, such as `Á`). `is_ok()` says whether all lists are
+  empty, and printing the report gives one line per problem.
+- `i18n::check_hot_key_groups(source, groups)` takes the groups of messages
+  shown together (the labels and buttons of one dialog, the items of one
+  menu) and reports two messages of a group that mark the same letter. It
+  also reports an id of a group that the file lacks, so a typo in the list
+  does not go unnoticed.
+
+```rust
+use turbo_vision::i18n::{check_hot_key_groups, check_translation};
+
+// In the program these are include_str!("../locales/<locale>/app.ftl").
+const EN: &str = "
+menu-file = ~F~ile
+menu-edit = ~E~dit
+saved = Saved { $name }.
+";
+const CA: &str = "
+menu-file = ~F~itxer
+menu-edit = ~E~dita
+saved = S'ha desat { $name }.
+";
+const LOCALES: &[(&str, &str)] = &[("en", EN), ("ca", CA)];
+
+/// The messages shown together: their hot keys must differ.
+const HOT_KEY_GROUPS: &[&[&str]] = &[&["menu-file", "menu-edit"]];
+
+// #[test]
+fn translations_are_complete_and_hot_keys_do_not_clash() {
+    for (locale, source) in LOCALES {
+        let report = check_translation(EN, source);
+        assert!(report.is_ok(), "{locale}/app.ftl:\n{report}");
+        let clashes = check_hot_key_groups(source, HOT_KEY_GROUPS);
+        assert!(clashes.is_empty(), "{locale}: {clashes:?}");
+    }
+}
+translations_are_complete_and_hot_keys_do_not_clash(); // cargo test runs it
+```
+
+A failure names the file, the id, the line and the problem:
+
+```text
+ca/app.ftl:
+missing: menu-view
+not in the reference: menu-fitxer
+placeholder: saved (line 4) uses { $nom }, which the reference message does not have
+hot key: menu-edit (line 3) marks 'É', which has no Alt key; mark a letter from A to Z
+```
+
+Keep the English file itself in `LOCALES`: checked against itself, it
+reports its own syntax and hot-key mistakes.
+
+A translation may leave a placeholder out, since a singular form often
+says "one file" instead of `{ $count } files`, so that is not reported.
+Terms (`-brand = ..`) and attributes (`.title = ..`) belong to each
+language and are not compared. Without the `i18n` feature the syntax is
+checked against the plain subset that the feature-off reader understands,
+which has no terms and no selectors.
+
+What the functions can't know is the **room** each text has. Where a text
+sits in a fixed area, check its width in every language, as the crate does
+in `src/i18n/mod.rs` (`FIXED_SLOTS`). Or build the screen in each language
+on the test terminal and look for overlaps.
 
 ## Without the `i18n` feature
 
@@ -554,8 +622,20 @@ Say the program needs German (`de`):
 4. **Add it to your language menu**, named in itself: *Deutsch*.
 
 A later version of the crate may add messages. Those show in English in
-your German until you translate them. The ids are in the new version's
-English file. When the translation is done, consider sending it to the crate
+your German until you translate them. A test catches them at the upgrade:
+`i18n::built_in_source("en")` is the English file of the crate version you
+build with, so
+
+```rust
+let report = check_translation(
+    turbo_vision::i18n::built_in_source("en").unwrap(),
+    include_str!("../locales/de/turbo-vision.ftl"),
+);
+assert!(report.is_ok(), "{report}");
+```
+
+lists every new id as missing, and every removed one as not in the
+reference. When the translation is done, consider sending it to the crate
 as the next section describes. Then it is kept up to date with the crate.
 
 ### In Turbo Vision itself
@@ -658,7 +738,10 @@ with a `# TODO: translate` comment, so a speaker can find it.
 8. **Text made on another thread, before the locale is chosen, or kept
    across a change of language** is a `LazyMessage` (`tr_lazy!`),
    translated when it is shown, on the UI thread.
-9. **A new language** goes into your application with `add_translations`
+9. **Check the files in a test** with `check_translation` (ids,
+   placeholders, hot keys) and `check_hot_key_groups` (clashes in a dialog
+   or menu), as the crate does for its own.
+10. **A new language** goes into your application with `add_translations`
    and a translated copy of `locales/en/turbo-vision.ftl`, or into the crate
    with that file and one line in `BUILT_IN`; the tests then check it.
 

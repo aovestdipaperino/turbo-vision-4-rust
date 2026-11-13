@@ -310,6 +310,7 @@ for, how to create it, and how to use its value. Most views also have a
 | `Terminal` | `terminal` | Drawing target and input. Apps use `app.terminal.size()`. |
 | `test_util` | `test_util` (feature `test-util`) | A terminal without a TTY, for tests. |
 | `tr`, `tr!`, `set_locale`, `add_translations` | `i18n` (feature `i18n`, on by default) | Text in the user's language, with Project Fluent. The crate's own strings come in `en`, `es` and `ca`. |
+| `check_translation`, `TranslationReport`, `check_hot_key_groups`, `built_in_source` | `i18n` | Test an application's `.ftl` files: the English ids exactly, valid Fluent, known placeholders, hot keys well marked and not clashing in a dialog or menu. `built_in_source("en")` is the crate's own English, to check a translation the application ships of it. |
 | `LazyMessage`, `tr_lazy!` | `i18n` | A message translated when it is shown, not when it is made: from a worker thread, before the locale is chosen, or kept across a change of language. |
 | `width_for_title` | `views::button` | How wide a button must be for a translated title. |
 
@@ -652,6 +653,13 @@ fn main() -> turbo_vision::core::error::Result<()> {
   // On the UI thread, when shown: in the current locale.
   assert_eq!(report.to_string(), "~C~ancel");
   ```
+- **Test every `.ftl` file.** For each locale, assert
+  `i18n::check_translation(EN, source).is_ok()` (print the report on
+  failure: it names the id, the line and the problem), and assert
+  `i18n::check_hot_key_groups(source, GROUPS)` is empty, where `GROUPS`
+  lists the ids shown together in each dialog and menu. Include English
+  itself. When you add a message, add it to every locale file and to its
+  group in the same change; the test fails until you do.
 - `add_translations` can also replace a built-in message, for example
   `button-ok = ~A~ccept`. The ids are in `locales/en/turbo-vision.ftl`.
 - A language the crate does not ship (German, say) still works: your
@@ -773,8 +781,11 @@ fn enter_presses_ok() {
 - **Text the user sees goes through `i18n::tr`.** Give it an id in
   `locales/en/turbo-vision.ftl`, add the same id to every other locale file
   (`es`, `ca`), and add it to the hot-key groups in `src/i18n/mod.rs` when it
-  has a `~` letter in a dialog. The tests there check that every locale has
-  exactly the English ids and that no dialog's hot keys clash. Log messages,
+  has a `~` letter in a dialog. The tests there run `check_translation` and
+  `check_hot_key_groups` (`src/i18n/check.rs`) on every built-in locale: the
+  English ids exactly, known placeholders, well-marked hot keys, no
+  clashes. Improve a check there, not in a test of its own, so applications
+  get it too. Log messages,
   panics and `Debug` output stay in English. Text the crate makes before it
   is shown, or on another thread, is a `LazyMessage`, resolved when drawn
   or shown.

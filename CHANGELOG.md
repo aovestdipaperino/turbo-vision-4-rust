@@ -22,6 +22,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   application until it chooses one. Placeholders are not wrapped in Unicode
   isolation marks, which a terminal would show as junk. With the feature
   off, the messages are read as plain text with `{ $name }` placeholders.
+- Checks for translation files, for an application's tests:
+  `i18n::check_translation(english, translation)` returns a
+  `TranslationReport` of syntax errors, missing and extra ids, placeholders
+  the English lacks, and badly marked hot keys, and
+  `i18n::check_hot_key_groups(source, groups)` reports messages shown
+  together that mark the same letter. Turbo Vision's own tests use them on
+  its files. `i18n::built_in_source(locale)` gives the crate's own messages,
+  so an application that ships a translation of them can check it against
+  the English of the crate version it builds with.
 - Lazy translation: `i18n::LazyMessage` and the `tr_lazy!` macro, like
   Django's `gettext_lazy`. A `LazyMessage` holds a message id and its
   arguments (text, numbers or other messages) and is translated when it is
