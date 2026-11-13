@@ -498,6 +498,12 @@ starts in English. With the feature off, messages are read as plain text with
 - `tr_args(id: &str, args: &[(&str, Arg)]) -> String` - The same, with placeholder values.
 - `tr!(id)`, `tr!(id, name = value, ...)` - Macro form of `tr` / `tr_args` (exported at the crate root).
 - `enum Arg<'a>` - `Text(Cow<str>)`, `Int(i64)`, `Float(f64)`; `From` text and the number types.
+- `struct LazyMessage` (`src/i18n/lazy.rs`) - An id and its arguments, translated when displayed, in the displaying thread's locale; `Send`, `Clone`, `Display`. For text made on a worker thread, before the locale is chosen, or kept across a change of language.
+  - `const fn new(id: &'static str) -> Self`, `from_id(id: impl Into<String>) -> Self`
+  - `arg(self, name: &'static str, value: impl Into<LazyArg>) -> Self` - Text, a number or another `LazyMessage`; a repeated name replaces its value
+  - `id(&self) -> &str`, `resolve(&self) -> String` (also `to_string()`, `String::from(&message)`)
+- `enum LazyArg` - `Value(Arg<'static>)`, `Message(LazyMessage)`; `From` everything `Arg` takes, and `LazyMessage`.
+- `tr_lazy!(id)`, `tr_lazy!(id, name = value, ...)` - Like `tr!`, but makes a `LazyMessage` (exported at the crate root).
 - `has_message(id: &str) -> bool`
 - `set_locale(tag: &str) -> String` - Choose the locale (`"ca"`, `"es-MX"`, `"ca_ES.UTF-8"`); returns the locale used first.
 - `set_locale_from_env() -> String` - Choose the user's locale (`LC_ALL`, `LC_MESSAGES`, `LANG`), or English.

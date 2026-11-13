@@ -17,6 +17,7 @@ The topics in this chapter include:
 - Translating an application, step by step
 - Fluent messages: placeholders, plurals, several lines
 - Choosing the language, and changing it while the program runs
+- Messages shown later, or from another thread: lazy translation
 - Hot keys in other languages
 - Making room for longer text
 - Help files per language
@@ -308,6 +309,100 @@ assert_eq!(i18n::tr("button-ok"), "~A~ccept");
 The ids of the built-in messages, with a comment for each group, are in
 `locales/en/turbo-vision.ftl`.
 
+## Messages shown later: lazy translation
+
+`tr!` translates at once, in the calling thread's current locale. That is
+right for text about to go on screen: a label you are building, the text of
+a message box you open now. It is wrong for text made earlier or elsewhere
+than where it is shown:
+
+- **On another thread.** The catalogue is per thread. A worker thread has
+  only Turbo Vision's own messages, in English, and none of yours, so
+  `tr!("app-saved")` there returns `app-saved`.
+- **Before the locale is chosen.** Defaults in a struct built at start-up,
+  before `set_locale_from_env`, would stay in English.
+- **Kept, and shown again after a change of language.** The last error, a
+  status message or a list of recent events, shown again after the user
+  switched language, would still be in the old one.
+- **In a table.** A `const` or `static` cannot call `tr!` at all.
+
+For these, make a `LazyMessage` instead, with `tr_lazy!`, which takes the
+same arguments as `tr!`. It keeps the id and the arguments, and is
+translated each time it is displayed (`to_string()`, `resolve()`, `{}`),
+with the locale of the thread that displays it. Django calls the same idea
+`gettext_lazy`.
+
+```rust
+use std::sync::mpsc;
+use turbo_vision::i18n::{self, LazyMessage};
+use turbo_vision::tr_lazy;
+
+i18n::add_translations("en", "
+copy-done = Copied { $count } files.
+copy-failed = Could not copy { $name }: { $reason }
+copy-disk-full = the disk is full
+").unwrap();
+i18n::add_translations("ca", "
+copy-done = S'han copiat { $count } fitxers.
+copy-failed = No s'ha pogut copiar { $name }: { $reason }
+copy-disk-full = el disc és ple
+").unwrap();
+i18n::set_locale("ca");
+
+// The worker reports in messages, not in text.
+let (report, reports) = mpsc::channel::<LazyMessage>();
+std::thread::spawn(move || {
+    report.send(tr_lazy!("copy-done", count = 3)).unwrap();
+    // An argument can be a message too; it is translated with the other.
+    let reason = tr_lazy!("copy-disk-full");
+    report.send(tr_lazy!("copy-failed", name = "a.txt", reason = reason)).unwrap();
+})
+.join()
+.unwrap();
+
+// The UI thread translates them, in its language, when it shows them.
+let shown: Vec<String> = reports.try_iter().map(|m| m.to_string()).collect();
+assert_eq!(shown, [
+    "S'han copiat 3 fitxers.",
+    "No s'ha pogut copiar a.txt: el disc és ple",
+]);
+```
+
+In an application, the UI thread picks the messages up in `idle` (or from
+whatever the worker hands back) and shows them, for example with
+`message_box_ok(app, &message.to_string())` or a `TextViewer`'s `set_text`.
+
+A table of messages can be a `const`, because `LazyMessage::new` is a
+`const fn`:
+
+```rust
+use turbo_vision::i18n::{self, LazyMessage};
+
+const PRIORITIES: [LazyMessage; 2] = [
+    LazyMessage::new("button-ok"), // your own ids, in a real program
+    LazyMessage::new("button-cancel"),
+];
+i18n::set_locale("es");
+assert_eq!(PRIORITIES[1].to_string(), "~C~ancelar");
+```
+
+A few things to keep in mind:
+
+- **A view still keeps its text.** `Label::new(.., &message.to_string())`
+  translates once, when the label is built. After a change of language,
+  set the text again (`set_text(message.to_string())`) or build the view
+  again, as in "Changing the language while the program runs". The lazy
+  message is what lets you do that: it still knows its id and arguments.
+- **Translate on the UI thread.** Displaying a `LazyMessage` on the worker
+  thread gives the worker's catalogue, which is the mistake it avoids.
+- **Arguments are owned or `'static`.** A `LazyMessage` outlives the code
+  that made it, so `name = path` takes a `String`:
+  `name = path.display().to_string()`.
+- **A runtime id** goes in with `LazyMessage::from_id(id)`. Ids come from
+  your program, never from user input.
+- **Use `tr!` for everything else.** Text that is built into a view right
+  away has nothing to gain from being lazy.
+
 ## Hot keys in other languages
 
 The `~` letter is part of the translation. The translator chooses it again
@@ -560,7 +655,10 @@ with a `# TODO: translate` comment, so a speaker can find it.
    the fixed areas.
 7. **Test every language:** completeness, hot keys and room, as the crate
    does for its own files.
-8. **A new language** goes into your application with `add_translations`
+8. **Text made on another thread, before the locale is chosen, or kept
+   across a change of language** is a `LazyMessage` (`tr_lazy!`),
+   translated when it is shown, on the UI thread.
+9. **A new language** goes into your application with `add_translations`
    and a translated copy of `locales/en/turbo-vision.ftl`, or into the crate
    with that file and one line in `BUILT_IN`; the tests then check it.
 
