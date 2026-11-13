@@ -77,6 +77,12 @@ pub(crate) fn built_in_source(locale: &str) -> Option<&'static str> {
         .map(|(_, source)| *source)
 }
 
+/// The locales Turbo Vision ships, for tests elsewhere in the crate.
+#[cfg(test)]
+pub(crate) fn built_in_locales() -> impl Iterator<Item = &'static str> {
+    BUILT_IN.iter().map(|(tag, _)| *tag)
+}
+
 /// The messages of a plain Fluent `source`, for tests elsewhere in the crate.
 #[cfg(test)]
 pub(crate) use simple::parse as parse_plain;

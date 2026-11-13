@@ -3,7 +3,8 @@
 //! The built-in dialogs keep their controls apart in every language.
 //!
 //! A translated button or label grows to show its text. These tests build
-//! each dialog of the crate in every built-in locale, and in a made-up
+//! each dialog of the crate in every built-in locale (every entry of
+//! `BUILT_IN`), and in a made-up
 //! locale whose every message is half as long again (the room German or
 //! Catalan text can take), and check that no control overlaps another or
 //! the frame. A text too long for its place is cut; it never covers a
@@ -156,7 +157,9 @@ fn problems_of_every_dialog() -> Vec<String> {
 fn built_in_dialogs_keep_their_controls_apart_in_every_locale() {
     super::add_translations(LONG, &long_messages()).unwrap();
     let mut found = Vec::new();
-    for locale in ["en", "es", "ca", LONG] {
+    // Every shipped language, so a new one is checked as soon as it is in
+    // BUILT_IN, and the made-up long one.
+    for locale in super::built_in_locales().chain([LONG]) {
         super::set_locale(locale);
         found.extend(
             problems_of_every_dialog()

@@ -632,6 +632,10 @@ fn main() -> turbo_vision::core::error::Result<()> {
   Catalan and that file exists.
 - `add_translations` can also replace a built-in message, for example
   `button-ok = ~A~ccept`. The ids are in `locales/en/turbo-vision.ftl`.
+- A language the crate does not ship (German, say) still works: your
+  messages are in it and the built-in dialogs fall back to English. To have
+  those in German too, translate a copy of `locales/en/turbo-vision.ftl` and
+  add it with `app.add_translations("de", ..)`, next to your own messages.
 - `cargo run --example i18n` shows the language switching while the program
   runs. The whole story, including adding a language to the crate, is in
   [Chapter 19](docs/user-guide/Chapter-19-Localization.md) of the user guide.
@@ -744,6 +748,11 @@ fn enter_presses_ok() {
   has a `~` letter in a dialog. The tests there check that every locale has
   exactly the English ids and that no dialog's hot keys clash. Log messages,
   panics and `Debug` output stay in English.
+- **A new built-in language** is a translated copy of
+  `locales/en/turbo-vision.ftl` in `locales/<tag>/` and one line in
+  `BUILT_IN` (`src/i18n/mod.rs`). The tests find it there and check its ids,
+  hot keys, fixed areas, and that no dialog's controls overlap in it. The
+  steps are in Chapter 19, "Adding a new language".
 - **Record every change** in `CHANGELOG.md` under `[Unreleased]`, and in its
   copy `website/docs/reference/changelog.md`. `python3 website/sync_docs.py`
   copies `docs/` into the website.

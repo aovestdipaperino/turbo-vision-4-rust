@@ -21,7 +21,7 @@ The topics in this chapter include:
 - Making room for longer text
 - Help files per language
 - Testing translations
-- Adding a new language to Turbo Vision itself
+- Adding a new language, to your application or to Turbo Vision
 
 ## What is translated, and by whom
 
@@ -409,11 +409,63 @@ continued on indented lines, and `{ $name }` placeholders. Selectors
 (plurals) and Fluent functions need the feature. Without it, a message that
 uses them is not resolved, and part of its source text shows on screen.
 
-## Adding a new language to Turbo Vision
+## Adding a new language
 
-Turbo Vision's own messages are about fifty short strings. Translating them
-for a new language takes an hour or so, and every application that uses the
-crate benefits. Here is the whole process, for French (`fr`) as an example.
+A language has two sets of messages: Turbo Vision's own (the OK and Cancel
+buttons, the message boxes, the file dialog and the rest) and your
+application's. Your application's are always yours to write, as in
+"Translating an application, step by step". For Turbo Vision's own there
+are two ways, and you can do both:
+
+- **Ship it in your application**, when you need the language now and the
+  crate does not have it yet. Only your program gets it.
+- **Add it to Turbo Vision**, so every program built on the crate gets it.
+  It takes an hour or so: the crate has about forty short messages.
+
+Until one of the two is done, a language the crate does not ship still
+works. Your own messages are in it, and the built-in dialogs fall back to
+English.
+
+### In your application
+
+Say the program needs German (`de`):
+
+1. **Copy the crate's English file into your program**, next to your own
+   messages: `locales/de/turbo-vision.ftl`. It is in the crate's source
+   (`locales/en/turbo-vision.ftl`), and in the copy Cargo keeps under
+   `~/.cargo/registry/src/`. Copy it from the version of the crate you use.
+2. **Translate it**, following steps 2 to 4 of the next section: keep every
+   id and placeholder, choose the hot keys again, and mind the room.
+3. **Add it before you choose the locale**, like your own messages:
+
+   ```rust
+   use turbo_vision::app::Application;
+
+   // In the program: include_str!("../locales/de/turbo-vision.ftl").
+   const TURBO_VISION_DE: &str = "button-ok = ~O~K\nbutton-cancel = ~A~bbrechen";
+   // And your own German messages.
+   const APP_DE: &str = "menu-file = ~D~atei";
+
+   fn main() -> turbo_vision::core::error::Result<()> {
+       let mut app = Application::new()?;
+       app.add_translations("de", TURBO_VISION_DE).expect("valid Fluent");
+       app.add_translations("de", APP_DE).expect("valid Fluent");
+       app.set_locale_from_env(); // LANG=de_DE.UTF-8 gives German
+       // ... build the menus, the status line and the windows
+       Ok(())
+   }
+   ```
+
+4. **Add it to your language menu**, named in itself: *Deutsch*.
+
+A later version of the crate may add messages. Those show in English in
+your German until you translate them. The ids are in the new version's
+English file. When the translation is done, consider sending it to the crate
+as the next section describes. Then it is kept up to date with the crate.
+
+### In Turbo Vision itself
+
+Here is the whole process, for French (`fr`) as an example.
 
 1. **Copy the English file.** It is the reference, with a comment above
    each group:
@@ -436,7 +488,8 @@ crate benefits. Here is the whole process, for French (`fr`) as an example.
 
 4. **Mind the room.** The texts with a fixed amount of space, and how many
    columns each may take, are listed in `FIXED_SLOTS` in the same file.
-   Everything else is sized from its text.
+   Everything else is sized from its text, and grows: a longer *Cancel*
+   makes its button wider.
 
 5. **Register the language.** Add one line to `BUILT_IN` in
    `src/i18n/mod.rs`:
@@ -445,25 +498,45 @@ crate benefits. Here is the whole process, for French (`fr`) as an example.
    ("fr", include_str!("../../locales/fr/turbo-vision.ftl")),
    ```
 
-6. **Run the tests.** `cargo test i18n` checks that your file has exactly the
-   English ids, that it parses, that no dialog's hot keys clash, that every
-   hot key has an Alt key, and that the fixed areas fit. A failure names the
-   locale, the id and the problem:
+   That is the only code to change. The tests below find the new language
+   through `BUILT_IN`.
+
+6. **Run the tests.** `cargo test i18n` checks, for every language in
+   `BUILT_IN`:
+
+   - that the file parses, and has exactly the English ids;
+   - that no dialog's hot keys clash, and that every hot key has an Alt key;
+   - that the texts in fixed areas fit;
+   - that every built-in dialog, built in that language, keeps its
+     controls apart: no button grown for a long text covers a list, a field
+     or the frame (`src/i18n/layout_check.rs`).
+
+   A failure names the locale, the id or the dialog, and the problem:
 
    ```text
    fr: 'file-dialog-files' and 'file-dialog-name' both use Alt+n
    fr: 'help-index-search' is 11 > 7 (help_index.rs: Label (2, 4, 10, 5)): "Rechercher:"
+   fr: file dialog: child 4 Rect { .. } overlaps child 5 Rect { .. }
    ```
+
+   The layout check also runs in a made-up language whose every message is
+   half as long again. The crate's dialogs pass it, so an overlap in yours
+   means a text far longer than usual. Shorten it, or report the dialog.
 
 7. **Look at it.** `LANG=fr_FR.UTF-8 cargo run --example i18n` opens the
    example in French. The menus stay in English, because the example has
    no French messages of its own, but every built-in dialog is in French.
-   Open the message boxes and the file dialog, and check that nothing is
-   cut off or crowded.
+   Open the message boxes, the Find and Go to line boxes and the file
+   dialog, and check that nothing is cut off or crowded.
 
-8. **Record it** in `CHANGELOG.md` under `[Unreleased]`, *Added*, and in its
-   copy `website/docs/reference/changelog.md`. Also add the language to the
-   lists of shipped languages in this chapter and in `AGENTS.md`.
+8. **Show it in the gallery.** Add a button named in the language itself
+   (*Français*) to the Languages demo (`examples/gallery/demos/languages.rs`),
+   with its two `demo-` messages, so the language can be tried there.
+
+9. **Record it** in `CHANGELOG.md` under `[Unreleased]`, *Added*, and in its
+   copy `website/docs/reference/changelog.md`. Add the language to the lists
+   of shipped languages in this chapter (the first section and the summary)
+   and in `AGENTS.md`, then run `python3 website/sync_docs.py`.
 
 When the crate gains a new message, it is added in English and in every
 shipped language in the same change. The completeness test fails until it
@@ -487,6 +560,9 @@ with a `# TODO: translate` comment, so a speaker can find it.
    the fixed areas.
 7. **Test every language:** completeness, hot keys and room, as the crate
    does for its own files.
+8. **A new language** goes into your application with `add_translations`
+   and a translated copy of `locales/en/turbo-vision.ftl`, or into the crate
+   with that file and one line in `BUILT_IN`; the tests then check it.
 
 **Key Files to Explore**:
 - `src/i18n/mod.rs` - The catalogue, `tr`, `tr!`, the locale chain, and the tests for the built-in languages
