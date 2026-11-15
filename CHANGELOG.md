@@ -16,6 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   single rows.
 
 ### Fixed
+- `MsgBox::YES_NO_CANCEL` is Yes, No and Cancel (`0x0B00`, Borland's
+  `mfYesNoCancel`). It was `0x0E00`, which is No, OK and Cancel, so
+  `confirmation_box` had no Yes button. In an editor's "has been modified.
+  Save changes?" prompt there was no way to save, and OK closed nothing,
+  because it counts as Cancel there.
+- The Go to line box (`goto_line_box`) is nine rows tall, like the Find box.
+  At eight, its buttons' shadow sat on the bottom frame.
 - `TextViewer` no longer panics on a line wider than the viewer that holds
   multi-byte characters (`é`, `ñ`, `−`, `€`): it cut each visible line by
   byte offset, which could fall inside a character. Lines are now cut, and
