@@ -122,8 +122,10 @@ fn problems_of_every_dialog() -> Vec<String> {
     }
     check("search box", layout_problems(&msgbox::built_search_box()));
     check("replace box", layout_problems(&msgbox::built_replace_box()));
-    // The Go to line box is checked once fix/goto-line-box-height, which
-    // makes it tall enough for its buttons, is merged.
+    check(
+        "go to line box",
+        layout_problems(&msgbox::built_goto_line_box()),
+    );
 
     // The gallery's colour dialog.
     check(

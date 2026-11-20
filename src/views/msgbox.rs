@@ -667,6 +667,12 @@ pub(crate) fn built_replace_box() -> Dialog {
 }
 
 #[cfg(test)]
+pub(crate) fn built_goto_line_box() -> Dialog {
+    let (width, height) = GOTO_LINE_BOX_SIZE;
+    goto_line_dialog(Rect::new(0, 0, width, height), "Go to line").0
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use crate::core::event::{Event, KB_ALT_Y, KB_ESC};
@@ -698,11 +704,7 @@ mod tests {
             .event_injector()
             .send(Event::keyboard(KB_ESC))
             .unwrap();
-        // The three flags, not YES_NO_CANCEL: that constant is 0x0E00
-        // (No, OK, Cancel) where Borland's mfYesNoCancel is 0x0B00.
-        let yes_no_cancel = MsgBox::YES_BUTTON | MsgBox::NO_BUTTON | MsgBox::CANCEL_BUTTON;
-        let options = MsgBox::CONFIRMATION | yes_no_cancel;
-        assert_eq!(message_box(&mut app, "Voleu desar?", options), CM_CANCEL);
+        assert_eq!(confirmation_box(&mut app, "Voleu desar?"), CM_CANCEL);
         let rows = screen(&app);
         assert!(rows.iter().any(|r| r.contains("Confirmació")), "{rows:#?}");
         let buttons = rows
@@ -775,8 +777,7 @@ mod tests {
 
     #[test]
     fn message_boxes_widen_for_their_buttons() {
-        let options =
-            MsgBox::CONFIRMATION | MsgBox::YES_BUTTON | MsgBox::NO_BUTTON | MsgBox::CANCEL_BUTTON;
+        let options = MsgBox::CONFIRMATION | MsgBox::YES_NO_CANCEL;
         crate::i18n::set_locale("en");
         let english = buttons_width(&message_box_buttons(options));
         crate::i18n::set_locale("ca");
