@@ -360,7 +360,7 @@ fn get_ui_string(id: u16) -> Option<&'static String> {
 }
 ```
 
-For internationalization, consider the `fluent` or `gettext` crates, which provide professional translation support with plural rules, gender agreement, and more.
+For translated text, use the `i18n` module instead: Fluent messages looked up by id, with plural rules and fallback between languages ([Chapter 19](Chapter-19-Localization.md)).
 
 ## Centralized Resource Management
 
@@ -504,67 +504,11 @@ height = 25
 
 ### 2. Internationalization with External Files
 
-For multi-language support, use resource files for strings:
-
-```rust
-use serde::{Serialize, Deserialize};
-use std::collections::HashMap;
-
-#[derive(Serialize, Deserialize)]
-struct LanguageResources {
-    strings: HashMap<String, String>,
-}
-
-// Load language resource
-fn load_language(lang_code: &str) -> Result<LanguageResources, Box<dyn std::error::Error>> {
-    let path = format!("resources/lang/{}.toml", lang_code);
-    let content = std::fs::read_to_string(path)?;
-    let resources: LanguageResources = toml::from_str(&content)?;
-    Ok(resources)
-}
-
-// Global resource accessor
-use std::sync::OnceLock;
-
-static CURRENT_LANG: OnceLock<LanguageResources> = OnceLock::new();
-
-fn tr(key: &str) -> String {
-    CURRENT_LANG
-        .get()
-        .and_then(|lang| lang.strings.get(key))
-        .map(|s| s.clone())
-        .unwrap_or_else(|| format!("Missing: {}", key))
-}
-
-// Usage in menus
-MenuBuilder::new()
-    .item(&tr("menu.file.new"), CM_NEW, 0)
-    .item(&tr("menu.file.open"), CM_OPEN, 0)
-    .item(&tr("menu.file.exit"), CM_QUIT, 0)
-    .build()
-```
-
-**Example language file (resources/lang/en.toml):**
-```toml
-[strings]
-"menu.file.new" = "~N~ew"
-"menu.file.open" = "~O~pen"
-"menu.file.save" = "~S~ave"
-"menu.file.exit" = "E~x~it"
-"dialog.about.title" = "About"
-"dialog.about.version" = "Version 1.0"
-```
-
-**Example language file (resources/lang/es.toml):**
-```toml
-[strings]
-"menu.file.new" = "~N~uevo"
-"menu.file.open" = "~A~brir"
-"menu.file.save" = "~G~uardar"
-"menu.file.exit" = "~S~alir"
-"dialog.about.title" = "Acerca de"
-"dialog.about.version" = "Versión 1.0"
-```
+Translated text is built in: the `i18n` module keeps each language's
+strings in a Fluent (`.ftl`) file, looks them up by id with `tr!`, and
+already translates Turbo Vision's own buttons and dialogs. There is no need
+for a hand-made string table. [Chapter 19 — Localization](Chapter-19-Localization.md)
+covers it.
 
 ### 3. Custom UI Definition Format
 
@@ -713,7 +657,7 @@ This approach is useful during development but should typically be disabled in r
 | **Type Safety** | Runtime (stream registration) | Compile-time (full type checking) |
 | **External Resources** | Built-in (`TResourceFile`) | Optional (via `serde` ecosystem) |
 | **Customization** | Edit `*.TVR` files | Recompile or add external config |
-| **Internationalization** | Swap resource files | Add `serde` with language files |
+| **Internationalization** | Swap resource files | Fluent files and `tr!` (`i18n` module, Chapter 19) |
 | **Tool Support** | Resource workshop utilities | Standard IDE features + Rust tooling |
 | **Performance** | Runtime deserialization | Zero-cost (compiled in) |
 | **Version Control** | Binary files (merge conflicts) | Source code (clean diffs) |
@@ -738,7 +682,7 @@ The Rust implementation makes a clear tradeoff:
 - ✅ Easy to debug (step through construction)
 - ✅ No special tools required
 - ❌ Must recompile for UI changes
-- ❌ Internationalization requires more setup
+- ✅ Internationalization through Fluent files (`i18n`), without recompiling when loaded at run time
 - ❌ Non-programmers can't customize
 
 For most modern applications, the Rust approach provides better safety, maintainability, and developer experience. When runtime customization is needed, targeted use of `serde` and configuration files provides a clean, idiomatic solution.
@@ -757,7 +701,7 @@ This chapter explored resources in Turbo Vision:
 
 5. **Programmatic Patterns**: Menus, status lines, and dialog boxes are defined directly in Rust code using builders and data structures from `src/core/menu_data.rs`, `src/core/status_data.rs`, and `src/views/dialog.rs`.
 
-6. **Adding External Resources**: When runtime customization is needed, the `serde` ecosystem provides modern solutions for configuration files, internationalization, and custom UI definitions using JSON, TOML, or RON formats.
+6. **Adding External Resources**: When runtime customization is needed, the `serde` ecosystem provides modern solutions for configuration files and custom UI definitions using JSON, TOML, or RON formats. Translations have their own system, Fluent files read by the `i18n` module (Chapter 19).
 
 7. **Centralized Management**: Larger applications should centralize resource definitions in dedicated modules for maintainability and reusability.
 
@@ -771,3 +715,7 @@ The Rust implementation's programmatic approach reflects modern development prac
 - `docs/user-guide/Chapter-4-Persistence-and-Configuration.md` - Related persistence concepts
 - `docs/user-guide/Chapter-16-Collections-and-Streams.md` - Collection patterns
 - `docs/user-guide/Chapter-17-Streams-and-Persistence.md` - Serialization approaches
+
+---
+
+**Next:** [Chapter 19 — Localization](Chapter-19-Localization.md)

@@ -156,7 +156,7 @@ impl HelpTopic {
 
         if !self.links.is_empty() {
             lines.push(String::new());
-            lines.push("See also:".to_string());
+            lines.push(crate::i18n::tr("help-see-also"));
             for link in &self.links {
                 lines.push(format!("{SEE_ALSO_PREFIX}{}", self.link_label(link)));
             }
@@ -187,7 +187,7 @@ impl HelpTopic {
         // "See also" section with clickable links
         if !self.links.is_empty() {
             lines.push(String::new());
-            lines.push("See also:".to_string());
+            lines.push(crate::i18n::tr("help-see-also"));
             let offset = display_width(SEE_ALSO_PREFIX) as i16;
             for link in &self.links {
                 let line_num = (lines.len() + 1) as i16;
@@ -401,7 +401,7 @@ impl HelpTopic {
         // "See also" section
         if !self.links.is_empty() {
             all_segments.push(vec![TextSegment::Normal(String::new())]);
-            all_segments.push(vec![TextSegment::Normal("See also:".to_string())]);
+            all_segments.push(vec![TextSegment::Normal(crate::i18n::tr("help-see-also"))]);
             // The link starts where the prefix ends, in cells.
             let offset = display_width(SEE_ALSO_PREFIX) as i16;
             for link in &self.links {

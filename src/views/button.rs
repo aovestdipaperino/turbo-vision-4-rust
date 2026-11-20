@@ -38,6 +38,35 @@ pub fn press_animation() -> Duration {
     PRESS_ANIMATION.with(Cell::get)
 }
 
+/// The width a button needs to show `title` (its `~` markers and surrounding
+/// spaces left out) with a column of space on each side, plus its shadow;
+/// never less than `min`. Use it to size buttons whose text is translated.
+#[must_use]
+pub fn width_for_title(title: &str, min: i16) -> i16 {
+    let text: String = title.trim().chars().filter(|&c| c != '~').collect();
+    let width = unicode_width::UnicodeWidthStr::width(text.as_str());
+    min.max(i16::try_from(width).unwrap_or(i16::MAX - 4) + 4)
+}
+
+/// The bounds of a row of buttons on rows `y..y + 2` that ends at column
+/// `right` (exclusive), each at least `min` wide and as wide as its title
+/// needs, `gap` columns apart, in the order of `titles`.
+pub(crate) fn row_from_right(titles: &[&str], right: i16, y: i16, min: i16, gap: i16) -> Vec<Rect> {
+    let mut x = right;
+    let mut rects: Vec<Rect> = titles
+        .iter()
+        .rev()
+        .map(|title| {
+            let width = width_for_title(title, min);
+            let rect = Rect::new(x - width, y, x, y + 2);
+            x -= width + gap;
+            rect
+        })
+        .collect();
+    rects.reverse();
+    rects
+}
+
 pub struct Button {
     core: ViewCore,
     title: String,
