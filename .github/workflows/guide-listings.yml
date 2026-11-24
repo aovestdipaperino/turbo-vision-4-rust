@@ -1,0 +1,51 @@
+name: Guide listings
+
+# Compiles the complete programs in docs/user-guide against this checkout, so a
+# listing that stops compiling after an API change fails here instead of in a
+# reader's terminal. See scripts/check-guide-listings.py.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/user-guide/**'
+      - 'scripts/check-guide-listings.py'
+      - 'src/**'
+      - 'Cargo.toml'
+      - '.github/workflows/guide-listings.yml'
+  pull_request:
+    paths:
+      - 'docs/user-guide/**'
+      - 'scripts/check-guide-listings.py'
+      - 'src/**'
+      - 'Cargo.toml'
+      - '.github/workflows/guide-listings.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: guide-listings-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  listings:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry and build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target/guide-listings
+          key: ${{ runner.os }}-guide-listings-${{ hashFiles('Cargo.lock', 'Cargo.toml') }}
+
+      - name: Compile the guide's complete programs
+        run: python3 scripts/check-guide-listings.py
