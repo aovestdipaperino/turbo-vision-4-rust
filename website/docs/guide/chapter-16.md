@@ -363,10 +363,10 @@ let file_menu = Menu::from_items(vec![
 
 // Method 2: Builder pattern
 let file_menu = MenuBuilder::new()
-    .item("~O~pen", CM_OPEN, KB_F3)
-    .item("~S~ave", CM_SAVE, KB_F2)
+    .item_key("~O~pen", CM_OPEN, "F3")
+    .item_key("~S~ave", CM_SAVE, "F2")
     .separator()
-    .item("E~x~it", CM_QUIT, KB_ALT_X)
+    .item_key("E~x~it", CM_QUIT, "Alt+X")
     .build();
 ```
 
@@ -599,7 +599,7 @@ impl Application {
             let window = WindowBuilder::new()
                 .bounds(window_state.bounds)
                 .title(window_state.title)
-                .build_boxed();
+                .build();
             // Restore window state...
             self.desktop.add(window);
         }

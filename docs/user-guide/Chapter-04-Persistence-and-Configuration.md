@@ -78,19 +78,19 @@ const CM_SAVE_AS: u16 = 105;
 
 // Build the menu using MenuBuilder
 let file_menu = MenuBuilder::new()
-    .item_with_shortcut("~N~ew", CM_NEW, KB_CTRL_N, "Ctrl+N")
-    .item_with_shortcut("~O~pen", CM_OPEN, KB_F3, "F3")
-    .item_with_shortcut("~S~ave", CM_SAVE, KB_F2, "F2")
-    .item("Save ~a~s...", CM_SAVE_AS, 0)
+    .item_key("~N~ew", CM_NEW, "Ctrl+N")
+    .item_key("~O~pen", CM_OPEN, "F3")
+    .item_key("~S~ave", CM_SAVE, "F2")
+    .item("Save ~a~s...", CM_SAVE_AS)
     .separator()
-    .item_with_shortcut("E~x~it", CM_QUIT, KB_ALT_X, "Alt+X")
+    .item_key("E~x~it", CM_QUIT, "Alt+X")
     .build();
 ```
 
 **Key Points**:
 - The `~` character marks the accelerator key (e.g., `~N~ew` means Alt+N)
-- `item_with_shortcut()` displays the shortcut text (like "Ctrl+N") in the menu
-- `item()` creates menu items without visible shortcuts
+- `item_key()` binds a key chord (like "Ctrl+N") to the item and displays it in the menu
+- `item()` creates menu items without a key binding
 - `separator()` adds visual dividers
 - The method calls chain fluently, ending with `build()`
 
@@ -101,9 +101,9 @@ You can create hierarchical menu structures by nesting menus:
 ```rust
 // Create a submenu for Help Topics
 let help_topics_menu = MenuBuilder::new()
-    .item("~I~ndex", CM_HELP_INDEX, 0)
-    .item("~K~eyboard", CM_HELP_KEYBOARD, 0)
-    .item("~C~ommands", CM_HELP_COMMANDS, 0)
+    .item("~I~ndex", CM_HELP_INDEX)
+    .item("~K~eyboard", CM_HELP_KEYBOARD)
+    .item("~C~ommands", CM_HELP_COMMANDS)
     .build();
 
 // Create the main Help menu with the nested submenu
@@ -138,18 +138,18 @@ Once you've defined your menu structure, attach it to the application:
 ```rust
 fn create_menu_bar(width: u16) -> MenuBar {
     let file_menu = MenuBuilder::new()
-        .item_with_shortcut("~N~ew", CM_NEW, KB_CTRL_N, "Ctrl+N")
-        .item_with_shortcut("~O~pen", CM_OPEN, KB_F3, "F3")
+        .item_key("~N~ew", CM_NEW, "Ctrl+N")
+        .item_key("~O~pen", CM_OPEN, "F3")
         .separator()
-        .item_with_shortcut("E~x~it", CM_QUIT, KB_ALT_X, "Alt+X")
+        .item_key("E~x~it", CM_QUIT, "Alt+X")
         .build();
 
     let edit_menu = MenuBuilder::new()
-        .item_with_shortcut("~U~ndo", CM_UNDO, KB_CTRL_Z, "Ctrl+Z")
+        .item_key("~U~ndo", CM_UNDO, "Ctrl+Z")
         .separator()
-        .item_with_shortcut("Cu~t~", CM_CUT, KB_SHIFT_DEL, "Shift+Del")
-        .item_with_shortcut("~C~opy", CM_COPY, KB_CTRL_INS, "Ctrl+Ins")
-        .item_with_shortcut("~P~aste", CM_PASTE, KB_SHIFT_INS, "Shift+Ins")
+        .item_key("Cu~t~", CM_CUT, "Shift+Del")
+        .item_key("~C~opy", CM_COPY, "Ctrl+Ins")
+        .item_key("~P~aste", CM_PASTE, "Shift+Ins")
         .build();
 
     MenuBar::new(

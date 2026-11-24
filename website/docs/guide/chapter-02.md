@@ -84,9 +84,12 @@ Here's a simple example that displays an "About" message box when the user trigg
 use turbo_vision::prelude::*;
 use turbo_vision::app::Application;
 use turbo_vision::core::event::{Event, EventType};
-use turbo_vision::core::command::{CM_QUIT, CM_ABOUT};
+use turbo_vision::core::command::CM_QUIT;
 use turbo_vision::views::msgbox::{message_box, MF_INFORMATION, MF_OK_BUTTON};
 use std::time::Duration;
+
+// Application-defined command; the library has no CM_ABOUT.
+const CM_ABOUT: CommandId = 100;
 
 fn main() -> turbo_vision::core::error::Result<()> {
     let mut app = Application::new()?;
@@ -182,15 +185,15 @@ fn main() -> turbo_vision::core::error::Result<()> {
 
     // Create menu bar with File, Options, and Help menus
     let file_menu = MenuBuilder::new()
-        .item_with_shortcut("E~x~it", CM_QUIT, KB_ALT_X, "Alt+X")
+        .item_key("E~x~it", CM_QUIT, "Alt+X")
         .build();
 
     let options_menu = MenuBuilder::new()
-        .item("~V~ideo Mode", CM_VIDEO_MODE, 0)
+        .item("~V~ideo Mode", CM_VIDEO_MODE)
         .build();
 
     let help_menu = MenuBuilder::new()
-        .item_with_shortcut("~A~bout", CM_ABOUT, KB_F1, "F1")
+        .item_key("~A~bout", CM_ABOUT, "F1")
         .build();
 
     // Create top-level menu bar
@@ -266,11 +269,11 @@ fn main() -> turbo_vision::core::error::Result<()> {
 **Menu Builder Pattern:**
 ```rust
 let file_menu = MenuBuilder::new()
-    .item_with_shortcut("E~x~it", CM_QUIT, KB_ALT_X, "Alt+X")
+    .item_key("E~x~it", CM_QUIT, "Alt+X")
     .build();
 ```
 - Use `~x~` to mark the accelerator key (shows as underlined)
-- `item_with_shortcut()` displays a keyboard shortcut in the menu
+- `item_key()` binds a key chord such as `"Alt+X"` to the item and displays it in the menu
 - `build()` creates the final `Menu` structure
 
 **Top-Level Menu Items:**

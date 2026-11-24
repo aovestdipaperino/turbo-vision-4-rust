@@ -94,7 +94,7 @@ fn new_window(app: &mut Application) {
     let window = WindowBuilder::new()
         .bounds(bounds)
         .title("A Window")
-        .build_boxed();
+        .build();
 
     // Insert window into desktop
     app.desktop.add(window);
@@ -121,13 +121,13 @@ The `Rect::new(x1, y1, x2, y2)` function creates a rectangle from coordinates `(
 let window = WindowBuilder::new()
     .bounds(bounds)
     .title("A Window")
-    .build_boxed();
+    .build();
 ```
 
 The window builder pattern provides a fluent, type-safe API for constructing windows. You start with `WindowBuilder::new()`, then chain methods to set properties:
 - `.bounds(bounds)` sets the window's screen position and size
 - `.title("A Window")` sets the window title
-- `.build_boxed()` creates the window and wraps it in a `Box` for adding to the desktop
+- `.build()` creates the `Window`, ready to add to the desktop
 
 The builder pattern is preferred over direct constructors because it:
 - Makes optional parameters explicit
@@ -144,7 +144,7 @@ app.desktop.add(window);
 
 `add` is a method common to all Turbo Vision groups, and it's the way a group gets control of the objects within it. When you add the window to the desktop, you're telling the desktop that it is supposed to manage that window.
 
-The window is already boxed (returned by `.build_boxed()`) because the desktop stores views as trait objects (`Box<dyn View>`), allowing it to manage different types of views polymorphically.
+`add` accepts any type that implements the `View` trait and stores it as a trait object, which is how the desktop manages different kinds of views polymorphically.
 
 If you run the program now and choose New from the File menu, an empty window with the title 'A Window' appears on the desktop. If you choose New again, another identical window appears in the same place, because `new_window` assigns exact coordinates for the window. Using your mouse, you can select different windows.
 
@@ -422,7 +422,7 @@ let bounds = Rect::new(x, y, x + 60, y + 20);
 let window = WindowBuilder::new()
     .bounds(bounds)
     .title("Centered Window")
-    .build_boxed();
+    .build();
 app.desktop.add(window);
 ```
 
@@ -443,7 +443,7 @@ fn new_cascaded_window(app: &mut Application, window_count: usize) {
     let window = WindowBuilder::new()
         .bounds(bounds)
         .title(&format!("Window {}", window_count + 1))
-        .build_boxed();
+        .build();
     app.desktop.add(window);
 }
 ```
@@ -532,7 +532,7 @@ Desktop^.Insert(TheWindow);
 let window = WindowBuilder::new()
     .bounds(bounds)
     .title("A window")
-    .build_boxed();
+    .build();
 app.desktop.add(window);
 ```
 

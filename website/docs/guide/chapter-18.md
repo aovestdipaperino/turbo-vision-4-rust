@@ -175,12 +175,12 @@ const CM_SAVE_AS: u16 = 105;
 // Build a menu
 fn create_file_menu() -> Menu {
     MenuBuilder::new()
-        .item_with_shortcut("~N~ew", CM_NEW, KB_CTRL_N, "Ctrl+N")
-        .item_with_shortcut("~O~pen", CM_OPEN, KB_F3, "F3")
-        .item_with_shortcut("~S~ave", CM_SAVE, KB_F2, "F2")
-        .item("Save ~a~s...", CM_SAVE_AS, 0)
+        .item_key("~N~ew", CM_NEW, "Ctrl+N")
+        .item_key("~O~pen", CM_OPEN, "F3")
+        .item_key("~S~ave", CM_SAVE, "F2")
+        .item("Save ~a~s...", CM_SAVE_AS)
         .separator()
-        .item_with_shortcut("E~x~it", CM_QUIT, KB_ALT_X, "Alt+X")
+        .item_key("E~x~it", CM_QUIT, "Alt+X")
         .build()
 }
 ```
@@ -389,20 +389,20 @@ pub fn create_main_menu() -> Vec<SubMenu> {
 
 fn create_file_menu() -> Menu {
     MenuBuilder::new()
-        .item_with_shortcut("~N~ew", CM_NEW, KB_CTRL_N, "Ctrl+N")
-        .item_with_shortcut("~O~pen", CM_OPEN, KB_F3, "F3")
+        .item_key("~N~ew", CM_NEW, "Ctrl+N")
+        .item_key("~O~pen", CM_OPEN, "F3")
         .separator()
-        .item_with_shortcut("E~x~it", CM_QUIT, KB_ALT_X, "Alt+X")
+        .item_key("E~x~it", CM_QUIT, "Alt+X")
         .build()
 }
 
 fn create_edit_menu() -> Menu {
     MenuBuilder::new()
-        .item_with_shortcut("~U~ndo", CM_UNDO, KB_CTRL_Z, "Ctrl+Z")
+        .item_key("~U~ndo", CM_UNDO, "Ctrl+Z")
         .separator()
-        .item_with_shortcut("Cu~t~", CM_CUT, KB_SHIFT_DEL, "Shift+Del")
-        .item_with_shortcut("~C~opy", CM_COPY, KB_CTRL_INS, "Ctrl+Ins")
-        .item_with_shortcut("~P~aste", CM_PASTE, KB_SHIFT_INS, "Shift+Ins")
+        .item_key("Cu~t~", CM_CUT, "Shift+Del")
+        .item_key("~C~opy", CM_COPY, "Ctrl+Ins")
+        .item_key("~P~aste", CM_PASTE, "Shift+Ins")
         .build()
 }
 

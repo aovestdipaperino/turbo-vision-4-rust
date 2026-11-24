@@ -33,7 +33,8 @@ fn main() -> turbo_vision::core::error::Result<()> {
     let mut app = Application::new()?;
     // Terminal is created and managed by Application
     // Views write to it via the draw() method
-    app.run()
+    app.run();
+    Ok(())
 }
 ```
 
@@ -565,7 +566,8 @@ fn main() -> turbo_vision::core::error::Result<()> {
     app.insert_window(Box::new(window));
 
     // Run application
-    app.run()
+    app.run();
+    Ok(())
 }
 ```
 
