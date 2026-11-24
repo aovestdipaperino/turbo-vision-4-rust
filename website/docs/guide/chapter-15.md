@@ -40,7 +40,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
 
 ## The Editor Object
 
-The `Editor` struct in `src/views/editor.rs` implements a powerful multi-line text editor with:
+The editor in `src/views/editor.rs` implements a powerful multi-line text editor with:
 
 - Unlimited undo/redo (configurable history size)
 - Clipboard operations (cut, copy, paste)
@@ -62,10 +62,10 @@ Unlike traditional fixed-size buffers, the Rust editor stores text as a `Vec<Str
 
 ### Editor Buffer Structure
 
-The editor maintains these key fields (see `src/views/editor.rs:79-103`):
+The editor maintains these key fields (see `src/views/editor.rs`):
 
 ```rust
-pub struct Editor {
+pub struct EditorWindow {
     lines: Vec<String>,           // Text content, one line per entry
     cursor: Point,                 // Current cursor position (x=col, y=line)
     delta: Point,                  // Scroll offset
@@ -80,17 +80,23 @@ pub struct Editor {
 
 ### Creating an Editor
 
+In this guide, "the editor" is Turbo Vision's `TEditor`. In the Rust implementation it is the `EditorWindow` struct, despite the name a plain view that does not draw a frame. You rarely create one yourself. Instead you create an `EditWindow`, which is a window that already contains an editor, scroll bars and an indicator, and reach the editor through `editor_mut()`:
+
 ```rust
-use turbo_vision::views::editor::Editor;
+use turbo_vision::views::edit_window::EditWindowBuilder;
 use turbo_vision::core::geometry::Rect;
 
-// Basic editor
-let editor = Editor::new(Rect::new(0, 0, 80, 24));
+let window = EditWindowBuilder::new()
+    .bounds(Rect::new(0, 0, 80, 24))
+    .title("Untitled")
+    .build();
 
-// Editor with scrollbars and indicator
-let editor = Editor::new(Rect::new(0, 0, 80, 24))
-    .with_scrollbars_and_indicator();
+// The editor lives behind a RefCell; keep the guard only as long as you need it
+let mut editor = window.editor_mut();
+editor.set_text("Hello");
 ```
+
+`EditorWindow::new(bounds)` creates a bare editor for a custom layout, and `EditorWindow::with_scrollbars(bounds, h_scrollbar, v_scrollbar, indicator)` attaches scroll bars and an indicator that you created yourself. The rest of this chapter shows calls on `editor`, meaning the `EditorWindow` you got from `editor_mut()`.
 
 ### Setting Editor Options
 
@@ -107,7 +113,7 @@ editor.set_highlighter(Box::new(RustHighlighter::new()));
 
 ### Undo and Redo
 
-The editor maintains full undo/redo support through an action stack (see `src/views/editor.rs:53-76`):
+The editor maintains full undo/redo support through an action stack (see `src/views/editor.rs`):
 
 ```rust
 // Undo last edit
@@ -131,13 +137,11 @@ Selection is managed through `selection_start` and `cursor` points:
 // Select all text
 editor.select_all();
 
-// Get selected text
-if let Some(text) = editor.get_selection() {
-    println!("Selected: {}", text);
+// Is anything selected?
+if editor.has_selection() {
+    // Delete the selected text (one undo step)
+    editor.delete_selection();
 }
-
-// Clear selection
-editor.selection_start = None;
 ```
 
 #### Stream vs. Block Selection
@@ -195,18 +199,19 @@ clears the selection and the next one picks up the current mode.
 The editor integrates with the system clipboard via `src/core/clipboard.rs`:
 
 ```rust
+// Copy the selection to the clipboard (false when nothing is selected)
+editor.clip_copy();
+
+// Cut: copy the selection, then delete it (false when read-only or nothing is selected)
+editor.clip_cut();
+
+// Paste at the cursor, replacing any selection, as a single undo step
+editor.clip_paste();
+
+// The clipboard itself is available to your own code
 use turbo_vision::core::clipboard;
-
-// Copy selection to clipboard
-if let Some(selection) = editor.get_selection() {
-    clipboard::set_clipboard(&selection);
-}
-
-// Paste from clipboard
+clipboard::set_clipboard("text from the application");
 let text = clipboard::get_clipboard();
-if !text.is_empty() {
-    editor.insert_text(&text);
-}
 ```
 
 **Keyboard Shortcuts**:
@@ -219,7 +224,7 @@ if !text.is_empty() {
 
 ## Search and Replace
 
-The editor provides comprehensive search and replace functionality matching the original Turbo Vision API (see `src/views/editor.rs:296-470`).
+The editor provides comprehensive search and replace functionality matching the original Turbo Vision API (see `src/views/editor.rs`).
 
 ### Search Options
 
@@ -300,8 +305,7 @@ The editor supports pluggable syntax highlighting via the `SyntaxHighlighter` tr
 ```rust
 use turbo_vision::views::syntax::RustHighlighter;
 
-let mut editor = Editor::new(bounds)
-    .with_scrollbars_and_indicator();
+// `editor` is the editor inside an EditWindow: `let mut editor = window.editor_mut();`
 
 // Enable Rust syntax highlighting
 editor.set_highlighter(Box::new(RustHighlighter::new()));
@@ -373,7 +377,7 @@ let text = memo.get_text();
 
 ## File Editors
 
-The `FileEditor` struct (`src/views/file_editor.rs`) extends `Editor` with file management:
+`FileEditorWindow` (`src/views/file_editor.rs`) wraps an `EditWindow` and adds file management through the `FileEditor` trait (`src/views/editor_traits.rs`):
 
 - File name tracking
 - Load/save operations
@@ -383,20 +387,22 @@ The `FileEditor` struct (`src/views/file_editor.rs`) extends `Editor` with file 
 ### Using File Editor
 
 ```rust
-use turbo_vision::views::file_editor::FileEditor;
+use turbo_vision::views::file_editor::FileEditorWindow;
+use turbo_vision::views::editor_traits::FileEditor;
+use turbo_vision::core::geometry::Rect;
 use std::path::PathBuf;
 
 // Create file editor
-let mut editor = FileEditor::new(Rect::new(0, 0, 80, 24));
+let mut editor = FileEditorWindow::new(Rect::new(0, 0, 80, 24), "Untitled");
 
 // Load a file
-editor.load_file(PathBuf::from("example.rs"))?;
+editor.load(PathBuf::from("example.rs"))?;
 
 // Make edits...
-editor.editor_mut().set_text("Modified content");
+editor.edit_window_mut().editor_mut().set_text("Modified content");
 
 // Save
-if editor.is_modified() {
+if editor.is_dirty() {
     editor.save()?;  // Save to current file
 
     // Or save as new file
@@ -404,27 +410,30 @@ if editor.is_modified() {
 }
 ```
 
+`FileEditorWindow` also implements the `Editor` trait (`undo`, `redo`, `cut`, `copy`, `paste`, `select_all`), so the same editing commands work whether you hold a plain editor window or a file editor. Use `FileEditorBuilder` to create one with a fluent API.
+
 ### File Name and Title
 
 ```rust
-// Get filename
-if let Some(path) = editor.filename() {
+// Get the file path
+if let Some(path) = editor.file_path() {
     println!("Editing: {:?}", path);
 }
 
-// Get display title ("Untitled" if new file)
-let title = editor.get_title();
+// Get display name ("Untitled" if new file)
+let title = editor.display_name();
 ```
 
 ### Save Confirmation
 
-The `FileEditor::valid()` method prompts for save confirmation when closing with unsaved changes:
+The `valid_close()` method of the `Editor` trait prompts for save confirmation when closing with unsaved changes:
 
 ```rust
 use turbo_vision::core::command::CM_CLOSE;
+use turbo_vision::views::editor_traits::Editor;
 
 // Check if close is allowed (prompts if modified)
-if editor.valid(app, CM_CLOSE) {
+if editor.valid_close(app, CM_CLOSE) {
     // User chose to save, discard, or already saved
     // Safe to close
 } else {
@@ -434,7 +443,7 @@ if editor.valid(app, CM_CLOSE) {
 
 ## Editor Key Bindings
 
-The editor supports these keyboard shortcuts (see `src/views/editor.rs:1174-1305`):
+The editor supports these keyboard shortcuts (see `src/views/editor.rs`):
 
 ### Navigation
 - Arrow keys: Move cursor
@@ -499,7 +508,7 @@ editor.clear_modified();
 
 ## Drawing and Rendering
 
-Editors implement the `View` trait and handle drawing automatically (see `src/views/editor.rs:1030-1172`):
+Editors implement the `View` trait and handle drawing automatically (see `src/views/editor.rs`):
 
 ```rust
 impl View for Editor {
