@@ -88,7 +88,7 @@ use turbo_vision::core::command::{CM_QUIT, CM_ABOUT};
 use turbo_vision::views::msgbox::{message_box, MF_INFORMATION, MF_OK_BUTTON};
 use std::time::Duration;
 
-fn main() -> std::io::Result<()> {
+fn main() -> turbo_vision::core::error::Result<()> {
     let mut app = Application::new()?;
 
     // Application loop
@@ -176,7 +176,7 @@ use turbo_vision::views::menu_bar::MenuBar;
 use turbo_vision::views::status_line::StatusLine as StatusLineView;
 use turbo_vision::views::msgbox::{message_box, MF_INFORMATION, MF_OK_BUTTON};
 
-fn main() -> std::io::Result<()> {
+fn main() -> turbo_vision::core::error::Result<()> {
     let mut app = Application::new()?;
     let (width, height) = app.terminal.size();
 
@@ -346,7 +346,7 @@ This happens automatically in the `app.idle()` call in your event loop.
 ```rust
 use turbo_vision::core::command::*;
 
-fn main() -> std::io::Result<()> {
+fn main() -> turbo_vision::core::error::Result<()> {
     let mut app = Application::new()?;
 
     // Initially disable save (no document loaded)

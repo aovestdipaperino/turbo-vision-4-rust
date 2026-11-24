@@ -29,7 +29,7 @@ Terminal objects manage text display with automatic buffering and rendering. The
 use turbo_vision::app::Application;
 use turbo_vision::terminal::Terminal;
 
-fn main() -> std::io::Result<()> {
+fn main() -> turbo_vision::core::error::Result<()> {
     let mut app = Application::new()?;
     // Terminal is created and managed by Application
     // Views write to it via the draw() method
@@ -533,7 +533,7 @@ use turbo_vision::views::{
 };
 use turbo_vision::core::geometry::Rect;
 
-fn main() -> std::io::Result<()> {
+fn main() -> turbo_vision::core::error::Result<()> {
     let mut app = Application::new()?;
 
     // Create window using the builder pattern

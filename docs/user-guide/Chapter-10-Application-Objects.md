@@ -48,7 +48,7 @@ Every Turbo Vision application begins by creating an `Application` instance:
 ```rust
 use turbo_vision::app::Application;
 
-fn main() -> std::io::Result<()> {
+fn main() -> turbo_vision::core::error::Result<()> {
     let mut app = Application::new()?;
 
     // Configure the application...
@@ -126,7 +126,7 @@ The status line displays keyboard shortcuts and can show context-sensitive hints
 The heart of every Turbo Vision application is the event loop, controlled by the `run()` method:
 
 ```rust
-fn main() -> std::io::Result<()> {
+fn main() -> turbo_vision::core::error::Result<()> {
     let mut app = Application::new()?;
 
     // Set up menu bar, status line, add windows...

@@ -161,7 +161,7 @@ fn create_menu_bar(width: u16) -> MenuBar {
     )
 }
 
-fn main() -> std::io::Result<()> {
+fn main() -> turbo_vision::core::error::Result<()> {
     let mut app = Application::new()?;
     let (width, _height) = app.terminal.size();
 
@@ -460,7 +460,7 @@ fn load_state(app: &mut Application, path: &Path) -> std::io::Result<()> {
 Call these functions at appropriate times:
 
 ```rust
-fn main() -> std::io::Result<()> {
+fn main() -> turbo_vision::core::error::Result<()> {
     let mut app = Application::new()?;
     let config_path = get_config_path()?;
 

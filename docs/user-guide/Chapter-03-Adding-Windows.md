@@ -50,7 +50,7 @@ use turbo_vision::core::command::{CM_NEW, CM_QUIT};
 use turbo_vision::core::event::{Event, EventType};
 use std::time::Duration;
 
-fn main() -> std::io::Result<()> {
+fn main() -> turbo_vision::core::error::Result<()> {
     let mut app = Application::new()?;
 
     // Set up menu bar and status line (as in Chapter 2)

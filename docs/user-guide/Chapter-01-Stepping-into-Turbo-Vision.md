@@ -67,13 +67,16 @@ The application object provides the framework on which you'll build a real appli
 
 ```rust
 use turbo_vision::app::Application;
+use turbo_vision::core::error::Result;
 
-fn main() -> std::io::Result<()> {
+fn main() -> Result<()> {
     let mut app = Application::new()?;
     app.run();
     Ok(())
 }
 ```
+
+Turbo Vision has its own error type, so `main` returns `turbo_vision::core::error::Result` rather than `std::io::Result`. Fallible calls such as `Application::new()` use `?` to pass their errors up to it.
 
 If you run this program, you'll see a screen with a blank desktop and basic functionality. The application will respond to `Alt+X`, `Ctrl+C`, or `F10` to exit cleanly.
 
@@ -87,13 +90,14 @@ The minimal program shows the default behavior of the `Application` struct. To a
 
 ```rust
 use turbo_vision::app::Application;
+use turbo_vision::core::error::Result;
 
 struct TutorApp {
     app: Application,
 }
 
 impl TutorApp {
-    fn new() -> std::io::Result<Self> {
+    fn new() -> Result<Self> {
         Ok(Self {
             app: Application::new()?,
         })
@@ -104,7 +108,7 @@ impl TutorApp {
     }
 }
 
-fn main() -> std::io::Result<()> {
+fn main() -> Result<()> {
     let mut tutor_app = TutorApp::new()?;
     tutor_app.run();
     Ok(())
