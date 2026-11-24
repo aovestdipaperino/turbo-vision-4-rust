@@ -130,13 +130,16 @@ pub trait FileEditor: Editor {
     fn reload(&mut self) -> std::io::Result<()>;
 
     /// Friendly name used in dialogs and titles. Defaults to the file's basename
-    /// or `"Untitled"`.
+    /// or `"Untitled"` (the `editor-untitled` message, translated).
     fn display_name(&self) -> String {
         self.file_path()
             .as_deref()
             .and_then(|p| p.file_name())
             .and_then(|n| n.to_str())
-            .map_or_else(|| "Untitled".to_string(), std::string::ToString::to_string)
+            .map_or_else(
+                || crate::i18n::tr("editor-untitled"),
+                std::string::ToString::to_string,
+            )
     }
 
     /// Show a Save As dialog and persist the buffer to the chosen path.
@@ -159,10 +162,7 @@ pub fn confirm_save_on_close<E: FileEditor + ?Sized>(
         return true;
     }
 
-    let message = format!(
-        "{} has been modified.\n\nSave changes?",
-        editor.display_name()
-    );
+    let message = crate::tr!("editor-save-changes", name = editor.display_name());
     match confirmation_box(app, &message) {
         c if c == CM_YES => {
             if editor.file_path().is_some() {

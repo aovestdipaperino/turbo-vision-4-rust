@@ -9,6 +9,7 @@
 //!
 //! Matches Borland: `TFileEditor` (tfileedi.h, tfileedi.cc).
 
+use crate::i18n::tr;
 use std::path::PathBuf;
 use std::time::SystemTime;
 
@@ -193,9 +194,9 @@ impl FileEditor for FileEditorWindow {
         let bounds = Rect::new(x, y, x + dw, y + dh);
         let mut dialog = FileDialogBuilder::new()
             .bounds(bounds)
-            .title("Save As")
+            .title(tr("file-dialog-save-as-title"))
             .wildcard("*")
-            .button_label("~S~ave")
+            .button_label(tr("file-dialog-save"))
             .build();
         match dialog.execute(app) {
             Some(path) => self.save_as(path).is_ok(),
@@ -252,7 +253,7 @@ impl FileEditorBuilder {
     pub fn new() -> Self {
         Self {
             bounds: None,
-            title: "Untitled".to_string(),
+            title: tr("editor-untitled"),
         }
     }
 
