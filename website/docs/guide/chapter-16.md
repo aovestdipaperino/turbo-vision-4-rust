@@ -38,7 +38,7 @@ Throughout the codebase, you'll find standard Rust collections used effectively.
 
 ### Menu Collections
 
-Menus maintain collections of menu items using `Vec<MenuItem>` (`src/core/menu_data.rs:178-255`):
+Menus maintain collections of menu items using `Vec<MenuItem>` (`src/core/menu_data.rs`):
 
 ```rust
 #[derive(Clone, Debug)]
@@ -91,7 +91,7 @@ pub enum MenuItem {
 
 ### History Collections
 
-The history system maintains per-ID collections of strings (`src/core/history.rs:27-96`):
+The history system maintains per-ID collections of strings (`src/core/history.rs`):
 
 ```rust
 pub struct HistoryList {
@@ -165,7 +165,7 @@ impl HistoryManager {
 
 ### View Collections
 
-Groups maintain collections of child views (`src/views/group.rs:10-88`):
+Groups maintain collections of child views (`src/views/group.rs`):
 
 ```rust
 pub struct Group {

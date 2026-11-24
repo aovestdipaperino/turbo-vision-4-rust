@@ -575,7 +575,7 @@ The current Rust implementation prioritizes compile-time safety and simplicity o
 - `src/views/menu_bar.rs` - Menu bar view implementation
 - `src/views/status_line.rs` - Status line view implementation
 - `demo/rust_editor.rs` - Complete example showing menus, status lines, and dialogs
-- `examples/menu_status_data.rs` - Focused examples of menu and status line construction
+- `examples/menu_status.rs` - Focused examples of menu and status line construction
 
 ---
 

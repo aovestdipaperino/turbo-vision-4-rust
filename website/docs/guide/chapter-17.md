@@ -687,14 +687,14 @@ The current Rust Turbo Vision implementation gives you the foundation (file I/O,
 ## References
 
 **Source Files:**
-- `src/views/editor.rs` - File I/O implementation (lines 1-1400)
+- `src/views/editor.rs` - File I/O implementation
 - `src/core/history.rs` - History management system (279 lines)
 - `src/app/application.rs` - Application state structure (310 lines)
 - `demo/rust_editor.rs` - Complete editor example with file operations
 
 **Documentation:**
-- `docs/SERIALIZATION_AND_PERSISTENCE.md` - Detailed persistence analysis
-- `docs/SERIALIZATION_QUICK_REFERENCE.md` - Quick reference guide
+- `docs/SERIALIZATION-PERSISTENCE.md` - Detailed persistence analysis
+- `docs/SERIALIZATION-QUICK-REFERENCE.md` - Quick reference guide
 - Chapter 4: Persistence and Configuration - Programmatic resource definition
 - Chapter 6: Managing Data Collections - In-memory collection patterns
 

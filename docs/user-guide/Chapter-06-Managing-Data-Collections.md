@@ -39,7 +39,7 @@ The original Pascal Turbo Vision used `TCollection`, a specialized object-orient
 
 Various parts of the codebase demonstrate collection usage:
 
-**Menu Items** (`src/core/menu_data.rs:178-255`):
+**Menu Items** (`src/core/menu_data.rs`):
 ```rust
 pub struct Menu {
     pub items: Vec<MenuItem>,
@@ -57,7 +57,7 @@ impl Menu {
 }
 ```
 
-**History Lists** (`src/core/history.rs:27-96`):
+**History Lists** (`src/core/history.rs`):
 ```rust
 pub struct HistoryList {
     items: Vec<String>,
@@ -78,7 +78,7 @@ impl HistoryList {
 }
 ```
 
-**View Collections** (`src/views/group.rs:10-88`):
+**View Collections** (`src/views/group.rs`):
 ```rust
 pub struct Group {
     children: Vec<Box<dyn View>>,
@@ -595,7 +595,7 @@ These steps are universal to all custom views. Every view must be able to:
 
 ### Understanding the View Trait
 
-In Rust Turbo Vision, all views implement the `View` trait (`src/core/view.rs`). This trait defines the essential methods every view must provide:
+In Rust Turbo Vision, all views implement the `View` trait (`src/views/view.rs`). This trait defines the essential methods every view must provide:
 
 ```rust
 pub trait View {
@@ -745,7 +745,7 @@ impl View for CountView {
 
 ### Real-World Example: Broadcast Demo Counter
 
-The codebase includes a practical example in `examples/broadcast_demo.rs:26-116`, which shows a button with counter displays:
+The codebase includes a practical example in `examples/broadcast.rs`, which shows a button with counter displays:
 
 ```rust
 struct BroadcastButton {
@@ -911,7 +911,7 @@ There are many additions and changes you could make to your tutorial application
 - See Chapter 5 for validator patterns
 
 **Sorted Collections**
-The codebase includes `SortedListBox` (`src/views/sorted_listbox.rs:30-232`), which demonstrates maintaining a collection in sorted order:
+The codebase includes `SortedListBox` (`src/views/sorted_listbox.rs`), which demonstrates maintaining a collection in sorted order:
 
 ```rust
 pub struct SortedListBox {

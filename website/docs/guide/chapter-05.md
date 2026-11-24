@@ -398,8 +398,8 @@ fn create_order_dialog() -> (Dialog, OrderData) {
 If you run the application now, you'll find that you have a fully functional data entry dialog. You can type data into the input lines, manipulate the radio buttons and checkboxes, and use Tab to move between fields.
 
 **See Also**: For complete working examples, see:
-- `examples/dialog_example.rs` — Basic dialog creation
-- `examples/validator_demo.rs` — Dialog with all control types
+- `examples/dialogs.rs` — Basic dialog creation
+- `examples/validator.rs` — Dialog with all control types
 - `src/views/dialog.rs` — Dialog implementation details
 
 ---
@@ -554,8 +554,8 @@ In this pattern, `execute()` runs until the user clicks a button, then returns t
 - **Non-modal**: Runs alongside other windows, commands handled in main loop
 
 **See Also**:
-- `examples/dialog_example.rs` — Modal dialog execution
-- `examples/validator_demo.rs` — Complete data sharing example (lines 68-267)
+- `examples/dialogs.rs` — Modal dialog execution
+- `examples/validator.rs` — Complete data sharing example
 
 ---
 
@@ -876,14 +876,14 @@ You can also create a custom validation error dialog that highlights the problem
 ### Validator Examples
 
 For complete, working examples of all validator types, see:
-- **`examples/validator_demo.rs`** — Comprehensive demonstration showing:
+- **`examples/validator.rs`** — Comprehensive demonstration showing:
   - FilterValidator for phone numbers and product codes
   - RangeValidator for age and price fields
   - PictureValidator for dates, times, and formatted codes
   - How to handle validation errors
   - Modal dialog data flow with shared state
 
-This example (lines 68-267) is the definitive reference for implementing validated data-entry dialogs in the Rust implementation.
+This example is the definitive reference for implementing validated data-entry dialogs in the Rust implementation.
 
 ---
 

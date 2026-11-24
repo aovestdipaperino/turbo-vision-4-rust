@@ -46,7 +46,7 @@ Windows support minimum and maximum size constraints. The minimum window size is
 
 #### Limiting Window Size
 
-The Window implementation enforces a minimum size of 16 columns wide and 6 lines tall (see `src/views/window.rs:143-147`). This ensures that the frame elements (close button, title, and resize corner) remain visible and functional.
+The Window implementation enforces a minimum size of 16 columns wide and 6 lines tall (see `src/views/window.rs`). This ensures that the frame elements (close button, title, and resize corner) remain visible and functional.
 
 ```rust
 // Minimum size check during resize
@@ -133,15 +133,15 @@ Movement tracking is handled through:
 - `get_redraw_union()`: Returns the union of current and previous bounds
 - Desktop's `handle_moved_windows()`: Detects movement and redraws affected areas
 
-See `src/views/window.rs:197-235` for drag handling and `src/views/window.rs:237-269` for resize handling.
+See `src/views/window.rs` for drag handling and `src/views/window.rs` for resize handling.
 
 ### Window Examples
 
 Several examples demonstrate window usage:
 
-- **examples/window_resize_demo.rs**: Shows multiple windows with dragging and resizing
-- **examples/window_modal_overlap_test.rs**: Demonstrates overlapping windows and z-order management
-- **examples/dialog_example.rs**: Shows simple window usage with buttons
+- **examples/window_resize.rs**: Shows multiple windows with dragging and resizing
+- **examples/test_window_overlap.rs**: Demonstrates overlapping windows and z-order management
+- **examples/dialogs.rs**: Shows simple window usage with buttons
 
 ## Working with Dialog Boxes
 
@@ -185,7 +185,7 @@ Dialog boxes differ from regular windows in the following ways:
 - **No window number**: Not part of Alt-1 through Alt-9 selection
 - **Frame palette**: Uses dialog frame coloring (gray scheme)
 
-See `src/views/dialog.rs:20-50` for Dialog construction.
+See `src/views/dialog.rs` for Dialog construction.
 
 ### Modal Dialog Box Behavior
 
@@ -211,7 +211,7 @@ The `execute()` method:
 3. Returns when any command is generated that sets `end_state`
 4. Returns the CommandId that ended the modal state
 
-See `src/views/dialog.rs:88-136` for the modal execution implementation.
+See `src/views/dialog.rs` for the modal execution implementation.
 
 #### Handling Dialog Box Events
 
@@ -229,7 +229,7 @@ Dialog boxes handle events with special modal behaviors:
 
 Custom commands can also be used to end modal state.
 
-See `src/views/dialog.rs:138-201` for event handling.
+See `src/views/dialog.rs` for event handling.
 
 ### Using Controls in a Dialog Box
 
@@ -321,9 +321,9 @@ For more complex data transfer patterns, you would implement custom data record 
 
 See these examples for dialog usage patterns:
 
-- **examples/dialog_example.rs**: Basic dialog with OK/Cancel buttons (src/views/dialog.rs:3)
+- **examples/dialogs.rs**: Basic dialog with OK/Cancel buttons (src/views/dialog.rs)
 - **examples/file_dialog.rs**: File selection dialog example
-- **examples/window_resize_demo.rs**: Contains menu and status line demonstrations
+- **examples/window_resize.rs**: Contains menu and status line demonstrations
 
 ## Using Standard Dialog Boxes
 
@@ -464,7 +464,7 @@ window.add(ButtonBuilder::new()
     .build_boxed());
 ```
 
-The conversion happens in `Group::add()` (src/views/group.rs:59-78).
+The conversion happens in `Group::add()` (src/views/group.rs).
 
 ## Summary
 
@@ -498,9 +498,9 @@ Key implementation files:
 - `src/core/command.rs`: Command IDs
 
 Example files:
-- `examples/dialog_example.rs`: Basic dialog with buttons
-- `examples/window_resize_demo.rs`: Multiple windows with dragging/resizing
-- `examples/window_modal_overlap_test.rs`: Overlapping window management
+- `examples/dialogs.rs`: Basic dialog with buttons
+- `examples/window_resize.rs`: Multiple windows with dragging/resizing
+- `examples/test_window_overlap.rs`: Overlapping window management
 - `examples/file_dialog.rs`: File selection dialog
 
 ---

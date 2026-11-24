@@ -354,10 +354,15 @@ This happens automatically in the `app.idle()` call in your event loop.
 ### Example: Dynamic Command Management
 
 ```rust
+use turbo_vision::app::Application;
 use turbo_vision::core::command::*;
 
 fn main() -> turbo_vision::core::error::Result<()> {
     let mut app = Application::new()?;
+
+    // Stand-ins for your application's own state
+    let document_loaded = false;
+    let clipboard = String::new();
 
     // Initially disable save (no document loaded)
     app.disable_command(CM_SAVE);
@@ -519,8 +524,8 @@ In the next chapter, you'll learn how to **add windows** to your Turbo Vision ap
 - **Chapter 1**: Creating a basic Turbo Vision application
 - **Chapter 8**: Views and Groups (detailed event processing)
 - **Chapter 9**: Event-Driven Programming (advanced event handling)
-- **Example Code**: `examples/menu_status_data.rs` — Demonstrates menu and status line construction
-- **Example Code**: `examples/command_set_demo.rs` — Shows command enable/disable in action
+- **Example Code**: `examples/menu_status.rs` — Demonstrates menu and status line construction
+- **Example Code**: `examples/command_set.rs` — Shows command enable/disable in action
 
 ---
 

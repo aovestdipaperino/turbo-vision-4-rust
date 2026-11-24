@@ -168,7 +168,7 @@ Windows can be resized by clicking and dragging the bottom-right corner. The imp
 
 Z-order is the layering of visible objects, determining which windows show up in front of others. When you click on a window that's partially covered by another window, Turbo Vision automatically brings it to the front.
 
-The desktop manages z-order by maintaining windows in a list, where later windows (those added more recently or brought to front) are drawn on top of earlier ones. You can see this in action in `src/views/desktop.rs:226-247`.
+The desktop manages z-order by maintaining windows in a list, where later windows (those added more recently or brought to front) are drawn on top of earlier ones. You can see this in action in `src/views/desktop.rs`.
 
 ### Shadows
 
@@ -254,7 +254,7 @@ The `execute` method is key to modal behavior. It:
 
 The return value is a `CommandId` indicating which command closed the dialog. This is usually `CM_OK`, `CM_CANCEL`, or another application-specific command.
 
-You can see the modal execution implementation in `src/views/group.rs:200-217` and how the application handles modal views in `src/app/application.rs:76-124`.
+You can see the modal execution implementation in `src/views/group.rs` and how the application handles modal views in `src/app/application.rs`.
 
 ---
 
@@ -298,7 +298,7 @@ For example, if you create a button at `Rect::new(5, 5, 15, 7)` and add it to a 
 
 However, for **dialogs and windows**, there's a convenience: when you add child views to a `Dialog` or `Window`, you typically use **relative coordinates** (relative to the window's interior), and the window translates them to absolute coordinates. This is handled by the interior `Group` within the window.
 
-See the `Window` implementation in `src/views/window.rs:28-50` for details on how the interior group is positioned.
+See the `Window` implementation in `src/views/window.rs` for details on how the interior group is positioned.
 
 ---
 
@@ -401,7 +401,7 @@ Understanding how events flow through windows is crucial:
 
 If at any point a handler "consumes" the event by calling `event.clear()`, the event stops propagating. This is how Turbo Vision ensures that each event is handled by exactly one component.
 
-The event handling chain is implemented in `src/app/application.rs:219-258`.
+The event handling chain is implemented in `src/app/application.rs`.
 
 ---
 
@@ -557,7 +557,7 @@ app.desktop.add(window);
 **Original Pascal:** Used `execView` with a local event loop and `endModal` to set end state
 
 **Rust Implementation:** Same pattern, adapted to Rust
-- `execute` method runs modal event loop (`src/views/group.rs:200-217`)
+- `execute` method runs modal event loop (`src/views/group.rs`)
 - `end_modal` sets the end state
 - Automatic cleanup when dialog closes
 - Same conceptual model, safer implementation
@@ -570,9 +570,9 @@ app.desktop.add(window);
 - **Chapter 8**: Views and Groups (detailed group architecture)
 - **Chapter 9**: Event-Driven Programming (advanced event handling)
 - **Chapter 11**: Window and Dialog Box Objects (advanced window features)
-- **Example Code**: `examples/window_resize_demo.rs` — Window dragging and resizing
-- **Example Code**: `examples/dialog_example.rs` — Modal dialog with buttons
-- **Example Code**: `examples/window_modal_overlap_test.rs` — Modal window behavior
+- **Example Code**: `examples/window_resize.rs` — Window dragging and resizing
+- **Example Code**: `examples/dialogs.rs` — Modal dialog with buttons
+- **Example Code**: `examples/test_window_overlap.rs` — Modal window behavior
 - **Source Code**: `src/views/window.rs` — Window implementation
 - **Source Code**: `src/views/desktop.rs` — Desktop management
 - **Source Code**: `src/views/frame.rs` — Window frame implementation

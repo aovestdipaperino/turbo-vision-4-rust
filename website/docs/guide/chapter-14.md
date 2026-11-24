@@ -141,7 +141,7 @@ a live table of every style and several combinations.
 
 ## Using Default Colors
 
-The Rust implementation provides a comprehensive set of predefined color constants in the `colors` module (see `src/core/palette.rs:94-150`). These constants define the standard appearance of all UI elements:
+The Rust implementation provides a comprehensive set of predefined color constants in the `colors` module (see `src/core/palette.rs`). These constants define the standard appearance of all UI elements:
 
 ### General UI Colors
 

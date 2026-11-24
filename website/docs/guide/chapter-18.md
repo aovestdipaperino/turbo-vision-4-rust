@@ -187,7 +187,7 @@ fn create_file_menu() -> Menu {
 - Type-safe: impossible to pass wrong parameter types
 - Refactoring support: rename commands automatically updates all references
 
-**Implementation**: See `src/core/menu_data.rs:178-356` for the complete menu builder implementation.
+**Implementation**: See `src/core/menu_data.rs` for the complete menu builder implementation.
 
 ### Defining Status Lines (Replacing Status Resources)
 
@@ -248,7 +248,7 @@ fn create_context_status(bounds: Rect) -> StatusLine {
 }
 ```
 
-**Implementation**: See `src/core/status_data.rs:1-268` for status line definitions and builders.
+**Implementation**: See `src/core/status_data.rs` for status line definitions and builders.
 
 ### Defining Dialog Boxes (Replacing Dialog Resources)
 
@@ -726,7 +726,7 @@ The Rust implementation's programmatic approach reflects modern development prac
 - `src/core/status_data.rs` - Status line definitions and builders (268 lines)
 - `src/views/dialog.rs` - Dialog box construction
 - `demo/rust_editor.rs` - Complete application showing all resource patterns
-- `docs/user-guide/Chapter-4-Persistence-and-Configuration.md` - Related persistence concepts
+- `docs/user-guide/Chapter-04-Persistence-and-Configuration.md` - Related persistence concepts
 - `docs/user-guide/Chapter-16-Collections-and-Streams.md` - Collection patterns
 - `docs/user-guide/Chapter-17-Streams-and-Persistence.md` - Serialization approaches
 

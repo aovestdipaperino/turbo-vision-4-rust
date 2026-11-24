@@ -141,7 +141,7 @@ fn main() -> turbo_vision::core::error::Result<()> {
 
 ### How the Event Loop Works
 
-The `run()` method (defined in `src/app/application.rs:127-188`) implements the main application loop:
+The `run()` method (defined in `src/app/application.rs`) implements the main application loop:
 
 ```rust
 pub fn run(&mut self) {
@@ -182,7 +182,7 @@ The event loop continues until `self.running` is set to `false`, which typically
 
 ### Event Handling Chain
 
-Events are dispatched through a hierarchical chain (see `src/app/application.rs:219-259`):
+Events are dispatched through a hierarchical chain (see `src/app/application.rs`):
 
 1. **Menu Bar** — Gets first opportunity to handle the event
 2. **Desktop** — Dispatches to windows and their child views
@@ -193,7 +193,7 @@ Each component can "consume" an event by clearing it (`event.clear()`), preventi
 
 ### The Draw Method
 
-The `draw()` method (defined at `src/app/application.rs:202-217`) renders all visible components:
+The `draw()` method (defined at `src/app/application.rs`) renders all visible components:
 
 ```rust
 pub fn draw(&mut self) {
@@ -229,7 +229,7 @@ In addition to the main event loop, applications can execute views **modally** u
 pub fn exec_view(&mut self, view: Box<dyn View>) -> CommandId
 ```
 
-This method (defined at `src/app/application.rs:76-125`):
+This method (defined at `src/app/application.rs`):
 1. Adds the view to the desktop
 2. Checks if the view has the `SF_MODAL` flag
 3. If modal, runs a local event loop until the view closes
@@ -292,7 +292,7 @@ The application performs important background tasks during idle time through the
 
 ### The Idle Method
 
-The `idle()` method (defined at `src/app/application.rs:284-303`) is called during every iteration of the event loop:
+The `idle()` method (defined at `src/app/application.rs`) is called during every iteration of the event loop:
 
 ```rust
 pub fn idle(&mut self) {
@@ -416,7 +416,7 @@ A complete help system typically includes:
 3. **HelpWindow** — Window wrapper for the help viewer (see `src/views/help_window.rs`)
 4. **HelpContext** — Maps context IDs to topics (see `src/views/help_context.rs`)
 
-A working example is provided in `examples/help_system.rs`.
+A working example is provided in `examples/gallery/demos/help.rs`.
 
 Context-sensitive help is probably one of the last features you'll implement in your application. Turbo Vision views are initialized with a default context of `HC_NO_CONTEXT`, which doesn't change the current context. When the time comes, you can work out a system of help numbers, then assign the appropriate number to each view.
 
@@ -465,7 +465,7 @@ For custom event loops or modal processing, you can use `get_event()` instead of
 pub fn get_event(&mut self) -> Option<Event>
 ```
 
-This method (defined at `src/app/application.rs:53-67`):
+This method (defined at `src/app/application.rs`):
 1. Performs idle processing
 2. Updates active view bounds
 3. Draws the screen

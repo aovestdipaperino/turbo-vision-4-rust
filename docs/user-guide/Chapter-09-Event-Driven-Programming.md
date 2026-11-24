@@ -55,7 +55,7 @@ Let's look at the possible values of `Event.what` a little more closely.
 
 There are basically four classes of events: mouse events, keyboard events, message events, and "nothing" events. Each class has a mask defined, so your views can determine quickly which general type of event occurred without worrying about what specific sort it was.
 
-The event types are defined in `src/core/event.rs:21`:
+The event types are defined in `src/core/event.rs`:
 
 ```rust
 pub const EV_NOTHING: u16 = 0x0000;
@@ -108,7 +108,7 @@ In order to make your Turbo Vision programs act the way you want them to, you no
 
 ### Where do events come from?
 
-The main processing loop of an `Application`, the `run()` method (see `src/app/application.rs:133`), basically consists of a loop that looks something like this:
+The main processing loop of an `Application`, the `run()` method (see `src/app/application.rs`), basically consists of a loop that looks something like this:
 
 ```rust
 pub fn run(&mut self) -> Option<i32> {
@@ -125,7 +125,7 @@ pub fn run(&mut self) -> Option<i32> {
 }
 ```
 
-The event polling happens in the terminal subsystem (see `src/terminal/mod.rs:268`), which checks for keyboard input, mouse events, and terminal resize events. The `handle_event()` method then routes the event to the proper views. If the event is not handled (and cleared) by the time it returns, it is simply discarded.
+The event polling happens in the terminal subsystem (see `src/terminal/mod.rs`), which checks for keyboard input, mouse events, and terminal resize events. The `handle_event()` method then routes the event to the proper views. If the event is not handled (and cleared) by the time it returns, it is simply discarded.
 
 ### Where do events go?
 
@@ -141,7 +141,7 @@ The modal view gets the positional event first, and starts looking at its subvie
 
 This process continues until a view cannot find a subview to pass the event to, either because it is a terminal view (one with no subviews) or because there is no subview in the position where the event occurred (such as clicking open space in a dialog box). At that point, the event has reached the view where the positional event took place, and that view handles the event.
 
-The implementation of positional event routing can be seen in `src/views/group.rs:445`.
+The implementation of positional event routing can be seen in `src/views/group.rs`.
 
 ## Focused events
 
@@ -185,7 +185,7 @@ When a group gets a focused event to handle, there are actually three "phases" t
 2. If the event isn't cleared by any of them, the event is sent to the focused view.
 3. If the event still hasn't been cleared, the event is sent (again in Z-order) to any subviews with their `OF_POST_PROCESS` option flag set.
 
-The three-phase keyboard routing is implemented in `src/views/group.rs:266`.
+The three-phase keyboard routing is implemented in `src/views/group.rs`.
 
 So if a scroll bar needs to see keystrokes that are headed for the focused text view, the scroll bar should be initialized with its `OF_PRE_PROCESS` or `OF_POST_PROCESS` option flag set.
 

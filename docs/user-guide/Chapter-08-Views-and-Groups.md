@@ -15,7 +15,7 @@ In this chapter, you'll learn the following:
 - How to use views
 - How to use groups
 
-Because views share common behavior, they all implement the same `View` trait defined in `src/views/view.rs:34-166`. Turbo Vision also defines specialized view implementations such as windows, dialog boxes, applications, desktops, menus, and so on. Other chapters in this part of the manual describe how to use these specific views, but this chapter focuses on the principles common to all views.
+Because views share common behavior, they all implement the same `View` trait defined in `src/views/view.rs`. Turbo Vision also defines specialized view implementations such as windows, dialog boxes, applications, desktops, menus, and so on. Other chapters in this part of the manual describe how to use these specific views, but this chapter focuses on the principles common to all views.
 
 ---
 
@@ -37,7 +37,7 @@ The standard views provided with Turbo Vision handle these things automatically,
 
 ### Defining a Region
 
-When you construct a view, you assign it boundaries in the form of a `Rect` (defined in `src/core/geometry.rs:18-109`). Boundary rectangles and the Turbo Vision coordinate system are explained in detail in Chapter 7, but it's important when you think about the other two properties of a view that you remember that a view is limited to the area defined by its boundaries.
+When you construct a view, you assign it boundaries in the form of a `Rect` (defined in `src/core/geometry.rs`). Boundary rectangles and the Turbo Vision coordinate system are explained in detail in Chapter 7, but it's important when you think about the other two properties of a view that you remember that a view is limited to the area defined by its boundaries.
 
 ### Drawing on Demand
 
@@ -58,7 +58,7 @@ The third property of any view is that it must handle events that occur inside i
 
 ## What is a Group?
 
-Sometimes the easiest way for a view to manage its area is to delegate certain parts of the job to other views, known as subviews or children. A view that has children is called a group. The `Group` struct (defined in `src/views/group.rs:10-16`) implements the `View` trait and manages a collection of child views. A group with children is said to own the children, because it manages those child views. Each child is said to have an owner view, which is the group that owns it.
+Sometimes the easiest way for a view to manage its area is to delegate certain parts of the job to other views, known as subviews or children. A view that has children is called a group. The `Group` struct (defined in `src/views/group.rs`) implements the `View` trait and manages a collection of child views. A group with children is said to own the children, because it manages those child views. Each child is said to have an owner view, which is the group that owns it.
 
 The most visible example of a group view, but one you might not ordinarily think of as a view, is the application itself. It controls the entire screen, but you don't notice that because the program sets up three other child views—the menu bar, the status line, and the desktop—to handle its interactions with the user. As you will see, what appears to the user as a single object (like a window) is often a group of related views.
 
@@ -66,7 +66,7 @@ The most visible example of a group view, but one you might not ordinarily think
 
 Since a group is a view, all the normal rules of views still apply. A group covers a rectangle, draws itself on demand, and handles events within its boundaries. The main difference with groups is that they handle most of their tasks by delegating them to children.
 
-For example, the `draw()` method of a group (see `src/views/group.rs:349-381`) generally doesn't draw anything itself except an optional background, but instead calls on each of the group's children in turn to draw itself. The result of the `draw()` methods of all the children, therefore, must result in covering the group's entire rectangle.
+For example, the `draw()` method of a group (see `src/views/group.rs`) generally doesn't draw anything itself except an optional background, but instead calls on each of the group's children in turn to draw itself. The result of the `draw()` methods of all the children, therefore, must result in covering the group's entire rectangle.
 
 ---
 
@@ -101,7 +101,7 @@ pub struct Rect {
 
 The location of a view is determined by its bounding rectangle. The `a` field indicates the top-left corner of the view in absolute screen coordinates, and the `b` field represents the bottom-right corner. Note that the bottom-right is **exclusive**, meaning a rectangle from (0, 0) to (10, 5) has a width of 10 and height of 5.
 
-When working with child views in a group, coordinates are handled specially. When you create a child view and add it to a group using `Group::add()` (see `src/views/group.rs:39-51`), the child's bounds are specified **relative to the group's origin**. The `add()` method automatically converts these relative coordinates to absolute screen coordinates:
+When working with child views in a group, coordinates are handled specially. When you create a child view and add it to a group using `Group::add()` (see `src/views/group.rs`), the child's bounds are specified **relative to the group's origin**. The `add()` method automatically converts these relative coordinates to absolute screen coordinates:
 
 ```rust
 pub fn add(&mut self, mut view: Box<dyn View>) {
@@ -119,7 +119,7 @@ pub fn add(&mut self, mut view: Box<dyn View>) {
 
 ### Managing View Boundaries
 
-Once you've constructed a view, the `Rect` type (defined in `src/core/geometry.rs:18-109`) provides methods for manipulating boundaries. In particular, you can do the following:
+Once you've constructed a view, the `Rect` type (defined in `src/core/geometry.rs`) provides methods for manipulating boundaries. In particular, you can do the following:
 
 - Get the view's size
 - Move the view
@@ -190,7 +190,7 @@ inner_bounds.grow(-1, -1);  // Shrinks by 1 on all sides
 // inner_bounds is now Rect::from_coords(1, 1, 39, 19)
 ```
 
-This pattern is used extensively in window construction (see `src/views/window.rs:27-96`).
+This pattern is used extensively in window construction (see `src/views/window.rs`).
 
 ### Drawing a View
 
@@ -220,7 +220,7 @@ fn options(&self) -> u16;
 fn set_options(&mut self, options: u16);
 ```
 
-Option flags are defined in `src/core/state.rs:20-31` as bitmapped constants. Each bit in the flags field has a special meaning, setting some option in the view. The values of these option flags get set when you first construct the view, and normally stay set, although you can change the values at any time.
+Option flags are defined in `src/core/state.rs` as bitmapped constants. Each bit in the flags field has a special meaning, setting some option in the view. The values of these option flags get set when you first construct the view, and normally stay set, although you can change the values at any time.
 
 The main option flags include:
 
@@ -246,7 +246,7 @@ The `OF_FIRST_CLICK` bit controls whether the mouse click that selects the view 
 
 #### Special Event Handling
 
-The bits `OF_PRE_PROCESS` and `OF_POST_PROCESS` allow a view to process focused events before or after the focused view sees them. Group event handling (see `src/views/group.rs:440-474`) implements three-phase event processing:
+The bits `OF_PRE_PROCESS` and `OF_POST_PROCESS` allow a view to process focused events before or after the focused view sees them. Group event handling (see `src/views/group.rs`) implements three-phase event processing:
 
 1. **PreProcess phase**: Events are sent to children with `OF_PRE_PROCESS` set
 2. **Focused phase**: Events are sent to the currently focused child
@@ -265,7 +265,7 @@ fn set_state_flag(&mut self, flag: StateFlags, enable: bool);
 fn get_state_flag(&self, flag: StateFlags) -> bool;
 ```
 
-State flags are defined in `src/core/state.rs:1-19`. Unlike option flags which are set when you construct a view and rarely change, state flags often change during the lifetime of a view as the state of the view changes. State information includes whether the view is visible, has a cursor or shadow, is being dragged, or has the input focus.
+State flags are defined in `src/core/state.rs`. Unlike option flags which are set when you construct a view and rarely change, state flags often change during the lifetime of a view as the state of the view changes. State information includes whether the view is visible, has a cursor or shadow, is being dragged, or has the input focus.
 
 The main state flags include:
 
@@ -365,7 +365,7 @@ Writing `draw()` methods involves the following tasks:
 
 When you write data to the screen in Turbo Vision, you specify colors using attribute values. An attribute is a `u8` value where the high nibble (bits 4-7) represents the background color and the low nibble (bits 0-3) represents the foreground color.
 
-The `Attr` type (defined in `src/core/attr.rs`) provides methods for creating and manipulating color attributes:
+The `Attr` type (defined in `src/core/palette.rs`) provides methods for creating and manipulating color attributes:
 
 ```rust
 pub type Attr = u8;
@@ -381,7 +381,7 @@ When implementing a `draw()` method, you typically define the colors your view n
 
 The standard way to handle drawing views is to write the text to a `DrawBuffer`, then display the buffer all at once. Using buffers improves the speed of drawing and reduces flicker caused by large numbers of individual writes to the screen.
 
-A `DrawBuffer` (defined in `src/core/draw.rs:16-105`) is a line-based buffer that holds character and attribute pairs:
+A `DrawBuffer` (defined in `src/core/draw.rs`) is a line-based buffer that holds character and attribute pairs:
 
 ```rust
 pub struct DrawBuffer {
@@ -428,7 +428,7 @@ buf.move_str(2, "Hello, World!", text_attr); // Write text at position 2
 
 #### Writing Buffers to the Screen
 
-Once you've filled a buffer, write it to the terminal using the provided helper function (defined in `src/views/view.rs:169-200`):
+Once you've filled a buffer, write it to the terminal using the provided helper function (defined in `src/views/view.rs`):
 
 ```rust
 pub fn write_line_to_terminal(terminal: &mut Terminal, x: i16, y: i16, buf: &DrawBuffer);
@@ -436,7 +436,7 @@ pub fn write_line_to_terminal(terminal: &mut Terminal, x: i16, y: i16, buf: &Dra
 
 This function handles clipping automatically based on the current clip region.
 
-Here's a complete example from the `Button` implementation (`src/views/button.rs:50-126`):
+Here's a complete example from the `Button` implementation (`src/views/button.rs`):
 
 ```rust
 fn draw(&mut self, terminal: &mut Terminal) {
@@ -466,7 +466,7 @@ fn draw(&mut self, terminal: &mut Terminal) {
 
 ## Using Group Objects
 
-You've already learned something about the `Group` struct (defined in `src/views/group.rs:10-16`). Groups are collectively referred to as container views, as they contain and manage other views.
+You've already learned something about the `Group` struct (defined in `src/views/group.rs`). Groups are collectively referred to as container views, as they contain and manage other views.
 
 Basically a group is just an empty box that contains and manages other views. Technically, it is a view, and therefore responsible for all the things that any view must be able to do: manage a rectangular area of the screen, visually represent itself at any time, and handle events in its screen region. The difference is really in how it accomplishes these things. Most of it is handled by child views.
 
@@ -492,7 +492,7 @@ An excellent example is `Application`. `Application` is a view that controls a r
 
 ### Inserting Children
 
-To attach a child view to an owner, you insert the child into the owner using the `add()` method (defined in `src/views/group.rs:39-51`):
+To attach a child view to an owner, you insert the child into the owner using the `add()` method (defined in `src/views/group.rs`):
 
 ```rust
 pub fn add(&mut self, view: Box<dyn View>);
@@ -535,7 +535,7 @@ For example, an application might divide its screen into menu bar, desktop, and 
 
 There is no reason that views can't overlap. Indeed, one of the big advantages of a windowed environment is the ability to have multiple, overlapping windows on the desktop. Groups know how to handle overlapping children.
 
-The basic idea of a background is to assure that something is drawn over the entire area of the group, letting other children cover only the particular area they need to. The desktop (defined in `src/views/desktop.rs:9-31`) provides a good example—it creates a `Background` view as its first child, which fills the entire desktop area with a pattern. Windows can then be added on top, overlapping each other.
+The basic idea of a background is to assure that something is drawn over the entire area of the group, letting other children cover only the particular area they need to. The desktop (defined in `src/views/desktop.rs`) provides a good example—it creates a `Background` view as its first child, which fills the entire desktop area with a pattern. Windows can then be added on top, overlapping each other.
 
 The `Group` struct supports an optional background color:
 
@@ -592,7 +592,7 @@ For example, a window is a group containing a frame and an interior. The frame i
 
 On a larger scale, the desktop is a larger group containing a background and multiple windows. The background is "behind" all the others. Windows are stacked in insertion order, with the most recently inserted window appearing on top.
 
-The `Group::bring_to_front()` method (defined in `src/views/group.rs:97-122`) allows you to change Z-order by moving a child to the end of the children vector:
+The `Group::bring_to_front()` method (defined in `src/views/group.rs`) allows you to change Z-order by moving a child to the end of the children vector:
 
 ```rust
 pub fn bring_to_front(&mut self, index: usize) -> usize;
@@ -610,7 +610,7 @@ Among other things, knowing which view is focused tells you which view gets info
 
 The currently focused view is usually highlighted in some way on the screen. For example, if you have several windows open on the desktop, the active window is the one with the double-lined frame. The others' frames are single-lined. Within a dialog box, the focused control is brighter than the others, indicating that it is the one acted upon if you press Enter.
 
-Groups track the focused child with an index field and provide methods to query and change focus (defined in `src/views/group.rs:53-95`):
+Groups track the focused child with an index field and provide methods to query and change focus (defined in `src/views/group.rs`):
 
 ```rust
 pub fn focused_child(&self) -> Option<&dyn View>;
@@ -632,7 +632,7 @@ Note that some views are not selectable, including the background of the desktop
 
 ### Drawing Groups
 
-Groups are an exception to the rule that views must know how to draw themselves, because a group does not draw itself per se. Rather, a `Group` tells its children to draw themselves (see the implementation in `src/views/group.rs:349-381`). The cumulative effect of drawing the children must cover the entire area assigned to the group.
+Groups are an exception to the rule that views must know how to draw themselves, because a group does not draw itself per se. Rather, a `Group` tells its children to draw themselves (see the implementation in `src/views/group.rs`). The cumulative effect of drawing the children must cover the entire area assigned to the group.
 
 A dialog box, for example, is a group, and its children—frame, interior, controls, and static text—must combine to fully "cover" the full area of the dialog box view. Otherwise, "holes" in the dialog box appear, with unpredictable results.
 
@@ -698,7 +698,7 @@ There is one exception to this rule: The status line is always "hot," no matter 
 
 #### Making a Group Modal
 
-You can make a group the current modal view by executing it; that is, calling its `execute()` method (defined in `src/views/group.rs:142-203`):
+You can make a group the current modal view by executing it; that is, calling its `execute()` method (defined in `src/views/group.rs`):
 
 ```rust
 pub fn execute(&mut self, app: &mut Application) -> CommandId;
@@ -730,11 +730,11 @@ pub fn execute(&mut self, app: &mut Application) -> CommandId {
 }
 ```
 
-The `Dialog` implementation (in `src/views/dialog.rs:81-129`) shows a complete example of modal execution with proper state management.
+The `Dialog` implementation (in `src/views/dialog.rs`) shows a complete example of modal execution with proper state management.
 
 #### Ending a Modal State
 
-Any view can end its modal state by setting its end state through the `set_end_state()` method (defined in `src/views/view.rs:160-161`):
+Any view can end its modal state by setting its end state through the `set_end_state()` method (defined in `src/views/view.rs`):
 
 ```rust
 fn set_end_state(&mut self, command: CommandId);
@@ -742,7 +742,7 @@ fn set_end_state(&mut self, command: CommandId);
 
 This stores a command value that will be returned by the `execute()` method. The modal loop checks this value and exits when it becomes non-zero.
 
-For example, the `Dialog` event handler (in `src/views/dialog.rs:149-194`) ends the modal state when it sees certain commands:
+For example, the `Dialog` event handler (in `src/views/dialog.rs`) ends the modal state when it sees certain commands:
 
 ```rust
 fn handle_event(&mut self, event: &mut Event) {
@@ -788,7 +788,7 @@ Aside from the automatic child management, you'll sometimes need to perform the 
 
 Although a group automatically disposes of all its children when it's dropped, you sometimes want to remove a child while you're still using the group. An obvious example is closing a window on the desktop: dropping the desktop drops all windows, but you'll often need to remove a window in the course of running an application.
 
-To remove a child from its owner, use the group's `remove()` method (defined in `src/views/group.rs:125-140`):
+To remove a child from its owner, use the group's `remove()` method (defined in `src/views/group.rs`):
 
 ```rust
 pub fn remove(&mut self, index: usize);
@@ -796,7 +796,7 @@ pub fn remove(&mut self, index: usize);
 
 This removes the child from the owner's list of children. The child is dropped and its memory is freed.
 
-The `Desktop` implementation (in `src/views/desktop.rs:129-146`) uses this to remove closed windows:
+The `Desktop` implementation (in `src/views/desktop.rs`) uses this to remove closed windows:
 
 ```rust
 pub fn remove_closed_windows(&mut self) {
@@ -826,7 +826,7 @@ These allow you to query or modify specific children. For example, you might sea
 
 #### Broadcasting Events
 
-Groups provide a `broadcast()` method (defined in `src/views/group.rs:205-238`) that sends an event to all children:
+Groups provide a `broadcast()` method (defined in `src/views/group.rs`) that sends an event to all children:
 
 ```rust
 pub fn broadcast(&mut self, event: &mut Event, owner_index: Option<usize>);
@@ -834,7 +834,7 @@ pub fn broadcast(&mut self, event: &mut Event, owner_index: Option<usize>);
 
 Broadcast events are sent to all children, even if one of them handles (clears) the event. This is different from normal event handling, where an event stops propagating once it's cleared.
 
-For example, when a dialog's default button changes, it broadcasts `CM_COMMAND_SET_CHANGED` to all buttons so they can update their appearance. See the button implementation in `src/views/button.rs:139-161` for an example of handling broadcast events.
+For example, when a dialog's default button changes, it broadcasts `CM_COMMAND_SET_CHANGED` to all buttons so they can update their appearance. See the button implementation in `src/views/button.rs` for an example of handling broadcast events.
 
 ---
 
