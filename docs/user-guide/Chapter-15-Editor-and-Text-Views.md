@@ -526,52 +526,38 @@ Here's a complete example combining all editor features:
 
 ```rust
 use turbo_vision::app::Application;
-use turbo_vision::views::{
-    window::Window,
-    editor::Editor,
-    syntax::RustHighlighter,
-    view::View,
-};
 use turbo_vision::core::geometry::Rect;
+use turbo_vision::views::edit_window::EditWindowBuilder;
+use turbo_vision::views::syntax::RustHighlighter;
 
 fn main() -> turbo_vision::core::error::Result<()> {
     let mut app = Application::new()?;
 
-    // Create window using the builder pattern
-    let mut window = WindowBuilder::new()
+    // An EditWindow is a window with an editor, scrollbars and an indicator already inside
+    let window = EditWindowBuilder::new()
         .bounds(Rect::new(5, 2, 75, 22))
         .title("Editor Demo")
         .build();
 
-    // Create editor with all features
-    let mut editor = Editor::new(Rect::new(1, 1, 68, 18))
-        .with_scrollbars_and_indicator();
+    // Configure the editor (the guard must be dropped before the window is moved)
+    {
+        let mut editor = window.editor_mut();
+        editor.set_tab_size(4);
+        editor.set_auto_indent(true);
+        editor.set_highlighter(Box::new(RustHighlighter::new()));
+        editor.set_text("fn main() {\n    println!(\"Hello, Turbo Vision!\");\n}\n");
+    }
 
-    // Configure editor
-    editor.set_tab_size(4);
-    editor.set_auto_indent(true);
-    editor.set_highlighter(Box::new(RustHighlighter::new()));
+    // Show the window
+    app.desktop.add(window);
 
-    // Set initial content
-    editor.set_text(
-        "fn main() {\n\
-         \    println!(\"Hello, Turbo Vision!\");\n\
-         }\n"
-    );
-
-    // Add to window
-    window.add(Box::new(editor));
-
-    // Show window
-    app.insert_window(Box::new(window));
-
-    // Run application
+    // Run the application
     app.run();
     Ok(())
 }
 ```
 
-See the `examples/editor_demo.rs` file for a comprehensive demonstration of all editor features including search, replace, file operations, and syntax highlighting.
+See `examples/gallery/demos/editor.rs` (run with `cargo run --example gallery`) for the editor in a larger application, and `examples/pascal_ide.rs` for an IDE-style use with file editors.
 
 ## Summary
 

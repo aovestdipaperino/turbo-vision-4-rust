@@ -74,26 +74,21 @@ After creating the application, you typically add a menu bar and status line:
 ### Adding a Menu Bar
 
 ```rust
-use turbo_vision::views::menu_bar::MenuBar;
-use turbo_vision::core::menu_data::*;
-use turbo_vision::core::command::*;
-use turbo_vision::core::event::*;
+use turbo_vision::core::command::{CM_OPEN, CM_QUIT, CM_SAVE};
+use turbo_vision::core::geometry::Rect;
+use turbo_vision::core::menu_data::MenuBuilder;
+use turbo_vision::views::menu_bar::{MenuBar, SubMenu};
 
-let menu = MenuBuilder::new()
-    .item(MenuItem::submenu(
-        "~F~ile",
-        KB_ALT_F,
-        Menu::new(vec![
-            MenuItem::new("~O~pen", CM_OPEN, KB_F3, 0),
-            MenuItem::new("~S~ave", CM_SAVE, KB_F2, 0),
-            MenuItem::separator(),
-            MenuItem::new("E~x~it", CM_QUIT, KB_ALT_X, 0),
-        ]),
-        0,
-    ))
+let file_menu = MenuBuilder::new()
+    .item_key("~O~pen", CM_OPEN, "F3")
+    .item_key("~S~ave", CM_SAVE, "F2")
+    .separator()
+    .item_key("E~x~it", CM_QUIT, "Alt+X")
     .build();
 
-let menu_bar = MenuBar::new(menu);
+let (width, height) = app.terminal.size();
+let mut menu_bar = MenuBar::new(Rect::new(0, 0, width, 1));
+menu_bar.add_submenu(SubMenu::new("~F~ile", file_menu));
 app.set_menu_bar(menu_bar);
 ```
 
@@ -102,16 +97,23 @@ The menu bar is drawn at row 0 and intercepts keyboard events for menu navigatio
 ### Adding a Status Line
 
 ```rust
-use turbo_vision::views::status_line::*;
+use turbo_vision::core::command::CM_QUIT;
+use turbo_vision::core::status_data::StatusItemBuilder;
+use turbo_vision::views::status_line::StatusLine;
 
 let status_items = vec![
-    StatusItem::new("~F10~ Menu", KB_F10, 0),
-    StatusItem::new("~Alt+X~ Exit", KB_ALT_X, CM_QUIT),
+    // No command: the item is a hint, and F10 is handled by the menu bar
+    StatusItemBuilder::new().text("~F10~ Menu").key("F10").build(),
+    StatusItemBuilder::new()
+        .text("~Alt+X~ Exit")
+        .key("Alt+X")
+        .command(CM_QUIT)
+        .build(),
 ];
 
 let status_line = StatusLine::new(
     Rect::new(0, height - 1, width, height),
-    status_items
+    status_items,
 );
 
 app.set_status_line(status_line);

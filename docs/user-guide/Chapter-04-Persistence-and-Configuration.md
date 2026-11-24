@@ -69,12 +69,8 @@ Menus consist of `MenuItem` enums that can be:
 Here's how to create a basic File menu:
 
 ```rust
-use turbo_vision::core::menu_data::{Menu, MenuItem, MenuBuilder};
+use turbo_vision::core::menu_data::MenuBuilder;
 use turbo_vision::core::command::*;
-use turbo_vision::core::event::*;
-
-// Define your commands
-const CM_SAVE_AS: u16 = 105;
 
 // Build the menu using MenuBuilder
 let file_menu = MenuBuilder::new()
@@ -99,6 +95,12 @@ let file_menu = MenuBuilder::new()
 You can create hierarchical menu structures by nesting menus:
 
 ```rust
+// Application-defined commands
+const CM_HELP_KEYBOARD: CommandId = 141;
+const CM_HELP_COMMANDS: CommandId = 142;
+const CM_HELP_CONTENTS: CommandId = 143;
+const CM_HELP_ABOUT: CommandId = 144;
+
 // Create a submenu for Help Topics
 let help_topics_menu = MenuBuilder::new()
     .item("~I~ndex", CM_HELP_INDEX)
@@ -107,36 +109,40 @@ let help_topics_menu = MenuBuilder::new()
     .build();
 
 // Create the main Help menu with the nested submenu
-let help_menu = Menu::from_items(vec![
-    MenuItem::new("~C~ontents", CM_HELP_CONTENTS, KB_F1, 0),
-    MenuItem::submenu("~T~opics", 0, help_topics_menu, 0),
-    MenuItem::separator(),
-    MenuItem::new("~A~bout", CM_HELP_ABOUT, 0, 0),
-]);
+let help_menu = MenuBuilder::new()
+    .item_key("~C~ontents", CM_HELP_CONTENTS, "F1")
+    .submenu("~T~opics", 0, help_topics_menu)
+    .separator()
+    .item("~A~bout", CM_HELP_ABOUT)
+    .build();
 ```
 
 ### Manual Menu Construction
 
-For more control, you can construct menus directly without the builder:
+For more control, you can construct each item with `MenuItemBuilder` and assemble the `Menu` yourself:
 
 ```rust
+use turbo_vision::core::menu_data::{Menu, MenuItem, MenuItemBuilder};
+
 let edit_menu = Menu::from_items(vec![
-    MenuItem::with_shortcut("~U~ndo", CM_UNDO, KB_CTRL_Z, "Ctrl+Z", 0),
+    MenuItemBuilder::new().text("~U~ndo").command(CM_UNDO).key("Ctrl+Z").build(),
     MenuItem::separator(),
-    MenuItem::with_shortcut("Cu~t~", CM_CUT, KB_SHIFT_DEL, "Shift+Del", 0),
-    MenuItem::with_shortcut("~C~opy", CM_COPY, KB_CTRL_INS, "Ctrl+Ins", 0),
-    MenuItem::with_shortcut("~P~aste", CM_PASTE, KB_SHIFT_INS, "Shift+Ins", 0),
+    MenuItemBuilder::new().text("Cu~t~").command(CM_CUT).key("Shift+Del").build(),
+    MenuItemBuilder::new().text("~C~opy").command(CM_COPY).key("Ctrl+Ins").build(),
+    MenuItemBuilder::new().text("~P~aste").command(CM_PASTE).key("Shift+Ins").build(),
     MenuItem::separator(),
-    MenuItem::new("~C~lear", CM_CLEAR, 0, 0),
+    MenuItemBuilder::new().text("~C~lear").command(CM_CLEAR).build(),
 ]);
 ```
+
+`MenuItemBuilder` also offers `.enabled(false)` for a disabled item and `.checked(fn)` for an item that shows a check mark.
 
 ### Attaching Menus to Your Application
 
 Once you've defined your menu structure, attach it to the application:
 
 ```rust
-fn create_menu_bar(width: u16) -> MenuBar {
+fn create_menu_bar(width: i16) -> MenuBar {
     let file_menu = MenuBuilder::new()
         .item_key("~N~ew", CM_NEW, "Ctrl+N")
         .item_key("~O~pen", CM_OPEN, "F3")
@@ -152,13 +158,10 @@ fn create_menu_bar(width: u16) -> MenuBar {
         .item_key("~P~aste", CM_PASTE, "Shift+Ins")
         .build();
 
-    MenuBar::new(
-        Rect::new(0, 0, width as i16, 1),
-        vec![
-            SubMenu::new("~F~ile", file_menu),
-            SubMenu::new("~E~dit", edit_menu),
-        ],
-    )
+    let mut menu_bar = MenuBar::new(Rect::new(0, 0, width, 1));
+    menu_bar.add_submenu(SubMenu::new("~F~ile", file_menu));
+    menu_bar.add_submenu(SubMenu::new("~E~dit", edit_menu));
+    menu_bar
 }
 
 fn main() -> turbo_vision::core::error::Result<()> {
@@ -169,28 +172,31 @@ fn main() -> turbo_vision::core::error::Result<()> {
     app.set_menu_bar(menu_bar);
 
     // ... rest of application
+    Ok(())
 }
 ```
 
 ## Defining Status Lines
 
-Status lines provide context-sensitive help and shortcuts at the bottom of the screen. The Rust implementation supports sophisticated status line definitions with context switching based on command ranges.
+Status lines provide context-sensitive help and shortcuts at the bottom of the screen. The Rust implementation supports sophisticated status line definitions with context switching based on the application's current help context.
 
 ### Simple Status Lines
 
 For basic applications, create a single status line with fixed items:
 
 ```rust
-use turbo_vision::views::status_line::{StatusItem, StatusLine};
+use turbo_vision::core::command::*;
 use turbo_vision::core::geometry::Rect;
+use turbo_vision::core::status_data::StatusItemBuilder;
+use turbo_vision::views::status_line::StatusLine;
 
 let status_line = StatusLine::new(
-    Rect::new(0, height as i16 - 1, width as i16, height as i16),
+    Rect::new(0, height - 1, width, height),
     vec![
-        StatusItem::new("~F1~ Help", KB_F1, CM_HELP),
-        StatusItem::new("~F2~ Save", KB_F2, CM_SAVE),
-        StatusItem::new("~F3~ Open", KB_F3, CM_OPEN),
-        StatusItem::new("~Alt+X~ Exit", KB_ALT_X, CM_QUIT),
+        StatusItemBuilder::new().text("~F1~ Help").key("F1").command(CM_HELP_INDEX).build(),
+        StatusItemBuilder::new().text("~F2~ Save").key("F2").command(CM_SAVE).build(),
+        StatusItemBuilder::new().text("~F3~ Open").key("F3").command(CM_OPEN).build(),
+        StatusItemBuilder::new().text("~Alt+X~ Exit").key("Alt+X").command(CM_QUIT).build(),
     ],
 );
 
@@ -199,59 +205,68 @@ app.set_status_line(status_line);
 
 The status line items:
 - Display keyboard shortcuts to the user
-- Execute commands when clicked with the mouse
+- Execute their command when the key chord is pressed or the item is clicked with the mouse
 - Use `~` to mark accelerator keys for visual emphasis
 
 ### Context-Sensitive Status Lines
 
-More sophisticated applications can show different status items depending on the active view. This is done by defining multiple `StatusDef` instances, each active for a specific command range:
+More sophisticated applications can show different status items depending on what the user is doing. This is done by defining multiple `StatusDef` instances, each active for a range of help contexts:
 
 ```rust
-use turbo_vision::core::status_data::{StatusItem, StatusLine, StatusLineBuilder};
+use turbo_vision::core::command::*;
+use turbo_vision::core::status_data::{StatusDef, StatusItemBuilder};
+use turbo_vision::views::status_line::StatusLine;
 
-let context_status = StatusLineBuilder::new()
-    // Default status for all contexts (command range 0-65535)
-    .add_default_def(vec![
-        StatusItem::new("~F1~ Help", KB_F1, CM_HELP),
-        StatusItem::new("~Alt+X~ Exit", KB_ALT_X, CM_QUIT),
-    ])
-    // Editor context (command set 100-199)
-    .add_def(100, 199, vec![
-        StatusItem::new("~F1~ Help", KB_F1, CM_HELP),
-        StatusItem::new("~F2~ Save", KB_F2, CM_SAVE),
-        StatusItem::new("~F3~ Open", KB_F3, CM_OPEN),
-        StatusItem::new("~Ctrl+Y~ Delete line", KB_CTRL_Y, CM_DELETE_LINE),
-        StatusItem::new("~Alt+X~ Exit", KB_ALT_X, CM_QUIT),
-    ])
-    // Dialog context (command set 200-299)
-    .add_def(200, 299, vec![
-        StatusItem::new("~F1~ Help", KB_F1, CM_HELP),
-        StatusItem::new("~Tab~ Next", KB_TAB, CM_NEXT),
-        StatusItem::new("~Esc~ Cancel", KB_ESC, CM_CANCEL),
-    ])
-    .build();
+// Application-defined command
+const CM_DELETE_LINE: CommandId = 150;
+
+let help = || StatusItemBuilder::new().text("~F1~ Help").key("F1").command(CM_HELP_INDEX).build();
+let exit = || StatusItemBuilder::new().text("~Alt+X~ Exit").key("Alt+X").command(CM_QUIT).build();
+
+let defs = vec![
+    // Editor context (help contexts 100-199)
+    StatusDef::new(100, 199, vec![
+        help(),
+        StatusItemBuilder::new().text("~F2~ Save").key("F2").command(CM_SAVE).build(),
+        StatusItemBuilder::new().text("~F3~ Open").key("F3").command(CM_OPEN).build(),
+        StatusItemBuilder::new().text("~Ctrl+Y~ Delete line").key("Ctrl+Y").command(CM_DELETE_LINE).build(),
+        exit(),
+    ]),
+    // Dialog context (help contexts 200-299)
+    StatusDef::new(200, 299, vec![
+        help(),
+        StatusItemBuilder::new().text("~Tab~ Next").key("Tab").command(CM_NEXT).build(),
+        StatusItemBuilder::new().text("~Esc~ Cancel").key("Esc").command(CM_CANCEL).build(),
+    ]),
+    // Default for every other context (0-65535). It goes last, because the first matching def wins.
+    StatusDef::default_range(vec![help(), exit()]),
+];
+
+let status_line = StatusLine::with_defs(Rect::new(0, height - 1, width, height), defs);
+app.set_status_line(status_line);
 ```
 
-The status line will automatically switch between these definitions based on the command set used by the currently focused view. This provides users with context-appropriate help and shortcuts.
+The status line switches between these definitions according to the application's current help context. Views do not carry a help context of their own, so your application sets it when the situation changes, for example when the active window changes:
+
+```rust
+app.set_help_context(150); // an editor window is active
+```
+
+The status line picks up the new context on the next `app.idle()`. This provides users with context-appropriate help and shortcuts.
 
 ### How Context Switching Works
 
-Each view in Turbo Vision belongs to a command set (a range of command IDs). When a view receives focus, the status line queries which command set is active and displays the appropriate `StatusDef`:
+Each `StatusDef` covers a range of help context numbers. On every idle tick the status line finds the first definition whose range contains the application's current help context and displays its items:
 
 ```rust
-// Status line finds the right definition for the current context
-if let Some(def) = status_line.get_def_for(current_command) {
-    // Display the items from this definition
-    for item in &def.items {
-        // ... render the item
-    }
-}
+// What the status line does on each idle tick (simplified)
+status_line.update(current_help_ctx);
 ```
 
 This mechanism allows the status line to show:
-- File operations when an editor has focus
-- Dialog navigation when a dialog box is active
-- General commands when the desktop has focus
+- File operations while an editor window is active
+- Dialog navigation while a dialog box is active
+- General commands the rest of the time
 
 ## Creating Dialog Boxes
 
@@ -544,9 +559,9 @@ This chapter covered how Turbo Vision handles UI definition and configuration:
 
 1. **Persistence Philosophy**: The original Pascal version used binary streams and resources for everything. The current Rust version favors programmatic definition with optional persistence through `serde`.
 
-2. **Menu Definition**: Use `MenuBuilder` and `MenuItem` for type-safe, fluent menu construction. Menus support nesting, shortcuts, accelerators, and separators.
+2. **Menu Definition**: Use `MenuBuilder` (and `MenuItemBuilder` when you need more control) for type-safe, fluent menu construction. Menus support nesting, shortcuts, accelerators, and separators.
 
-3. **Status Line Definition**: Create simple or context-sensitive status lines using `StatusLine` and `StatusLineBuilder`. Context switching allows different shortcuts based on the active view.
+3. **Status Line Definition**: Create simple or context-sensitive status lines using `StatusLine`, `StatusItemBuilder` and `StatusDef`. Context switching allows different shortcuts based on the help context your application sets with `set_help_context()`.
 
 4. **Dialog Boxes**: Define dialogs programmatically by creating a `Dialog` and adding controls. Use the pre-built `msgbox` functions for common dialog patterns.
 

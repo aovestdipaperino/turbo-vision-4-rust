@@ -77,6 +77,7 @@ pub enum MenuItem {
         help_ctx: u16,
         enabled: bool,
         shortcut: Option<String>,
+        checked: Option<fn() -> bool>,
     },
     SubMenu {
         text: String,
@@ -349,16 +350,15 @@ Instead of streaming resource files, the Rust implementation defines resources a
 Menus are constructed programmatically (`src/core/menu_data.rs`):
 
 ```rust
-use turbo_vision::core::menu_data::{Menu, MenuItem, MenuBuilder};
+use turbo_vision::core::menu_data::{Menu, MenuBuilder, MenuItem, MenuItemBuilder};
 use turbo_vision::core::command::{CM_OPEN, CM_SAVE, CM_QUIT};
-use turbo_vision::core::event::{KB_F3, KB_F2, KB_ALT_X};
 
 // Method 1: Direct construction
 let file_menu = Menu::from_items(vec![
-    MenuItem::new("~O~pen", CM_OPEN, KB_F3, 0),
-    MenuItem::new("~S~ave", CM_SAVE, KB_F2, 0),
+    MenuItemBuilder::new().text("~O~pen").command(CM_OPEN).key("F3").build(),
+    MenuItemBuilder::new().text("~S~ave").command(CM_SAVE).key("F2").build(),
     MenuItem::separator(),
-    MenuItem::new("E~x~it", CM_QUIT, KB_ALT_X, 0),
+    MenuItemBuilder::new().text("E~x~it").command(CM_QUIT).key("Alt+X").build(),
 ]);
 
 // Method 2: Builder pattern
@@ -375,13 +375,12 @@ let file_menu = MenuBuilder::new()
 Status lines follow a similar pattern (`src/core/status_data.rs`):
 
 ```rust
-use turbo_vision::core::status_data::{StatusItem, StatusDef, StatusLine};
-use turbo_vision::core::command::{CM_HELP, CM_QUIT};
-use turbo_vision::core::event::{KB_F1, KB_ALT_X};
+use turbo_vision::core::status_data::{StatusItemBuilder, StatusLine};
+use turbo_vision::core::command::{CM_HELP_INDEX, CM_QUIT};
 
 let status = StatusLine::single(vec![
-    StatusItem::new("~F1~ Help", KB_F1, CM_HELP),
-    StatusItem::new("~Alt+X~ Exit", KB_ALT_X, CM_QUIT),
+    StatusItemBuilder::new().text("~F1~ Help").key("F1").command(CM_HELP_INDEX).build(),
+    StatusItemBuilder::new().text("~Alt+X~ Exit").key("Alt+X").command(CM_QUIT).build(),
 ]);
 ```
 

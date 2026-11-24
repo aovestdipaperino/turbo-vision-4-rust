@@ -167,10 +167,6 @@ In the original system, menus might be stored in resource files. In Rust, they'r
 ```rust
 use turbo_vision::core::menu_data::{Menu, MenuBuilder};
 use turbo_vision::core::command::*;
-use turbo_vision::core::event::*;
-
-// Define commands
-const CM_SAVE_AS: u16 = 105;
 
 // Build a menu
 fn create_file_menu() -> Menu {
@@ -198,43 +194,57 @@ fn create_file_menu() -> Menu {
 Status lines follow a similar pattern:
 
 ```rust
-use turbo_vision::core::status_data::{StatusItem, StatusLine, StatusLineBuilder};
+use turbo_vision::core::command::*;
 use turbo_vision::core::geometry::Rect;
+use turbo_vision::core::status_data::StatusItemBuilder;
+use turbo_vision::views::status_line::StatusLine;
 
 fn create_status_line(bounds: Rect) -> StatusLine {
-    StatusLineBuilder::new_with_bounds(bounds)
-        .add_default_def(vec![
-            StatusItem::new("~F1~ Help", KB_F1, CM_HELP),
-            StatusItem::new("~F2~ Save", KB_F2, CM_SAVE),
-            StatusItem::new("~F3~ Open", KB_F3, CM_OPEN),
-            StatusItem::new("~Alt+X~ Exit", KB_ALT_X, CM_QUIT),
-        ])
-        .build()
+    StatusLine::new(
+        bounds,
+        vec![
+            StatusItemBuilder::new().text("~F1~ Help").key("F1").command(CM_HELP_INDEX).build(),
+            StatusItemBuilder::new().text("~F2~ Save").key("F2").command(CM_SAVE).build(),
+            StatusItemBuilder::new().text("~F3~ Open").key("F3").command(CM_OPEN).build(),
+            StatusItemBuilder::new().text("~Alt+X~ Exit").key("Alt+X").command(CM_QUIT).build(),
+        ],
+    )
 }
 ```
 
-For context-sensitive status lines (different items for different views):
+For context-sensitive status lines (different items in different situations), define one `StatusDef` per help-context range. The first definition whose range contains the application's current help context (set with `app.set_help_context()`) wins, so the catch-all default goes last:
 
 ```rust
+use turbo_vision::core::command::*;
+use turbo_vision::core::geometry::Rect;
+use turbo_vision::core::status_data::{StatusDef, StatusItemBuilder};
+use turbo_vision::views::status_line::StatusLine;
+
+// Application-defined command
+const CM_DELETE_LINE: CommandId = 150;
+
 fn create_context_status(bounds: Rect) -> StatusLine {
-    StatusLineBuilder::new_with_bounds(bounds)
-        // Default context (0-65535)
-        .add_default_def(vec![
-            StatusItem::new("~F1~ Help", KB_F1, CM_HELP),
-            StatusItem::new("~Alt+X~ Exit", KB_ALT_X, CM_QUIT),
-        ])
-        // Editor context (100-199)
-        .add_def(100, 199, vec![
-            StatusItem::new("~F2~ Save", KB_F2, CM_SAVE),
-            StatusItem::new("~F3~ Open", KB_F3, CM_OPEN),
-            StatusItem::new("~Ctrl+Y~ Delete line", KB_CTRL_Y, CM_DELETE_LINE),
-        ])
-        // Dialog context (200-299)
-        .add_def(200, 299, vec![
-            StatusItem::new("~Tab~ Next", KB_TAB, CM_NEXT),
-            StatusItem::new("~Esc~ Cancel", KB_ESC, CM_CANCEL),
-        ])
-        .build()
+    let help = || StatusItemBuilder::new().text("~F1~ Help").key("F1").command(CM_HELP_INDEX).build();
+    let exit = || StatusItemBuilder::new().text("~Alt+X~ Exit").key("Alt+X").command(CM_QUIT).build();
+
+    StatusLine::with_defs(
+        bounds,
+        vec![
+            // Editor context (100-199)
+            StatusDef::new(100, 199, vec![
+                StatusItemBuilder::new().text("~F2~ Save").key("F2").command(CM_SAVE).build(),
+                StatusItemBuilder::new().text("~F3~ Open").key("F3").command(CM_OPEN).build(),
+                StatusItemBuilder::new().text("~Ctrl+Y~ Delete line").key("Ctrl+Y").command(CM_DELETE_LINE).build(),
+            ]),
+            // Dialog context (200-299)
+            StatusDef::new(200, 299, vec![
+                StatusItemBuilder::new().text("~Tab~ Next").key("Tab").command(CM_NEXT).build(),
+                StatusItemBuilder::new().text("~Esc~ Cancel").key("Esc").command(CM_CANCEL).build(),
+            ]),
+            // Default context (0-65535)
+            StatusDef::default_range(vec![help(), exit()]),
+        ],
+    )
 }
 ```
 
@@ -376,7 +386,7 @@ pub mod strings;
 // src/resources/menus.rs
 use turbo_vision::core::menu_data::{Menu, MenuBuilder};
 use turbo_vision::core::command::*;
-use turbo_vision::core::event::*;
+use turbo_vision::views::menu_bar::SubMenu;
 
 pub fn create_main_menu() -> Vec<SubMenu> {
     vec![
@@ -423,10 +433,11 @@ pub fn create_preferences_dialog() -> Dialog {
 use resources::menus;
 use resources::dialogs;
 
-let menu_bar = MenuBar::new(
-    Rect::new(0, 0, width as i16, 1),
-    menus::create_main_menu(),
-);
+let mut menu_bar = MenuBar::new(Rect::new(0, 0, width, 1));
+for submenu in menus::create_main_menu() {
+    menu_bar.add_submenu(submenu);
+}
+app.set_menu_bar(menu_bar);
 ```
 
 This provides:
@@ -544,11 +555,14 @@ fn build_menu_from_def(def: MenuDefinition) -> Menu {
     for item_def in def.items {
         match item_def {
             MenuItemDef::Regular { text, command, key_code, shortcut } => {
-                items.push(if let Some(sc) = shortcut {
-                    MenuItem::with_shortcut(&text, command, key_code, &sc, 0)
-                } else {
-                    MenuItem::new(&text, command, key_code, 0)
-                });
+                let mut builder = MenuItemBuilder::new()
+                    .text(text)
+                    .command(command)
+                    .key_code(key_code);
+                if let Some(sc) = shortcut {
+                    builder = builder.shortcut(sc);
+                }
+                items.push(builder.build());
             }
             MenuItemDef::Separator => {
                 items.push(MenuItem::separator());

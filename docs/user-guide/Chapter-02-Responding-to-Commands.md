@@ -171,13 +171,17 @@ Turbo Vision Rust uses declarative data structures for building menus, closely m
 use turbo_vision::prelude::*;
 use turbo_vision::app::Application;
 use turbo_vision::core::geometry::Rect;
-use turbo_vision::core::command::*;
-use turbo_vision::core::event::*;
-use turbo_vision::core::menu_data::{Menu, MenuItem, MenuBuilder};
-use turbo_vision::core::status_data::{StatusLine, StatusItem};
-use turbo_vision::views::menu_bar::MenuBar;
-use turbo_vision::views::status_line::StatusLine as StatusLineView;
+use turbo_vision::core::command::CM_QUIT;
+use turbo_vision::core::event::EventType;
+use turbo_vision::core::menu_data::MenuBuilder;
+use turbo_vision::core::status_data::StatusItemBuilder;
+use turbo_vision::views::menu_bar::{MenuBar, SubMenu};
+use turbo_vision::views::status_line::StatusLine;
 use turbo_vision::views::msgbox::{message_box, MF_INFORMATION, MF_OK_BUTTON};
+
+// Application-defined commands
+const CM_ABOUT: CommandId = 100;
+const CM_VIDEO_MODE: CommandId = 101;
 
 fn main() -> turbo_vision::core::error::Result<()> {
     let mut app = Application::new()?;
@@ -196,29 +200,25 @@ fn main() -> turbo_vision::core::error::Result<()> {
         .item_key("~A~bout", CM_ABOUT, "F1")
         .build();
 
-    // Create top-level menu bar
-    let menu_bar_menus = vec![
-        MenuItem::submenu("~F~ile", KB_ALT_F, file_menu, 0),
-        MenuItem::submenu("~O~ptions", KB_ALT_O, options_menu, 0),
-        MenuItem::submenu("~H~elp", KB_ALT_H, help_menu, 0),
-    ];
-
-    let menu_bar = MenuBar::new(
-        Rect::new(0, 0, width as i16, 1),
-        Menu::from_items(menu_bar_menus)
-    );
+    // Create the menu bar and add the three menus to it
+    let mut menu_bar = MenuBar::new(Rect::new(0, 0, width, 1));
+    menu_bar.add_submenu(SubMenu::new("~F~ile", file_menu));
+    menu_bar.add_submenu(SubMenu::new("~O~ptions", options_menu));
+    menu_bar.add_submenu(SubMenu::new("~H~elp", help_menu));
     app.set_menu_bar(menu_bar);
 
-    // Create status line
-    let status_line = StatusLine::single(vec![
-        StatusItem::new("~Alt+X~ Exit", KB_ALT_X, CM_QUIT),
-    ]);
-
-    let status_line_view = StatusLineView::new(
-        Rect::new(0, height as i16 - 1, width as i16, height as i16),
-        status_line
+    // Create the status line
+    let status_line = StatusLine::new(
+        Rect::new(0, height - 1, width, height),
+        vec![
+            StatusItemBuilder::new()
+                .text("~Alt+X~ Exit")
+                .key("Alt+X")
+                .command(CM_QUIT)
+                .build(),
+        ],
     );
-    app.set_status_line(status_line_view);
+    app.set_status_line(status_line);
 
     // Main event loop
     loop {
@@ -278,22 +278,29 @@ let file_menu = MenuBuilder::new()
 
 **Top-Level Menu Items:**
 ```rust
-let menu_bar_menus = vec![
-    MenuItem::submenu("~F~ile", KB_ALT_F, file_menu, 0),
-    // ...
-];
+let mut menu_bar = MenuBar::new(Rect::new(0, 0, width, 1));
+menu_bar.add_submenu(SubMenu::new("~F~ile", file_menu));
+// ...
 ```
-- Each top-level item is a submenu
-- `KB_ALT_F` allows opening the menu with Alt+F
+- Each top-level entry is a `SubMenu`: a title plus the `Menu` that drops down from it
+- The `~F~` in the title is the hotkey, so Alt+F opens the menu
 
 **Status Line:**
 ```rust
-let status_line = StatusLine::single(vec![
-    StatusItem::new("~Alt+X~ Exit", KB_ALT_X, CM_QUIT),
-]);
+let status_line = StatusLine::new(
+    Rect::new(0, height - 1, width, height),
+    vec![
+        StatusItemBuilder::new()
+            .text("~Alt+X~ Exit")
+            .key("Alt+X")
+            .command(CM_QUIT)
+            .build(),
+    ],
+);
 ```
-- `StatusLine::single()` creates a simple status line with one definition
-- For context-sensitive status lines, use `StatusLineBuilder`
+- `StatusLine::new()` takes the line's bounds (the bottom row of the screen) and its items
+- `StatusItemBuilder` sets the label, the key chord (`.key()`) and the command (`.command()`) that the item sends
+- An item with no `.command()` is only a hint, as in the status lines of the bundled examples
 
 ### Running the Program
 
@@ -381,31 +388,37 @@ fn main() -> turbo_vision::core::error::Result<()> {
 For more advanced applications, you can create context-sensitive status lines that display different hints based on which view has focus:
 
 ```rust
-use turbo_vision::core::status_data::StatusLineBuilder;
+use turbo_vision::core::command::{CM_CANCEL, CM_HELP_INDEX, CM_NEXT, CM_OPEN, CM_QUIT, CM_SAVE};
+use turbo_vision::core::geometry::Rect;
+use turbo_vision::core::status_data::{StatusDef, StatusItemBuilder};
+use turbo_vision::views::status_line::StatusLine;
 
-let status_line = StatusLineBuilder::new()
-    // Default status (all contexts)
-    .add_default_def(vec![
-        StatusItem::new("~F1~ Help", KB_F1, CM_HELP),
-        StatusItem::new("~Alt+X~ Exit", KB_ALT_X, CM_QUIT),
-    ])
-    // Editor context (commands 100-199)
-    .add_def(100, 199, vec![
-        StatusItem::new("~F1~ Help", KB_F1, CM_HELP),
-        StatusItem::new("~F2~ Save", KB_F2, CM_SAVE),
-        StatusItem::new("~F3~ Open", KB_F3, CM_OPEN),
-        StatusItem::new("~Alt+X~ Exit", KB_ALT_X, CM_QUIT),
-    ])
-    // Dialog context (commands 200-299)
-    .add_def(200, 299, vec![
-        StatusItem::new("~F1~ Help", KB_F1, CM_HELP),
-        StatusItem::new("~Tab~ Next", KB_TAB, CM_NEXT),
-        StatusItem::new("~Esc~ Cancel", KB_ESC, CM_CANCEL),
-    ])
-    .build();
+let help = || StatusItemBuilder::new().text("~F1~ Help").key("F1").command(CM_HELP_INDEX).build();
+let exit = || StatusItemBuilder::new().text("~Alt+X~ Exit").key("Alt+X").command(CM_QUIT).build();
+
+let defs = vec![
+    // Editor context (help contexts 100-199)
+    StatusDef::new(100, 199, vec![
+        help(),
+        StatusItemBuilder::new().text("~F2~ Save").key("F2").command(CM_SAVE).build(),
+        StatusItemBuilder::new().text("~F3~ Open").key("F3").command(CM_OPEN).build(),
+        exit(),
+    ]),
+    // Dialog context (help contexts 200-299)
+    StatusDef::new(200, 299, vec![
+        help(),
+        StatusItemBuilder::new().text("~Tab~ Next").key("Tab").command(CM_NEXT).build(),
+        StatusItemBuilder::new().text("~Esc~ Cancel").key("Esc").command(CM_CANCEL).build(),
+    ]),
+    // Default for every other context. It goes last, because the first matching def wins.
+    StatusDef::default_range(vec![help(), exit()]),
+];
+
+let status_line = StatusLine::with_defs(Rect::new(0, height - 1, width, height), defs);
+app.set_status_line(status_line);
 ```
 
-The status line automatically switches between definitions based on the focused view's help context.
+The status line automatically switches between definitions based on the application's current help context: it shows the first definition whose range contains that context, which is why the catch-all default comes last. Views do not carry a help context of their own, so your application sets it, for example when the active window changes, with `app.set_help_context(150)`; the status line follows on the next `app.idle()`.
 
 ---
 
