@@ -28,8 +28,6 @@ validators, editors and palettes, drawn in a terminal, on a desktop that still l
 
 </div>
 
-![The showcase demo: a calendar, a calculator and an ASCII table overlapping on the desktop, with shadows and z-order](assets/captures/showcase.png)
-
 ## What it gives you
 
 The crate is a full port of Borland's class library, not a lookalike. The class tree
