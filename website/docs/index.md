@@ -23,7 +23,7 @@ validators, editors and palettes, drawn in a terminal, on a desktop that still l
      srcset="assets/box-4-2.jpg 900w, assets/box-4-2@2x.jpg 1122w"
      sizes="(max-width: 76em) 20rem, 24rem"
      width="740" height="925" loading="eager" decoding="async"
-     alt="A shrink-wrapped 1990s software box reading Turbo Vision, Text-Mode UI Framework, version 4.2, with 48 examples, MIT licensed, on crates.io, a screenshot of a Calendar window and an About dialog on the cover and a yellow starburst sticker reading Now For Rust">
+     alt="A shrink-wrapped 1990s software box reading Turbo Vision, Text-Mode UI Framework, version 4.2, with 42 examples, MIT licensed, on crates.io, a screenshot of a Calendar, a Puzzle, a Calculator and an ASCII table with an About dialog on top, and a yellow starburst sticker reading Now For Rust">
 </div>
 
 </div>
