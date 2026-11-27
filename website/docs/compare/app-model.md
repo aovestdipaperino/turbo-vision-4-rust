@@ -256,10 +256,10 @@ graph LR
 ## Coordinates
 
 Both frameworks store a view's position relative to its owner. Borland kept `origin` owner-relative
-and translated on the way to the screen; version 3.0.0 of this crate does the same, after two
+and translated on the way to the screen; this crate does the same since 3.0.0, after two
 releases in which bounds became absolute once a view was added.
 
-| | C++ | Rust 3.0.0 |
+| | C++ | Rust |
 |---|---|---|
 | Position | `origin`, relative to owner | `bounds()`, relative to owner |
 | Own space | `TRect(0, 0, size.x, size.y)` | `extent()` |

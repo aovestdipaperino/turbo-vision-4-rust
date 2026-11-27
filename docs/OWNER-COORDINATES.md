@@ -11,9 +11,9 @@ describes the change that removes it: children keep owner-relative bounds, views
 draw in their own coordinate space, and the translation lives in the two places
 that already know about ownership, the `Terminal` and `GroupLike`.
 
-This ships as part of 3.0.0. The tag exists locally and the crate is not yet
-published, so the changelog entry is amended rather than a second major release
-being opened a day after the first.
+**Status: shipped in 3.0.0.** This page is the design as it was written before the change,
+with its implementation plan, kept as the record of why owner-relative bounds replaced
+absolute ones. The plan's steps are done.
 
 ## What absolute bounds cost today
 
@@ -191,7 +191,7 @@ position as a local column and row. Code that positioned a child inside a
 Code that inspected a child's `bounds()` after adding it and expected screen
 coordinates now gets owner coordinates.
 
-The changelog entry for 3.0.0 gains this under its migration section:
+The 3.0.0 changelog entry carries this under its migration section:
 
 ```rust
 // 3.0.0 before this change: draw at screen position

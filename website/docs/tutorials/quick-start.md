@@ -79,8 +79,8 @@ of items. Selecting an item does not call anything: it posts a command event. No
 for `CM_OPEN`, so choosing Open does nothing visible. That is the point of this step, and it is
 exactly how the original framework behaved.
 
-Custom commands are declared as constants. This example uses 100, but in 3.0.0 application
-commands should start at `CM_USER`, which is 200; the range from 100 to 199 belongs to the library.
+Custom commands are declared as constants. Application commands start at `CM_USER`, which is 200;
+the range from 0 to 199 belongs to the library, and `CM_OPEN` above is one of its commands.
 
 ![A menu dropped open with items, separators and their key chords](../assets/captures/menu_status.png)
 

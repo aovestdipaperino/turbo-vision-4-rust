@@ -56,7 +56,7 @@ keystroke while your code may still want to inspect it. `FilterValidator` reject
 its set as they are typed. `RangeValidator` and `PictureValidator` check the whole field when the
 dialog tries to close, so an out-of-range number is caught at OK, not mid-typing.
 
-`add_typed` returns a **typed handle**. In 3.0.0 an input line owns its own text, so you no longer
+`add_typed` returns a **typed handle**. An input line owns its own text, so you do not
 pass a shared string in and read it out sideways. You keep the handle and ask the dialog for the
 child once the dialog has closed:
 
@@ -91,7 +91,7 @@ loop {
 }
 ```
 
-`draw_view` and `dispatch_to_child` are the 3.0.0 entry points for code that sits outside the view
+`draw_view` and `dispatch_to_child` are the entry points for code that sits outside the view
 tree. They push the desktop's origin before drawing and translate the mouse position before
 dispatching, then undo both afterwards. Calling `desktop.draw(&mut terminal)` directly would draw
 in the wrong space.
