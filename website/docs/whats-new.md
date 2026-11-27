@@ -5,6 +5,36 @@ in prose, newest first. If you are moving a project onto 4.0.0, work through
 [the 4.0 upgrade guide](reference/upgrading-4.0.md) instead: it is the same ground as an ordered
 checklist. Moving from 3.0.0 instead uses [the 3.0 upgrade guide](reference/upgrading.md).
 
+## 4.2.0 &mdash; November 2026
+
+This release is largely the work of [Antoni Aloy](https://github.com/aaloy): the translations below,
+the `Table` formats, and the fixes for accented text and message boxes. Thank you, Antoni.
+
+Turbo Vision speaks more than English. The `i18n` module and the `tr!` macro look every string it
+shows up in a catalogue of Project Fluent messages: message box titles and buttons, the Find,
+Replace and Go to line boxes, the file, change-directory and colour dialogs, help and history. The
+crate ships English, Spanish and Catalan, an application adds its own messages and languages with
+`add_translations`, and chooses one with `set_locale` or `set_locale_from_env`. English is the
+default and the fallback, so nothing changes for an application until it picks a language.
+Chapter 19 of the user guide is the walk-through; `cargo run --example i18n` is an application that
+switches language while it runs.
+
+Translated text is longer, so dialogs now size their buttons and labels from it
+(`button::width_for_title`), tests check every built-in dialog in every language, and
+`check_translation` and `check_hot_key_groups` let an application test its own translation files.
+A `LazyMessage` (`tr_lazy!`) is translated when it is displayed, for text made on a worker thread
+or before the language is chosen, and `set_help_file` loads the help file of the current language
+when there is one.
+
+`Table` rows, columns and single cells can be formatted with `CellFormat` (text colour, background,
+bold, underline) through `set_row_format`, `set_column_format` and `set_cell_format`.
+
+**Fixes worth knowing about.** `MsgBox::YES_NO_CANCEL` was No, OK and Cancel, so
+`confirmation_box` had no Yes button; it is Yes, No and Cancel now. Several places measured text in
+bytes where they meant columns, which misplaced menus, labels and syntax highlighting after an
+accented character, and `TextViewer` could panic on one. The user guide's programs compile again,
+and CI now compiles them on every change to the guide or the library.
+
 ## 4.1.0 &mdash; October 2026
 
 Buttons give press feedback, as Borland's do. Held down with the mouse, a button is drawn pushed

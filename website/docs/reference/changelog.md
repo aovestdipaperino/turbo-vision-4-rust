@@ -5,10 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [4.2.0] - 2026-11-27
 
 ### Added
-- Translations with Project Fluent: the `i18n` module and the `tr!` macro
+- Translations with Project Fluent, contributed by Antoni Aloy (#133): the
+  `i18n` module and the `tr!` macro
   (cargo feature `i18n`, on by default). Every string Turbo Vision shows
   (message box titles and buttons, the Find, Replace and Go to line boxes,
   the file, change-directory and colour dialogs, the editors' "Untitled" and
@@ -73,6 +74,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   translated messages.
 
 ### Fixed
+- The user guide's complete programs compile again against the current API
+  (`Application::new`'s `Result`, `WindowBuilder::build`, `item_key`, the menu,
+  status line and editor types); source line numbers it cited were replaced by
+  file references and dead file references repointed. `scripts/check-guide-listings.py`,
+  run by the `Guide listings` workflow, compiles every complete program in the
+  guide so a listing cannot drift again (#131, #134).
 - The file dialog's buttons no longer cover the file list when their text is
   longer than in English. In Catalan, "Cancel·la" widened both buttons
   leftwards over the list's last column; the list and the name field now end

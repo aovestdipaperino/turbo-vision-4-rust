@@ -25,7 +25,11 @@ A Rust implementation of the classic Borland Turbo Vision text user interface fr
 Full documentation, user guide, tutorials and a side-by-side comparison with the original
 C++ application model live at **[tv.enzolombardi.net](https://tv.enzolombardi.net/)**.
 
-**Version 4.1.0 - PRODUCTION READY** ✅
+**Version 4.2.0 - PRODUCTION READY** ✅
+
+New in 4.2: translations (English, Spanish and Catalan built in, your own languages added with
+Project Fluent), contributed by [Antoni Aloy](https://github.com/aaloy). See
+[Chapter 19](docs/user-guide/Chapter-19-Localization.md).
 
 Based on
 kloczek Borland Turbo Vision C++ port [here](https://github.com/kloczek/tvision)
